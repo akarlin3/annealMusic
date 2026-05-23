@@ -44,8 +44,20 @@ docs/          # INIT_PLAN, ROADMAP, COMPAT, prototype reference
 ## Deploy
 
 Production target: **Google Cloud — Firebase Hosting** (static SPA, global CDN,
-managed TLS). The deploy workflow (`.github/workflows/deploy.yml`) builds and
-deploys `dist/` on push to `main` after CI passes.
+managed TLS). The deploy workflow (`.github/workflows/deploy.yml`) triggers when
+CI succeeds on `main`, then builds and deploys `dist/`. Production builds emit no
+source maps (`vite.config.ts` → `build.sourcemap: false`).
+
+### One-time setup
+
+1. Create a Firebase project and enable Hosting. Set its project id as the
+   `default` in [`.firebaserc`](.firebaserc) (currently `annealmusic`) and as the
+   `projectId` in the deploy workflow.
+2. Create a service account with the **Firebase Hosting Admin** role, download
+   its JSON key, and add it as the `FIREBASE_SERVICE_ACCOUNT` GitHub Actions
+   secret. (`firebase init hosting:github` can generate this for you.)
+3. Push to `main` — once CI is green the deploy workflow publishes to the `live`
+   channel.
 
 ### DNS for `anneal.averykarlin.org`
 
