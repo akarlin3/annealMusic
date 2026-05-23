@@ -6,12 +6,12 @@ written in this checkpoint.** Awaiting explicit "go" before Checkpoint 1.
 
 ## Resolved placeholders
 
-| Placeholder     | Value                                                        |
-|-----------------|-------------------------------------------------------------|
-| `REPO_NAME`     | `annealmusic`                                               |
-| `GH_OWNER`      | `akarlin3`                                                  |
+| Placeholder     | Value                                                                             |
+| --------------- | --------------------------------------------------------------------------------- |
+| `REPO_NAME`     | `annealmusic`                                                                     |
+| `GH_OWNER`      | `akarlin3`                                                                        |
 | `DEPLOY_TARGET` | **Google Cloud** (not one of the prompt's three presets — see Deploy + Tradeoffs) |
-| `DOMAIN`        | `anneal.averykarlin.org`                                   |
+| `DOMAIN`        | `anneal.averykarlin.org`                                                          |
 
 ## Prototype audit (read end to end)
 
@@ -20,11 +20,13 @@ holds the entire app: state, audio graph, drift loop, visual RAF loop, and UI.
 Salient facts the port must preserve exactly:
 
 **Physics / params**
+
 - `HARMONICS = [1, 1.5, 2, 2.5, 3, 4, 5, 6]` — partial frequency ratios; `density` selects the first N.
 - Controls (group · range · step): `rootFreq` Pitch 55–220/1; `spread` Pitch 0.7–1.3/0.01; `density` Pitch 2–8/1 **(locked while playing)**; `coupling` Physics 0–1/0.01; `drift` Physics 0–1/0.01; `brightness` Tone 0–1/0.01; `space` Tone 0–1/0.01. Plus `volume` 0–0.8/0.01 (separate footer slider, not in the grouped grid).
 - Defaults: root 110, spread 1.0, density 6, coupling 0.3, drift 0.5, brightness 0.5, space 0.4, volume 0.35.
 
 **Audio graph (per `initAudio`)**
+
 - `AudioContext || webkitAudioContext`; `resume()` if suspended.
 - `master` gain (starts 0, 3s linear fade-in to 1.0).
 - Lowpass `BiquadFilter`, cutoff `200 * 30^brightness`, Q 0.6.
@@ -87,11 +89,13 @@ Biome is faster and single-binary, but ESLint wins here because (a) `eslint-plug
 ## Dependency manifest
 
 **prod**
+
 - `react` ^18.3, `react-dom` ^18.3
 - `lucide-react` ^0.4xx
 - `zustand` ^4.5 (state — see State model)
 
 **dev**
+
 - `typescript` ^5.4, `vite` ^5.x, `@vitejs/plugin-react` ^4.x
 - `tailwindcss` ^3.4, `postcss` ^8.4, `autoprefixer` ^10.4
 - `vitest` ^1.x, `jsdom` ^24.x, `@testing-library/react` ^16, `@testing-library/jest-dom` ^6
@@ -141,6 +145,7 @@ first-party GitHub Action `FirebaseExtended/action-hosting-deploy`). Plan:
 4. **DNS for `anneal.averykarlin.org`:** add the domain in Firebase Hosting → it issues a TXT verification record, then an `A` record (and/or `AAAA`) to Firebase's published hosting IPs, or a `CNAME` to the Firebase-provided target. Exact records are generated per-project in the console; documented in README, **no DNS changes made by me.**
 
 Alternatives if you prefer "real" GCP primitives (flagged, your call at Checkpoint 4):
+
 - **GCS bucket + external HTTPS Load Balancer + Cloud CDN** — most "GCP-native", but more infra (managed cert, LB, URL map) and ongoing cost for a static site.
 - **Cloud Run** serving `dist/` via a tiny static container (`nginx`/`serve`) — flexible but overkill for a SPA (cold starts, container upkeep).
 
