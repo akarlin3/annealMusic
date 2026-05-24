@@ -94,10 +94,22 @@ export default function App() {
           store.setEngineParam(id, key, value);
         }
       }
-      if (
+      store.setSessionMode(hydrated.mode);
+      if (hydrated.arcId) store.setArcId(hydrated.arcId);
+      if (hydrated.durationSec !== undefined) {
+        store.setArcDurationSec(hydrated.durationSec);
+      }
+
+      const unknownArc = hydrated.warnings.some((w) =>
+        w.includes('unknown arc'),
+      );
+      if (unknownArc) {
+        showToast('Unknown arc, loaded open mode');
+      } else if (
         sharedCount > 0 ||
         hydrated.engineId !== 'sine' ||
-        engineEntries.length > 0
+        engineEntries.length > 0 ||
+        hydrated.mode !== 'open'
       ) {
         showToast('Loaded shared session');
       }

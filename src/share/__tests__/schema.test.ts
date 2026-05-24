@@ -4,12 +4,17 @@ import {
   KEY_BOUNDS,
   SHARED_KEYS,
   SCHEMA_VERSION,
+  SUPPORTED_SCHEMA_VERSIONS,
   decimalsForStep,
 } from '@/share/schema';
 
 describe('schema', () => {
-  it('ships schema version 2', () => {
-    expect(SCHEMA_VERSION).toBe(2);
+  it('ships schema version 3', () => {
+    expect(SCHEMA_VERSION).toBe(3);
+  });
+
+  it('still decodes legacy schema versions 1 and 2', () => {
+    expect(SUPPORTED_SCHEMA_VERSIONS).toEqual([1, 2, 3]);
   });
 
   it('excludes volume from shared keys', () => {
