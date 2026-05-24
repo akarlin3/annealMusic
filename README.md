@@ -29,11 +29,12 @@ npm run format     # Prettier --write
 
 ```
 src/
-  audio/         # orchestrator (session machine, post-fx, drift, crossfade), IR
+  audio/         # orchestrator (session machine, post-fx, drift, crossfade, input), IR
     engines/     # AnnealEngine interface, sine + fm engines, registry
   session/       # arc data model, preset arcs, easing curves, ArcRunner
-  components/    # Visualizer, ControlPanel, EngineSelector, ModeToggle, ArcPanel, …
-  hooks/         # useAnnealMusic (orchestration), useSession (state machine bridge)
+  input/         # InputVoice (live-input chain), devices, latency, meter
+  components/    # Visualizer, ControlPanel, EngineSelector, InputPanel, LevelMeter, …
+  hooks/         # useAnnealMusic (orchestration), useSession, useInput
   state/         # param store, defaults, control schema
   visual/        # canvas draw loop, palette, math helpers
   pages/         # App
@@ -85,6 +86,38 @@ your starting patch is the neutral pose the arc deforms from. Arc timing rides o
 the `AudioContext` clock, so long sessions stay accurate. (Both current engines
 lock density while playing, so Dawn/Dusk's density move is held — they sweep
 brightness and spread instead.)
+
+## Live input
+
+Bring a live instrument — bass, guitar, voice, anything mic'd — into the texture
+as another voice. Click **Connect input** in the Input panel to grant microphone
+access (the prompt is per click; we never re-prompt aggressively). Once
+connected, the signal runs through its own chain — an 80 Hz high-pass, a gentle
+compressor, your **Input Level**, and a drift-modulated filter that tracks the
+same field as the engine — and into the shared post-fx, so it sits _inside_ the
+field rather than on top of it.
+
+A few deliberate choices:
+
+- **Browser audio processing is disabled.** `echoCancellation`,
+  `noiseSuppression`, and `autoGainControl` are turned off so the signal hits the
+  engine clean — those features are tuned for speech on a call and mangle music.
+- **Monitoring is off by default.** You hear yourself acoustically or through
+  your amp/instrument; the AnnealMusic field is best heard on **headphones**.
+  Turning monitoring on routes your processed input to the speakers — which can
+  feed back, so use headphones. A guard dims monitoring if it detects sustained
+  runaway level.
+- **For best results, use headphones** (prevents feedback and keeps the input
+  clean).
+- **Latency** is shown as an estimate ("~30 ms input latency") so you can
+  compensate — Web Audio doesn't expose true input latency, so it's a labeled
+  estimate, not a measurement.
+- Input is **never saved or shared**: it's a runtime/hardware concern, absent
+  from the URL. It stays controllable in every mode and survives engine swaps and
+  arc start/stop.
+
+For wiring up an audio interface (bass DI, guitar, mic), see
+[`docs/INPUT_GUIDE.md`](docs/INPUT_GUIDE.md).
 
 ## Sharing
 

@@ -15,6 +15,8 @@ import type {
 import { ArcRunner } from '@/session/ArcRunner';
 import { getArcById } from '@/session/arcs';
 import type { SessionState } from '@/session/types';
+import { InputVoice } from '@/input/InputVoice';
+import type { ConnectResult } from '@/input/types';
 import { HARMONICS, type DriftPartial, type GraphNodes } from '@/types/audio';
 
 const FADE_IN_SECONDS = 3.0;
@@ -85,6 +87,9 @@ export class Orchestrator {
   private driftState: DriftPartial[] = [];
   private driftTimer: ReturnType<typeof setInterval> | null = null;
   private running = false;
+
+  // Live input voice (mic / line-in), independent of the session lifecycle.
+  private inputVoice: InputVoice | null = null;
 
   // Session state machine + arc.
   private sessionState: SessionState = 'idle';
@@ -162,15 +167,81 @@ export class Orchestrator {
     return this.active?.engine.getPartialFrequencies() ?? [];
   }
 
+  /** The live input voice, or null when input has never been connected. */
+  getInputVoice(): InputVoice | null {
+    return this.inputVoice;
+  }
+
+  /**
+   * Connect (or switch device on) the live input. Builds the audio core if
+   * needed, routes the input voice into the shared post-fx, and ensures the
+   * drift loop runs so the input filter breathes even before a session starts.
+   * Independent of session state — input survives Begin/Settle and engine swaps.
+   */
+  async connectInput(deviceId?: string): Promise<ConnectResult> {
+    const { ctx, nodes } = this.ensureCore();
+    const firstTime = this.inputVoice === null;
+    const voice = this.inputVoice ?? new InputVoice(ctx);
+    if (firstTime) {
+      this.inputVoice = voice;
+      voice.getOutputNode().connect(nodes.filter);
+    }
+
+    try {
+      const result = await voice.connect(deviceId);
+      if (this.driftState.length === 0) {
+        this.seedDrift(
+          this.active?.engine.getPartialCount() ?? this.shared.density,
+        );
+      }
+      this.startDrift();
+      return result;
+    } catch (err) {
+      // A failed first connect leaves no audible input; drop it so a retry is clean.
+      if (firstTime && !voice.isConnected()) {
+        try {
+          voice.getOutputNode().disconnect();
+        } catch {
+          // already detached
+        }
+        this.inputVoice = null;
+        this.teardownCore();
+      }
+      throw err;
+    }
+  }
+
+  /** Disconnect the live input; closes the core if no session is running. */
+  async disconnectInput(): Promise<void> {
+    const voice = this.inputVoice;
+    if (!voice) return;
+    this.inputVoice = null;
+    try {
+      voice.getOutputNode().disconnect();
+    } catch {
+      // already detached
+    }
+    await voice.disconnect();
+    if (!this.running) this.teardownCore();
+  }
+
   private makeEngine(id: EngineId): AnnealEngine {
     const factory = this.factories[id];
     if (!factory) throw new Error(`unknown engine: ${id}`);
     return factory();
   }
 
-  /** Build the post-fx chain, start the active engine, fade in, begin drift. */
-  start(): void {
-    if (this.running) return;
+  /**
+   * Build (once) the long-lived audio core: the `AudioContext` + shared post-fx
+   * chain. Decoupled from the session lifecycle so the live input can feed the
+   * same post-fx before any engine runs and survive session stop (the input must
+   * share the engine's context — nodes can't connect across contexts).
+   */
+  private ensureCore(): { ctx: AudioContext; nodes: GraphNodes } {
+    if (this.ctx && this.nodes) {
+      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      return { ctx: this.ctx, nodes: this.nodes };
+    }
 
     const ctx = createAudioContext();
     if (ctx.state === 'suspended') void ctx.resume();
@@ -214,6 +285,26 @@ export class Orchestrator {
       wetGain,
       dryGain,
     };
+    return { ctx, nodes: this.nodes };
+  }
+
+  /** Close + drop the audio core. Only safe when neither engine nor input is live. */
+  private teardownCore(): void {
+    if (this.running || (this.inputVoice?.isConnected() ?? false)) return;
+    this.stopDrift();
+    this.driftState = [];
+    const ctx = this.ctx;
+    this.ctx = null;
+    this.nodes = null;
+    if (ctx) void ctx.close().catch(() => undefined);
+  }
+
+  /** Build the audio core (if needed), start the active engine, fade in, begin drift. */
+  start(): void {
+    if (this.running) return;
+
+    const { ctx, nodes } = this.ensureCore();
+    const p = this.shared;
 
     // Build the first engine and fade its bus in over the long "bloom".
     const engine = this.makeEngine(this.engineId);
@@ -221,7 +312,7 @@ export class Orchestrator {
     const bus = ctx.createGain();
     bus.gain.value = 0;
     engine.getOutputNode().connect(bus);
-    bus.connect(filter);
+    bus.connect(nodes.filter);
     bus.gain.setValueAtTime(0, ctx.currentTime);
     bus.gain.linearRampToValueAtTime(1.0, ctx.currentTime + FADE_IN_SECONDS);
 
@@ -242,21 +333,28 @@ export class Orchestrator {
   }
 
   private startDrift(): void {
+    if (this.driftTimer !== null) return;
     this.driftTimer = setInterval(() => {
+      if (this.driftState.length === 0) return;
       const engine = this.active?.engine;
-      if (!engine || this.driftState.length === 0) return;
       const next = driftStep(
         this.driftState,
         { drift: this.shared.drift, coupling: this.shared.coupling },
         DRIFT_DT,
         Math.random,
       );
+      let sum = 0;
       this.driftState.forEach((part, i) => {
         const detune = next[i];
         if (detune === undefined) return;
         part.detune = detune;
-        engine.setPartialDetune(i, detune);
+        // Fan out to the engine when a session is running; the same field also
+        // modulates the input voice's filter (texture binding) even when not.
+        engine?.setPartialDetune(i, detune);
+        sum += detune;
       });
+      const mean = sum / this.driftState.length;
+      this.inputVoice?.setDriftModulation(mean);
     }, DRIFT_INTERVAL_MS);
   }
 
@@ -265,14 +363,18 @@ export class Orchestrator {
     this.driftTimer = null;
   }
 
-  /** Fade out, stop the engine(s), and close the context. Resolves after teardown. */
+  /**
+   * Fade out + stop the engine voices. If the live input is connected, the audio
+   * core (context + post-fx + input) is kept alive and only the engine voices are
+   * removed; otherwise the context is closed. Resolves after teardown.
+   */
   stop(): Promise<void> {
     const ctx = this.ctx;
+    const nodes = this.nodes;
     const voices = [this.active, this.outgoing].filter(
       (v): v is Voice => v !== null,
     );
 
-    this.stopDrift();
     this.clearArcTick();
     if (this.arcEndTimer !== null) clearTimeout(this.arcEndTimer);
     this.arcEndTimer = null;
@@ -282,13 +384,22 @@ export class Orchestrator {
     this.swapTimer = null;
     this.pendingSwap = null;
     this.running = false;
-    this.ctx = null;
-    this.nodes = null;
     this.active = null;
     this.outgoing = null;
-    this.driftState = [];
 
-    if (!ctx || voices.length === 0) return Promise.resolve();
+    const keepCore = this.inputVoice?.isConnected() ?? false;
+
+    if (!keepCore) {
+      this.stopDrift();
+      this.driftState = [];
+      this.ctx = null;
+      this.nodes = null;
+    }
+
+    if (!ctx || voices.length === 0) {
+      if (!keepCore && ctx) void ctx.close().catch(() => undefined);
+      return Promise.resolve();
+    }
 
     for (const v of voices) {
       try {
@@ -301,11 +412,35 @@ export class Orchestrator {
 
     return new Promise((resolve) => {
       setTimeout(() => {
-        for (const v of voices) void v.engine.stop(0);
-        ctx
-          .close()
-          .catch(() => undefined)
-          .finally(() => resolve());
+        for (const v of voices) {
+          void v.engine.stop(0);
+          try {
+            v.bus.disconnect();
+          } catch {
+            // already detached
+          }
+        }
+        if (keepCore) {
+          // The arc-end fade may have ramped masterVol to 0; restore it so a
+          // connected instrument keeps sounding through the kept-alive core.
+          if (nodes) {
+            try {
+              nodes.masterVol.gain.cancelScheduledValues(ctx.currentTime);
+              nodes.masterVol.gain.setValueAtTime(
+                this.shared.volume,
+                ctx.currentTime,
+              );
+            } catch {
+              // ignore scheduling errors
+            }
+          }
+          resolve();
+        } else {
+          ctx
+            .close()
+            .catch(() => undefined)
+            .finally(() => resolve());
+        }
       }, TEARDOWN_MS);
     });
   }
@@ -475,6 +610,21 @@ export class Orchestrator {
     }
     this.setState('stopping');
     return this.stop().then(() => this.setState('idle'));
+  }
+
+  /** Full teardown for unmount: drop the input then close the core. */
+  async dispose(): Promise<void> {
+    const voice = this.inputVoice;
+    this.inputVoice = null;
+    if (voice) {
+      try {
+        voice.getOutputNode().disconnect();
+      } catch {
+        // already detached
+      }
+      await voice.disconnect();
+    }
+    await this.stop();
   }
 
   /** Drive the arc forward at 20 Hz, reading elapsed time off the audio clock. */

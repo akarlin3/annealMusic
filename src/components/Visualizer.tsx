@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Circle } from 'lucide-react';
 import type { ArcProgress, Orchestrator } from '@/audio/orchestrator';
 import { drawFrame, type DrawState } from '@/visual/draw';
+import { readRms } from '@/input/meter';
 import { HARMONICS } from '@/types/audio';
 import { useParamStore } from '@/state/params';
 
@@ -74,6 +75,11 @@ export default function Visualizer({
         sampleRate = analyser.context.sampleRate;
       }
 
+      const inputAnalyser = engine?.getInputVoice()?.getAnalyser() ?? null;
+      const inputLevel = inputAnalyser
+        ? Math.min(1, readRms(inputAnalyser) * 1.4)
+        : undefined;
+
       const params = useParamStore.getState().params;
       const engineFreqs = engine?.getPartialFrequencies() ?? [];
       const count = engineFreqs.length || params.density;
@@ -93,6 +99,7 @@ export default function Visualizer({
         spectrum,
         sampleRate,
         fftSize,
+        inputLevel,
       };
       drawFrame(c2d, state);
 

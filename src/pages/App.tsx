@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play } from 'lucide-react';
 import { useAnnealMusic } from '@/hooks/useAnnealMusic';
+import { useInput } from '@/hooks/useInput';
 import { useParamStore } from '@/state/params';
 import { getArcById } from '@/session/arcs';
 import { readStateFromHash, subscribeStoreToHash } from '@/share/url';
 import Visualizer from '@/components/Visualizer';
 import ControlPanel from '@/components/ControlPanel';
+import InputPanel from '@/components/InputPanel';
 import EngineSelector from '@/components/EngineSelector';
 import ModeToggle from '@/components/ModeToggle';
 import ArcPanel from '@/components/ArcPanel';
@@ -41,6 +43,7 @@ export default function App() {
     stopSession,
     arcProgress,
     engineRef,
+    ensureOrchestrator,
   } = useAnnealMusic();
 
   const arcLocked = arcProgress !== null;
@@ -71,6 +74,8 @@ export default function App() {
     setToast({ id: toastId.current, text });
   }, []);
   const dismissToast = useCallback(() => setToast(null), []);
+
+  const input = useInput(ensureOrchestrator, showToast);
 
   // Boot: hydrate params from the URL before the audio engine is ever built
   // (the engine is only constructed on the Begin click), then keep the URL in
@@ -142,7 +147,7 @@ export default function App() {
                 className="font-mono text-[10px] uppercase tracking-[0.18em]"
                 style={{ color: '#78716c' }}
               >
-                v0.4 · prototype
+                v0.5 · prototype
               </span>
             </div>
             <p
@@ -242,6 +247,8 @@ export default function App() {
             returning={returning}
           />
         </div>
+
+        <InputPanel input={input} />
 
         <ControlPanel
           params={params}

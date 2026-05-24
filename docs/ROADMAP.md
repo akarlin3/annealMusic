@@ -34,7 +34,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v0.2 ✅ | URL state sharing                                  | First shareable artifact                   |
 | v0.3 ✅ | FM engine as second selectable                     | Engine-swap abstraction (architectural)    |
 | v0.4 ✅ | Arc mode (timer + scripted envelopes)              | Session-state machine                      |
-| v0.5    | Mic input (live processed)                         | Instrument integration begins              |
+| v0.5 ✅ | Mic input (live processed)                         | Instrument integration begins              |
 | v0.6    | Loop pedal (capture / replay / freeze)             | Full instrument integration                |
 | v0.7    | Backend + persistence (patches table, anon IDs)    | Unlocks gallery + recordings               |
 | v0.8    | Public gallery                                     | Community surface                          |
@@ -69,6 +69,20 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
   targets and engine switching mid-arc → not on roadmap. Known limit: both current
   engines lock density while playing, so Dawn/Dusk's density target is held until an
   unlocked engine (granular, v0.9) ships.
+- **v0.5** — **live instrument input**. A mic / line-in / audio interface routes
+  through a per-voice chain (high-pass, gentle compressor, optional soft-clip,
+  user level, and a **drift-modulated filter** that tracks the field) into the
+  shared post-fx as a sibling of the engine. Opt-in via `getUserMedia` with
+  music-friendly constraints (AEC/NS/AGC off); **monitoring muted by default**
+  (feedback-safe, headphones messaged); device picker; warm-amber level meter;
+  latency estimate; a visualizer input ring; and a feedback guard. The audio
+  core (context + post-fx) was decoupled from the session lifecycle so input can
+  be live before Begin and survives engine swaps / arc start-stop. Input is a
+  runtime/hardware concern — **never in the URL** (no schema bump). Deferred per
+  plan: stereo-preserved-through-chain (summed to mono in v0.5), pitch
+  detection / harmonization (not on roadmap), sidechain/ducking (not on roadmap),
+  built-in tuner (not on roadmap), MIDI (not on roadmap); the **loop pedal** is
+  next (v0.6).
 
 ## Principles
 

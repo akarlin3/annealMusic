@@ -8,6 +8,8 @@ export const PALETTE = {
   glowMid: (a: number) => `rgba(251, 191, 36, ${0.3 + a * 0.25})`,
   glowEdge: 'rgba(251, 146, 60, 0)',
   spectrum: 'rgba(245, 245, 244, 0.16)',
+  /** Faint amber ring around the halo, driven by live-input amplitude. */
+  inputRing: (a: number) => `rgba(251, 191, 36, ${a})`,
 } as const;
 
 export const VISUAL = {
@@ -28,4 +30,10 @@ export const VISUAL = {
   spectrumUsableFraction: 0.45,
   spectrumHeight: 36,
   spectrumBottomPad: 10,
+  /** Input ring: base radius multiple of baseR, swell, and opacity curve. */
+  inputRingRadiusMultiple: 1.6,
+  inputRingSwell: 0.25,
+  inputRingBaseAlpha: 0.05,
+  inputRingAlphaScale: 0.18,
+  inputRingLineWidth: 1.5,
 } as const;

@@ -14,6 +14,8 @@ export interface SessionApi {
   /** Live arc progress while an arc runs or ends; null otherwise. */
   arcProgress: ArcProgress | null;
   engineRef: React.MutableRefObject<Orchestrator | null>;
+  /** Create (or get) the orchestrator. Lets input connect before Begin. */
+  ensureOrchestrator: () => Orchestrator;
 }
 
 /**
@@ -94,10 +96,10 @@ export function useSession(): SessionApi {
     void engineRef.current?.stopSession();
   }, []);
 
-  // Tear down on unmount.
+  // Tear down on unmount (drops the input and closes the core).
   useEffect(
     () => () => {
-      void engineRef.current?.stop();
+      void engineRef.current?.dispose();
     },
     [],
   );
@@ -109,5 +111,6 @@ export function useSession(): SessionApi {
     stopSession,
     arcProgress,
     engineRef,
+    ensureOrchestrator,
   };
 }

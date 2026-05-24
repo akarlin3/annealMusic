@@ -109,3 +109,76 @@ end fires within one tick (≤50 ms) of the audio clock reaching the duration.
 - **Final fade:** the last 4 s ramp `masterVol` to 0 (`linearRampToValueAtTime`),
   then the orchestrator tears down to idle — same all-native ramp behavior as the
   engine crossfade, so no Chrome/Safari difference.
+
+## Live input — `getUserMedia` constraints (Chrome / Safari / Firefox)
+
+Live input (`src/input/InputVoice.ts`) opens the stream with
+`echoCancellation`, `noiseSuppression`, and `autoGainControl` all set to
+`false`, plus `channelCount: 1`. These "voice cleanup" DSP blocks are tuned for
+speech intelligibility and mangle sustained musical tones (AEC notches/ducks
+returning energy; NS gates quiet tails; AGC fights our compressor), so we want
+the raw signal.
+
+- **Chrome / Firefox (desktop):** honor all three flags; the raw signal reaches
+  the chain. `getUserMedia` requires a secure context (HTTPS or `localhost`).
+- **Safari (desktop + iOS):** requires `getUserMedia` to be invoked from a **user
+  gesture** — satisfied by the Connect button's click handler (same requirement
+  the `AudioContext` already obeys). Safari has **historically ignored** some
+  constraint flags (notably `autoGainControl`, and at times `noiseSuppression`);
+  we still pass them (no harm) but treat them as best-effort. This is why the
+  default-muted monitor + the feedback guard matter more on Safari.
+- **All browsers:** `enumerateDevices()` returns **empty `label`s until
+  permission is granted** (privacy). The device picker renders `Input N`
+  placeholders until labels are available.
+- **Mobile (iOS Safari / Chrome Android):** built-in mic only is expected;
+  external interfaces over USB are inconsistent on mobile. The gesture +
+  secure-context rules apply; monitoring through the phone speaker will feed back,
+  so headphones are messaged in the UI.
+
+## Live input — latency estimate
+
+Web Audio exposes **no** true mic→node input latency. The readout
+(`src/input/latency.ts`, the single source of the formula) estimates the output
+pipeline as `round((baseLatency + outputLatency) * 1000)` ms:
+
+- **Chrome / Firefox:** both `AudioContext.baseLatency` and `outputLatency` are
+  available; the estimate reflects the real output pipeline.
+- **Safari:** `outputLatency` is absent, so the formula falls back to
+  `2 × baseLatency` as a coarse proxy.
+
+The true round trip also includes the device's input buffer, which the API
+hides, so the surfaced value is a **lower-bound estimate** and is labeled as such
+in the UI ("~N MS INPUT LATENCY · ESTIMATE"). If a hardware loopback is available,
+compare the estimate to a measured round trip and note the offset here.
+
+## Live input — device change / unplug / tab-hide
+
+- **`devicechange` + track end (all browsers):** while connected, `InputVoice`
+  listens for `navigator.mediaDevices.devicechange` and the active track's
+  `onended`. If the active device disappears (or the track dies), it re-enumerates
+  and gracefully reconnects to the **default** device, emitting `device-changed`
+  (surfaced as a toast). On failure it emits a typed `error` and the audio graph
+  stays alive — no crash. (Verify in dev by unplugging a USB interface mid-session:
+  the panel should show the reconnect/disconnect state and audio should not break.)
+- **Tab hidden (`visibilitychange`):** we deliberately **do not** suspend or tear
+  down the input stream — we don't fight the browser's own context suspension.
+  Chrome generally keeps the captured stream alive in a backgrounded tab; Safari
+  and Firefox may suspend the `AudioContext` (pausing audio) and resume on
+  refocus. In all cases the audio graph survives the background→foreground
+  transition. There is no input-specific pause/resume control.
+
+## Live input — cross-browser smoke matrix
+
+Behavior to verify per release (built-in mic + a USB interface where applicable):
+
+| Target              | Built-in mic | USB interface | Notes                                                         |
+| ------------------- | ------------ | ------------- | ------------------------------------------------------------- |
+| Chrome (desktop)    | ✓            | ✓             | All constraint flags honored; reference behavior.             |
+| Safari (desktop)    | ✓            | ✓             | Gesture required; some flags best-effort; no `outputLatency`. |
+| Firefox (desktop)   | ✓            | ✓             | Flags honored; device labels need permission.                 |
+| Mobile Safari (iOS) | ✓            | n/a           | Gesture + HTTPS; speaker monitoring feeds back — headphones.  |
+| Chrome (Android)    | ✓            | n/a           | As iOS; built-in mic only expected.                           |
+
+> As with the engine graph, cross-browser behavior here is reasoned from the Web
+> Audio + Media Capture specs and the all-native node chain; a hands-on listen on
+> Safari and a mobile device is still worth doing before a tagged release.
