@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     max_capture_seconds: int = 60
     max_capture_bytes: int = 30 * 1024 * 1024  # generous WAV ceiling
 
+    # Recording (full-session export) upload limits. 60-min cap (client-enforced);
+    # a lossless WAV at 48k stereo is ~11 MB/min, so the ceiling is generous.
+    max_recording_seconds: int = 60 * 60
+    max_recording_bytes: int = 800 * 1024 * 1024
+
     # --- v0.8 gallery ---------------------------------------------------------
     # Moderation: a small static term list lives in app/moderation.py; this is a
     # comma-separated env extension (heuristic-drift rule: one home, two inputs).

@@ -142,6 +142,8 @@ class Recording(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Public short link `/r/<short_slug>` (mirrors patch short links).
+    short_slug: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     storage_key: Mapped[str] = mapped_column(String, nullable=False)
     duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
     bytes: Mapped[int] = mapped_column(Integer, nullable=False)

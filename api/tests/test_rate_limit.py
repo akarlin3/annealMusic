@@ -39,13 +39,13 @@ async def test_rate_limit_endpoint_429(client, monkeypatch):
     monkeypatch.setattr(rate_limit, "ANON_LIMITS", {**rate_limit.ANON_LIMITS, "recordings": 1})
     get_settings.cache_clear()
     h = {"x-anon-id": str(uuid.uuid4())}
-    body = {
-        "storage_key": "recordings/x/a.opus",
-        "duration_ms": 1000,
-        "bytes": 1,
-        "format": "opus",
+    upload = {
+        "files": {"file": ("a.webm", b"\x00" * 64, "audio/webm")},
+        "data": {"format": "opus", "duration_ms": "1000"},
     }
-    assert (await client.post("/api/v1/recordings", headers=h, json=body)).status_code == 201
-    r = await client.post("/api/v1/recordings", headers=h, json=body)
+    assert (
+        await client.post("/api/v1/recordings", headers=h, **upload)
+    ).status_code == 201
+    r = await client.post("/api/v1/recordings", headers=h, **upload)
     assert r.status_code == 429
     assert r.json()["error"] == "rate_limited"

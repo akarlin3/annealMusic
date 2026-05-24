@@ -96,8 +96,21 @@ async def current_writer(request: Request, session: SessionDep) -> User:
     return await _resolve_user(request, session, allow_cookie=False)
 
 
+async def optional_user(request: Request, session: SessionDep) -> User | None:
+    """Resolve an *existing* user from the header/cookie without minting. Used by
+    public read routes (e.g. `/r/<slug>` recording access) that must work for
+    anonymous viewers but still recognize the owner of a private item."""
+    anon_id = _parse_uuid(request.headers.get("x-anon-id")) or _parse_uuid(
+        request.cookies.get(get_settings().anon_cookie_name)
+    )
+    if anon_id is None:
+        return None
+    return await session.get(User, anon_id)
+
+
 CurrentUser = Annotated[User, Depends(current_user)]
 CurrentWriter = Annotated[User, Depends(current_writer)]
+OptionalUser = Annotated[User | None, Depends(optional_user)]
 
 
 def _client_ip(request: Request) -> str:

@@ -53,7 +53,7 @@ export interface ArcProgress {
 }
 
 /** Map brightness (0..1) to the lowpass cutoff frequency. */
-function cutoffFor(brightness: number): number {
+export function cutoffFor(brightness: number): number {
   return 200 * Math.pow(30, brightness);
 }
 
@@ -187,6 +187,17 @@ export class Orchestrator {
 
   getAnalyser(): AnalyserNode | null {
     return this.nodes?.analyser ?? null;
+  }
+
+  /**
+   * A tap on the post-fx master output (post-volume), for realtime recording.
+   * This is exactly "what the user hears" — engine(s), live input, and loops all
+   * sum through here. Returns null until the audio core exists. The caller owns
+   * disconnecting whatever it attaches to the returned node.
+   */
+  getRecordingTap(): { ctx: AudioContext; node: AudioNode } | null {
+    if (!this.ctx || !this.nodes) return null;
+    return { ctx: this.ctx, node: this.nodes.masterVol };
   }
 
   getPartialCount(): number {

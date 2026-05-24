@@ -61,6 +61,42 @@ export interface Capture {
   created_at: string;
 }
 
+export interface Recording {
+  id: string;
+  short_slug: string;
+  duration_ms: number;
+  bytes: number;
+  format: 'opus' | 'wav';
+  patch_id: string | null;
+  title: string | null;
+  visibility: Visibility;
+  created_at: string;
+}
+
+export interface RecordingList {
+  items: Recording[];
+}
+
+/** Public-facing recording metadata for the `/r/<slug>` player. */
+export interface RecordingMeta {
+  id: string;
+  short_slug: string;
+  duration_ms: number;
+  format: string;
+  title: string | null;
+  patch_id: string | null;
+  created_at: string;
+}
+
+export interface UploadRecordingBody {
+  blob: Blob;
+  format: 'opus' | 'wav';
+  durationMs: number;
+  title?: string;
+  visibility?: Visibility;
+  patchId?: string;
+}
+
 /** A typed API error. `code` is the server's `error` string (e.g. `quota_exceeded`). */
 export class ApiError extends Error {
   constructor(

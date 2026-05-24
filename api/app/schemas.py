@@ -82,20 +82,11 @@ class CaptureOut(BaseModel):
     created_at: datetime
 
 
-class RecordingCreate(BaseModel):
-    storage_key: str
-    duration_ms: int
-    bytes: int
-    format: Literal["opus", "wav"]
-    patch_id: uuid.UUID | None = None
-    title: str | None = Field(default=None, max_length=120)
-    visibility: Visibility = "unlisted"
-
-
 class RecordingOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    short_slug: str
     duration_ms: int
     bytes: int
     format: str
@@ -107,6 +98,20 @@ class RecordingOut(BaseModel):
 
 class RecordingListOut(BaseModel):
     items: list[RecordingOut]
+
+
+class RecordingMetaOut(BaseModel):
+    """Public-facing metadata for the `/r/<slug>` player (no storage key)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    short_slug: str
+    duration_ms: int
+    format: str
+    title: str | None
+    patch_id: uuid.UUID | None
+    created_at: datetime
 
 
 # --- v0.8 gallery ------------------------------------------------------------
