@@ -749,6 +749,22 @@ export class Orchestrator {
     this.loopSlots?.[id].setDriftCoupled(on);
   }
 
+  /**
+   * Decode encoded audio bytes (a capture fetched from the backend) into an
+   * `AudioBuffer` using the core context. Requires a user gesture to have built
+   * the core (the load flow is user-initiated).
+   */
+  async decodeAudio(data: ArrayBuffer): Promise<AudioBuffer> {
+    const { ctx } = this.ensureCore();
+    return ctx.decodeAudioData(data);
+  }
+
+  /** Hydrate a loop slot from a decoded buffer (saved-patch capture rehydration). */
+  loadLoopBuffer(id: SlotId, buffer: AudioBuffer): void {
+    const slots = this.ensureLoops();
+    slots[id].loadBuffer(buffer);
+  }
+
   /** Drive the arc forward at 20 Hz, reading elapsed time off the audio clock. */
   private startArcTick(): void {
     this.arcTimer = setInterval(() => {

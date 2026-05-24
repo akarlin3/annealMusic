@@ -34,3 +34,12 @@ pnpm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Python (api/)
+**/.venv/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+api/.env

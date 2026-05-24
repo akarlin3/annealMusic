@@ -1,0 +1,40 @@
+[project]
+name = "annealmusic-api"
+version = "0.7.0"
+description = "AnnealMusic backend: anonymous-first persistence for patches, captures, and recordings."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "gunicorn>=23.0",
+  "sqlalchemy[asyncio]>=2.0.36",
+  "asyncpg>=0.30",
+  "alembic>=1.14",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "python-multipart>=0.0.12",
+  "boto3>=1.35",
+  "python-json-logger>=2.0",
+  "slowapi>=0.1.9",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "httpx>=0.27",
+  "aiosqlite>=0.20",
+  "anyio>=4.6",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.pyright]
+include = ["app", "tests"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
