@@ -3,7 +3,7 @@ import {
   equalPowerFadeIn,
   equalPowerFadeOut,
   hannWindow,
-} from '@/loop/windows';
+} from '@/audio/granular/windows';
 
 describe('hannWindow', () => {
   it('starts and ends at zero, peaks at one', () => {

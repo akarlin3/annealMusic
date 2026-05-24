@@ -1,5 +1,5 @@
-import { LookaheadScheduler } from '@/loop/scheduler';
-import { equalPowerFadeIn, equalPowerFadeOut } from '@/loop/windows';
+import { LookaheadScheduler } from '@/audio/granular/scheduler';
+import { equalPowerFadeIn, equalPowerFadeOut } from '@/audio/granular/windows';
 
 /** Longest seam crossfade, in seconds. */
 export const MAX_XFADE_SEC = 0.12;
