@@ -38,8 +38,26 @@ src/
   styles/      # global css + slider styles
   types/       # shared types
   test/        # vitest setup
+  share/       # URL state schema, encode/decode, hash read/write
 docs/          # INIT_PLAN, ROADMAP, COMPAT, prototype reference
 ```
+
+## Sharing
+
+The full sculptable parameter set (everything except volume, which is a per-user
+listening preference) is encoded in the URL fragment, so any session is
+shareable as a link. Click **Copy Link** in the header to copy the current
+state; opening that link restores the parameters before the first sound. The
+fragment uses a versioned, human-readable schema — `#s=<version>:<key=value…>` —
+and updates live (debounced) as you sculpt, via `history.replaceState` so it
+never pollutes browser history. Example:
+
+```
+https://anneal.averykarlin.org/#s=1:rootFreq=147&spread=1.08&density=7&coupling=0.62&drift=0.30&brightness=0.74&space=0.55
+```
+
+Malformed fragments fall back to defaults, out-of-range values are clamped, and
+links from a newer schema version load defaults and surface a notice.
 
 ## Deploy
 

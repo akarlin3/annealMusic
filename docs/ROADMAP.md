@@ -31,7 +31,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | Version | Slice                                              | What it unlocks                            |
 |---------|----------------------------------------------------|---------------------------------------------|
 | v0.1    | Project init + prototype port                      | Foundation                                 |
-| v0.2    | URL state sharing                                  | First shareable artifact                   |
+| v0.2 ✅ | URL state sharing                                  | First shareable artifact                   |
 | v0.3    | FM engine as second selectable                     | Engine-swap abstraction (architectural)    |
 | v0.4    | Arc mode (timer + scripted envelopes)              | Session-state machine                      |
 | v0.5    | Mic input (live processed)                         | Instrument integration begins              |
@@ -40,6 +40,15 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v0.8    | Public gallery                                     | Community surface                          |
 | v0.9    | Granular engine                                    | Third synthesis engine                     |
 | v1.0    | Physical modeling + embed route + recording export | Feature-complete v1                        |
+
+## Shipped notes
+
+- **v0.2** — URL state sharing landed with schema version `1`
+  (`#s=1:<key=value…>`, human-readable). Volume is intentionally excluded
+  (listening preference, not a patch attribute). Deferred per plan: `engine` key
+  → v0.3 (schema v2), arc-mode timeline → v0.4, server-side short links → v0.7,
+  gallery → v0.8. If a future payload outgrows the readable form (~500 chars),
+  switch to base64-of-JSON.
 
 ## Principles
 
