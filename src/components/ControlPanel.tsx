@@ -19,6 +19,8 @@ interface ControlPanelProps {
   engineId: EngineId;
   engineParams: EngineParams;
   setEngineParam: (key: string, value: number) => void;
+  /** While an arc runs, all sculpt controls are read-only (live values shown). */
+  arcLocked?: boolean;
 }
 
 const GROUPS: ControlGroup[] = ['Pitch', 'Physics', 'Tone'];
@@ -36,11 +38,13 @@ function Slider({
   def,
   value,
   disabled,
+  lockLabel = 'locked',
   onChange,
 }: {
   def: SliderDef;
   value: number;
   disabled: boolean;
+  lockLabel?: string;
   onChange: (v: number) => void;
 }) {
   return (
@@ -56,7 +60,7 @@ function Slider({
               className="ml-2 font-mono text-[9px] uppercase tracking-[0.18em]"
               style={{ color: '#57534e' }}
             >
-              locked
+              {lockLabel}
             </span>
           )}
         </label>
@@ -88,6 +92,7 @@ export default function ControlPanel({
   engineId,
   engineParams,
   setEngineParam,
+  arcLocked = false,
 }: ControlPanelProps) {
   const caps = engineCapabilities(engineId);
   const structuralLock = isPlaying && caps.densityLockedWhilePlaying;
@@ -110,7 +115,10 @@ export default function ControlPanel({
                   key={c.key}
                   def={c}
                   value={params[c.key]}
-                  disabled={Boolean(c.lockWhilePlaying) && structuralLock}
+                  disabled={
+                    arcLocked || (Boolean(c.lockWhilePlaying) && structuralLock)
+                  }
+                  lockLabel={arcLocked ? 'arc' : 'locked'}
                   onChange={(v) => setParam(c.key, v)}
                 />
               ))}
@@ -141,7 +149,8 @@ export default function ControlPanel({
                 key={def.key}
                 def={def}
                 value={engineParams[def.key] ?? def.default}
-                disabled={false}
+                disabled={arcLocked}
+                lockLabel="arc"
                 onChange={(v) => setEngineParam(def.key, v)}
               />
             ))}

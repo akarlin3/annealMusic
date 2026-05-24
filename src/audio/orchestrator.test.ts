@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Orchestrator } from '@/audio/orchestrator';
-import { DEFAULT_PARAMS } from '@/state/params';
+import { DEFAULT_PARAMS, type AnnealMusicParams } from '@/state/params';
 import { MockAudioContext, type MockNode } from '@/test/audioMock';
 import type { AnnealEngine } from '@/audio/engines/types';
+import type { SessionState } from '@/session/types';
+
+const ARC_END_FADE_PLUS_TEARDOWN_MS = 4000 + 2200;
 
 beforeEach(() => {
   vi.stubGlobal('AudioContext', MockAudioContext);
@@ -108,6 +111,127 @@ describe('Orchestrator — drift fan-out', () => {
     const stopped = orch.stop();
     vi.advanceTimersByTime(2200);
     void stopped;
+  });
+});
+
+describe('Orchestrator — session state machine', () => {
+  it('open session: idle → starting → running-open → stopping → idle', async () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS);
+    const seen: SessionState[] = [];
+    orch.subscribe((s) => seen.push(s));
+
+    orch.startSession({ mode: 'open' });
+    expect(orch.getSessionState()).toBe('running-open');
+    expect(seen).toEqual(['starting', 'running-open']);
+    expect(orch.getArcProgress()).toBeNull();
+
+    const stopped = orch.stopSession();
+    expect(orch.getSessionState()).toBe('stopping');
+    vi.advanceTimersByTime(2200);
+    await stopped;
+    expect(orch.getSessionState()).toBe('idle');
+    expect(seen).toEqual(['starting', 'running-open', 'stopping', 'idle']);
+  });
+
+  it('startSession is a no-op when not idle', () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS);
+    orch.startSession({ mode: 'open' });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    orch.startSession({ mode: 'arc', arcId: 'bell', durationSec: 600 });
+    expect(orch.getSessionState()).toBe('running-open'); // unchanged
+    expect(warn).toHaveBeenCalled();
+
+    warn.mockRestore();
+    orch.stop();
+    vi.advanceTimersByTime(2200);
+  });
+
+  it('unknown arc id falls back to open mode', () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    orch.startSession({ mode: 'arc', arcId: 'nope', durationSec: 600 });
+    expect(orch.getSessionState()).toBe('running-open');
+    warn.mockRestore();
+    orch.stop();
+    vi.advanceTimersByTime(2200);
+  });
+
+  it('rejects an engine swap while an arc is running', () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS, 'sine');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    orch.startSession({ mode: 'arc', arcId: 'bell', durationSec: 600 });
+
+    orch.setEngine('fm');
+    expect(orch.getEngineId()).toBe('sine'); // unchanged
+
+    warn.mockRestore();
+    orch.stop();
+    vi.advanceTimersByTime(2200);
+  });
+});
+
+describe('Orchestrator — arc playback', () => {
+  it('drives params off the audio clock, not the interval cadence', () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS, 'sine');
+    const writes: Partial<AnnealMusicParams>[] = [];
+    orch.startSession({ mode: 'arc', arcId: 'bell', durationSec: 600 }, (p) =>
+      writes.push(p),
+    );
+    const ctx = MockAudioContext.instances.at(-1)!;
+    expect(orch.getSessionState()).toBe('running-arc');
+
+    // Many interval fires while the audio clock is frozen → no progress, no end.
+    vi.advanceTimersByTime(50 * 200);
+    expect(orch.getSessionState()).toBe('running-arc');
+    expect(orch.getArcProgress()?.progress).toBe(0);
+
+    // Advance the audio clock to the halfway point, then tick once.
+    ctx.currentTime = 300;
+    vi.advanceTimersByTime(50);
+    expect(orch.getArcProgress()?.progress).toBeCloseTo(0.5, 2);
+    expect(orch.getArcProgress()?.remainingSec).toBeCloseTo(300, 0);
+    expect(writes.length).toBeGreaterThan(0);
+
+    orch.stop();
+    vi.advanceTimersByTime(2200);
+  });
+
+  it('arc end: fades master over 4s then tears down to idle', async () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS, 'sine');
+    orch.startSession({ mode: 'arc', arcId: 'bell', durationSec: 600 });
+    const ctx = MockAudioContext.instances.at(-1)!;
+
+    ctx.currentTime = 600; // arc complete on the audio clock
+    vi.advanceTimersByTime(50); // next tick observes done → completeArc
+    expect(orch.getSessionState()).toBe('stopping');
+
+    // A gain ramps to 0 over the 4s window ending at currentTime + 4 = 604.
+    const fadedAt604 = ctx
+      .nodesOfKind('gain')
+      .some((g) =>
+        g.gain.calls.some(
+          (c) =>
+            c.method === 'linearRampToValueAtTime' &&
+            c.args[0] === 0 &&
+            c.args[1] === 604,
+        ),
+      );
+    expect(fadedAt604).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(ARC_END_FADE_PLUS_TEARDOWN_MS);
+    expect(orch.getSessionState()).toBe('idle');
+  });
+
+  it('stopSession aborts a running arc cleanly', async () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS, 'sine');
+    orch.startSession({ mode: 'arc', arcId: 'bell', durationSec: 600 });
+
+    const stopped = orch.stopSession();
+    expect(orch.getSessionState()).toBe('stopping');
+    vi.advanceTimersByTime(2200);
+    await stopped;
+    expect(orch.getSessionState()).toBe('idle');
   });
 });
 

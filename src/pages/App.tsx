@@ -1,15 +1,25 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play } from 'lucide-react';
 import { useAnnealMusic } from '@/hooks/useAnnealMusic';
 import { useParamStore } from '@/state/params';
+import { getArcById } from '@/session/arcs';
 import { readStateFromHash, subscribeStoreToHash } from '@/share/url';
 import Visualizer from '@/components/Visualizer';
 import ControlPanel from '@/components/ControlPanel';
 import EngineSelector from '@/components/EngineSelector';
+import ModeToggle from '@/components/ModeToggle';
+import ArcPanel from '@/components/ArcPanel';
 import ArchitectureDiagram from '@/components/ArchitectureDiagram';
 import CopyLinkButton from '@/components/CopyLinkButton';
 import Toast, { type ToastMessage } from '@/components/Toast';
 import type { EngineId } from '@/audio/engines/types';
+
+function fmtDuration(sec: number): string {
+  const total = Math.max(0, Math.round(sec));
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+}
 
 export default function App() {
   const {
@@ -19,10 +29,40 @@ export default function App() {
     engineParams,
     setEngine,
     setEngineParam,
+    sessionMode,
+    arcId,
+    arcDurationSec,
+    setSessionMode,
+    setArcId,
+    setArcDurationSec,
+    sessionState,
     isPlaying,
-    toggle,
+    startSession,
+    stopSession,
+    arcProgress,
     engineRef,
   } = useAnnealMusic();
+
+  const arcLocked = arcProgress !== null;
+  const returning = sessionState === 'stopping' && arcProgress !== null;
+  const beginLabel = isPlaying
+    ? 'Settle'
+    : sessionMode === 'arc'
+      ? `Begin · ${fmtDuration(arcDurationSec)}`
+      : 'Begin';
+
+  const segmentBoundaries = useMemo(() => {
+    if (sessionMode !== 'arc') return [];
+    const arc = getArcById(arcId);
+    if (!arc) return [];
+    const out: number[] = [];
+    let acc = 0;
+    for (const seg of arc.segments) {
+      acc += seg.fraction;
+      out.push(acc);
+    }
+    return out;
+  }, [sessionMode, arcId]);
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const toastId = useRef(0);
@@ -54,10 +94,22 @@ export default function App() {
           store.setEngineParam(id, key, value);
         }
       }
-      if (
+      store.setSessionMode(hydrated.mode);
+      if (hydrated.arcId) store.setArcId(hydrated.arcId);
+      if (hydrated.durationSec !== undefined) {
+        store.setArcDurationSec(hydrated.durationSec);
+      }
+
+      const unknownArc = hydrated.warnings.some((w) =>
+        w.includes('unknown arc'),
+      );
+      if (unknownArc) {
+        showToast('Unknown arc, loaded open mode');
+      } else if (
         sharedCount > 0 ||
         hydrated.engineId !== 'sine' ||
-        engineEntries.length > 0
+        engineEntries.length > 0 ||
+        hydrated.mode !== 'open'
       ) {
         showToast('Loaded shared session');
       }
@@ -90,7 +142,7 @@ export default function App() {
                 className="font-mono text-[10px] uppercase tracking-[0.18em]"
                 style={{ color: '#78716c' }}
               >
-                v0.3 · prototype
+                v0.4 · prototype
               </span>
             </div>
             <p
@@ -111,7 +163,7 @@ export default function App() {
             />
 
             <button
-              onClick={toggle}
+              onClick={() => (isPlaying ? stopSession() : startSession())}
               className="group flex items-center gap-3 rounded-full px-5 py-2.5 transition-all"
               style={{
                 background: isPlaying
@@ -135,23 +187,61 @@ export default function App() {
                 />
               )}
               <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-                {isPlaying ? 'Settle' : 'Begin'}
+                {beginLabel}
               </span>
             </button>
           </div>
         </header>
 
-        <div className="mb-6 flex items-center gap-3">
-          <span
-            className="font-mono text-[10px] uppercase tracking-[0.22em]"
-            style={{ color: '#57534e' }}
-          >
-            Engine
-          </span>
-          <EngineSelector engineId={engineId} setEngine={setEngine} />
+        <div className="mb-6 flex flex-wrap items-center gap-x-8 gap-y-3">
+          <div className="flex items-center gap-3">
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.22em]"
+              style={{ color: '#57534e' }}
+            >
+              Mode
+            </span>
+            <ModeToggle
+              mode={sessionMode}
+              setMode={setSessionMode}
+              disabled={isPlaying}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.22em]"
+              style={{ color: '#57534e' }}
+            >
+              Engine
+            </span>
+            <EngineSelector
+              engineId={engineId}
+              setEngine={setEngine}
+              disabled={arcLocked}
+            />
+          </div>
         </div>
 
-        <Visualizer engineRef={engineRef} isPlaying={isPlaying} />
+        {sessionMode === 'arc' && (
+          <ArcPanel
+            arcId={arcId}
+            setArcId={setArcId}
+            durationSec={arcDurationSec}
+            setDurationSec={setArcDurationSec}
+            engineId={engineId}
+            disabled={isPlaying}
+          />
+        )}
+
+        <div className="mt-6">
+          <Visualizer
+            engineRef={engineRef}
+            isPlaying={isPlaying}
+            arcProgress={arcProgress}
+            segmentBoundaries={segmentBoundaries}
+            returning={returning}
+          />
+        </div>
 
         <ControlPanel
           params={params}
@@ -160,6 +250,7 @@ export default function App() {
           engineId={engineId}
           engineParams={engineParams[engineId] ?? {}}
           setEngineParam={(key, value) => setEngineParam(engineId, key, value)}
+          arcLocked={arcLocked}
         />
 
         <div className="am-hairline my-12" />

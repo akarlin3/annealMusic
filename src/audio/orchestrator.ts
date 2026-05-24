@@ -1,6 +1,10 @@
 import { driftStep } from '@/audio/drift';
 import { makeIR } from '@/audio/ir';
-import { ENGINES, makeDefaultEngineParams } from '@/audio/engines/index';
+import {
+  ENGINES,
+  engineCapabilities,
+  makeDefaultEngineParams,
+} from '@/audio/engines/index';
 import type { EngineFactory } from '@/audio/engines/index';
 import type {
   AnnealEngine,
@@ -8,6 +12,9 @@ import type {
   EngineParams,
   SharedParams,
 } from '@/audio/engines/types';
+import { ArcRunner } from '@/session/ArcRunner';
+import { getArcById } from '@/session/arcs';
+import type { SessionState } from '@/session/types';
 import { HARMONICS, type DriftPartial, type GraphNodes } from '@/types/audio';
 
 const FADE_IN_SECONDS = 3.0;
@@ -17,6 +24,21 @@ const CROSSFADE_SECONDS = 0.6;
 const CROSSFADE_MS = 600;
 const DRIFT_INTERVAL_MS = 50;
 const DRIFT_DT = 0.05;
+const ARC_TICK_MS = 50;
+const ARC_END_FADE_SECONDS = 4.0;
+const ARC_END_FADE_MS = 4000;
+
+/** Options for starting a session: open jam, or a scripted arc. */
+export type StartSessionOptions =
+  | { mode: 'open' }
+  | { mode: 'arc'; arcId: string; durationSec: number };
+
+/** Live arc progress for the UI (null when no arc is running/ending). */
+export interface ArcProgress {
+  progress: number;
+  segmentIndex: number;
+  remainingSec: number;
+}
 
 /** Map brightness (0..1) to the lowpass cutoff frequency. */
 function cutoffFor(brightness: number): number {
@@ -64,6 +86,17 @@ export class Orchestrator {
   private driftTimer: ReturnType<typeof setInterval> | null = null;
   private running = false;
 
+  // Session state machine + arc.
+  private sessionState: SessionState = 'idle';
+  private readonly listeners = new Set<(s: SessionState) => void>();
+  private arcRunner: ArcRunner | null = null;
+  private arcTimer: ReturnType<typeof setInterval> | null = null;
+  private arcEndTimer: ReturnType<typeof setTimeout> | null = null;
+  private arcT0 = 0;
+  private arcDurationSec = 0;
+  private arcProgress = { progress: 0, segmentIndex: 0 };
+  private applyArcParams: ((p: Partial<SharedParams>) => void) | null = null;
+
   constructor(
     shared: SharedParams,
     engineId: EngineId = 'sine',
@@ -80,6 +113,37 @@ export class Orchestrator {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  getSessionState(): SessionState {
+    return this.sessionState;
+  }
+
+  /** Subscribe to session-state changes. Returns an unsubscribe function. */
+  subscribe(fn: (s: SessionState) => void): () => void {
+    this.listeners.add(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
+  }
+
+  /** Live arc progress, or null when no arc is running or ending. */
+  getArcProgress(): ArcProgress | null {
+    if (
+      this.sessionState !== 'running-arc' &&
+      this.sessionState !== 'stopping'
+    ) {
+      return null;
+    }
+    if (this.arcDurationSec <= 0) return null;
+    return {
+      progress: this.arcProgress.progress,
+      segmentIndex: this.arcProgress.segmentIndex,
+      remainingSec: Math.max(
+        0,
+        this.arcDurationSec * (1 - this.arcProgress.progress),
+      ),
+    };
   }
 
   getEngineId(): EngineId {
@@ -209,6 +273,11 @@ export class Orchestrator {
     );
 
     this.stopDrift();
+    this.clearArcTick();
+    if (this.arcEndTimer !== null) clearTimeout(this.arcEndTimer);
+    this.arcEndTimer = null;
+    this.arcRunner = null;
+    this.applyArcParams = null;
     if (this.swapTimer !== null) clearTimeout(this.swapTimer);
     this.swapTimer = null;
     this.pendingSwap = null;
@@ -285,6 +354,10 @@ export class Orchestrator {
    * to the same engine is a no-op (no rebuild, no audible dip).
    */
   setEngine(id: EngineId): void {
+    if (this.sessionState === 'running-arc') {
+      console.warn('engine change ignored during arc');
+      return;
+    }
     if (!this.running) {
       this.engineId = id;
       return;
@@ -346,5 +419,122 @@ export class Orchestrator {
       this.pendingSwap = null;
       if (queued && queued !== this.active?.engine.id) this.crossfadeTo(queued);
     }, CROSSFADE_MS);
+  }
+
+  /**
+   * Begin a session. `idle → starting → running-open | running-arc`. In arc
+   * mode, `applyArcParams` is the writer the orchestrator calls each tick
+   * (wired by React to the param store's `setMany`); kept injected so the
+   * orchestrator stays store-agnostic. No-op (with a warning) unless idle.
+   */
+  startSession(
+    opts: StartSessionOptions,
+    applyArcParams?: (p: Partial<SharedParams>) => void,
+  ): void {
+    if (this.sessionState !== 'idle') {
+      console.warn(`startSession ignored: session is '${this.sessionState}'`);
+      return;
+    }
+
+    this.setState('starting');
+    this.start();
+
+    if (opts.mode === 'open') {
+      this.setState('running-open');
+      return;
+    }
+
+    const arc = getArcById(opts.arcId);
+    if (!arc) {
+      console.warn(`unknown arc '${opts.arcId}', running open`);
+      this.setState('running-open');
+      return;
+    }
+
+    const runner = new ArcRunner(
+      arc,
+      opts.durationSec,
+      this.shared,
+      engineCapabilities(this.engineId),
+    );
+    for (const w of runner.warnings) console.warn(`[arc:${arc.id}] ${w}`);
+
+    this.arcRunner = runner;
+    this.applyArcParams = applyArcParams ?? null;
+    this.arcDurationSec = opts.durationSec;
+    this.arcT0 = this.ctx?.currentTime ?? 0;
+    this.arcProgress = { progress: 0, segmentIndex: 0 };
+    this.setState('running-arc');
+    this.startArcTick();
+  }
+
+  /** Abort the session from any running state: `→ stopping → idle`. */
+  stopSession(): Promise<void> {
+    if (this.sessionState === 'idle' || this.sessionState === 'stopping') {
+      return Promise.resolve();
+    }
+    this.setState('stopping');
+    return this.stop().then(() => this.setState('idle'));
+  }
+
+  /** Drive the arc forward at 20 Hz, reading elapsed time off the audio clock. */
+  private startArcTick(): void {
+    this.arcTimer = setInterval(() => {
+      const ctx = this.ctx;
+      const runner = this.arcRunner;
+      if (!ctx || !runner) return;
+
+      const elapsed = ctx.currentTime - this.arcT0;
+      const frame = runner.tick(elapsed);
+      this.arcProgress = {
+        progress: frame.progress,
+        segmentIndex: frame.segmentIndex,
+      };
+      if (Object.keys(frame.params).length > 0) {
+        this.applyArcParams?.(frame.params);
+      }
+      if (frame.done) this.completeArc();
+    }, ARC_TICK_MS);
+  }
+
+  private clearArcTick(): void {
+    if (this.arcTimer !== null) clearInterval(this.arcTimer);
+    this.arcTimer = null;
+  }
+
+  /** Arc reached its end: fade master to 0 over 4 s, then tear down to idle. */
+  private completeArc(): void {
+    if (this.sessionState !== 'running-arc') return;
+    this.clearArcTick();
+    this.setState('stopping');
+
+    const ctx = this.ctx;
+    const nodes = this.nodes;
+    if (ctx && nodes) {
+      try {
+        nodes.masterVol.gain.cancelScheduledValues(ctx.currentTime);
+        nodes.masterVol.gain.setValueAtTime(
+          nodes.masterVol.gain.value,
+          ctx.currentTime,
+        );
+        nodes.masterVol.gain.linearRampToValueAtTime(
+          0,
+          ctx.currentTime + ARC_END_FADE_SECONDS,
+        );
+      } catch {
+        // node may be mid-teardown; ignore
+      }
+    }
+
+    this.arcEndTimer = setTimeout(() => {
+      this.arcEndTimer = null;
+      void this.stop().then(() => this.setState('idle'));
+    }, ARC_END_FADE_MS);
+  }
+
+  private setState(next: SessionState): void {
+    if (next === this.sessionState) return;
+    this.sessionState = next;
+    for (const fn of this.listeners) fn(next);
   }
 }

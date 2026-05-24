@@ -4,6 +4,43 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-05-24
+
+### Added
+
+- **Session modes.** Two ways to run a session, chosen with a **Mode** toggle:
+  **Open** (drift forever, sculpt at will — the prior behavior) and **Arc** (a
+  fixed-duration session that scripts the parameters along a preset envelope and
+  automates itself to completion).
+- **Session state machine** in the orchestrator:
+  `idle → starting → running-open | running-arc → stopping → idle`, with a
+  subscribe API for React and clean abort from any state. `stopping` is the home
+  for the fade-out; an arc's last 4 seconds fade master to 0 (`RETURNING`).
+- **`ArcRunner`** (`src/session/ArcRunner.ts`): a pure driver that resolves an
+  arc's targets at construction and computes the live parameter values for any
+  elapsed time. Arc progress rides on `AudioContext.currentTime`, not wall
+  clocks, so long sessions (20+ min) stay accurate.
+- **Three preset arcs** (`src/session/arcs.ts`): **Bell Curve** (open, deepen,
+  return), **Dawn** (sparse→open), **Dusk** (open→closing). Targets are
+  multipliers on the user's starting values; `restoreStart` eases back to the
+  captured pose; `min`/`max` resolve to a param's bound.
+- **Arc UI**: preset picker (cards), duration slider (3–60 min, default 10), a
+  `Begin · MM:SS` button label, a progress bar with segment markers across the
+  visualizer, a `MM:SS LEFT` readout, and locked (read-only, live-updating)
+  sculpt + engine controls during an arc.
+- **URL schema v3**: adds `m=<open|arc>` and, for arcs, `arc=<id>&dur=<sec>`.
+  v1/v2 links load as `mode=open`; unknown arc ids fall back to open with a
+  notice; out-of-range durations are clamped.
+- Store gains `sessionMode` / `arcId` / `arcDurationSec`; the `useAudioEngine`
+  hook is superseded by `useSession`.
+
+### Notes
+
+- Both shipped engines lock density while playing, so the `density` target in
+  Dawn/Dusk is dropped (with a console warning and an inline `density held`
+  note); those arcs sweep brightness + spread. Density motion arrives with an
+  unlocked engine.
+
 ## [0.3.0] - 2026-05-24
 
 ### Added
@@ -76,6 +113,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Tooling: ESLint + Prettier, Husky + lint-staged pre-commit, CI workflow.
 - Docs: `INIT_PLAN`, `ROADMAP`, `COMPAT`, and the preserved prototype.
 
+[0.4.0]: https://github.com/akarlin3/annealMusic/releases/tag/v0.4.0
 [0.3.0]: https://github.com/akarlin3/annealMusic/releases/tag/v0.3.0
 [0.2.0]: https://github.com/akarlin3/annealMusic/releases/tag/v0.2.0
 [0.1.0]: https://github.com/akarlin3/annealMusic/releases/tag/v0.1.0

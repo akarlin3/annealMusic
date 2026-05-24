@@ -4,6 +4,8 @@ import {
   makeDefaultEngineParams,
 } from '@/audio/engines/index';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
+import { ARC_DURATION, clampArcDuration } from '@/session/arcs';
+import type { SessionMode } from '@/session/types';
 
 export interface AnnealMusicParams {
   rootFreq: number;
@@ -137,6 +139,8 @@ export function clampParam(key: ParamKey, value: number): number {
 }
 
 export const DEFAULT_ENGINE_ID: EngineId = 'sine';
+export const DEFAULT_SESSION_MODE: SessionMode = 'open';
+export const DEFAULT_ARC_ID = 'bell';
 
 export interface ParamStore {
   params: AnnealMusicParams;
@@ -144,10 +148,19 @@ export interface ParamStore {
   engineId: EngineId;
   /** Per-engine param bags, retained across switches. */
   engineParams: Partial<Record<EngineId, EngineParams>>;
+  /** Session selection (pre-Begin): open jam vs. a scripted arc. */
+  sessionMode: SessionMode;
+  /** Selected preset arc id (used when `sessionMode === 'arc'`). */
+  arcId: string;
+  /** Selected arc duration in seconds (clamped to `ARC_DURATION`). */
+  arcDurationSec: number;
   setParam: (key: ParamKey, value: number) => void;
   setMany: (partial: Partial<AnnealMusicParams>) => void;
   setEngine: (id: EngineId) => void;
   setEngineParam: (id: EngineId, key: string, value: number) => void;
+  setSessionMode: (mode: SessionMode) => void;
+  setArcId: (id: string) => void;
+  setArcDurationSec: (sec: number) => void;
   reset: () => void;
 }
 
@@ -155,6 +168,9 @@ export const useParamStore = create<ParamStore>((set) => ({
   params: DEFAULT_PARAMS,
   engineId: DEFAULT_ENGINE_ID,
   engineParams: makeDefaultEngineParams(),
+  sessionMode: DEFAULT_SESSION_MODE,
+  arcId: DEFAULT_ARC_ID,
+  arcDurationSec: ARC_DURATION.default,
   setParam: (key, value) =>
     set((state) => ({
       params: { ...state.params, [key]: clampParam(key, value) },
@@ -179,10 +195,16 @@ export const useParamStore = create<ParamStore>((set) => ({
         },
       },
     })),
+  setSessionMode: (mode) => set({ sessionMode: mode }),
+  setArcId: (id) => set({ arcId: id }),
+  setArcDurationSec: (sec) => set({ arcDurationSec: clampArcDuration(sec) }),
   reset: () =>
     set({
       params: DEFAULT_PARAMS,
       engineId: DEFAULT_ENGINE_ID,
       engineParams: makeDefaultEngineParams(),
+      sessionMode: DEFAULT_SESSION_MODE,
+      arcId: DEFAULT_ARC_ID,
+      arcDurationSec: ARC_DURATION.default,
     }),
 }));

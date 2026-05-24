@@ -29,10 +29,11 @@ npm run format     # Prettier --write
 
 ```
 src/
-  audio/         # orchestrator (post-fx, drift, crossfade), IR generation
+  audio/         # orchestrator (session machine, post-fx, drift, crossfade), IR
     engines/     # AnnealEngine interface, sine + fm engines, registry
-  components/    # Visualizer, ControlPanel, EngineSelector, ArchitectureDiagram
-  hooks/         # useAnnealMusic (orchestration), useAudioEngine
+  session/       # arc data model, preset arcs, easing curves, ArcRunner
+  components/    # Visualizer, ControlPanel, EngineSelector, ModeToggle, ArcPanel, …
+  hooks/         # useAnnealMusic (orchestration), useSession (state machine bridge)
   state/         # param store, defaults, control schema
   visual/        # canvas draw loop, palette, math helpers
   pages/         # App
@@ -63,6 +64,28 @@ the orchestrator **crossfades** (equal-gain, ~600ms) without a page reload.
 Both engines share the same baseline + slow-LFO amplitude shape, so switching
 engines changes timbre without changing the overall envelope of the field.
 
+## Session modes
+
+A session runs in one of two modes, chosen with the **Mode** toggle next to the
+engine selector:
+
+- **Open** — the original behavior: press Begin and the field drifts forever
+  while you sculpt at will.
+- **Arc** — a fixed-duration session that scripts the parameters along a preset
+  envelope and automates itself to completion. Pick a preset and a duration
+  (3–60 min, default 10), press Begin, and the arc plays: sculpt controls are
+  locked (showing live interpolated values), a progress bar with segment markers
+  runs across the visualizer, and the last 4 seconds fade out (`RETURNING`)
+  before the session settles back to idle.
+
+Three preset arcs ship in v0.4: **Bell Curve** (open, deepen, return),
+**Dawn** (sparse and dark, gradually opening), and **Dusk** (bright and open,
+gradually closing). Arc targets are multipliers on your pre-session sculpting, so
+your starting patch is the neutral pose the arc deforms from. Arc timing rides on
+the `AudioContext` clock, so long sessions stay accurate. (Both current engines
+lock density while playing, so Dawn/Dusk's density move is held — they sweep
+brightness and spread instead.)
+
 ## Sharing
 
 The full sculptable parameter set (everything except volume, which is a per-user
@@ -73,16 +96,18 @@ fragment uses a versioned, human-readable schema — `#s=<version>:<key=value…
 and updates live (debounced) as you sculpt, via `history.replaceState` so it
 never pollutes browser history.
 
-Schema **v2** adds the active engine (`e=<id>`) and namespaced engine params
-(e.g. `fm.modRatio`). Example:
+Schema **v3** adds the session mode (`m=<open|arc>`, plus `arc=<id>&dur=<sec>`
+for arcs) on top of v2's engine selector (`e=<id>`) and namespaced engine params
+(e.g. `fm.modRatio`). Example (an arc session):
 
 ```
-https://anneal.averykarlin.org/#s=2:e=fm&rootFreq=147&spread=1.08&density=7&coupling=0.62&drift=0.30&brightness=0.74&space=0.55&fm.modRatio=2.00&fm.modIndex=4.50&fm.feedback=0.20
+https://anneal.averykarlin.org/#s=3:m=arc&arc=bell&dur=720&e=fm&rootFreq=147&spread=1.08&density=7&coupling=0.62&drift=0.30&brightness=0.74&space=0.55&fm.modRatio=2.00&fm.modIndex=4.50&fm.feedback=0.20
 ```
 
-**v1** links still load — they're interpreted as the sine engine. Malformed
-fragments fall back to defaults, out-of-range values are clamped, and links from
-a newer schema version load defaults and surface a notice.
+**v1** and **v2** links still load — they're interpreted as `mode=open` (v1 also
+as the sine engine). An unknown arc id loads open mode with a notice, durations
+out of range are clamped, malformed fragments fall back to defaults, and links
+from a newer schema version load defaults and surface a notice.
 
 ## Deploy
 

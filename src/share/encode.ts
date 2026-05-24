@@ -11,6 +11,8 @@ import {
   isEngineId,
 } from '@/audio/engines/index';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
+import { ARC_DURATION, clampArcDuration, getArcById } from '@/session/arcs';
+import type { SessionMode } from '@/session/types';
 
 const SHARED_KEY_SET: ReadonlySet<string> = new Set(SHARED_KEYS);
 
@@ -43,16 +45,36 @@ export function encodeEngineParams(
     .join('&');
 }
 
+/** Session selection carried in the URL (schema v3+). */
+export interface SessionConfig {
+  mode: SessionMode;
+  arcId: string;
+  durationSec: number;
+}
+
+const DEFAULT_SESSION: SessionConfig = {
+  mode: 'open',
+  arcId: 'bell',
+  durationSec: ARC_DURATION.default,
+};
+
 /**
- * Encode the full share payload: `e=<id>&<shared>&<engine ns params>`. Engines
- * with no params contribute only the `e=` selector.
+ * Encode the full share payload:
+ * `m=<mode>[&arc=<id>&dur=<sec>]&e=<id>&<shared>&<engine ns params>`.
+ * `m` is always present; `arc`/`dur` only when `mode === 'arc'`. Engines with no
+ * params contribute only the `e=` selector.
  */
 export function encodeState(
   params: AnnealMusicParams,
   engineId: EngineId,
   engineParams: EngineParams,
+  session: SessionConfig = DEFAULT_SESSION,
 ): string {
-  const parts = [`e=${engineId}`, encodeParams(params)];
+  const parts = [`m=${session.mode}`];
+  if (session.mode === 'arc') {
+    parts.push(`arc=${session.arcId}`, `dur=${session.durationSec}`);
+  }
+  parts.push(`e=${engineId}`, encodeParams(params));
   const engine = encodeEngineParams(engineId, engineParams);
   if (engine) parts.push(engine);
   return parts.join('&');
@@ -62,6 +84,9 @@ export interface DecodedState {
   params: Partial<AnnealMusicParams>;
   engineId: EngineId;
   engineParams: Partial<Record<EngineId, EngineParams>>;
+  mode: SessionMode;
+  arcId?: string;
+  durationSec?: number;
   warnings: string[];
 }
 
@@ -76,6 +101,9 @@ export function decodeState(version: number, payload: string): DecodedState {
   const engineParams: Partial<Record<EngineId, EngineParams>> = {};
   const warnings: string[] = [];
   let engineId: EngineId = 'sine';
+  let mode: SessionMode = 'open';
+  let arcId: string | undefined;
+  let durationSec: number | undefined;
 
   for (const pair of payload.split('&')) {
     if (pair === '') continue;
@@ -88,6 +116,49 @@ export function decodeState(version: number, payload: string): DecodedState {
 
     const key = pair.slice(0, eq);
     const raw = pair.slice(eq + 1);
+
+    // Session mode.
+    if (key === 'm') {
+      if (version < 3) {
+        warnings.push(`mode key ignored for schema v${version}: ${pair}`);
+      } else if (raw === 'open' || raw === 'arc') {
+        mode = raw;
+      } else {
+        warnings.push(`unknown mode '${raw}', defaulting to open`);
+      }
+      continue;
+    }
+
+    // Selected arc id (validated after the loop).
+    if (key === 'arc') {
+      if (version < 3) {
+        warnings.push(`arc key ignored for schema v${version}: ${pair}`);
+      } else {
+        arcId = raw;
+      }
+      continue;
+    }
+
+    // Arc duration (seconds), clamped to bounds.
+    if (key === 'dur') {
+      if (version < 3) {
+        warnings.push(`dur key ignored for schema v${version}: ${pair}`);
+      } else {
+        const num = raw.trim() === '' ? NaN : Number(raw);
+        if (!Number.isFinite(num)) {
+          warnings.push(`non-numeric value dropped for dur: ${raw}`);
+        } else {
+          const clamped = clampArcDuration(num);
+          if (clamped !== num) {
+            warnings.push(
+              `value out of range for dur: ${num} clamped to ${clamped}`,
+            );
+          }
+          durationSec = clamped;
+        }
+      }
+      continue;
+    }
 
     // Engine selector.
     if (key === 'e') {
@@ -156,7 +227,22 @@ export function decodeState(version: number, payload: string): DecodedState {
     params[sharedKey] = roundTo(clamped, KEY_BOUNDS[sharedKey].decimals);
   }
 
-  return { params, engineId, engineParams, warnings };
+  // Resolve arc selection: an unknown id (or arc mode with no id) loads as open.
+  if (mode === 'arc') {
+    if (!arcId || !getArcById(arcId)) {
+      warnings.push(`unknown arc '${arcId ?? ''}', loaded open mode`);
+      mode = 'open';
+      arcId = undefined;
+      durationSec = undefined;
+    } else if (durationSec === undefined) {
+      durationSec = ARC_DURATION.default;
+    }
+  } else {
+    arcId = undefined;
+    durationSec = undefined;
+  }
+
+  return { params, engineId, engineParams, mode, arcId, durationSec, warnings };
 }
 
 /**

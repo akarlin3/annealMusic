@@ -66,11 +66,11 @@ describe('readStateFromHash', () => {
 });
 
 describe('writeStateToHash', () => {
-  it('writes a v2 payload via replaceState without adding history', () => {
+  it('writes a v3 payload via replaceState without adding history', () => {
     const before = window.history.length;
     writeStateToHash(DEFAULT_PARAMS, 'sine', {});
     expect(window.location.hash).toBe(
-      `#s=2:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
+      `#s=3:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
     );
     expect(window.history.length).toBe(before);
   });
@@ -88,10 +88,23 @@ describe('writeStateToHash', () => {
 });
 
 describe('buildShareUrl', () => {
-  it('embeds the engine selector in the fragment', () => {
-    expect(buildShareUrl(DEFAULT_PARAMS, 'fm', { modRatio: 1 })).toContain(
-      '#s=2:e=fm&',
+  it('embeds the mode + engine selector in the fragment', () => {
+    const url = buildShareUrl(DEFAULT_PARAMS, 'fm', { modRatio: 1 });
+    expect(url).toContain('#s=3:m=open&e=fm&');
+  });
+
+  it('embeds an arc session selection', () => {
+    const url = buildShareUrl(
+      DEFAULT_PARAMS,
+      'sine',
+      {},
+      {
+        mode: 'arc',
+        arcId: 'dusk',
+        durationSec: 900,
+      },
     );
+    expect(url).toContain('#s=3:m=arc&arc=dusk&dur=900&');
   });
 });
 
@@ -102,6 +115,9 @@ describe('subscribeStoreToHash', () => {
       params: DEFAULT_PARAMS,
       engineId: 'sine' as const,
       engineParams: { sine: {} },
+      sessionMode: 'open' as const,
+      arcId: 'bell',
+      arcDurationSec: 600,
     };
     const holder: { fn: (() => void) | null } = { fn: null };
     const store = {
@@ -126,7 +142,7 @@ describe('subscribeStoreToHash', () => {
     expect(window.location.hash).toBe(''); // not yet written
     vi.advanceTimersByTime(500);
     expect(window.location.hash).toBe(
-      `#s=2:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
+      `#s=3:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
     );
 
     // After unsubscribe, a pending/late change does not write.

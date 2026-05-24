@@ -90,3 +90,22 @@ shared baseline + LFO amplitude shape means FM and sine have identical envelopes
 > Note: cross-browser behavior here is reasoned from the Web Audio spec and the
 > all-native node graph; a hands-on Safari listen is still worth doing before a
 > tagged release.
+
+## Arc timing — AudioContext clock (both)
+
+Arc mode (`src/session/ArcRunner.ts` + the orchestrator's arc tick) advances on
+`AudioContext.currentTime`, not `setInterval` wall-time or `Date.now()`. The tick
+fires on a 20 Hz `setInterval`, but the elapsed value passed to `ArcRunner.tick()`
+is recomputed from `ctx.currentTime − arcT0` each fire, so interval jitter/coalescing
+never accumulates and the arc lands on its target duration regardless of session
+length. Tested durations: 3, 12, and 15 min end-to-end, and a 60-min run simulated
+against a mocked clock (`src/audio/orchestrator.test.ts`, `ArcRunner.test.ts`) —
+end fires within one tick (≤50 ms) of the audio clock reaching the duration.
+
+- **Backgrounded tabs (both):** when a tab is hidden, browsers throttle timers and
+  may suspend the `AudioContext` — `currentTime` stops advancing _and_ audio pauses.
+  The arc therefore effectively pauses with the sound and resumes on refocus; there
+  is no silent over-run or audible glitch. There is no pause/resume control in v0.4.
+- **Final fade:** the last 4 s ramp `masterVol` to 0 (`linearRampToValueAtTime`),
+  then the orchestrator tears down to idle — same all-native ramp behavior as the
+  engine crossfade, so no Chrome/Safari difference.

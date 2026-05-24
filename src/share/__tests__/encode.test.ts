@@ -114,13 +114,14 @@ describe('encodeParams / decodeParams', () => {
   });
 });
 
-describe('encodeState / decodeState (schema v2)', () => {
+describe('encodeState / decodeState (schema v3)', () => {
   it('round-trips engine selection + namespaced engine params', () => {
     const fm = { modRatio: 2.5, modIndex: 4, feedback: 0.3 };
     const payload = encodeState(DEFAULT_PARAMS, 'fm', fm);
-    const decoded = decodeState(2, payload);
+    const decoded = decodeState(3, payload);
 
     expect(decoded.warnings).toEqual([]);
+    expect(decoded.mode).toBe('open');
     expect(decoded.engineId).toBe('fm');
     expect(decoded.engineParams.fm).toEqual(fm);
     for (const key of SHARED_KEYS) {
@@ -128,9 +129,53 @@ describe('encodeState / decodeState (schema v2)', () => {
     }
   });
 
-  it('writes the engine selector first and omits params for engines with none', () => {
+  it('round-trips an arc session (mode + arc id + duration)', () => {
+    const payload = encodeState(
+      DEFAULT_PARAMS,
+      'sine',
+      {},
+      {
+        mode: 'arc',
+        arcId: 'bell',
+        durationSec: 720,
+      },
+    );
+    expect(payload.startsWith('m=arc&arc=bell&dur=720&')).toBe(true);
+
+    const decoded = decodeState(3, payload);
+    expect(decoded.warnings).toEqual([]);
+    expect(decoded.mode).toBe('arc');
+    expect(decoded.arcId).toBe('bell');
+    expect(decoded.durationSec).toBe(720);
+  });
+
+  it('falls back to open mode for an unknown arc id, with a warning', () => {
+    const decoded = decodeState(3, 'm=arc&arc=spiral&dur=600&e=sine');
+    expect(decoded.mode).toBe('open');
+    expect(decoded.arcId).toBeUndefined();
+    expect(decoded.warnings.some((w) => w.includes('unknown arc'))).toBe(true);
+  });
+
+  it('clamps an out-of-bounds duration and warns', () => {
+    const tooLong = decodeState(3, 'm=arc&arc=bell&dur=99999&e=sine');
+    expect(tooLong.durationSec).toBe(3600); // max
+    expect(tooLong.warnings.some((w) => w.includes('dur'))).toBe(true);
+
+    const tooShort = decodeState(3, 'm=arc&arc=bell&dur=1&e=sine');
+    expect(tooShort.durationSec).toBe(180); // min
+  });
+
+  it('treats v1/v2 payloads as open mode and ignores session keys', () => {
+    const v2 = decodeState(2, 'm=arc&arc=bell&dur=600&e=fm&coupling=0.5');
+    expect(v2.mode).toBe('open');
+    expect(v2.engineId).toBe('fm');
+    expect(v2.params.coupling).toBe(0.5);
+    expect(v2.warnings.some((w) => w.includes('mode key ignored'))).toBe(true);
+  });
+
+  it('writes the mode + engine selector first and omits params for engines with none', () => {
     expect(encodeState(DEFAULT_PARAMS, 'sine', {})).toBe(
-      `e=sine&${encodeParams(DEFAULT_PARAMS)}`,
+      `m=open&e=sine&${encodeParams(DEFAULT_PARAMS)}`,
     );
   });
 

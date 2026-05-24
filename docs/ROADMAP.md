@@ -33,7 +33,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v0.1    | Project init + prototype port                      | Foundation                                 |
 | v0.2 ✅ | URL state sharing                                  | First shareable artifact                   |
 | v0.3 ✅ | FM engine as second selectable                     | Engine-swap abstraction (architectural)    |
-| v0.4    | Arc mode (timer + scripted envelopes)              | Session-state machine                      |
+| v0.4 ✅ | Arc mode (timer + scripted envelopes)              | Session-state machine                      |
 | v0.5    | Mic input (live processed)                         | Instrument integration begins              |
 | v0.6    | Loop pedal (capture / replay / freeze)             | Full instrument integration                |
 | v0.7    | Backend + persistence (patches table, anon IDs)    | Unlocks gallery + recordings               |
@@ -58,6 +58,17 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
   on roadmap), granular → v0.9, physical modeling → v1.0. Two non-breaking engine
   interface extension points noted for those: `loadBuffer` (granular) and
   `excite` (physical).
+- **v0.4** — session modes on a new orchestrator **session-state machine**
+  (`idle → starting → running-open | running-arc → stopping → idle`). **Arc mode**
+  runs a fixed-duration session along a scripted envelope via the pure `ArcRunner`,
+  ticked off `AudioContext.currentTime`. Three preset arcs (**Bell Curve**, **Dawn**,
+  **Dusk**); targets are multipliers on the user's starting values. URL **schema v3**
+  adds `m=<open|arc>` (+ `arc`/`dur`); v1/v2 load as open. Deferred per plan:
+  user-defined arcs / timeline editor → post-v1.0; pause/resume → not on roadmap;
+  manual override of locked controls → v0.4.1 if requested; per-segment per-engine
+  targets and engine switching mid-arc → not on roadmap. Known limit: both current
+  engines lock density while playing, so Dawn/Dusk's density target is held until an
+  unlocked engine (granular, v0.9) ships.
 
 ## Principles
 
