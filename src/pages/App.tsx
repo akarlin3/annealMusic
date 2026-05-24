@@ -52,6 +52,7 @@ export default function App() {
     arcProgress,
     engineRef,
     ensureOrchestrator,
+    setEngineErrorHandler,
   } = useAnnealMusic();
 
   const arcLocked = arcProgress !== null;
@@ -82,6 +83,11 @@ export default function App() {
     setToast({ id: toastId.current, text });
   }, []);
   const dismissToast = useCallback(() => setToast(null), []);
+
+  // Surface engine errors (e.g. physical worklet unsupported) as a toast.
+  useEffect(() => {
+    setEngineErrorHandler((error) => showToast(error.message));
+  }, [setEngineErrorHandler, showToast]);
 
   const input = useInput(ensureOrchestrator, showToast);
   const loops = useLoops(ensureOrchestrator, showToast);
