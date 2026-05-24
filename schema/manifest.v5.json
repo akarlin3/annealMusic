@@ -1,6 +1,12 @@
 {
   "schemaVersion": 5,
-  "supportedVersions": [1, 2, 3, 4, 5],
+  "supportedVersions": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
   "maxPayloadChars": 4096,
   "sharedKeys": {
     "rootFreq": {
@@ -39,7 +45,11 @@
       "decimals": 2
     }
   },
-  "engineOrder": ["sine", "fm", "granular"],
+  "engineOrder": [
+    "sine",
+    "fm",
+    "granular"
+  ],
   "engines": {
     "sine": {},
     "fm": {
@@ -93,16 +103,32 @@
     }
   },
   "session": {
-    "modes": ["open", "arc"],
-    "arcIds": ["bell", "dawn", "dusk"],
+    "modes": [
+      "open",
+      "arc"
+    ],
+    "arcIds": [
+      "bell",
+      "dawn",
+      "dusk"
+    ],
     "duration": {
       "min": 180,
       "max": 3600
     }
   },
   "loop": {
-    "slotIds": ["A", "B", "C"],
-    "flags": ["m", "f", "c", "cap"],
+    "slotIds": [
+      "A",
+      "B",
+      "C"
+    ],
+    "flags": [
+      "m",
+      "f",
+      "c",
+      "cap"
+    ],
     "grainFields": {
       "gs": {
         "key": "sizeMs",
