@@ -50,6 +50,9 @@ export type NodeKind =
   | 'filter'
   | 'analyser'
   | 'convolver'
+  | 'compressor'
+  | 'shaper'
+  | 'mediastreamsource'
   | 'destination';
 
 export class MockNode {
@@ -58,8 +61,19 @@ export class MockNode {
   readonly detune = new MockParam(0);
   readonly offset = new MockParam(0);
   readonly Q = new MockParam(1);
+  // DynamicsCompressor params.
+  readonly threshold = new MockParam(-24);
+  readonly ratio = new MockParam(12);
+  readonly knee = new MockParam(30);
+  readonly attack = new MockParam(0.003);
+  readonly release = new MockParam(0.25);
   type = 'sine';
   buffer: unknown = null;
+  /** WaveShaper curve (null ⇒ bypass). */
+  curve: Float32Array | null = null;
+  /** Channel summing fields (used by the input voice's stereo→mono node). */
+  channelCount = 2;
+  channelCountMode: 'max' | 'clamped-max' | 'explicit' = 'max';
   readonly kind: NodeKind;
 
   constructor(kind: NodeKind = 'gain') {
@@ -96,6 +110,14 @@ export class MockNode {
   getByteFrequencyData(): void {
     // no-op
   }
+
+  getByteTimeDomainData(): void {
+    // no-op
+  }
+
+  getFloatTimeDomainData(): void {
+    // no-op
+  }
 }
 
 export class MockAudioContext {
@@ -106,6 +128,9 @@ export class MockAudioContext {
   currentTime = 0;
   state: 'running' | 'suspended' | 'closed' = 'running';
   sampleRate = 48000;
+  /** Realistic latency values so `estimateLatencyMs` returns a positive number. */
+  baseLatency = 256 / 48000;
+  outputLatency = 512 / 48000;
   readonly destination = new MockNode('destination');
 
   /** Every node created through this context, in creation order. */
@@ -141,6 +166,18 @@ export class MockAudioContext {
 
   createConvolver(): MockNode {
     return this.track(new MockNode('convolver'));
+  }
+
+  createDynamicsCompressor(): MockNode {
+    return this.track(new MockNode('compressor'));
+  }
+
+  createWaveShaper(): MockNode {
+    return this.track(new MockNode('shaper'));
+  }
+
+  createMediaStreamSource(): MockNode {
+    return this.track(new MockNode('mediastreamsource'));
   }
 
   createOscillator(): MockNode {

@@ -94,10 +94,10 @@ export function useSession(): SessionApi {
     void engineRef.current?.stopSession();
   }, []);
 
-  // Tear down on unmount.
+  // Tear down on unmount (drops the input and closes the core).
   useEffect(
     () => () => {
-      void engineRef.current?.stop();
+      void engineRef.current?.dispose();
     },
     [],
   );
