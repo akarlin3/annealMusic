@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Circle } from 'lucide-react';
-import type { AnnealMusicEngine } from '@/audio/AnnealMusicEngine';
+import type { Orchestrator } from '@/audio/orchestrator';
 import { drawFrame, type DrawState } from '@/visual/draw';
 import { HARMONICS } from '@/types/audio';
 import { useParamStore } from '@/state/params';
 
 interface VisualizerProps {
-  engineRef: React.MutableRefObject<AnnealMusicEngine | null>;
+  engineRef: React.MutableRefObject<Orchestrator | null>;
   isPlaying: boolean;
 }
 
