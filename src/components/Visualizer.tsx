@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Circle } from 'lucide-react';
-import type { Orchestrator } from '@/audio/orchestrator';
+import type { ArcProgress, Orchestrator } from '@/audio/orchestrator';
 import { drawFrame, type DrawState } from '@/visual/draw';
 import { HARMONICS } from '@/types/audio';
 import { useParamStore } from '@/state/params';
@@ -8,9 +8,28 @@ import { useParamStore } from '@/state/params';
 interface VisualizerProps {
   engineRef: React.MutableRefObject<Orchestrator | null>;
   isPlaying: boolean;
+  /** Live arc progress (top bar + remaining-time readout); null in open mode. */
+  arcProgress?: ArcProgress | null;
+  /** Cumulative segment boundary fractions (0..1) for marker dots. */
+  segmentBoundaries?: number[];
+  /** True during the final settle fade of an arc — shows a RETURNING label. */
+  returning?: boolean;
 }
 
-export default function Visualizer({ engineRef, isPlaying }: VisualizerProps) {
+function fmtRemaining(sec: number): string {
+  const total = Math.max(0, Math.round(sec));
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+}
+
+export default function Visualizer({
+  engineRef,
+  isPlaying,
+  arcProgress = null,
+  segmentBoundaries = [],
+  returning = false,
+}: VisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const phasesRef = useRef<number[]>(
     HARMONICS.map(() => Math.random() * Math.PI * 2),
@@ -99,6 +118,32 @@ export default function Visualizer({ engineRef, isPlaying }: VisualizerProps) {
       }}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
+
+      {arcProgress && (
+        <div className="absolute left-0 right-0 top-0 h-[2px]">
+          <div
+            className="h-full transition-[width] duration-200 ease-linear"
+            style={{
+              width: `${arcProgress.progress * 100}%`,
+              background: '#f59e0b',
+            }}
+          />
+          {segmentBoundaries
+            .filter((b) => b > 0 && b < 1)
+            .map((b) => (
+              <span
+                key={b}
+                className="absolute top-0 h-[3px] w-[3px] rounded-full"
+                style={{
+                  left: `${b * 100}%`,
+                  background: '#78716c',
+                  transform: 'translateX(-50%)',
+                }}
+              />
+            ))}
+        </div>
+      )}
+
       <div
         className="absolute bottom-3 left-4 right-4 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em]"
         style={{ color: '#57534e' }}
@@ -109,7 +154,13 @@ export default function Visualizer({ engineRef, isPlaying }: VisualizerProps) {
             fill={isPlaying ? '#f59e0b' : '#44403c'}
             stroke="none"
           />
-          {isPlaying ? 'sounding' : 'silent'}
+          {arcProgress
+            ? returning
+              ? 'returning'
+              : `${fmtRemaining(arcProgress.remainingSec)} left`
+            : isPlaying
+              ? 'sounding'
+              : 'silent'}
         </span>
         <span>
           {params.density} partials · root {params.rootFreq.toFixed(0)} Hz

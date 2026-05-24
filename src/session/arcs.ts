@@ -1,5 +1,18 @@
 import type { Arc } from '@/session/types';
 
+/** Arc duration bounds (seconds): default 10 min, min 3 min, max 60 min. */
+export const ARC_DURATION = {
+  min: 180,
+  max: 3600,
+  step: 60,
+  default: 600,
+} as const;
+
+/** Clamp an arc duration (seconds) to the allowed bounds. */
+export function clampArcDuration(sec: number): number {
+  return Math.min(ARC_DURATION.max, Math.max(ARC_DURATION.min, sec));
+}
+
 /**
  * The preset arcs shipped in v0.4. Numeric `targets` are multipliers on the
  * user's captured start value; `'restoreStart'` eases back to it; `'min'`/`'max'`
