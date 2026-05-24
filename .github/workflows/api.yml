@@ -26,7 +26,9 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]" pyright
       - name: Typecheck (pyright)
-        run: pyright app
+        # Point pyright at the interpreter that has the installed packages, so
+        # imports resolve (otherwise every third-party import is "missing").
+        run: pyright --pythonpath "$(python -c 'import sys; print(sys.executable)')" app
       - name: Test (pytest)
         run: pytest -q
 
