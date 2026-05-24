@@ -23,6 +23,8 @@ export interface GrainCloudParams {
   pitchOffset: number;
   gain: number;
   centerDriftRate?: number;
+  /** Soft ceiling on simultaneous live grains; excess grains are skipped. */
+  maxGrains?: number;
 }
 
 /**
@@ -167,6 +169,8 @@ export class GrainCloud {
   private scheduleGrain(when: number): void {
     const p = this.params;
     if (!p) return;
+    // Soft ceiling: under extreme settings, skip rather than glitch/overrun.
+    if (p.maxGrains !== undefined && this.grains.size >= p.maxGrains) return;
     const duration = p.source.duration;
     const grainDur = Math.min(p.sizeMs / 1000, duration * 0.9);
 

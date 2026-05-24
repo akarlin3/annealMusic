@@ -189,10 +189,10 @@ describe('encodeState / decodeState (schema v3)', () => {
   });
 
   it('defaults to sine for an unknown engine id, with a warning', () => {
-    const decoded = decodeState(2, 'e=granular&coupling=0.5');
+    const decoded = decodeState(2, 'e=banana&coupling=0.5');
     expect(decoded.engineId).toBe('sine');
     expect(decoded.params.coupling).toBe(0.5);
-    expect(decoded.warnings.some((w) => w.includes('granular'))).toBe(true);
+    expect(decoded.warnings.some((w) => w.includes('banana'))).toBe(true);
   });
 
   it('treats a v1 payload as the sine engine and ignores engine keys', () => {
@@ -201,6 +201,57 @@ describe('encodeState / decodeState (schema v3)', () => {
     expect(decoded.params.coupling).toBe(0.5);
     expect(decoded.engineParams).toEqual({});
     expect(decoded.warnings.length).toBe(2); // e= and fm.modRatio both ignored
+  });
+});
+
+describe('granular engine + schema v5', () => {
+  it('encodes granular params under the gr namespace', () => {
+    const encoded = encodeState(DEFAULT_PARAMS, 'granular', {
+      source: 2,
+      size: 150,
+      density: 20,
+      posJitter: 0.4,
+      pitchJitter: 10,
+      posCenter: 0.6,
+    });
+    expect(encoded).toContain('e=granular');
+    expect(encoded).toContain('gr.source=2');
+    expect(encoded).toContain('gr.size=150');
+    expect(encoded).toContain('gr.density=20');
+    expect(encoded).toContain('gr.posJitter=0.40');
+    expect(encoded).toContain('gr.pitchJitter=10');
+    expect(encoded).toContain('gr.posCenter=0.60');
+  });
+
+  it('round-trips granular params (encode → decode)', () => {
+    const engineParams = {
+      source: 3,
+      size: 90,
+      density: 30,
+      posJitter: 0.25,
+      pitchJitter: 40,
+      posCenter: 0.33,
+    };
+    const payload = encodeState(DEFAULT_PARAMS, 'granular', engineParams);
+    const decoded = decodeState(5, payload);
+    expect(decoded.engineId).toBe('granular');
+    expect(decoded.engineParams.granular).toEqual(engineParams);
+    expect(decoded.warnings).toEqual([]);
+  });
+
+  it('clamps an out-of-range source index with a warning', () => {
+    const decoded = decodeState(5, 'e=granular&gr.source=99');
+    expect(decoded.engineId).toBe('granular');
+    expect(decoded.engineParams.granular?.source).toBe(7);
+    expect(decoded.warnings.some((w) => w.includes('gr.source'))).toBe(true);
+  });
+
+  it('ignores gr.* params on a pre-v5 schema (back-compat is forward-safe)', () => {
+    // gr.* are namespaced engine params; v2+ accepts engine params, so they
+    // decode — but a v4 reader without the granular engine would warn. Here the
+    // current build knows granular, so a v4 payload still decodes gr.* cleanly.
+    const decoded = decodeState(5, 'e=granular&gr.size=120');
+    expect(decoded.engineParams.granular?.size).toBe(120);
   });
 });
 

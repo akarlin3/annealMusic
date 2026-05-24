@@ -1,7 +1,7 @@
 import type { AnnealMusicParams } from '@/state/params';
 
 /** Identifier for a selectable synthesis engine. */
-export type EngineId = 'sine' | 'fm';
+export type EngineId = 'sine' | 'fm' | 'granular';
 
 /**
  * Shared physics + post-fx params, owned by the orchestration layer and passed
@@ -28,6 +28,12 @@ export interface AnnealEngineCapabilities {
   readonly densityLockedWhilePlaying: boolean;
   /** Engine-specific param keys, with bounds + defaults. */
   readonly params: readonly EngineParamDef[];
+  /**
+   * Preferred crossfade window (ms) when the orchestrator swaps *into* this
+   * engine. Lets a heavier engine (e.g. granular) ask for a longer fade to mask
+   * start-up jitter. Omitted ⇒ the orchestrator's default.
+   */
+  readonly crossfadeMs?: number;
 }
 
 /**

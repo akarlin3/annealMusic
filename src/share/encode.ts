@@ -6,7 +6,9 @@ import {
   type SharedKey,
 } from '@/share/schema';
 import {
+  ENGINE_URL_NS,
   clampEngineParam,
+  engineIdForUrlNs,
   engineParamDefs,
   isEngineId,
 } from '@/audio/engines/index';
@@ -40,15 +42,20 @@ export function encodeParams(params: AnnealMusicParams): string {
   }).join('&');
 }
 
-/** Encode an engine's params as namespaced pairs, e.g. `fm.modRatio=1.00&...`. */
+/**
+ * Encode an engine's params as namespaced pairs, e.g. `fm.modRatio=1.00&...` or
+ * `gr.size=120&...`. The namespace is the engine's short URL namespace (which
+ * equals the id for sine/FM, and is `gr` for granular).
+ */
 export function encodeEngineParams(
   engineId: EngineId,
   params: EngineParams,
 ): string {
+  const ns = ENGINE_URL_NS[engineId];
   return engineParamDefs(engineId)
     .map((def) => {
       const value = params[def.key] ?? def.default;
-      return `${engineId}.${def.key}=${value.toFixed(decimalsForStep(def.step))}`;
+      return `${ns}.${def.key}=${value.toFixed(decimalsForStep(def.step))}`;
     })
     .join('&');
 }
@@ -284,7 +291,7 @@ export function decodeState(version: number, payload: string): DecodedState {
       continue;
     }
 
-    // Namespaced engine param: `<engineId>.<paramKey>`.
+    // Namespaced engine param: `<urlNs>.<paramKey>` (`fm.*`, `gr.*`, ...).
     const dot = key.indexOf('.');
     if (dot !== -1) {
       if (version < 2) {
@@ -293,11 +300,12 @@ export function decodeState(version: number, payload: string): DecodedState {
       }
       const ns = key.slice(0, dot);
       const paramKey = key.slice(dot + 1);
-      if (!isEngineId(ns)) {
+      const engineNs = engineIdForUrlNs(ns);
+      if (!engineNs) {
         warnings.push(`unknown engine namespace ignored: ${key}`);
         continue;
       }
-      const def = engineParamDefs(ns).find((d) => d.key === paramKey);
+      const def = engineParamDefs(engineNs).find((d) => d.key === paramKey);
       if (!def) {
         warnings.push(`unknown engine param ignored: ${key}`);
         continue;
@@ -307,15 +315,15 @@ export function decodeState(version: number, payload: string): DecodedState {
         warnings.push(`non-numeric value dropped for ${key}: ${raw}`);
         continue;
       }
-      const clamped = clampEngineParam(ns, paramKey, num);
+      const clamped = clampEngineParam(engineNs, paramKey, num);
       if (clamped !== num) {
         warnings.push(
           `value out of range for ${key}: ${num} clamped to ${clamped}`,
         );
       }
-      const bag = engineParams[ns] ?? {};
+      const bag = engineParams[engineNs] ?? {};
       bag[paramKey] = roundTo(clamped, decimalsForStep(def.step));
-      engineParams[ns] = bag;
+      engineParams[engineNs] = bag;
       continue;
     }
 

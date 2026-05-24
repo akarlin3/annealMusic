@@ -125,7 +125,7 @@ export const SOURCES: readonly SourceDef[] = [
     url: '/sources/warmtape.opus',
     durationMs: 26000,
     fundamentalHz: null,
-    icon: 'Cassette',
+    icon: 'Radio',
   },
 ];
 
