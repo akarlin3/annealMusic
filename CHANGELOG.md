@@ -4,6 +4,60 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-05-24
+
+### Added
+
+- **Public gallery (`/gallery`).** A browsable, deep-linkable page of
+  `visibility: public` patches — the first surface where other users' content
+  renders in the app. Anonymous browsing works fully; saving/publishing still uses
+  the v0.7 anon-ID flow. Responsive card grid, sort (newest / oldest /
+  most-loaded), filters (engine, mode, has-captures), debounced full-text search,
+  and explicit "Load more" keyset pagination (stable under inserts).
+- **`GET /api/v1/gallery`.** Sort/filter/search over public patches with
+  `(published_at, id)` / `(load_count, …)` keyset cursors bound to their sort
+  mode. Postgres `tsvector` search (title weighted over description) with a
+  portable `LIKE` fallback for the SQLite test DB. `Cache-Control: max-age=30,
+  stale-while-revalidate=60`.
+- **Server-side preview rendering.** A short (20 s) Opus audio thumbnail is
+  rendered when a patch is published, by driving the **real** engine in **headless
+  Chromium** (Option B) — Chromium is the production runtime, so previews use the
+  exact client DSP with no parity risk. An in-process `asyncio` queue with bounded
+  concurrency (2) and retries renders asynchronously; the card shows a "preview
+  rendering" placeholder until ready. `GET /patches/:id/preview` 302s to the
+  immutable Opus (`max-age=31536000`), 202s while rendering, 503s on failure.
+  Previews are write-once (state is immutable).
+- **Card visualizer art.** Each card shows a deterministic, static single frame of
+  the visualizer geometry derived from the patch params (same param → same image),
+  reusing the in-app `drawFrame` — doubles as the fallback when a preview hasn't
+  rendered.
+- **Load counts.** "Load into app" increments `load_count` (rate-limited per
+  IP+patch; over-limit is a silent no-op so loading is never blocked).
+- **Moderation.** Publish-time auto-screening of title/description against a static
+  banned-word list (env-extensible via `MODERATION_EXTRA_TERMS`) + spam heuristics;
+  a rejected publish returns `422 content_rejected` and does not publish. A public
+  **report flow** (`POST /reports`, card `…` → Report) flags patches for review.
+- **Minimal admin (`/admin`).** Key-gated (`x-admin-key`/`ADMIN_KEY`, stored in
+  sessionStorage) view of open reports with dismiss / uphold; uphold sets a patch
+  to `flagged`, hiding it from the gallery and short links (`403 under_review`)
+  within the gallery cache TTL.
+- **Routing.** Introduced `react-router-dom`: `/` and `/p/:slug` (sandbox),
+  `/gallery`, `/admin`. A subtle "Gallery" link in the app header.
+
+### Changed
+
+- `patches` gains `preview_status`/`preview_storage_key`/`preview_duration_ms`,
+  `load_count`, `published_at`, and derived `engine`/`mode`/`has_captures` filter
+  columns (set at insert; state is immutable). `visibility` admits `'flagged'`.
+  New `reports` table. Migration `0002_gallery` backfills existing public patches.
+- API Docker image bundles headless Chromium + ffmpeg for preview rendering.
+
+### Deferred
+
+- Comments / likes / follows / profiles, algorithmic feeds, collections,
+  staff-picks, public OG share images, semantic search, and any third-party
+  moderation service — see `docs/ROADMAP.md`.
+
 ## [0.7.0] - 2026-05-24
 
 ### Added
