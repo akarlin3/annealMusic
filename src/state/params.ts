@@ -1,4 +1,9 @@
 import { create } from 'zustand';
+import {
+  clampEngineParam,
+  makeDefaultEngineParams,
+} from '@/audio/engines/index';
+import type { EngineId, EngineParams } from '@/audio/engines/types';
 
 export interface AnnealMusicParams {
   rootFreq: number;
@@ -131,15 +136,25 @@ export function clampParam(key: ParamKey, value: number): number {
   return Math.min(b.max, Math.max(b.min, value));
 }
 
+export const DEFAULT_ENGINE_ID: EngineId = 'sine';
+
 export interface ParamStore {
   params: AnnealMusicParams;
+  /** Active synthesis engine. */
+  engineId: EngineId;
+  /** Per-engine param bags, retained across switches. */
+  engineParams: Partial<Record<EngineId, EngineParams>>;
   setParam: (key: ParamKey, value: number) => void;
   setMany: (partial: Partial<AnnealMusicParams>) => void;
+  setEngine: (id: EngineId) => void;
+  setEngineParam: (id: EngineId, key: string, value: number) => void;
   reset: () => void;
 }
 
 export const useParamStore = create<ParamStore>((set) => ({
   params: DEFAULT_PARAMS,
+  engineId: DEFAULT_ENGINE_ID,
+  engineParams: makeDefaultEngineParams(),
   setParam: (key, value) =>
     set((state) => ({
       params: { ...state.params, [key]: clampParam(key, value) },
@@ -153,5 +168,21 @@ export const useParamStore = create<ParamStore>((set) => ({
       }
       return { params: next };
     }),
-  reset: () => set({ params: DEFAULT_PARAMS }),
+  setEngine: (id) => set({ engineId: id }),
+  setEngineParam: (id, key, value) =>
+    set((state) => ({
+      engineParams: {
+        ...state.engineParams,
+        [id]: {
+          ...state.engineParams[id],
+          [key]: clampEngineParam(id, key, value),
+        },
+      },
+    })),
+  reset: () =>
+    set({
+      params: DEFAULT_PARAMS,
+      engineId: DEFAULT_ENGINE_ID,
+      engineParams: makeDefaultEngineParams(),
+    }),
 }));

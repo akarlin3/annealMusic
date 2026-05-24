@@ -5,12 +5,24 @@ import { useParamStore } from '@/state/params';
 import { readStateFromHash, subscribeStoreToHash } from '@/share/url';
 import Visualizer from '@/components/Visualizer';
 import ControlPanel from '@/components/ControlPanel';
+import EngineSelector from '@/components/EngineSelector';
 import ArchitectureDiagram from '@/components/ArchitectureDiagram';
 import CopyLinkButton from '@/components/CopyLinkButton';
 import Toast, { type ToastMessage } from '@/components/Toast';
+import type { EngineId } from '@/audio/engines/types';
 
 export default function App() {
-  const { params, setParam, isPlaying, toggle, engineRef } = useAnnealMusic();
+  const {
+    params,
+    setParam,
+    engineId,
+    engineParams,
+    setEngine,
+    setEngineParam,
+    isPlaying,
+    toggle,
+    engineRef,
+  } = useAnnealMusic();
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const toastId = useRef(0);
@@ -28,8 +40,25 @@ export default function App() {
     const hydrated = readStateFromHash();
 
     if (hydrated) {
-      if (Object.keys(hydrated.params).length > 0) {
-        useParamStore.getState().setMany(hydrated.params);
+      const store = useParamStore.getState();
+      const sharedCount = Object.keys(hydrated.params).length;
+      const engineEntries = Object.entries(hydrated.engineParams) as [
+        EngineId,
+        Record<string, number>,
+      ][];
+
+      if (sharedCount > 0) store.setMany(hydrated.params);
+      store.setEngine(hydrated.engineId);
+      for (const [id, bag] of engineEntries) {
+        for (const [key, value] of Object.entries(bag)) {
+          store.setEngineParam(id, key, value);
+        }
+      }
+      if (
+        sharedCount > 0 ||
+        hydrated.engineId !== 'sine' ||
+        engineEntries.length > 0
+      ) {
         showToast('Loaded shared session');
       }
       if (hydrated.warnings.length > 0) {
@@ -61,7 +90,7 @@ export default function App() {
                 className="font-mono text-[10px] uppercase tracking-[0.18em]"
                 style={{ color: '#78716c' }}
               >
-                v0.2 · prototype
+                v0.3 · prototype
               </span>
             </div>
             <p
@@ -74,7 +103,12 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            <CopyLinkButton params={params} onResult={showToast} />
+            <CopyLinkButton
+              params={params}
+              engineId={engineId}
+              engineParams={engineParams[engineId] ?? {}}
+              onResult={showToast}
+            />
 
             <button
               onClick={toggle}
@@ -107,12 +141,25 @@ export default function App() {
           </div>
         </header>
 
+        <div className="mb-6 flex items-center gap-3">
+          <span
+            className="font-mono text-[10px] uppercase tracking-[0.22em]"
+            style={{ color: '#57534e' }}
+          >
+            Engine
+          </span>
+          <EngineSelector engineId={engineId} setEngine={setEngine} />
+        </div>
+
         <Visualizer engineRef={engineRef} isPlaying={isPlaying} />
 
         <ControlPanel
           params={params}
           setParam={setParam}
           isPlaying={isPlaying}
+          engineId={engineId}
+          engineParams={engineParams[engineId] ?? {}}
+          setEngineParam={(key, value) => setEngineParam(engineId, key, value)}
         />
 
         <div className="am-hairline my-12" />

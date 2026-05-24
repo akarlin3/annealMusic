@@ -1,19 +1,17 @@
 import type { StoreApi } from 'zustand';
-import { decodeParams, encodeParams } from '@/share/encode';
-import { SCHEMA_VERSION } from '@/share/schema';
+import { decodeState, encodeState, type DecodedState } from '@/share/encode';
+import { SCHEMA_VERSION, SUPPORTED_SCHEMA_VERSIONS } from '@/share/schema';
 import type { AnnealMusicParams, ParamStore } from '@/state/params';
+import type { EngineId, EngineParams } from '@/audio/engines/types';
 
 const PREFIX = 's=';
 
 /**
  * Read shared state from `window.location.hash`. Returns `null` when there is
- * no state fragment or when the schema version is unknown (caller decides UX).
- * Never throws.
+ * no state fragment or when the schema version is unsupported (caller decides
+ * UX). Never throws. v1 fragments decode with `engine=sine`.
  */
-export function readStateFromHash(): {
-  params: Partial<AnnealMusicParams>;
-  warnings: string[];
-} | null {
+export function readStateFromHash(): DecodedState | null {
   if (typeof window === 'undefined') return null;
 
   const hash = window.location.hash;
@@ -25,20 +23,25 @@ export function readStateFromHash(): {
   if (colon === -1) return null;
 
   const version = Number(body.slice(0, colon));
-  if (!Number.isInteger(version) || version !== SCHEMA_VERSION) return null;
+  if (!Number.isInteger(version)) return null;
+  if (!SUPPORTED_SCHEMA_VERSIONS.includes(version)) return null;
 
-  return decodeParams(body.slice(colon + 1));
+  return decodeState(version, body.slice(colon + 1));
 }
 
 /**
- * Write the current params to the URL fragment using `history.replaceState`,
- * so sculpting updates the shareable link without adding browser-history
- * entries or triggering navigation.
+ * Write the current state to the URL fragment via `history.replaceState`, so
+ * sculpting updates the shareable link without adding history entries or
+ * triggering navigation.
  */
-export function writeStateToHash(params: AnnealMusicParams): void {
+export function writeStateToHash(
+  params: AnnealMusicParams,
+  engineId: EngineId = 'sine',
+  engineParams: EngineParams = {},
+): void {
   if (typeof window === 'undefined') return;
 
-  const hash = `#${PREFIX}${SCHEMA_VERSION}:${encodeParams(params)}`;
+  const hash = `#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams)}`;
   const { pathname, search } = window.location;
   window.history.replaceState(
     window.history.state,
@@ -48,20 +51,24 @@ export function writeStateToHash(params: AnnealMusicParams): void {
 }
 
 /**
- * Build the full shareable URL (origin + path + `#s=1:` + payload) for the
- * given params, without mutating the current location.
+ * Build the full shareable URL (origin + path + `#s=N:` + payload) for the
+ * given state, without mutating the current location.
  */
-export function buildShareUrl(params: AnnealMusicParams): string {
+export function buildShareUrl(
+  params: AnnealMusicParams,
+  engineId: EngineId = 'sine',
+  engineParams: EngineParams = {},
+): string {
   const base =
     typeof window === 'undefined'
       ? ''
       : window.location.origin + window.location.pathname;
-  return `${base}#${PREFIX}${SCHEMA_VERSION}:${encodeParams(params)}`;
+  return `${base}#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams)}`;
 }
 
 /**
  * Subscribe a param store to the URL: on every change, debounce and write the
- * latest params to the hash. Returns an unsubscribe function that also cancels
+ * latest state to the hash. Returns an unsubscribe function that also cancels
  * any pending write.
  */
 export function subscribeStoreToHash(
@@ -74,7 +81,12 @@ export function subscribeStoreToHash(
     if (timer !== null) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      writeStateToHash(store.getState().params);
+      const state = store.getState();
+      writeStateToHash(
+        state.params,
+        state.engineId,
+        state.engineParams[state.engineId] ?? {},
+      );
     }, debounceMs);
   });
 

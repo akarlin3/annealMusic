@@ -8,7 +8,7 @@ A generative ambient meditation sandbox: coupled oscillators drift over a harmon
 - **Vite 5** build / dev server
 - **Tailwind CSS 3**
 - **Zustand** for the parameter store
-- **Web Audio API** for synthesis (coupled sine bank + Ornstein–Uhlenbeck drift)
+- **Web Audio API** for synthesis (swappable engines + Ornstein–Uhlenbeck drift)
 - **Canvas 2D** for the visualizer
 - **Vitest** + jsdom for tests, **ESLint** + **Prettier** for quality
 
@@ -29,18 +29,39 @@ npm run format     # Prettier --write
 
 ```
 src/
-  audio/       # Web Audio engine, drift loop, IR generation
-  components/  # Visualizer, ControlPanel, ArchitectureDiagram
-  hooks/       # useAnnealMusic (orchestration), useAudioEngine
-  state/       # param store, defaults, control schema
-  visual/      # canvas draw loop, palette, math helpers
-  pages/       # App
-  styles/      # global css + slider styles
-  types/       # shared types
-  test/        # vitest setup
-  share/       # URL state schema, encode/decode, hash read/write
-docs/          # INIT_PLAN, ROADMAP, COMPAT, prototype reference
+  audio/         # orchestrator (post-fx, drift, crossfade), IR generation
+    engines/     # AnnealEngine interface, sine + fm engines, registry
+  components/    # Visualizer, ControlPanel, EngineSelector, ArchitectureDiagram
+  hooks/         # useAnnealMusic (orchestration), useAudioEngine
+  state/         # param store, defaults, control schema
+  visual/        # canvas draw loop, palette, math helpers
+  pages/         # App
+  styles/        # global css + slider styles
+  types/         # shared types
+  test/          # vitest setup + Web Audio mock
+  share/         # URL state schema, encode/decode, hash read/write
+docs/            # INIT_PLAN, ROADMAP, COMPAT, version plans, prototype reference
 ```
+
+## Engines
+
+Synthesis is organized around a small **engine interface** (`AnnealEngine`):
+every engine builds its own voices and exposes a single output node, while the
+**orchestrator** owns the shared physics (root, spread, density, coupling,
+drift) and post-fx (brightness filter, reverb space, volume) and pushes
+per-partial detune from the drift loop into the active engine. This makes
+engines hot-swappable: pick one from the segmented control under the header and
+the orchestrator **crossfades** (equal-gain, ~600ms) without a page reload.
+
+- **Sine** — the coupled sine bank: one sine oscillator per partial over the
+  harmonic lattice. No engine-specific params.
+- **FM** — two-operator FM per partial: a sine carrier at the partial frequency,
+  a modulator at `carrier × Ratio` with depth `Index × carrier` Hz, plus
+  optional modulator self-**Feedback**. Params: **Ratio** (0.5–4), **Index**
+  (0–10), **Feedback** (0–1).
+
+Both engines share the same baseline + slow-LFO amplitude shape, so switching
+engines changes timbre without changing the overall envelope of the field.
 
 ## Sharing
 
@@ -50,14 +71,18 @@ shareable as a link. Click **Copy Link** in the header to copy the current
 state; opening that link restores the parameters before the first sound. The
 fragment uses a versioned, human-readable schema — `#s=<version>:<key=value…>` —
 and updates live (debounced) as you sculpt, via `history.replaceState` so it
-never pollutes browser history. Example:
+never pollutes browser history.
+
+Schema **v2** adds the active engine (`e=<id>`) and namespaced engine params
+(e.g. `fm.modRatio`). Example:
 
 ```
-https://anneal.averykarlin.org/#s=1:rootFreq=147&spread=1.08&density=7&coupling=0.62&drift=0.30&brightness=0.74&space=0.55
+https://anneal.averykarlin.org/#s=2:e=fm&rootFreq=147&spread=1.08&density=7&coupling=0.62&drift=0.30&brightness=0.74&space=0.55&fm.modRatio=2.00&fm.modIndex=4.50&fm.feedback=0.20
 ```
 
-Malformed fragments fall back to defaults, out-of-range values are clamped, and
-links from a newer schema version load defaults and surface a notice.
+**v1** links still load — they're interpreted as the sine engine. Malformed
+fragments fall back to defaults, out-of-range values are clamped, and links from
+a newer schema version load defaults and surface a notice.
 
 ## Deploy
 

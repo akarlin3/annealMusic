@@ -8,8 +8,8 @@ import {
 } from '@/share/schema';
 
 describe('schema', () => {
-  it('ships schema version 1', () => {
-    expect(SCHEMA_VERSION).toBe(1);
+  it('ships schema version 2', () => {
+    expect(SCHEMA_VERSION).toBe(2);
   });
 
   it('excludes volume from shared keys', () => {

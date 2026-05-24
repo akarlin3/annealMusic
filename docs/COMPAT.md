@@ -5,9 +5,9 @@ handles it. Update this file whenever a new version touches the audio path.
 
 ## AudioContext construction (Safari)
 
-Older Safari only exposes `webkitAudioContext`. The engine resolves the
+Older Safari only exposes `webkitAudioContext`. The orchestrator resolves the
 constructor as `window.AudioContext ?? window.webkitAudioContext`
-(`src/audio/AnnealMusicEngine.ts`), so it works on both. A typed
+(`src/audio/orchestrator.ts`), so it works on both. A typed
 `WebkitWindow` shim provides the fallback without `any`.
 
 ## Autoplay / user-gesture requirement (both)
@@ -67,3 +67,26 @@ and a final `window.prompt` so the user can copy manually if both fail.
 `stop()` fades out, then stops sources and closes the context after ~2.2s.
 Calling `start()` again creates a fresh context (contexts are not reused after
 `close()`), matching prototype behavior on both engines.
+
+## Engine crossfade (both)
+
+Engine swaps run both engines briefly in parallel, each through its own bus
+`GainNode`, and equal-gain linear-ramp crossfade over ~600ms
+(`src/audio/orchestrator.ts`). The ramps use an explicit `setValueAtTime` anchor
+before `linearRampToValueAtTime`, so there is no implicit value jump or click on
+either Chrome or Safari. Rapid switches coalesce to the latest requested engine.
+
+## FM engine — modulation depth & feedback (both)
+
+The FM engine (`src/audio/engines/fm.ts`) wires `modulator → gain → carrier.frequency`
+(additive a-rate modulation of an `AudioParam`) and, for feedback,
+`modulator → gain → modulator.frequency`. Connecting an audio-rate signal to a
+frequency `AudioParam` and self-feedback loops both behave consistently across
+Chrome and Safari (native nodes only; no `AudioWorklet`). Feedback gain is
+bounded (`feedback × modFreq × 3`) so even at maximum it stays at the harsh edge
+rather than producing denormals/NaNs. No FM-specific timing quirks observed; the
+shared baseline + LFO amplitude shape means FM and sine have identical envelopes.
+
+> Note: cross-browser behavior here is reasoned from the Web Audio spec and the
+> all-native node graph; a hands-on Safari listen is still worth doing before a
+> tagged release.

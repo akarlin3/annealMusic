@@ -32,7 +32,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 |---------|----------------------------------------------------|---------------------------------------------|
 | v0.1    | Project init + prototype port                      | Foundation                                 |
 | v0.2 ✅ | URL state sharing                                  | First shareable artifact                   |
-| v0.3    | FM engine as second selectable                     | Engine-swap abstraction (architectural)    |
+| v0.3 ✅ | FM engine as second selectable                     | Engine-swap abstraction (architectural)    |
 | v0.4    | Arc mode (timer + scripted envelopes)              | Session-state machine                      |
 | v0.5    | Mic input (live processed)                         | Instrument integration begins              |
 | v0.6    | Loop pedal (capture / replay / freeze)             | Full instrument integration                |
@@ -49,6 +49,15 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
   → v0.3 (schema v2), arc-mode timeline → v0.4, server-side short links → v0.7,
   gallery → v0.8. If a future payload outgrows the readable form (~500 chars),
   switch to base64-of-JSON.
+- **v0.3** — engine-swap abstraction (`AnnealEngine` + `Orchestrator`) with the
+  sine bank refactored into an engine and **FM** added as the second selectable
+  engine. FM ships with modulator self-**feedback** in scope (originally pencilled
+  for v0.3.1). Engines hot-swap via an equal-gain ~600ms crossfade. URL **schema
+  v2** adds `e=<id>` + namespaced engine params (`fm.*`); v1 links load as sine.
+  Deferred per plan: per-partial independent FM ratios and >2-operator stacks (not
+  on roadmap), granular → v0.9, physical modeling → v1.0. Two non-breaking engine
+  interface extension points noted for those: `loadBuffer` (granular) and
+  `excite` (physical).
 
 ## Principles
 
