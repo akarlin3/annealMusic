@@ -6,6 +6,12 @@ import {
 import type { EngineId, EngineParams } from '@/audio/engines/types';
 import { ARC_DURATION, clampArcDuration } from '@/session/arcs';
 import type { SessionMode } from '@/session/types';
+import {
+  makeDefaultLoopConfig,
+  type LoopConfigMap,
+  type SlotConfig,
+  type SlotId,
+} from '@/loop/types';
 
 export interface AnnealMusicParams {
   rootFreq: number;
@@ -154,6 +160,8 @@ export interface ParamStore {
   arcId: string;
   /** Selected arc duration in seconds (clamped to `ARC_DURATION`). */
   arcDurationSec: number;
+  /** Per-slot loop config (URL-encodable; buffers are runtime-only). */
+  loops: LoopConfigMap;
   setParam: (key: ParamKey, value: number) => void;
   setMany: (partial: Partial<AnnealMusicParams>) => void;
   setEngine: (id: EngineId) => void;
@@ -161,6 +169,7 @@ export interface ParamStore {
   setSessionMode: (mode: SessionMode) => void;
   setArcId: (id: string) => void;
   setArcDurationSec: (sec: number) => void;
+  setLoopConfig: (id: SlotId, config: SlotConfig) => void;
   reset: () => void;
 }
 
@@ -171,6 +180,7 @@ export const useParamStore = create<ParamStore>((set) => ({
   sessionMode: DEFAULT_SESSION_MODE,
   arcId: DEFAULT_ARC_ID,
   arcDurationSec: ARC_DURATION.default,
+  loops: makeDefaultLoopConfig(),
   setParam: (key, value) =>
     set((state) => ({
       params: { ...state.params, [key]: clampParam(key, value) },
@@ -198,6 +208,8 @@ export const useParamStore = create<ParamStore>((set) => ({
   setSessionMode: (mode) => set({ sessionMode: mode }),
   setArcId: (id) => set({ arcId: id }),
   setArcDurationSec: (sec) => set({ arcDurationSec: clampArcDuration(sec) }),
+  setLoopConfig: (id, config) =>
+    set((state) => ({ loops: { ...state.loops, [id]: config } })),
   reset: () =>
     set({
       params: DEFAULT_PARAMS,
@@ -206,5 +218,6 @@ export const useParamStore = create<ParamStore>((set) => ({
       sessionMode: DEFAULT_SESSION_MODE,
       arcId: DEFAULT_ARC_ID,
       arcDurationSec: ARC_DURATION.default,
+      loops: makeDefaultLoopConfig(),
     }),
 }));

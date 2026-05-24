@@ -13,6 +13,14 @@ import {
 import type { EngineId, EngineParams } from '@/audio/engines/types';
 import { ARC_DURATION, clampArcDuration, getArcById } from '@/session/arcs';
 import type { SessionMode } from '@/session/types';
+import {
+  SLOT_IDS,
+  clampGrainParam,
+  makeDefaultLoopConfig,
+  type GrainParams,
+  type LoopConfigMap,
+  type SlotId,
+} from '@/loop/types';
 
 const SHARED_KEY_SET: ReadonlySet<string> = new Set(SHARED_KEYS);
 
@@ -45,6 +53,39 @@ export function encodeEngineParams(
     .join('&');
 }
 
+/** Grain field codes used in the URL (kept short). */
+const GRAIN_FIELDS: {
+  code: string;
+  key: keyof GrainParams;
+  decimals: number;
+}[] = [
+  { code: 'gs', key: 'sizeMs', decimals: 0 },
+  { code: 'gd', key: 'density', decimals: 0 },
+  { code: 'gp', key: 'posJitter', decimals: 2 },
+  { code: 'gx', key: 'pitchJitter', decimals: 0 },
+];
+
+/**
+ * Encode loop slot config (schema v4+) as `L<id>.<field>` pairs. Buffers are
+ * never encoded — only flags + grain params. Flags emit only when set; grain
+ * params emit only for frozen slots. Default/empty slots contribute nothing.
+ */
+export function encodeLoops(loops: LoopConfigMap): string {
+  const parts: string[] = [];
+  for (const id of SLOT_IDS) {
+    const slot = loops[id];
+    if (slot.muted) parts.push(`L${id}.m=1`);
+    if (slot.frozen) parts.push(`L${id}.f=1`);
+    if (slot.driftCoupled) parts.push(`L${id}.c=1`);
+    if (slot.frozen) {
+      for (const f of GRAIN_FIELDS) {
+        parts.push(`L${id}.${f.code}=${slot.grain[f.key].toFixed(f.decimals)}`);
+      }
+    }
+  }
+  return parts.join('&');
+}
+
 /** Session selection carried in the URL (schema v3+). */
 export interface SessionConfig {
   mode: SessionMode;
@@ -69,6 +110,7 @@ export function encodeState(
   engineId: EngineId,
   engineParams: EngineParams,
   session: SessionConfig = DEFAULT_SESSION,
+  loops?: LoopConfigMap,
 ): string {
   const parts = [`m=${session.mode}`];
   if (session.mode === 'arc') {
@@ -77,6 +119,10 @@ export function encodeState(
   parts.push(`e=${engineId}`, encodeParams(params));
   const engine = encodeEngineParams(engineId, engineParams);
   if (engine) parts.push(engine);
+  if (loops) {
+    const loopStr = encodeLoops(loops);
+    if (loopStr) parts.push(loopStr);
+  }
   return parts.join('&');
 }
 
@@ -87,7 +133,53 @@ export interface DecodedState {
   mode: SessionMode;
   arcId?: string;
   durationSec?: number;
+  /** Full loop config map (defaults for any slot not present in the URL). */
+  loops: LoopConfigMap;
   warnings: string[];
+}
+
+const GRAIN_FIELD_BY_CODE = new Map(
+  GRAIN_FIELDS.map((f) => [f.code, f] as const),
+);
+
+/** Parse one `L<id>.<field>=<raw>` loop pair into `loops`, recording warnings. */
+function decodeLoopPair(
+  loops: LoopConfigMap,
+  id: SlotId,
+  field: string,
+  raw: string,
+  warnings: string[],
+): void {
+  const slot = loops[id];
+  if (field === 'm') {
+    slot.muted = raw === '1';
+    return;
+  }
+  if (field === 'f') {
+    slot.frozen = raw === '1';
+    return;
+  }
+  if (field === 'c') {
+    slot.driftCoupled = raw === '1';
+    return;
+  }
+  const grainField = GRAIN_FIELD_BY_CODE.get(field);
+  if (!grainField) {
+    warnings.push(`unknown loop field ignored: L${id}.${field}`);
+    return;
+  }
+  const num = raw.trim() === '' ? NaN : Number(raw);
+  if (!Number.isFinite(num)) {
+    warnings.push(`non-numeric value dropped for L${id}.${field}: ${raw}`);
+    return;
+  }
+  const clamped = clampGrainParam(grainField.key, num);
+  if (clamped !== num) {
+    warnings.push(
+      `value out of range for L${id}.${field}: ${num} clamped to ${clamped}`,
+    );
+  }
+  slot.grain[grainField.key] = clamped;
 }
 
 /**
@@ -99,6 +191,7 @@ export interface DecodedState {
 export function decodeState(version: number, payload: string): DecodedState {
   const params: Partial<AnnealMusicParams> = {};
   const engineParams: Partial<Record<EngineId, EngineParams>> = {};
+  const loops = makeDefaultLoopConfig();
   const warnings: string[] = [];
   let engineId: EngineId = 'sine';
   let mode: SessionMode = 'open';
@@ -168,6 +261,19 @@ export function decodeState(version: number, payload: string): DecodedState {
         engineId = raw;
       } else {
         warnings.push(`unknown engine '${raw}', defaulting to sine`);
+      }
+      continue;
+    }
+
+    // Loop slot config: `L<id>.<field>` (schema v4+).
+    if (key.length >= 4 && key[0] === 'L' && key[2] === '.') {
+      const slotId = key[1] as SlotId;
+      if (version < 4) {
+        warnings.push(`loop key ignored for schema v${version}: ${key}`);
+      } else if (slotId === 'A' || slotId === 'B' || slotId === 'C') {
+        decodeLoopPair(loops, slotId, key.slice(3), raw, warnings);
+      } else {
+        warnings.push(`unknown loop slot ignored: ${key}`);
       }
       continue;
     }
@@ -242,7 +348,16 @@ export function decodeState(version: number, payload: string): DecodedState {
     durationSec = undefined;
   }
 
-  return { params, engineId, engineParams, mode, arcId, durationSec, warnings };
+  return {
+    params,
+    engineId,
+    engineParams,
+    mode,
+    arcId,
+    durationSec,
+    loops,
+    warnings,
+  };
 }
 
 /**

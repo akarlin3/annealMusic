@@ -25,8 +25,35 @@ gain on a unit signal. Not a concern for current evergreen targets.
 
 ## ScriptProcessor vs AudioWorklet
 
-Not used here — synthesis is entirely native nodes (oscillators, gains,
-biquad, convolver, analyser), which behave consistently across browsers.
+Synthesis is entirely native nodes (oscillators, gains, biquad, convolver,
+analyser), which behave consistently across browsers. **Loop capture** (v0.6)
+is the one place we reach for `AudioWorklet`: a tiny processor copies the
+processed input's blocks and streams them to the main thread to assemble an
+`AudioBuffer`. `AudioWorklet` is available in all evergreen browsers
+(Chrome 66+, Firefox 76+, Safari 14.1+ / iOS 14.5+); we deliberately do **not**
+fall back to the deprecated `ScriptProcessorNode`. The worklet module is loaded
+from a **Blob URL** (no separate file / build-pipeline wiring); `isCaptureSupported`
+feature-detects `ctx.audioWorklet.addModule` and capture throws a clear error
+where it's absent.
+
+## Loop pedal — memory (mobile)
+
+Each loop slot can hold up to 60 s of audio; three stereo slots cap at ~70 MB
+(`60 s × 48 kHz × 2 ch × 4 B ≈ 23 MB` each). That's comfortable on desktop but
+can pressure low-end mobile. On slot creation we read the `navigator.deviceMemory`
+hint and **log a console warning** (no crash, no hard block) when it's ≤ 2 GB.
+Buffers are explicitly nulled on **clear** so they're eligible for GC, and the
+audio core is torn down when no engine/input/loop is live. Captured input is
+mono in v0.6, so real usage is roughly half the stereo worst case.
+
+## Loop playback timing — AudioContext clock (both)
+
+Both seam-crossfade looping (`SeamLoopPlayer`) and granular freeze
+(`GranularPlayer`) schedule against `AudioContext.currentTime` via a look-ahead
+loop (`scheduler.ts`): a `setInterval` ticker (25 ms) only decides _how far
+ahead_ to plan; every audio event is placed with a precise `start(when)`
+timestamp. No `setTimeout`/`setInterval` ever times an audio event directly, so
+timing is sample-accurate and consistent across Chrome/Safari/Firefox.
 
 ## Convolver IR
 

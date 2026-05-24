@@ -18,6 +18,16 @@ export interface DrawState {
   fftSize: number;
   /** Live-input amplitude (0..1); undefined when no input is connected. */
   inputLevel?: number;
+  /** Active loop slots, in slot order, contributing orbital rings. */
+  loops?: LoopRing[];
+}
+
+export interface LoopRing {
+  /** Slot index 0..2 (selects ring color + radius). */
+  slot: number;
+  /** Amplitude proxy (0..1). */
+  level: number;
+  frozen: boolean;
 }
 
 /** Sample an amplitude proxy (0..1) for a frequency from the spectrum. */
@@ -56,6 +66,7 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: DrawState) {
     sampleRate,
     fftSize,
     inputLevel,
+    loops,
   } = state;
 
   // long-trail fade
@@ -80,6 +91,30 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: DrawState) {
     ctx2d.beginPath();
     ctx2d.arc(cx, cy, ringR, 0, Math.PI * 2);
     ctx2d.stroke();
+  }
+
+  // Per-slot loop rings: subtle partial arcs at distinct orbital radii, offset
+  // in angle per slot so layered loops stay visually separable. Frozen slots
+  // draw a fuller, slightly brighter ring (the texture is "held").
+  if (loops) {
+    for (const ring of loops) {
+      const lvl = Math.max(0, Math.min(1, ring.level));
+      const radius =
+        baseR *
+        (VISUAL.loopRingRadii[ring.slot] ?? 1.8) *
+        (1 + lvl * VISUAL.loopRingSwell);
+      const alpha =
+        VISUAL.loopRingBaseAlpha +
+        lvl * VISUAL.loopRingAlphaScale +
+        (ring.frozen ? 0.06 : 0);
+      const sweep = ring.frozen ? Math.PI * 2 : VISUAL.loopRingArc;
+      const start = (ring.slot * (Math.PI * 2)) / 3;
+      ctx2d.strokeStyle = PALETTE.loopRing(ring.slot, alpha);
+      ctx2d.lineWidth = VISUAL.loopRingLineWidth;
+      ctx2d.beginPath();
+      ctx2d.arc(cx, cy, radius, start, start + sweep);
+      ctx2d.stroke();
+    }
   }
 
   // central dim halo

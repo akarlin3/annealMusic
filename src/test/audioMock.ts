@@ -37,9 +37,43 @@ export class MockParam {
     return this;
   }
 
+  setValueCurveAtTime(curve: Float32Array, t: number, dur: number): MockParam {
+    this.value = curve[curve.length - 1] ?? this.value;
+    this.calls.push({ method: 'setValueCurveAtTime', args: [t, dur] });
+    return this;
+  }
+
   cancelScheduledValues(t: number): MockParam {
     this.calls.push({ method: 'cancelScheduledValues', args: [t] });
     return this;
+  }
+}
+
+/** Minimal AudioBuffer stand-in: real channel storage + derived duration. */
+export class MockAudioBuffer {
+  readonly numberOfChannels: number;
+  readonly length: number;
+  readonly sampleRate: number;
+  readonly duration: number;
+  private readonly channels: Float32Array[];
+
+  constructor(numberOfChannels: number, length: number, sampleRate: number) {
+    this.numberOfChannels = numberOfChannels;
+    this.length = length;
+    this.sampleRate = sampleRate;
+    this.duration = length / sampleRate;
+    this.channels = Array.from(
+      { length: numberOfChannels },
+      () => new Float32Array(length),
+    );
+  }
+
+  getChannelData(channel: number): Float32Array {
+    return this.channels[channel] ?? new Float32Array(this.length);
+  }
+
+  copyToChannel(source: Float32Array, channel: number): void {
+    this.channels[channel]?.set(source);
   }
 }
 
@@ -53,6 +87,7 @@ export type NodeKind =
   | 'compressor'
   | 'shaper'
   | 'mediastreamsource'
+  | 'buffersource'
   | 'destination';
 
 export class MockNode {
@@ -61,6 +96,12 @@ export class MockNode {
   readonly detune = new MockParam(0);
   readonly offset = new MockParam(0);
   readonly Q = new MockParam(1);
+  readonly playbackRate = new MockParam(1);
+  // AudioBufferSourceNode fields.
+  loop = false;
+  loopStart = 0;
+  loopEnd = 0;
+  onended: (() => void) | null = null;
   // DynamicsCompressor params.
   readonly threshold = new MockParam(-24);
   readonly ratio = new MockParam(12);
@@ -89,6 +130,9 @@ export class MockNode {
   readonly connections: MockNode[] = [];
   started = false;
   stopped = false;
+  /** Args passed to each `start(...)` / `stop(...)` call (buffer source timing). */
+  readonly startCalls: number[][] = [];
+  readonly stopCalls: number[][] = [];
 
   connect(node: MockNode): MockNode {
     this.connections.push(node);
@@ -99,20 +143,23 @@ export class MockNode {
     this.connections.length = 0;
   }
 
-  start(): void {
+  start(...args: number[]): void {
     this.started = true;
+    this.startCalls.push(args);
   }
 
-  stop(): void {
+  stop(...args: number[]): void {
     this.stopped = true;
+    this.stopCalls.push(args);
   }
 
   getByteFrequencyData(): void {
     // no-op
   }
 
-  getByteTimeDomainData(): void {
-    // no-op
+  getByteTimeDomainData(buf?: Uint8Array): void {
+    // 128 is the zero-crossing midpoint for unsigned 8-bit PCM ⇒ RMS 0.
+    if (buf) buf.fill(128);
   }
 
   getFloatTimeDomainData(): void {
@@ -188,11 +235,16 @@ export class MockAudioContext {
     return this.track(new MockNode('constant'));
   }
 
+  createBufferSource(): MockNode {
+    return this.track(new MockNode('buffersource'));
+  }
+
   createBuffer(
-    _channels: number,
+    channels: number,
     length: number,
-  ): { getChannelData: () => Float32Array } {
-    return { getChannelData: () => new Float32Array(length) };
+    sampleRate: number = this.sampleRate,
+  ): MockAudioBuffer {
+    return new MockAudioBuffer(channels, length, sampleRate);
   }
 
   resume(): Promise<void> {

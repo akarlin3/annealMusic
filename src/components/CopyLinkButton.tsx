@@ -3,6 +3,7 @@ import { Check, Link2 } from 'lucide-react';
 import { buildShareUrl } from '@/share/url';
 import type { AnnealMusicParams } from '@/state/params';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
+import type { LoopConfigMap } from '@/loop/types';
 
 /** Copy text to the clipboard, falling back to a legacy textarea + execCommand. */
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -41,6 +42,8 @@ interface CopyLinkButtonProps {
   params: AnnealMusicParams;
   engineId?: EngineId;
   engineParams?: EngineParams;
+  /** Loop config to embed (buffers excluded); omitted ⇒ no loop params. */
+  loops?: LoopConfigMap;
   /** Surface user feedback (toast) for copy success/failure. */
   onResult?: (message: string) => void;
 }
@@ -49,13 +52,14 @@ export default function CopyLinkButton({
   params,
   engineId = 'sine',
   engineParams = {},
+  loops,
   onResult,
 }: CopyLinkButtonProps) {
   const [copied, setCopied] = useState(false);
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleClick = useCallback(async () => {
-    const url = buildShareUrl(params, engineId, engineParams);
+    const url = buildShareUrl(params, engineId, engineParams, undefined, loops);
     const ok = await copyToClipboard(url);
 
     if (ok) {
@@ -67,7 +71,7 @@ export default function CopyLinkButton({
       onResult?.('Copy failed — select the link to copy manually');
       window.prompt('Copy this link', url);
     }
-  }, [params, engineId, engineParams, onResult]);
+  }, [params, engineId, engineParams, loops, onResult]);
 
   return (
     <button

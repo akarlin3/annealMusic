@@ -8,6 +8,7 @@ import {
 import { SCHEMA_VERSION, SUPPORTED_SCHEMA_VERSIONS } from '@/share/schema';
 import type { AnnealMusicParams, ParamStore } from '@/state/params';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
+import type { LoopConfigMap } from '@/loop/types';
 
 const PREFIX = 's=';
 
@@ -44,10 +45,11 @@ export function writeStateToHash(
   engineId: EngineId = 'sine',
   engineParams: EngineParams = {},
   session?: SessionConfig,
+  loops?: LoopConfigMap,
 ): void {
   if (typeof window === 'undefined') return;
 
-  const hash = `#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams, session)}`;
+  const hash = `#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams, session, loops)}`;
   const { pathname, search } = window.location;
   window.history.replaceState(
     window.history.state,
@@ -65,12 +67,13 @@ export function buildShareUrl(
   engineId: EngineId = 'sine',
   engineParams: EngineParams = {},
   session?: SessionConfig,
+  loops?: LoopConfigMap,
 ): string {
   const base =
     typeof window === 'undefined'
       ? ''
       : window.location.origin + window.location.pathname;
-  return `${base}#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams, session)}`;
+  return `${base}#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams, session, loops)}`;
 }
 
 /**
@@ -98,6 +101,7 @@ export function subscribeStoreToHash(
           arcId: state.arcId,
           durationSec: state.arcDurationSec,
         },
+        state.loops,
       );
     }, debounceMs);
   });

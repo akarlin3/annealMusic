@@ -17,6 +17,15 @@ import { getArcById } from '@/session/arcs';
 import type { SessionState } from '@/session/types';
 import { InputVoice } from '@/input/InputVoice';
 import type { ConnectResult } from '@/input/types';
+import { LoopSlot } from '@/loop/LoopSlot';
+import {
+  SLOT_IDS,
+  makeDefaultLoopConfig,
+  type GrainParams,
+  type LoopConfigMap,
+  type SlotId,
+  type SlotState,
+} from '@/loop/types';
 import { HARMONICS, type DriftPartial, type GraphNodes } from '@/types/audio';
 
 const FADE_IN_SECONDS = 3.0;
@@ -29,6 +38,8 @@ const DRIFT_DT = 0.05;
 const ARC_TICK_MS = 50;
 const ARC_END_FADE_SECONDS = 4.0;
 const ARC_END_FADE_MS = 4000;
+/** Normalizes mean detune (cents) to −1..1 for loop drift coupling. */
+const LOOP_DRIFT_NORM = 60;
 
 /** Options for starting a session: open jam, or a scripted arc. */
 export type StartSessionOptions =
@@ -91,6 +102,10 @@ export class Orchestrator {
   // Live input voice (mic / line-in), independent of the session lifecycle.
   private inputVoice: InputVoice | null = null;
 
+  // Loop pedal: 3 slots summing into a shared loop bus, independent of session.
+  private loopConfig: LoopConfigMap;
+  private loopSlots: Record<SlotId, LoopSlot> | null = null;
+
   // Session state machine + arc.
   private sessionState: SessionState = 'idle';
   private readonly listeners = new Set<(s: SessionState) => void>();
@@ -109,11 +124,13 @@ export class Orchestrator {
       Record<EngineId, EngineParams>
     > = makeDefaultEngineParams(),
     factories: Partial<Record<EngineId, EngineFactory>> = ENGINES,
+    loopConfig: LoopConfigMap = makeDefaultLoopConfig(),
   ) {
     this.shared = { ...shared };
     this.engineId = engineId;
     this.engineParams = { ...engineParams };
     this.factories = factories;
+    this.loopConfig = loopConfig;
   }
 
   isRunning(): boolean {
@@ -285,14 +302,54 @@ export class Orchestrator {
       wetGain,
       dryGain,
     };
+    this.ensureLoopSlots(ctx, this.nodes);
     return { ctx, nodes: this.nodes };
   }
 
-  /** Close + drop the audio core. Only safe when neither engine nor input is live. */
+  /** Build the loop bus + 3 slots once, routing the bus into the post-fx chain. */
+  private ensureLoopSlots(ctx: AudioContext, nodes: GraphNodes): void {
+    if (this.loopSlots) return;
+    // Three 60s buffers can reach ~70 MB; warn (don't crash) on low-memory hints.
+    const deviceMemory = (navigator as { deviceMemory?: number }).deviceMemory;
+    if (typeof deviceMemory === 'number' && deviceMemory <= 2) {
+      console.warn(
+        `[loop] low device memory (~${deviceMemory} GB): long loop captures may be constrained`,
+      );
+    }
+    const loopBus = ctx.createGain();
+    loopBus.gain.value = 1;
+    loopBus.connect(nodes.filter);
+    this.loopSlots = {
+      A: new LoopSlot('A', ctx, loopBus, this.loopConfig.A),
+      B: new LoopSlot('B', ctx, loopBus, this.loopConfig.B),
+      C: new LoopSlot('C', ctx, loopBus, this.loopConfig.C),
+    };
+  }
+
+  /** True when any loop slot holds a buffer or is mid-capture/arm. */
+  private loopsActive(): boolean {
+    if (!this.loopSlots) return false;
+    return SLOT_IDS.some((id) => {
+      const s = this.loopSlots?.[id].getState();
+      return s !== undefined && s !== 'empty';
+    });
+  }
+
+  /** Close + drop the audio core. Only safe when no engine, input, or loop is live. */
   private teardownCore(): void {
-    if (this.running || (this.inputVoice?.isConnected() ?? false)) return;
+    if (
+      this.running ||
+      (this.inputVoice?.isConnected() ?? false) ||
+      this.loopsActive()
+    ) {
+      return;
+    }
     this.stopDrift();
     this.driftState = [];
+    if (this.loopSlots) {
+      for (const id of SLOT_IDS) this.loopSlots[id].dispose();
+    }
+    this.loopSlots = null;
     const ctx = this.ctx;
     this.ctx = null;
     this.nodes = null;
@@ -355,6 +412,10 @@ export class Orchestrator {
       });
       const mean = sum / this.driftState.length;
       this.inputVoice?.setDriftModulation(mean);
+      if (this.loopSlots) {
+        const norm = Math.max(-1, Math.min(1, mean / LOOP_DRIFT_NORM));
+        for (const id of SLOT_IDS) this.loopSlots[id].setDriftModulation(norm);
+      }
     }, DRIFT_INTERVAL_MS);
   }
 
@@ -387,11 +448,16 @@ export class Orchestrator {
     this.active = null;
     this.outgoing = null;
 
-    const keepCore = this.inputVoice?.isConnected() ?? false;
+    const keepCore =
+      (this.inputVoice?.isConnected() ?? false) || this.loopsActive();
 
     if (!keepCore) {
       this.stopDrift();
       this.driftState = [];
+      if (this.loopSlots) {
+        for (const id of SLOT_IDS) this.loopSlots[id].dispose();
+      }
+      this.loopSlots = null;
       this.ctx = null;
       this.nodes = null;
     }
@@ -612,8 +678,12 @@ export class Orchestrator {
     return this.stop().then(() => this.setState('idle'));
   }
 
-  /** Full teardown for unmount: drop the input then close the core. */
+  /** Full teardown for unmount: drop loops + input then close the core. */
   async dispose(): Promise<void> {
+    if (this.loopSlots) {
+      for (const id of SLOT_IDS) this.loopSlots[id].dispose();
+      this.loopSlots = null;
+    }
     const voice = this.inputVoice;
     this.inputVoice = null;
     if (voice) {
@@ -625,6 +695,58 @@ export class Orchestrator {
       await voice.disconnect();
     }
     await this.stop();
+  }
+
+  // --- loop pedal API ------------------------------------------------------
+
+  /** Ensure the audio core + loop slots exist (requires a user gesture). */
+  ensureLoops(): Record<SlotId, LoopSlot> {
+    const { ctx, nodes } = this.ensureCore();
+    this.ensureLoopSlots(ctx, nodes);
+    // `ensureLoopSlots` is a no-op once built; the non-null assertion is safe.
+    return this.loopSlots as Record<SlotId, LoopSlot>;
+  }
+
+  getLoopSlot(id: SlotId): LoopSlot | null {
+    return this.loopSlots?.[id] ?? null;
+  }
+
+  getLoopState(id: SlotId): SlotState {
+    return this.loopSlots?.[id].getState() ?? 'empty';
+  }
+
+  /**
+   * Arm a slot for capture. Requires connected input — loops capture the live
+   * voice's processed tap. No-op (with a warning) when input isn't connected.
+   */
+  armLoop(id: SlotId): void {
+    const voice = this.inputVoice;
+    if (!voice?.isConnected()) {
+      console.warn('armLoop ignored: connect an input first');
+      return;
+    }
+    const slots = this.ensureLoops();
+    if (this.driftState.length === 0) this.seedDrift(this.shared.density);
+    this.startDrift();
+    slots[id].arm(voice.getCaptureTap());
+  }
+
+  /** Update a slot's grain params (live while frozen) and remember them. */
+  setLoopGrain(id: SlotId, grain: GrainParams): void {
+    this.loopConfig = {
+      ...this.loopConfig,
+      [id]: { ...this.loopConfig[id], grain },
+    };
+    this.loopSlots?.[id].setGrain(grain);
+  }
+
+  /** Toggle drift-coupling of grain wander for a slot. */
+  setLoopDriftCoupled(id: SlotId, on: boolean): void {
+    this.loopConfig = {
+      ...this.loopConfig,
+      [id]: { ...this.loopConfig[id], driftCoupled: on },
+    };
+    this.loopSlots?.[id].setDriftCoupled(on);
   }
 
   /** Drive the arc forward at 20 Hz, reading elapsed time off the audio clock. */

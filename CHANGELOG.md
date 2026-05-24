@@ -4,6 +4,68 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-24
+
+### Added
+
+- **Loop pedal.** Three independent loop slots (A / B / C) capture the live
+  input, play it back seamlessly, layer it, and **freeze** it into an endless
+  granular drone. Slots are ambient (no tempo/quantization) and sum into the
+  same post-fx as the engines + input.
+- **`src/loop/` module**:
+  - **`LoopSlot`** — per-slot state machine
+    (`empty → armed → capturing → playing → frozen | muted → empty`), routing a
+    captured buffer through a per-slot mute gain into a shared loop bus, with a
+    post-mute analyser for the meter + visualizer.
+  - **Capture** (`capture.ts`) — lossless PCM into an `AudioBuffer` via an
+    `AudioWorklet` (Blob-URL module; streams blocks to the main thread). Taps
+    the input's post-processing point (independent of the monitor gate), arms
+    and starts on first sound, and auto-stops at the 60-second cap. Sub-250 ms
+    captures are discarded.
+  - **`SeamLoopPlayer`** — seamless looping via two alternating
+    `AudioBufferSourceNode`s with an equal-power crossfade at the seam
+    (`min(120 ms, len × 0.15)`); playback rate fixed at 1.0.
+  - **`GranularPlayer`** — freeze engine: Hann-windowed grains scheduled
+    `currentTime`-accurately via a look-ahead loop (`scheduler.ts`), from
+    wandering positions around a slow-scanning center. Per-slot **grain size /
+    density / position-jitter / pitch-jitter**, plus an optional
+    **drift-coupled** mode (mean drift widens grain wander).
+  - **`windows.ts`** — single home for the Hann + equal-power curves (referenced,
+    never redefined).
+- **Loop pedal UI** (`LoopPedal`, `LoopSlotCard`, `WaveformThumbnail`): three
+  compact warm-dark slot tiles with state-keyed amber glow, a captured-buffer
+  waveform thumbnail, a per-slot level meter, freeze / mute / clear affordances,
+  and inline grain sliders when frozen.
+- **First-class hotkeys**: `1`/`2`/`3` drive the context-aware primary action
+  for slots A/B/C; `Shift+1/2/3` toggle freeze. Ignored while a form control is
+  focused or a non-Shift modifier is held; a `?` legend documents them in-app.
+- **Visualizer loop rings**: each playing/frozen slot adds a subtle orbital arc
+  at a distinct radius + hue (frozen draws a fuller, brighter ring).
+- **Drift fan-out**: the orchestrator's mean-drift loop now also feeds the loop
+  slots (normalized), so drift-coupled frozen slots breathe on the same field.
+
+### Changed
+
+- **URL schema → v4**: per-slot loop config (`L<id>.m/f/c` flags + frozen-slot
+  grain params `L<id>.gs/gd/gp/gx`) rides along in share links. Buffer audio is
+  never encoded. v1–v3 links still decode (loop keys ignored before v4); a v4
+  link with frozen slots but no buffers loads the slots empty with the config
+  remembered for the next capture.
+- **`InputVoice`** gains a stable **capture tap** (`getCaptureTap()`) off the
+  drift filter — post-processing, independent of the monitor gate — so loops
+  capture the processed voice whether or not monitoring is on.
+- The orchestrator keeps the audio core alive while any loop is active (like a
+  connected input), so loops survive Settle / engine swaps / arc end.
+
+### Notes
+
+- Loop capture requires **`AudioWorklet`** (all evergreen browsers; see
+  `COMPAT.md`). Three 60 s stereo buffers cap at ~70 MB — fine on desktop; a
+  low-`deviceMemory` hint logs a console warning rather than crashing.
+- Deferred (per roadmap): pitch-shift / reverse playback, >3 slots,
+  tempo-quantized loops (never), slot chaining, buffer-level URL sharing
+  (v0.7 backend), and capture-to-file export (v1.0).
+
 ## [0.5.0] - 2026-05-24
 
 ### Added

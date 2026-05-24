@@ -40,6 +40,8 @@ export function useSession(): SessionApi {
         state.params,
         state.engineId,
         state.engineParams,
+        undefined,
+        state.loops,
       );
       orch.subscribe(setSessionState);
       engineRef.current = orch;
