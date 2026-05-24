@@ -36,3 +36,15 @@ def invalid_state(errors: list[str]) -> ApiError:
 
 def bad_request(message: str) -> ApiError:
     return ApiError(400, "bad_request", message=message)
+
+
+def unauthorized() -> ApiError:
+    return ApiError(401, "unauthorized")
+
+
+def content_rejected(field: str) -> ApiError:
+    return ApiError(422, "content_rejected", field=field)
+
+
+def under_review() -> ApiError:
+    return ApiError(403, "under_review")

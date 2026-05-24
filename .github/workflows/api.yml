@@ -58,7 +58,7 @@ jobs:
       - name: Apply migrations against Postgres
         run: alembic upgrade head
       - name: Confirm head is applied
-        run: alembic current | grep -q '0001_initial'
+        run: alembic current | grep -q '0002_gallery'
 
   schema-contract:
     # The URL schema lives once (in TS). Regenerating the manifest must produce

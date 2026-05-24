@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -41,7 +42,12 @@ class Patch(Base):
     __tablename__ = "patches"
     __table_args__ = (
         CheckConstraint(
-            "visibility IN ('unlisted','public')", name="ck_patches_visibility"
+            "visibility IN ('unlisted','public','flagged')",
+            name="ck_patches_visibility",
+        ),
+        CheckConstraint(
+            "preview_status IN ('none','rendering','ready','failed')",
+            name="ck_patches_preview_status",
         ),
     )
 
@@ -60,6 +66,27 @@ class Patch(Base):
         UUIDArray(), nullable=False, default=list
     )
     short_slug: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+
+    # Derived-at-insert filter columns (state is immutable, so these never change).
+    # Plain columns rather than JSON-path filters keep gallery filtering portable
+    # across Postgres (prod) and SQLite (tests).
+    engine: Mapped[str] = mapped_column(String, nullable=False, default="sine")
+    mode: Mapped[str] = mapped_column(String, nullable=False, default="open")
+    has_captures: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+
+    # Gallery / preview (v0.8).
+    load_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    preview_storage_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    preview_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    preview_status: Mapped[str] = mapped_column(
+        String, nullable=False, default="none"
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -126,6 +153,30 @@ class Recording(Base):
     visibility: Mapped[str] = mapped_column(
         String, nullable=False, default="unlisted"
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Report(Base):
+    __tablename__ = "reports"
+    __table_args__ = (
+        CheckConstraint(
+            "reason IN ('spam','inappropriate','other')", name="ck_reports_reason"
+        ),
+        CheckConstraint(
+            "status IN ('open','dismissed','upheld')", name="ck_reports_status"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    patch_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("patches.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    reporter_id: Mapped[uuid.UUID | None] = mapped_column(GUID(), nullable=True)
+    reason: Mapped[str] = mapped_column(String, nullable=False)
+    detail: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

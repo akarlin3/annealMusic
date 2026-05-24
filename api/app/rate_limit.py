@@ -18,8 +18,13 @@ ANON_LIMITS: dict[str, int] = {
     "patches": 60,
     "captures": 20,
     "recordings": 5,
+    "reports": 20,
     "get": 600,
 }
+
+# A given IP may increment a given patch's load_count at most this many times per
+# window — anti-abuse so the count can't be trivially gamed.
+LOAD_LIMIT_PER_IP_PATCH = 1
 
 # Stricter per-IP limits when anonId is absent.
 IP_LIMITS: dict[str, int] = {
@@ -51,6 +56,10 @@ class RateLimiter:
         # No anonId: collapse to a coarse write/get bucket per IP.
         ip_action = "get" if action == "get" else "write"
         return self._check("ip", f"{ip}:{ip_action}", IP_LIMITS[ip_action])
+
+    def allow_load(self, *, ip: str, patch_id: str) -> bool:
+        """Per (IP, patch) cap on load-count increments (anti-gaming)."""
+        return self._check("load", f"{ip}:{patch_id}", LOAD_LIMIT_PER_IP_PATCH)
 
     def reset(self) -> None:
         self._hits.clear()
