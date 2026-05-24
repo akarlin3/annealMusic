@@ -181,7 +181,7 @@ export default function App() {
                 className="font-mono text-[10px] uppercase tracking-[0.18em]"
                 style={{ color: '#78716c' }}
               >
-                v0.8 · prototype
+                v1.0
               </span>
             </div>
             <p

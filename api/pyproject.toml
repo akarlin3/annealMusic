@@ -1,6 +1,6 @@
 [project]
 name = "annealmusic-api"
-version = "0.7.0"
+version = "1.0.0"
 description = "AnnealMusic backend: anonymous-first persistence for patches, captures, and recordings."
 requires-python = ">=3.11"
 dependencies = [

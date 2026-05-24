@@ -47,7 +47,7 @@ def create_app() -> FastAPI:
     configure_logging()
     init_sentry(settings)
 
-    app = FastAPI(title="AnnealMusic API", version="0.8.0", lifespan=lifespan)
+    app = FastAPI(title="AnnealMusic API", version="1.0.0", lifespan=lifespan)
     app.state.storage = make_storage(settings)
     app.state.rate_limiter = RateLimiter()
     app.state.render_queue = RenderQueue(settings)
