@@ -36,7 +36,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v0.4 ✅ | Arc mode (timer + scripted envelopes)              | Session-state machine                      |
 | v0.5 ✅ | Mic input (live processed)                         | Instrument integration begins              |
 | v0.6 ✅ | Loop pedal (capture / replay / freeze)             | Full instrument integration                |
-| v0.7    | Backend + persistence (patches table, anon IDs)    | Unlocks gallery + recordings               |
+| v0.7 ✅ | Backend + persistence (patches table, anon IDs)    | Unlocks gallery + recordings               |
 | v0.8    | Public gallery                                     | Community surface                          |
 | v0.9    | Granular engine                                    | Third synthesis engine                     |
 | v1.0    | Physical modeling + embed route + recording export | Feature-complete v1                        |
@@ -94,6 +94,24 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
   Deferred per plan: pitch-shift / reverse playback, >3 slots, tempo-quantized
   loops (never), slot chaining/scenes, capture-to-file export (v1.0).
   Completes instrument integration; next is the **backend** (v0.7).
+- **v0.7** — **backend + persistence**. A FastAPI + PostgreSQL + S3-compatible
+  service (`api/`) persists **patches** (full encoded URL state), **captures**
+  (loop audio buffers), and **recordings** (schema + endpoints only; export is
+  v1.0). **Anonymous-first**: every browser gets a stable `anonId` carried in the
+  `x-anon-id` header (minted server-side when absent); no login. URLs go
+  hierarchical — inline `#s=4:` links keep working offline forever, `/p/<slug>`
+  short links resolve saved patches via the backend. The **URL schema stays the
+  single source of truth**: a generated `schema/manifest.v4.json` (from the TS
+  defs) is what the server validates against, with a CI drift guard. Captures are
+  opt-in per save (params-only default), uploaded as WAV and transcoded to Opus,
+  **ref-counted** with a scheduled orphan sweep. Rate limits + quotas from day
+  one; Alembic migrations; `docker compose` local dev (Postgres + MinIO).
+  Deviations from the PrismTask template: web stays on **Firebase**, only the API
+  runs on **Railway**; object storage is **Cloudflare R2** (zero egress).
+  The audio engine code is unchanged — the client still runs fully with the
+  backend down. Deferred per plan: real auth + claim-by-email → post-v1.0,
+  public gallery surface → v0.8, recording export pipeline + embed → v1.0,
+  soft-delete/undo → never. Next is the **public gallery** (v0.8).
 
 ## Principles
 

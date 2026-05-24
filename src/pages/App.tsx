@@ -7,6 +7,7 @@ import { useParamStore } from '@/state/params';
 import { SLOT_IDS } from '@/loop/types';
 import { getArcById } from '@/session/arcs';
 import { readStateFromHash, subscribeStoreToHash } from '@/share/url';
+import { applyDecodedToStore } from '@/share/hydrate';
 import Visualizer from '@/components/Visualizer';
 import ControlPanel from '@/components/ControlPanel';
 import InputPanel from '@/components/InputPanel';
@@ -16,8 +17,11 @@ import ModeToggle from '@/components/ModeToggle';
 import ArcPanel from '@/components/ArcPanel';
 import ArchitectureDiagram from '@/components/ArchitectureDiagram';
 import CopyLinkButton from '@/components/CopyLinkButton';
+import SavePatchButton from '@/components/SavePatchButton';
+import MyPatchesDrawer from '@/components/MyPatchesDrawer';
 import Toast, { type ToastMessage } from '@/components/Toast';
-import type { EngineId } from '@/audio/engines/types';
+import { api } from '@/api/client';
+import { usePatches } from '@/api/usePatches';
 
 function fmtDuration(sec: number): string {
   const total = Math.max(0, Math.round(sec));
@@ -82,6 +86,10 @@ export default function App() {
   const loops = useLoops(ensureOrchestrator, showToast);
   const loopConfig = useParamStore((s) => s.loops);
 
+  const patches = usePatches(ensureOrchestrator, loops, showToast);
+  const backendOn = api.isBackendConfigured();
+  const hasCaptures = SLOT_IDS.some((id) => loops.slots[id].hasBuffer);
+
   // Boot: hydrate params from the URL before the audio engine is ever built
   // (the engine is only constructed on the Begin click), then keep the URL in
   // sync with sculpting via a debounced replaceState write.
@@ -90,28 +98,10 @@ export default function App() {
     const hydrated = readStateFromHash();
 
     if (hydrated) {
-      const store = useParamStore.getState();
       const sharedCount = Object.keys(hydrated.params).length;
-      const engineEntries = Object.entries(hydrated.engineParams) as [
-        EngineId,
-        Record<string, number>,
-      ][];
+      const engineEntries = Object.entries(hydrated.engineParams);
 
-      if (sharedCount > 0) store.setMany(hydrated.params);
-      store.setEngine(hydrated.engineId);
-      for (const [id, bag] of engineEntries) {
-        for (const [key, value] of Object.entries(bag)) {
-          store.setEngineParam(id, key, value);
-        }
-      }
-      store.setSessionMode(hydrated.mode);
-      if (hydrated.arcId) store.setArcId(hydrated.arcId);
-      if (hydrated.durationSec !== undefined) {
-        store.setArcDurationSec(hydrated.durationSec);
-      }
-      for (const id of SLOT_IDS) {
-        store.setLoopConfig(id, hydrated.loops[id]);
-      }
+      applyDecodedToStore(hydrated);
 
       const unknownArc = hydrated.warnings.some((w) =>
         w.includes('unknown arc'),
@@ -142,6 +132,23 @@ export default function App() {
     return subscribeStoreToHash(useParamStore);
   }, [showToast]);
 
+  // Short-link route: `/p/<slug>` resolves a saved patch via the backend. Runs
+  // once; the inline `#s=` path above stays the offline-capable default.
+  const pRouteRan = useRef(false);
+  useEffect(() => {
+    if (pRouteRan.current) return;
+    const match = window.location.pathname.match(/^\/p\/([^/]+)$/);
+    if (!match) return;
+    pRouteRan.current = true;
+    const slug = match[1];
+    if (!slug) return;
+    if (!api.isBackendConfigured()) {
+      showToast('Backend offline — open the inline share link instead');
+      return;
+    }
+    void patches.loadPatch(slug);
+  }, [patches, showToast]);
+
   return (
     <div
       className="min-h-screen w-full"
@@ -161,7 +168,7 @@ export default function App() {
                 className="font-mono text-[10px] uppercase tracking-[0.18em]"
                 style={{ color: '#78716c' }}
               >
-                v0.6 · prototype
+                v0.7 · prototype
               </span>
             </div>
             <p
@@ -181,6 +188,17 @@ export default function App() {
               loops={loopConfig}
               onResult={showToast}
             />
+
+            {backendOn && (
+              <>
+                <SavePatchButton
+                  patches={patches}
+                  hasCaptures={hasCaptures}
+                  showToast={showToast}
+                />
+                <MyPatchesDrawer patches={patches} onLoad={patches.loadPatch} />
+              </>
+            )}
 
             <button
               onClick={() => (isPlaying ? stopSession() : startSession())}

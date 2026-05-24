@@ -54,7 +54,7 @@ export function encodeEngineParams(
 }
 
 /** Grain field codes used in the URL (kept short). */
-const GRAIN_FIELDS: {
+export const GRAIN_FIELDS: {
   code: string;
   key: keyof GrainParams;
   decimals: number;
@@ -161,6 +161,12 @@ function decodeLoopPair(
   }
   if (field === 'c') {
     slot.driftCoupled = raw === '1';
+    return;
+  }
+  // `cap` marks a slot that ships with a server-stored capture (save links
+  // only). Buffers are runtime-only, so it's recognized but not part of the
+  // shareable SlotConfig — the load flow reads it straight off the payload.
+  if (field === 'cap') {
     return;
   }
   const grainField = GRAIN_FIELD_BY_CODE.get(field);

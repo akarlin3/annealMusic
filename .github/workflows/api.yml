@@ -1,0 +1,95 @@
+name: API CI
+
+on:
+  push:
+    paths:
+      - 'api/**'
+      - 'schema/**'
+      - '.github/workflows/api.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'schema/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -e ".[dev]" pyright
+      - name: Typecheck (pyright)
+        run: pyright app
+      - name: Test (pytest)
+        run: pytest -q
+
+  migrations:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: annealmusic
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/annealmusic
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Apply migrations against Postgres
+        run: alembic upgrade head
+      - name: Confirm head is applied
+        run: alembic current | grep -q '0001_initial'
+
+  schema-contract:
+    # The URL schema lives once (in TS). Regenerating the manifest must produce
+    # no diff — otherwise the Python validator is reading a stale schema.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run gen:schema
+      - name: Fail on schema manifest drift
+        run: git diff --exit-code schema/
+
+  verify-deploy:
+    # After a push to main, confirm the live API is healthy and migrated.
+    # No-op unless the API_URL repo variable is configured (Railway deploys on
+    # push independently of this workflow).
+    needs: [test, migrations, schema-contract]
+    if: github.ref == 'refs/heads/main' && vars.API_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deploy, then check /readyz
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /tmp/readyz.json -w '%{http_code}' "${{ vars.API_URL }}/readyz" || true)
+            if [ "$code" = "200" ]; then
+              echo "readyz OK"; cat /tmp/readyz.json; exit 0
+            fi
+            echo "attempt $i: status $code, retrying"; sleep 10
+          done
+          echo "readyz never returned 200"; exit 1

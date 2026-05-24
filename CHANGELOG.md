@@ -4,6 +4,58 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-05-24
+
+### Added
+
+- **Backend service (`api/`).** A FastAPI + PostgreSQL + S3-compatible service
+  that persists user content: **patches** (the full encoded URL state + optional
+  title/description), **captures** (loop-pedal audio buffers), and **recordings**
+  (schema + endpoints only; the export pipeline is v1.0). Anonymous-first
+  identity — every browser gets a stable `anonId` (UUID) on first save; no login.
+  The existing client keeps working fully with the backend offline.
+- **Anonymous identity.** `x-anon-id` header is authoritative on every
+  authenticated request; a missing header mints a UUID (echoed back via header +
+  a soft-recovery cookie). `localStorage['am_anon_id']` is the client home.
+- **Patches CRUD + short links.** `POST/GET/PATCH/DELETE /api/v1/patches`; every
+  patch is minted a `short_slug` and is reachable at `/p/<slug>`. `state` is
+  immutable (a new state is a new patch); PATCH only edits metadata/visibility.
+  Patches default to `unlisted` (link-only); `public` opt-in feeds the v0.8
+  gallery. Deletion is real deletion.
+- **Single-source-of-truth validation.** The URL schema lives once, in
+  TypeScript. `schema/gen-manifest.ts` compiles it to `schema/manifest.v4.json`,
+  which the server validates patch payloads against (strictly — reject, not
+  clamp, unlike the lenient client decoder). A CI contract test fails on drift.
+- **Captures.** `POST /api/v1/captures` (multipart WAV upload → server transcode
+  to Opus via ffmpeg → object storage), `GET` (302 to a presigned URL), `DELETE`.
+  Patches reference captures by id with server-side **ref-counting**; orphaned
+  captures (`ref_count = 0`, older than 24 h) are swept on a schedule. Saving a
+  patch defaults to **params-only**; "include captures" is an explicit opt-in.
+- **Rate limits + quotas.** Per-anonId hourly limits (60 patches, 20 captures,
+  5 recordings, 600 GETs) with a stricter per-IP fallback; quotas (100 patches,
+  50 captures, 10 recordings, 1 GB) returning typed `409`/`413`, rate limits
+  `429`.
+- **Client integration (`src/api/`).** Typed API client, anonId manager, and a
+  WAV encoder, plus a **Save** dialog (title / description / visibility /
+  include-captures) and a **My Patches** drawer beside Copy Link. **Copy Link**
+  stays the offline-capable inline `#s=` URL; **Save** mints a server short link.
+  `/p/<slug>` resolves a saved patch, re-hydrating loop slots (incl. frozen, with
+  remembered grain params) from their captures.
+- **Migrations, Docker, CI, docs.** Alembic from day one; `docker compose up`
+  brings up Postgres + MinIO + API + web with hot reload; `.github/workflows/api.yml`
+  runs pyright + pytest, applies migrations against a real Postgres, guards
+  against schema drift, and verifies `/readyz` post-deploy. New `docs/API.md` and
+  `docs/DEPLOY.md`.
+
+### Notes
+
+- The audio engine code is unchanged in v0.7 — this slice adds a parallel
+  backend. New, additive client primitives only: `LoopSlot.loadBuffer`,
+  `Orchestrator.decodeAudio` / `loadLoopBuffer`, and a recognized runtime-only
+  `cap` loop flag (save links carry it; buffers are never in the URL).
+- The web app stays on Firebase Hosting; only the API runs on Railway. Object
+  storage is Cloudflare R2 (zero egress, S3 API) — rationale in `docs/v0.7-PLAN.md`.
+
 ## [0.6.0] - 2026-05-24
 
 ### Added

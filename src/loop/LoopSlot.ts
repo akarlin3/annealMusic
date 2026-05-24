@@ -187,6 +187,21 @@ export class LoopSlot {
     if (this.config.muted) this.applyMuteGain(true);
   }
 
+  /**
+   * Hydrate a slot from an externally-provided buffer (a capture fetched from
+   * the backend), bypassing the live capture path. Applies URL-remembered
+   * freeze/mute config exactly as a fresh capture would.
+   */
+  loadBuffer(buffer: AudioBuffer): void {
+    if (buffer.duration < MIN_CAPTURE_SEC) return;
+    this.clear();
+    this.buffer = buffer;
+    this.setState('playing');
+    this.startSeam();
+    if (this.config.frozen) this.freeze();
+    if (this.config.muted) this.applyMuteGain(true);
+  }
+
   private teardownArm(): void {
     if (this.armTimer !== null) clearInterval(this.armTimer);
     this.armTimer = null;

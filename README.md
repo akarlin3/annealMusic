@@ -187,6 +187,32 @@ open mode with a notice, out-of-range values are clamped, malformed fragments
 fall back to defaults, and links from a newer schema version load defaults and
 surface a notice.
 
+## Backend (v0.7)
+
+A FastAPI + PostgreSQL + S3-compatible service in [`api/`](api) persists
+user content — **patches** (the full encoded URL state), **captures** (loop-pedal
+audio), and **recordings** (schema only; export is v1.0). Identity is
+**anonymous-first**: every browser gets a stable `anonId` (UUID) on first save,
+carried in the `x-anon-id` header; no login. The client runs **fully with the
+backend offline** — only Save / My Patches / `/p/<slug>` need it.
+
+URLs are hierarchical: **Copy Link** still produces the self-contained inline
+`#s=4:` link (works offline forever); **Save** mints a server short link
+`/p/<slug>` and unlocks captures + the My Patches drawer. Saving defaults to
+params-only; "include captures" is an explicit opt-in (uploaded as WAV, transcoded
+to Opus, ref-counted server-side).
+
+The URL schema stays the **single source of truth**: `npm run gen:schema`
+compiles the TypeScript definitions into [`schema/manifest.v4.json`](schema),
+which the server validates patch payloads against (a CI contract test fails on
+drift). See [`docs/API.md`](docs/API.md) for the endpoint reference and
+[`docs/DEPLOY.md`](docs/DEPLOY.md) for local dev (`docker compose up`: Postgres +
+MinIO + API + web) and Railway deploy. Design rationale is in
+[`docs/v0.7-PLAN.md`](docs/v0.7-PLAN.md).
+
+The API deploys to **Railway** (managed Postgres); object storage is
+**Cloudflare R2** (S3 API, zero egress). The web app stays on Firebase Hosting.
+
 ## Deploy
 
 Production target: **Google Cloud — Firebase Hosting** (static SPA, global CDN,
