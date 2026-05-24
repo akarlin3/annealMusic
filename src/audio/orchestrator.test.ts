@@ -1,18 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Orchestrator } from '@/audio/orchestrator';
 import { DEFAULT_PARAMS } from '@/state/params';
-import { MockAudioContext } from '@/test/audioMock';
+import { MockAudioContext, type MockNode } from '@/test/audioMock';
 import type { AnnealEngine } from '@/audio/engines/types';
 
 beforeEach(() => {
   vi.stubGlobal('AudioContext', MockAudioContext);
   vi.useFakeTimers();
+  MockAudioContext.instances.length = 0;
 });
 
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  MockAudioContext.instances.length = 0;
 });
+
+/** True if a node's gain has a `linearRampToValueAtTime(value, t)` call. */
+function hasGainRamp(node: MockNode, value: number, t: number): boolean {
+  return node.gain.calls.some(
+    (c) =>
+      c.method === 'linearRampToValueAtTime' &&
+      c.args[0] === value &&
+      c.args[1] === t,
+  );
+}
 
 describe('Orchestrator — lifecycle', () => {
   it('boots, swaps to sine (no-op), and stops cleanly', async () => {
@@ -102,7 +114,96 @@ describe('Orchestrator — drift fan-out', () => {
 describe('Orchestrator — engine selection while stopped', () => {
   it('remembers the selected engine for the next start', () => {
     const orch = new Orchestrator(DEFAULT_PARAMS);
-    orch.setEngine('sine');
+    orch.setEngine('fm');
+    expect(orch.getEngineId()).toBe('fm');
+  });
+});
+
+describe('Orchestrator — crossfade', () => {
+  it('fades the first engine in over the long bloom', () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS, 'sine');
+    orch.start();
+    const ctx = MockAudioContext.instances.at(-1)!;
+
+    // Exactly one bus ramps 0 → 1 over the 3s fade-in.
+    const fadeInBuses = ctx
+      .nodesOfKind('gain')
+      .filter((g) => hasGainRamp(g, 1, 3.0));
+    expect(fadeInBuses).toHaveLength(1);
+
+    orch.stop();
+    vi.advanceTimersByTime(2200);
+  });
+
+  it('equal-gain crossfades between distinct engines (overlap, no gap/clip)', () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS, 'sine');
+    orch.start();
+    const ctx = MockAudioContext.instances.at(-1)!;
+
+    orch.setEngine('fm');
+    expect(orch.getEngineId()).toBe('fm');
+
+    const gains = ctx.nodesOfKind('gain');
+    const incoming = gains.find((g) => hasGainRamp(g, 1, 0.6));
+    const outgoing = gains.find((g) => hasGainRamp(g, 0, 0.6));
+
+    // Both buses ramp over the same [0, 0.6] window → they overlap.
+    expect(incoming).toBeDefined();
+    expect(outgoing).toBeDefined();
+    expect(incoming).not.toBe(outgoing);
+
+    // Incoming rises 0 → 1; outgoing is anchored at its current 1 then → 0.
+    // An equal-gain linear pair sums to 1 across the window: no gap, no clip.
+    expect(
+      incoming!.gain.calls.some(
+        (c) =>
+          c.method === 'setValueAtTime' && c.args[0] === 0 && c.args[1] === 0,
+      ),
+    ).toBe(true);
+    expect(
+      outgoing!.gain.calls.some(
+        (c) =>
+          c.method === 'setValueAtTime' && c.args[0] === 1 && c.args[1] === 0,
+      ),
+    ).toBe(true);
+
+    // After the window, the outgoing engine is torn down and fm is active.
+    vi.advanceTimersByTime(600);
+    expect(orch.getEngineId()).toBe('fm');
+
+    orch.stop();
+    vi.advanceTimersByTime(2200);
+  });
+
+  it('coalesces rapid switches to the latest requested engine', () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS, 'sine');
+    orch.start();
+
+    orch.setEngine('fm'); // sine → fm crossfade in flight
+    orch.setEngine('sine'); // queued while the first crossfade runs
+    expect(orch.getEngineId()).toBe('fm');
+
+    vi.advanceTimersByTime(600); // first crossfade completes → triggers queued
+    vi.advanceTimersByTime(600); // queued fm → sine crossfade completes
     expect(orch.getEngineId()).toBe('sine');
+    expect(orch.isRunning()).toBe(true);
+
+    orch.stop();
+    vi.advanceTimersByTime(2200);
+  });
+
+  it('swapping to the in-flight target cancels a queued swap back', () => {
+    const orch = new Orchestrator(DEFAULT_PARAMS, 'sine');
+    orch.start();
+
+    orch.setEngine('fm'); // sine → fm in flight (active becomes fm)
+    orch.setEngine('fm'); // same as active → no-op, clears any queue
+    expect(orch.getEngineId()).toBe('fm');
+
+    vi.advanceTimersByTime(600);
+    expect(orch.getEngineId()).toBe('fm');
+
+    orch.stop();
+    vi.advanceTimersByTime(2200);
   });
 });

@@ -13,6 +13,8 @@ import { HARMONICS, type DriftPartial, type GraphNodes } from '@/types/audio';
 const FADE_IN_SECONDS = 3.0;
 const FADE_OUT_TC = 0.6;
 const TEARDOWN_MS = 2200;
+const CROSSFADE_SECONDS = 0.6;
+const CROSSFADE_MS = 600;
 const DRIFT_INTERVAL_MS = 50;
 const DRIFT_DT = 0.05;
 
@@ -32,12 +34,19 @@ function createAudioContext(): AudioContext {
   return new Ctor();
 }
 
+/** An active engine plus the orchestrator-owned gain stage that fades it. */
+interface Voice {
+  readonly engine: AnnealEngine;
+  readonly bus: GainNode;
+}
+
 /**
- * Owns the audio context, the shared post-fx chain, the drift loop, and the
- * active engine's lifecycle. Engines plug into a single point (their output
- * node routes into the post-fx filter); the orchestrator pushes per-partial
- * detune into the active engine so drift stays engine-agnostic. Knows nothing
- * about React.
+ * Owns the audio context, the shared post-fx chain, the drift loop, and engine
+ * lifecycle + crossfade. Each engine routes through its own bus gain into the
+ * shared post-fx filter; on an engine swap the orchestrator runs both engines
+ * briefly in parallel and equal-gain crossfades between their buses. Drift is
+ * engine-agnostic: the orchestrator keeps a pure detune state and pushes it to
+ * the active engine via `setPartialDetune`. Knows nothing about React.
  */
 export class Orchestrator {
   private shared: SharedParams;
@@ -47,7 +56,10 @@ export class Orchestrator {
 
   private ctx: AudioContext | null = null;
   private nodes: GraphNodes | null = null;
-  private engine: AnnealEngine | null = null;
+  private active: Voice | null = null;
+  private outgoing: Voice | null = null;
+  private swapTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingSwap: EngineId | null = null;
   private driftState: DriftPartial[] = [];
   private driftTimer: ReturnType<typeof setInterval> | null = null;
   private running = false;
@@ -79,11 +91,11 @@ export class Orchestrator {
   }
 
   getPartialCount(): number {
-    return this.engine?.getPartialCount() ?? 0;
+    return this.active?.engine.getPartialCount() ?? 0;
   }
 
   getPartialFrequencies(): number[] {
-    return this.engine?.getPartialFrequencies() ?? [];
+    return this.active?.engine.getPartialFrequencies() ?? [];
   }
 
   private makeEngine(id: EngineId): AnnealEngine {
@@ -100,8 +112,9 @@ export class Orchestrator {
     if (ctx.state === 'suspended') void ctx.resume();
     const p = this.shared;
 
+    // The mix bus is static at unity; amplitude fades live on per-engine buses.
     const master = ctx.createGain();
-    master.gain.value = 0;
+    master.gain.value = 1;
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
@@ -122,17 +135,10 @@ export class Orchestrator {
     const masterVol = ctx.createGain();
     masterVol.gain.value = p.volume;
 
-    const engine = this.makeEngine(this.engineId);
-    engine.start(ctx, p, this.engineParams[this.engineId] ?? {});
-    engine.getOutputNode().connect(filter);
-
     filter.connect(dryGain).connect(master);
     filter.connect(convolver).connect(wetGain).connect(master);
     master.connect(masterVol).connect(analyser);
     analyser.connect(ctx.destination);
-
-    master.gain.setValueAtTime(0, ctx.currentTime);
-    master.gain.linearRampToValueAtTime(1.0, ctx.currentTime + FADE_IN_SECONDS);
 
     this.ctx = ctx;
     this.nodes = {
@@ -144,7 +150,18 @@ export class Orchestrator {
       wetGain,
       dryGain,
     };
-    this.engine = engine;
+
+    // Build the first engine and fade its bus in over the long "bloom".
+    const engine = this.makeEngine(this.engineId);
+    engine.start(ctx, p, this.engineParams[this.engineId] ?? {});
+    const bus = ctx.createGain();
+    bus.gain.value = 0;
+    engine.getOutputNode().connect(bus);
+    bus.connect(filter);
+    bus.gain.setValueAtTime(0, ctx.currentTime);
+    bus.gain.linearRampToValueAtTime(1.0, ctx.currentTime + FADE_IN_SECONDS);
+
+    this.active = { engine, bus };
     this.running = true;
 
     this.seedDrift(engine.getPartialCount());
@@ -162,7 +179,7 @@ export class Orchestrator {
 
   private startDrift(): void {
     this.driftTimer = setInterval(() => {
-      const engine = this.engine;
+      const engine = this.active?.engine;
       if (!engine || this.driftState.length === 0) return;
       const next = driftStep(
         this.driftState,
@@ -184,31 +201,38 @@ export class Orchestrator {
     this.driftTimer = null;
   }
 
-  /** Fade out, stop the engine, and close the context. Resolves after teardown. */
+  /** Fade out, stop the engine(s), and close the context. Resolves after teardown. */
   stop(): Promise<void> {
     const ctx = this.ctx;
-    const nodes = this.nodes;
-    const engine = this.engine;
+    const voices = [this.active, this.outgoing].filter(
+      (v): v is Voice => v !== null,
+    );
 
     this.stopDrift();
+    if (this.swapTimer !== null) clearTimeout(this.swapTimer);
+    this.swapTimer = null;
+    this.pendingSwap = null;
     this.running = false;
     this.ctx = null;
     this.nodes = null;
-    this.engine = null;
+    this.active = null;
+    this.outgoing = null;
     this.driftState = [];
 
-    if (!ctx || !nodes || !engine) return Promise.resolve();
+    if (!ctx || voices.length === 0) return Promise.resolve();
 
-    try {
-      nodes.master.gain.cancelScheduledValues(ctx.currentTime);
-      nodes.master.gain.setTargetAtTime(0, ctx.currentTime, FADE_OUT_TC);
-    } catch {
-      // ignore scheduling errors during teardown
+    for (const v of voices) {
+      try {
+        v.bus.gain.cancelScheduledValues(ctx.currentTime);
+        v.bus.gain.setTargetAtTime(0, ctx.currentTime, FADE_OUT_TC);
+      } catch {
+        // ignore scheduling errors during teardown
+      }
     }
 
     return new Promise((resolve) => {
       setTimeout(() => {
-        void engine.stop(0);
+        for (const v of voices) void v.engine.stop(0);
         ctx
           .close()
           .catch(() => undefined)
@@ -217,7 +241,7 @@ export class Orchestrator {
     });
   }
 
-  /** Apply live shared-param updates: post-fx here, voice freqs to the engine. */
+  /** Apply live shared-param updates: post-fx here, voice freqs to the engines. */
   setSharedParams(partial: Partial<SharedParams>): void {
     this.shared = { ...this.shared, ...partial };
 
@@ -239,10 +263,10 @@ export class Orchestrator {
       nodes.masterVol.gain.setTargetAtTime(p.volume, t, 0.2);
     }
     if (partial.rootFreq !== undefined || partial.spread !== undefined) {
-      this.engine?.setSharedParams({
-        rootFreq: p.rootFreq,
-        spread: p.spread,
-      });
+      // Forward to both engines so a mid-crossfade engine doesn't jump in pitch.
+      const voiceUpdate = { rootFreq: p.rootFreq, spread: p.spread };
+      this.active?.engine.setSharedParams(voiceUpdate);
+      this.outgoing?.engine.setSharedParams(voiceUpdate);
     }
   }
 
@@ -252,19 +276,75 @@ export class Orchestrator {
       ...this.engineParams,
       [this.engineId]: { ...this.engineParams[this.engineId], ...partial },
     };
-    this.engine?.setEngineParams(partial);
+    this.active?.engine.setEngineParams(partial);
   }
 
   /**
    * Select the active engine. When stopped, this is remembered for the next
-   * start. While running, swapping to a *different* engine crossfades (CP2);
-   * swapping to the same engine is a no-op (no rebuild, no audible dip).
+   * start. While running, swapping to a *different* engine crossfades; swapping
+   * to the same engine is a no-op (no rebuild, no audible dip).
    */
   setEngine(id: EngineId): void {
+    if (!this.running) {
+      this.engineId = id;
+      return;
+    }
+    if (this.active?.engine.id === id) {
+      // Already (becoming) this engine — cancel any queued swap back away.
+      this.pendingSwap = null;
+      return;
+    }
+    this.crossfadeTo(id);
+  }
+
+  /** Build the incoming engine and equal-gain crossfade from the active one. */
+  private crossfadeTo(id: EngineId): void {
+    const ctx = this.ctx;
+    const nodes = this.nodes;
+    const active = this.active;
+    if (!ctx || !nodes || !active) return;
+
+    // A swap is already in flight: coalesce to the latest requested target.
+    if (this.outgoing) {
+      this.pendingSwap = id;
+      return;
+    }
+
+    const engine = this.makeEngine(id);
+    engine.start(ctx, this.shared, this.engineParams[id] ?? {});
+    const bus = ctx.createGain();
+    bus.gain.value = 0;
+    engine.getOutputNode().connect(bus);
+    bus.connect(nodes.filter);
+
+    // Carry the current detune so the texture is continuous across the swap.
+    // Density is shared + locked while playing, so partial counts always match.
+    this.driftState.forEach((part, i) =>
+      engine.setPartialDetune(i, part.detune),
+    );
+
+    const t0 = ctx.currentTime;
+    active.bus.gain.cancelScheduledValues(t0);
+    active.bus.gain.setValueAtTime(active.bus.gain.value, t0);
+    active.bus.gain.linearRampToValueAtTime(0, t0 + CROSSFADE_SECONDS);
+    bus.gain.setValueAtTime(0, t0);
+    bus.gain.linearRampToValueAtTime(1, t0 + CROSSFADE_SECONDS);
+
+    this.outgoing = active;
+    this.active = { engine, bus };
     this.engineId = id;
-    if (!this.running) return;
-    if (this.engine?.id === id) return;
-    // Crossfade between distinct engines lands in CP2. With only `sine`
-    // registered in CP1 this branch is unreachable.
+
+    this.swapTimer = setTimeout(() => {
+      this.swapTimer = null;
+      const out = this.outgoing;
+      this.outgoing = null;
+      if (out) {
+        void out.engine.stop(0.02);
+        out.bus.disconnect();
+      }
+      const queued = this.pendingSwap;
+      this.pendingSwap = null;
+      if (queued && queued !== this.active?.engine.id) this.crossfadeTo(queued);
+    }, CROSSFADE_MS);
   }
 }

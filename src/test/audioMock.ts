@@ -43,6 +43,15 @@ export class MockParam {
   }
 }
 
+export type NodeKind =
+  | 'gain'
+  | 'oscillator'
+  | 'constant'
+  | 'filter'
+  | 'analyser'
+  | 'convolver'
+  | 'destination';
+
 export class MockNode {
   readonly gain = new MockParam(1);
   readonly frequency = new MockParam(440);
@@ -51,6 +60,11 @@ export class MockNode {
   readonly Q = new MockParam(1);
   type = 'sine';
   buffer: unknown = null;
+  readonly kind: NodeKind;
+
+  constructor(kind: NodeKind = 'gain') {
+    this.kind = kind;
+  }
 
   // Analyser-ish fields (used by the visualizer, harmless elsewhere).
   fftSize = 1024;
@@ -85,35 +99,56 @@ export class MockNode {
 }
 
 export class MockAudioContext {
+  /** Every context constructed, in order — lets tests reach a context the code
+   * under test created internally. Clear between tests. */
+  static readonly instances: MockAudioContext[] = [];
+
   currentTime = 0;
   state: 'running' | 'suspended' | 'closed' = 'running';
   sampleRate = 48000;
-  readonly destination = new MockNode();
+  readonly destination = new MockNode('destination');
 
-  createGain(): MockNode {
-    return new MockNode();
+  /** Every node created through this context, in creation order. */
+  readonly created: MockNode[] = [];
+
+  constructor() {
+    MockAudioContext.instances.push(this);
   }
 
-  createBiquadFilter(): MockNode {
-    return new MockNode();
-  }
-
-  createAnalyser(): MockNode {
-    const node = new MockNode();
-    node.context = this;
+  private track(node: MockNode): MockNode {
+    this.created.push(node);
     return node;
   }
 
+  /** Nodes of a given kind, in creation order. */
+  nodesOfKind(kind: NodeKind): MockNode[] {
+    return this.created.filter((n) => n.kind === kind);
+  }
+
+  createGain(): MockNode {
+    return this.track(new MockNode('gain'));
+  }
+
+  createBiquadFilter(): MockNode {
+    return this.track(new MockNode('filter'));
+  }
+
+  createAnalyser(): MockNode {
+    const node = new MockNode('analyser');
+    node.context = this;
+    return this.track(node);
+  }
+
   createConvolver(): MockNode {
-    return new MockNode();
+    return this.track(new MockNode('convolver'));
   }
 
   createOscillator(): MockNode {
-    return new MockNode();
+    return this.track(new MockNode('oscillator'));
   }
 
   createConstantSource(): MockNode {
-    return new MockNode();
+    return this.track(new MockNode('constant'));
   }
 
   createBuffer(

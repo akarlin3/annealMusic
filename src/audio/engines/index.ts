@@ -1,4 +1,5 @@
 import { SineEngine } from '@/audio/engines/sine';
+import { FmEngine } from '@/audio/engines/fm';
 import {
   defaultsFromParamDefs,
   type AnnealEngine,
@@ -10,12 +11,12 @@ import {
 export type EngineFactory = () => AnnealEngine;
 
 /**
- * Registry of selectable engines. v0.3 ships `sine` (CP1); `fm` is added in CP2.
- * Partial so the registry can grow checkpoint-by-checkpoint without forcing
- * every `EngineId` to exist yet.
+ * Registry of selectable engines. Partial so the registry can grow without
+ * forcing every `EngineId` to exist yet.
  */
 export const ENGINES: Partial<Record<EngineId, EngineFactory>> = {
   sine: () => new SineEngine(),
+  fm: () => new FmEngine(),
 };
 
 /** Build the default engine-param bag for every registered engine. */
