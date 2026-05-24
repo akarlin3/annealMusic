@@ -1,19 +1,36 @@
 import {
   CONTROL_DEFS,
   VOLUME_DEF,
-  type ControlDef,
   type ControlGroup,
   type AnnealMusicParams,
   type ParamKey,
 } from '@/state/params';
+import {
+  ENGINE_LABELS,
+  engineCapabilities,
+  engineParamDefs,
+} from '@/audio/engines/index';
+import type { EngineId, EngineParams } from '@/audio/engines/types';
 
 interface ControlPanelProps {
   params: AnnealMusicParams;
   setParam: (key: ParamKey, value: number) => void;
   isPlaying: boolean;
+  engineId: EngineId;
+  engineParams: EngineParams;
+  setEngineParam: (key: string, value: number) => void;
 }
 
 const GROUPS: ControlGroup[] = ['Pitch', 'Physics', 'Tone'];
+
+/** Minimal shape a slider needs; satisfied by both shared and engine defs. */
+interface SliderDef {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  fmt: (v: number) => string;
+}
 
 function Slider({
   def,
@@ -21,7 +38,7 @@ function Slider({
   disabled,
   onChange,
 }: {
-  def: ControlDef;
+  def: SliderDef;
   value: number;
   disabled: boolean;
   onChange: (v: number) => void;
@@ -68,7 +85,14 @@ export default function ControlPanel({
   params,
   setParam,
   isPlaying,
+  engineId,
+  engineParams,
+  setEngineParam,
 }: ControlPanelProps) {
+  const caps = engineCapabilities(engineId);
+  const structuralLock = isPlaying && caps.densityLockedWhilePlaying;
+  const engineDefs = engineParamDefs(engineId);
+
   return (
     <>
       <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-3">
@@ -86,7 +110,7 @@ export default function ControlPanel({
                   key={c.key}
                   def={c}
                   value={params[c.key]}
-                  disabled={Boolean(c.lockWhilePlaying && isPlaying)}
+                  disabled={Boolean(c.lockWhilePlaying) && structuralLock}
                   onChange={(v) => setParam(c.key, v)}
                 />
               ))}
@@ -94,6 +118,36 @@ export default function ControlPanel({
           </div>
         ))}
       </div>
+
+      {engineDefs.length > 0 && (
+        <div className="mt-10 max-w-xs transition-opacity duration-300">
+          <div className="mb-4 flex items-baseline gap-2">
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.22em]"
+              style={{ color: '#78716c' }}
+            >
+              Engine
+            </span>
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.22em]"
+              style={{ color: '#57534e' }}
+            >
+              {ENGINE_LABELS[engineId]}
+            </span>
+          </div>
+          <div className="space-y-5">
+            {engineDefs.map((def) => (
+              <Slider
+                key={def.key}
+                def={def}
+                value={engineParams[def.key] ?? def.default}
+                disabled={false}
+                onChange={(v) => setEngineParam(def.key, v)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-10 max-w-xs">
         <div className="mb-1.5 flex items-baseline justify-between">

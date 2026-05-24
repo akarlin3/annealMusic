@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS, type AnnealMusicParams } from '@/state/params';
-import { decodeParams, encodeParams } from '@/share/encode';
+import {
+  decodeParams,
+  decodeState,
+  encodeParams,
+  encodeState,
+} from '@/share/encode';
 import { KEY_BOUNDS, SHARED_KEYS } from '@/share/schema';
 
 /** Deterministic PRNG (mulberry32) so any failure reproduces. */
@@ -106,5 +111,48 @@ describe('encodeParams / decodeParams', () => {
 
   it('returns empty result for empty payload', () => {
     expect(decodeParams('')).toEqual({ params: {}, warnings: [] });
+  });
+});
+
+describe('encodeState / decodeState (schema v2)', () => {
+  it('round-trips engine selection + namespaced engine params', () => {
+    const fm = { modRatio: 2.5, modIndex: 4, feedback: 0.3 };
+    const payload = encodeState(DEFAULT_PARAMS, 'fm', fm);
+    const decoded = decodeState(2, payload);
+
+    expect(decoded.warnings).toEqual([]);
+    expect(decoded.engineId).toBe('fm');
+    expect(decoded.engineParams.fm).toEqual(fm);
+    for (const key of SHARED_KEYS) {
+      expect(decoded.params[key]).toBe(DEFAULT_PARAMS[key]);
+    }
+  });
+
+  it('writes the engine selector first and omits params for engines with none', () => {
+    expect(encodeState(DEFAULT_PARAMS, 'sine', {})).toBe(
+      `e=sine&${encodeParams(DEFAULT_PARAMS)}`,
+    );
+  });
+
+  it('clamps out-of-range engine params and warns', () => {
+    const decoded = decodeState(2, 'e=fm&fm.modRatio=99&fm.modIndex=-5');
+    expect(decoded.engineParams.fm?.modRatio).toBe(4); // max
+    expect(decoded.engineParams.fm?.modIndex).toBe(0); // min
+    expect(decoded.warnings.length).toBe(2);
+  });
+
+  it('defaults to sine for an unknown engine id, with a warning', () => {
+    const decoded = decodeState(2, 'e=granular&coupling=0.5');
+    expect(decoded.engineId).toBe('sine');
+    expect(decoded.params.coupling).toBe(0.5);
+    expect(decoded.warnings.some((w) => w.includes('granular'))).toBe(true);
+  });
+
+  it('treats a v1 payload as the sine engine and ignores engine keys', () => {
+    const decoded = decodeState(1, 'e=fm&coupling=0.5&fm.modRatio=2');
+    expect(decoded.engineId).toBe('sine');
+    expect(decoded.params.coupling).toBe(0.5);
+    expect(decoded.engineParams).toEqual({});
+    expect(decoded.warnings.length).toBe(2); // e= and fm.modRatio both ignored
   });
 });

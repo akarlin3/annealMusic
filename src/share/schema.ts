@@ -1,7 +1,10 @@
 import { CONTROL_DEFS, type ParamKey } from '@/state/params';
 
 /** Schema version embedded in shared URLs as `#s=<version>:<payload>`. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
+
+/** Schema versions this build can still decode (v1 predates engine state). */
+export const SUPPORTED_SCHEMA_VERSIONS: readonly number[] = [1, 2];
 
 /** Param keys carried in shared URLs — everything sculptable except volume. */
 export type SharedKey = Exclude<ParamKey, 'volume'>;

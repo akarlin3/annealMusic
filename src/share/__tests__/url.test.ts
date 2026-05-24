@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_PARAMS } from '@/state/params';
-import { encodeParams } from '@/share/encode';
+import { encodeState } from '@/share/encode';
 import {
+  buildShareUrl,
   readStateFromHash,
   subscribeStoreToHash,
   writeStateToHash,
@@ -24,15 +25,32 @@ describe('readStateFromHash', () => {
     expect(readStateFromHash()).toBeNull();
   });
 
-  it('decodes a valid v1 fragment', () => {
+  it('decodes a v2 fragment with engine + engine params', () => {
+    setHash('/#s=2:e=fm&coupling=0.42&fm.modRatio=2.50&fm.modIndex=4.00');
+    const result = readStateFromHash();
+    expect(result).not.toBeNull();
+    expect(result?.engineId).toBe('fm');
+    expect(result?.params.coupling).toBe(0.42);
+    expect(result?.engineParams.fm?.modRatio).toBe(2.5);
+    expect(result?.engineParams.fm?.modIndex).toBe(4);
+  });
+
+  it('loads a v1 fragment as the sine engine', () => {
     setHash('/#s=1:coupling=0.42&drift=0.10');
     const result = readStateFromHash();
     expect(result).not.toBeNull();
+    expect(result?.engineId).toBe('sine');
     expect(result?.params.coupling).toBe(0.42);
     expect(result?.params.drift).toBe(0.1);
+    expect(result?.engineParams).toEqual({});
   });
 
-  it('returns null for unknown schema versions (0 and 999)', () => {
+  it('defaults to sine when the engine selector is missing', () => {
+    setHash('/#s=2:coupling=0.42');
+    expect(readStateFromHash()?.engineId).toBe('sine');
+  });
+
+  it('returns null for unsupported schema versions (0 and 999)', () => {
     setHash('/#s=0:coupling=0.42');
     expect(readStateFromHash()).toBeNull();
     setHash('/#s=999:coupling=0.42');
@@ -40,7 +58,7 @@ describe('readStateFromHash', () => {
   });
 
   it('returns null when version segment is malformed', () => {
-    setHash('/#s=1coupling=0.42'); // no colon
+    setHash('/#s=2coupling=0.42'); // no colon
     expect(readStateFromHash()).toBeNull();
     setHash('/#s=x:coupling=0.42'); // non-numeric version
     expect(readStateFromHash()).toBeNull();
@@ -48,27 +66,46 @@ describe('readStateFromHash', () => {
 });
 
 describe('writeStateToHash', () => {
-  it('writes a prefixed payload via replaceState without adding history', () => {
+  it('writes a v2 payload via replaceState without adding history', () => {
     const before = window.history.length;
-    writeStateToHash(DEFAULT_PARAMS);
-    expect(window.location.hash).toBe(`#s=1:${encodeParams(DEFAULT_PARAMS)}`);
+    writeStateToHash(DEFAULT_PARAMS, 'sine', {});
+    expect(window.location.hash).toBe(
+      `#s=2:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
+    );
     expect(window.history.length).toBe(before);
   });
 
-  it('round-trips through read', () => {
-    writeStateToHash(DEFAULT_PARAMS);
+  it('round-trips shared + engine state through read (FM)', () => {
+    const fmParams = { modRatio: 2.5, modIndex: 4, feedback: 0.3 };
+    writeStateToHash(DEFAULT_PARAMS, 'fm', fmParams);
     const result = readStateFromHash();
+    expect(result?.engineId).toBe('fm');
     expect(result?.params.coupling).toBe(DEFAULT_PARAMS.coupling);
-    expect(result?.params.rootFreq).toBe(DEFAULT_PARAMS.rootFreq);
+    expect(result?.engineParams.fm?.modRatio).toBe(2.5);
+    expect(result?.engineParams.fm?.modIndex).toBe(4);
+    expect(result?.engineParams.fm?.feedback).toBe(0.3);
+  });
+});
+
+describe('buildShareUrl', () => {
+  it('embeds the engine selector in the fragment', () => {
+    expect(buildShareUrl(DEFAULT_PARAMS, 'fm', { modRatio: 1 })).toContain(
+      '#s=2:e=fm&',
+    );
   });
 });
 
 describe('subscribeStoreToHash', () => {
   it('debounces writes and unsubscribes cleanly', () => {
     vi.useFakeTimers();
+    const state = {
+      params: DEFAULT_PARAMS,
+      engineId: 'sine' as const,
+      engineParams: { sine: {} },
+    };
     const holder: { fn: (() => void) | null } = { fn: null };
     const store = {
-      getState: () => ({ params: DEFAULT_PARAMS }),
+      getState: () => state,
       subscribe: (fn: () => void) => {
         holder.fn = fn;
         return () => {
@@ -88,7 +125,9 @@ describe('subscribeStoreToHash', () => {
     holder.fn?.(); // rapid changes collapse into one write
     expect(window.location.hash).toBe(''); // not yet written
     vi.advanceTimersByTime(500);
-    expect(window.location.hash).toBe(`#s=1:${encodeParams(DEFAULT_PARAMS)}`);
+    expect(window.location.hash).toBe(
+      `#s=2:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
+    );
 
     // After unsubscribe, a pending/late change does not write.
     setHash('/');

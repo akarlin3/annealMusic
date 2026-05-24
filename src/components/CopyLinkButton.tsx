@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Check, Link2 } from 'lucide-react';
 import { buildShareUrl } from '@/share/url';
 import type { AnnealMusicParams } from '@/state/params';
+import type { EngineId, EngineParams } from '@/audio/engines/types';
 
 /** Copy text to the clipboard, falling back to a legacy textarea + execCommand. */
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -38,19 +39,23 @@ function legacyCopy(text: string): boolean {
 
 interface CopyLinkButtonProps {
   params: AnnealMusicParams;
+  engineId?: EngineId;
+  engineParams?: EngineParams;
   /** Surface user feedback (toast) for copy success/failure. */
   onResult?: (message: string) => void;
 }
 
 export default function CopyLinkButton({
   params,
+  engineId = 'sine',
+  engineParams = {},
   onResult,
 }: CopyLinkButtonProps) {
   const [copied, setCopied] = useState(false);
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleClick = useCallback(async () => {
-    const url = buildShareUrl(params);
+    const url = buildShareUrl(params, engineId, engineParams);
     const ok = await copyToClipboard(url);
 
     if (ok) {
@@ -62,7 +67,7 @@ export default function CopyLinkButton({
       onResult?.('Copy failed — select the link to copy manually');
       window.prompt('Copy this link', url);
     }
-  }, [params, onResult]);
+  }, [params, engineId, engineParams, onResult]);
 
   return (
     <button
