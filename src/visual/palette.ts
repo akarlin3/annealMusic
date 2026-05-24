@@ -10,6 +10,15 @@ export const PALETTE = {
   spectrum: 'rgba(245, 245, 244, 0.16)',
   /** Faint amber ring around the halo, driven by live-input amplitude. */
   inputRing: (a: number) => `rgba(251, 191, 36, ${a})`,
+  /** Per-slot loop rings: amber (A), warm rose (B), cool cyan (C). */
+  loopRing: (slot: number, a: number): string => {
+    const rgb = [
+      [245, 158, 11],
+      [248, 113, 113],
+      [125, 211, 252],
+    ][slot % 3] ?? [245, 158, 11];
+    return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`;
+  },
 } as const;
 
 export const VISUAL = {
@@ -36,4 +45,12 @@ export const VISUAL = {
   inputRingBaseAlpha: 0.05,
   inputRingAlphaScale: 0.18,
   inputRingLineWidth: 1.5,
+  /** Loop rings: orbital radius multiples of baseR (one per slot) + dynamics. */
+  loopRingRadii: [1.78, 1.98, 2.18],
+  loopRingSwell: 0.18,
+  loopRingBaseAlpha: 0.06,
+  loopRingAlphaScale: 0.22,
+  loopRingLineWidth: 1.5,
+  /** Arc sweep (radians) drawn per loop ring — partial arcs read as separable. */
+  loopRingArc: 1.7,
 } as const;

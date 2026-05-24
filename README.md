@@ -33,8 +33,9 @@ src/
     engines/     # AnnealEngine interface, sine + fm engines, registry
   session/       # arc data model, preset arcs, easing curves, ArcRunner
   input/         # InputVoice (live-input chain), devices, latency, meter
-  components/    # Visualizer, ControlPanel, EngineSelector, InputPanel, LevelMeter, …
-  hooks/         # useAnnealMusic (orchestration), useSession, useInput
+  loop/          # LoopSlot state machine, capture, SeamLoopPlayer, GranularPlayer, windows
+  components/    # Visualizer, ControlPanel, EngineSelector, InputPanel, LoopPedal, …
+  hooks/         # useAnnealMusic (orchestration), useSession, useInput, useLoops
   state/         # param store, defaults, control schema
   visual/        # canvas draw loop, palette, math helpers
   pages/         # App
@@ -119,6 +120,44 @@ A few deliberate choices:
 For wiring up an audio interface (bass DI, guitar, mic), see
 [`docs/INPUT_GUIDE.md`](docs/INPUT_GUIDE.md).
 
+## Loop pedal
+
+Capture the live input into one of **three loop slots** (A / B / C), play them
+back seamlessly, layer them, and **freeze** any of them into an endless granular
+drone. Loops tap the input _after_ its voice chain (compressed, high-passed,
+drift-modulated), so they sound like the input as it currently sits in the
+field, and they sum into the same post-fx as the engines.
+
+- **Capture** is not metronomic — there's no tempo or click. Arm a slot, and it
+  starts recording on the first sound; stop it (or hit the 60-second cap) to
+  commit. Captures shorter than 250 ms are discarded.
+- **Seamless looping**: buffers loop with a short equal-power crossfade at the
+  seam (≤120 ms, scaled to buffer length) so there's no click.
+- **Freeze = granular re-synthesis**: a frozen slot stops looping linearly and
+  continuously triggers short Hann-windowed grains from wandering positions in
+  the buffer — a single chord becomes an infinite drone of itself. Grain
+  **size**, **density**, **position jitter**, and **pitch jitter** are
+  per-slot sliders; an optional **drift-coupled** toggle ties grain wander to
+  the same drift field.
+- **No undo.** Re-arming a slot overwrites its capture.
+- Loops are independent of session state — they keep playing through engine
+  swaps and arc start/stop, like the input does.
+
+**Keyboard control** (a loop pedal wants hotkeys):
+
+| Key           | Action                                         |
+| ------------- | ---------------------------------------------- |
+| `1` `2` `3`   | Slot A/B/C: arm → capture → (then) mute/unmute |
+| `Shift+1/2/3` | Freeze ↔ unfreeze the slot                     |
+
+Keys are ignored while a text field/slider/select is focused, and when a
+modifier other than Shift is held (so browser tab shortcuts aren't shadowed).
+
+Captured **audio** never goes in the URL (that's the wrong place for buffer
+data — v0.7's backend will handle buffer sharing). Loop **parameters**
+(muted / frozen / grain settings) do ride along in the share link. See
+[`docs/LOOP_GUIDE.md`](docs/LOOP_GUIDE.md).
+
 ## Sharing
 
 The full sculptable parameter set (everything except volume, which is a per-user
@@ -129,18 +168,24 @@ fragment uses a versioned, human-readable schema — `#s=<version>:<key=value…
 and updates live (debounced) as you sculpt, via `history.replaceState` so it
 never pollutes browser history.
 
-Schema **v3** adds the session mode (`m=<open|arc>`, plus `arc=<id>&dur=<sec>`
-for arcs) on top of v2's engine selector (`e=<id>`) and namespaced engine params
-(e.g. `fm.modRatio`). Example (an arc session):
+Schema **v4** adds per-slot loop config — flags (`L<id>.m`/`f`/`c` for
+muted/frozen/drift-coupled) and, for frozen slots, grain params
+(`L<id>.gs/gd/gp/gx`) — on top of v3's session mode (`m=<open|arc>`, plus
+`arc=<id>&dur=<sec>`), v2's engine selector (`e=<id>`), and namespaced engine
+params (e.g. `fm.modRatio`). Buffer **audio** is never encoded. Example (an arc
+session with a frozen loop):
 
 ```
-https://anneal.averykarlin.org/#s=3:m=arc&arc=bell&dur=720&e=fm&rootFreq=147&spread=1.08&density=7&coupling=0.62&drift=0.30&brightness=0.74&space=0.55&fm.modRatio=2.00&fm.modIndex=4.50&fm.feedback=0.20
+https://anneal.averykarlin.org/#s=4:m=arc&arc=bell&dur=720&e=fm&rootFreq=147&spread=1.08&density=7&coupling=0.62&drift=0.30&brightness=0.74&space=0.55&fm.modRatio=2.00&fm.modIndex=4.50&fm.feedback=0.20&LA.f=1&LA.gs=140&LA.gd=14&LA.gp=0.50&LA.gx=0
 ```
 
-**v1** and **v2** links still load — they're interpreted as `mode=open` (v1 also
-as the sine engine). An unknown arc id loads open mode with a notice, durations
-out of range are clamped, malformed fragments fall back to defaults, and links
-from a newer schema version load defaults and surface a notice.
+A link with frozen slots but no buffers loads the slots **empty** with the
+frozen/grain config remembered — capture into the slot and it applies on commit.
+**v1**–**v3** links still load — earlier schemas ignore loop keys, v1/v2 are
+interpreted as `mode=open` (v1 also as the sine engine). An unknown arc id loads
+open mode with a notice, out-of-range values are clamped, malformed fragments
+fall back to defaults, and links from a newer schema version load defaults and
+surface a notice.
 
 ## Deploy
 

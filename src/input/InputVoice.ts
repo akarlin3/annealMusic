@@ -90,6 +90,8 @@ export class InputVoice {
   private readonly driftFilter: BiquadFilterNode;
   private readonly analyser: AnalyserNode;
   private readonly monitorGain: GainNode;
+  // Stable post-processing tap for loop capture (independent of the monitor gate).
+  private readonly captureTap: GainNode;
 
   // Per-connection source (rebuilt on device switch).
   private stream: MediaStream | null = null;
@@ -140,6 +142,9 @@ export class InputVoice {
     this.monitorGain = ctx.createGain();
     this.monitorGain.gain.value = 0; // muted by default — feedback-safe
 
+    this.captureTap = ctx.createGain();
+    this.captureTap.gain.value = 1;
+
     this.highpass
       .connect(this.compressor)
       .connect(this.shaper)
@@ -149,6 +154,8 @@ export class InputVoice {
     this.driftFilter.connect(this.analyser);
     // The only path to the speakers, gated by the monitor toggle.
     this.driftFilter.connect(this.monitorGain);
+    // Loop capture taps the fully-processed voice regardless of monitor state.
+    this.driftFilter.connect(this.captureTap);
   }
 
   /** Subscribe to device-change / loss / error events. Returns an unsubscribe. */
@@ -341,6 +348,15 @@ export class InputVoice {
   /** The single node the orchestrator routes into the shared post-fx chain. */
   getOutputNode(): AudioNode {
     return this.monitorGain;
+  }
+
+  /**
+   * Post-processing tap (compressed, HP-filtered, drift-modulated) for loop
+   * capture. Independent of the monitor gate, so loops capture the processed
+   * voice whether or not monitoring is on.
+   */
+  getCaptureTap(): AudioNode {
+    return this.captureTap;
   }
 
   /** Pre-gate analyser for the level meter + visualizer ring. */

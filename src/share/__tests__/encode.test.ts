@@ -3,10 +3,12 @@ import { DEFAULT_PARAMS, type AnnealMusicParams } from '@/state/params';
 import {
   decodeParams,
   decodeState,
+  encodeLoops,
   encodeParams,
   encodeState,
 } from '@/share/encode';
 import { KEY_BOUNDS, SHARED_KEYS } from '@/share/schema';
+import { makeDefaultLoopConfig } from '@/loop/types';
 
 /** Deterministic PRNG (mulberry32) so any failure reproduces. */
 function makeRng(seed: number): () => number {
@@ -199,5 +201,74 @@ describe('encodeState / decodeState (schema v3)', () => {
     expect(decoded.params.coupling).toBe(0.5);
     expect(decoded.engineParams).toEqual({});
     expect(decoded.warnings.length).toBe(2); // e= and fm.modRatio both ignored
+  });
+});
+
+describe('loop config (schema v4)', () => {
+  it('omits loop pairs for default/empty slots', () => {
+    const loops = makeDefaultLoopConfig();
+    expect(encodeLoops(loops)).toBe('');
+  });
+
+  it('encodes flags and grain params for a frozen slot', () => {
+    const loops = makeDefaultLoopConfig();
+    loops.A = {
+      muted: false,
+      frozen: true,
+      driftCoupled: true,
+      grain: { sizeMs: 200, density: 18, posJitter: 0.6, pitchJitter: 25 },
+    };
+    const encoded = encodeLoops(loops);
+    expect(encoded).toContain('LA.f=1');
+    expect(encoded).toContain('LA.c=1');
+    expect(encoded).toContain('LA.gs=200');
+    expect(encoded).toContain('LA.gd=18');
+    expect(encoded).toContain('LA.gp=0.60');
+    expect(encoded).toContain('LA.gx=25');
+  });
+
+  it('encodes muted without grain params for a non-frozen slot', () => {
+    const loops = makeDefaultLoopConfig();
+    loops.B = { ...loops.B, muted: true };
+    const encoded = encodeLoops(loops);
+    expect(encoded).toBe('LB.m=1');
+  });
+
+  it('round-trips a frozen slot through encode/decode', () => {
+    const loops = makeDefaultLoopConfig();
+    loops.C = {
+      muted: false,
+      frozen: true,
+      driftCoupled: false,
+      grain: { sizeMs: 90, density: 30, posJitter: 0.25, pitchJitter: 0 },
+    };
+    const payload = encodeState(DEFAULT_PARAMS, 'sine', {}, undefined, loops);
+    const decoded = decodeState(4, payload);
+    expect(decoded.loops.C.frozen).toBe(true);
+    expect(decoded.loops.C.grain.sizeMs).toBe(90);
+    expect(decoded.loops.C.grain.density).toBe(30);
+    expect(decoded.loops.C.grain.posJitter).toBeCloseTo(0.25, 5);
+    expect(decoded.loops.A.frozen).toBe(false);
+  });
+
+  it('clamps out-of-range grain params with a warning', () => {
+    const decoded = decodeState(4, 'LA.f=1&LA.gd=999');
+    expect(decoded.loops.A.frozen).toBe(true);
+    expect(decoded.loops.A.grain.density).toBe(40); // clamped to max
+    expect(decoded.warnings.some((w) => w.includes('LA.gd'))).toBe(true);
+  });
+
+  it('ignores loop keys for pre-v4 schemas (back-compat)', () => {
+    const decoded = decodeState(3, 'LA.f=1&coupling=0.5');
+    expect(decoded.loops.A.frozen).toBe(false);
+    expect(decoded.params.coupling).toBe(0.5);
+    expect(decoded.warnings.some((w) => w.includes('loop key ignored'))).toBe(
+      true,
+    );
+  });
+
+  it('defaults all slots to empty when no loop keys are present', () => {
+    const decoded = decodeState(4, 'coupling=0.5');
+    expect(decoded.loops).toEqual(makeDefaultLoopConfig());
   });
 });

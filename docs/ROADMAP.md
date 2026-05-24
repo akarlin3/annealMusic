@@ -35,7 +35,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v0.3 ✅ | FM engine as second selectable                     | Engine-swap abstraction (architectural)    |
 | v0.4 ✅ | Arc mode (timer + scripted envelopes)              | Session-state machine                      |
 | v0.5 ✅ | Mic input (live processed)                         | Instrument integration begins              |
-| v0.6    | Loop pedal (capture / replay / freeze)             | Full instrument integration                |
+| v0.6 ✅ | Loop pedal (capture / replay / freeze)             | Full instrument integration                |
 | v0.7    | Backend + persistence (patches table, anon IDs)    | Unlocks gallery + recordings               |
 | v0.8    | Public gallery                                     | Community surface                          |
 | v0.9    | Granular engine                                    | Third synthesis engine                     |
@@ -81,8 +81,19 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
   runtime/hardware concern — **never in the URL** (no schema bump). Deferred per
   plan: stereo-preserved-through-chain (summed to mono in v0.5), pitch
   detection / harmonization (not on roadmap), sidechain/ducking (not on roadmap),
-  built-in tuner (not on roadmap), MIDI (not on roadmap); the **loop pedal** is
-  next (v0.6).
+  built-in tuner (not on roadmap), MIDI (not on roadmap).
+- **v0.6** — **loop pedal**. Three independent slots (A/B/C) capture the
+  processed live input, loop it seamlessly (equal-power seam crossfade), layer
+  it, and **freeze** it into endless granular re-synthesis (`GranularPlayer`,
+  `currentTime`-scheduled Hann grains with size/density/jitter + optional
+  drift-coupling). Capture is ambient (no tempo): arm, start on first sound,
+  auto-stop at 60 s, discard sub-250 ms. First-class hotkeys (`1/2/3`,
+  `Shift+1/2/3`); visualizer loop rings. **URL schema v4** carries loop config
+  (flags + grain params) but never buffer audio — buffer-level sharing waits for
+  the v0.7 backend. Loops survive engine swaps / arc start-stop like input does.
+  Deferred per plan: pitch-shift / reverse playback, >3 slots, tempo-quantized
+  loops (never), slot chaining/scenes, capture-to-file export (v1.0).
+  Completes instrument integration; next is the **backend** (v0.7).
 
 ## Principles
 

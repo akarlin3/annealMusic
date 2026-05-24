@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { Circle } from 'lucide-react';
 import type { ArcProgress, Orchestrator } from '@/audio/orchestrator';
-import { drawFrame, type DrawState } from '@/visual/draw';
+import { drawFrame, type DrawState, type LoopRing } from '@/visual/draw';
 import { readRms } from '@/input/meter';
 import { HARMONICS } from '@/types/audio';
+import { SLOT_IDS } from '@/loop/types';
 import { useParamStore } from '@/state/params';
 
 interface VisualizerProps {
@@ -80,6 +81,19 @@ export default function Visualizer({
         ? Math.min(1, readRms(inputAnalyser) * 1.4)
         : undefined;
 
+      const loops: LoopRing[] = [];
+      SLOT_IDS.forEach((id, slot) => {
+        const loopSlot = engine?.getLoopSlot(id);
+        if (!loopSlot) return;
+        const st = loopSlot.getState();
+        if (st !== 'playing' && st !== 'frozen') return;
+        loops.push({
+          slot,
+          level: Math.min(1, readRms(loopSlot.getAnalyser()) * 1.4),
+          frozen: st === 'frozen',
+        });
+      });
+
       const params = useParamStore.getState().params;
       const engineFreqs = engine?.getPartialFrequencies() ?? [];
       const count = engineFreqs.length || params.density;
@@ -100,6 +114,7 @@ export default function Visualizer({
         sampleRate,
         fftSize,
         inputLevel,
+        loops,
       };
       drawFrame(c2d, state);
 

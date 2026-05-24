@@ -2,12 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play } from 'lucide-react';
 import { useAnnealMusic } from '@/hooks/useAnnealMusic';
 import { useInput } from '@/hooks/useInput';
+import { useLoops } from '@/hooks/useLoops';
 import { useParamStore } from '@/state/params';
+import { SLOT_IDS } from '@/loop/types';
 import { getArcById } from '@/session/arcs';
 import { readStateFromHash, subscribeStoreToHash } from '@/share/url';
 import Visualizer from '@/components/Visualizer';
 import ControlPanel from '@/components/ControlPanel';
 import InputPanel from '@/components/InputPanel';
+import LoopPedal from '@/components/LoopPedal';
 import EngineSelector from '@/components/EngineSelector';
 import ModeToggle from '@/components/ModeToggle';
 import ArcPanel from '@/components/ArcPanel';
@@ -76,6 +79,8 @@ export default function App() {
   const dismissToast = useCallback(() => setToast(null), []);
 
   const input = useInput(ensureOrchestrator, showToast);
+  const loops = useLoops(ensureOrchestrator, showToast);
+  const loopConfig = useParamStore((s) => s.loops);
 
   // Boot: hydrate params from the URL before the audio engine is ever built
   // (the engine is only constructed on the Begin click), then keep the URL in
@@ -104,6 +109,9 @@ export default function App() {
       if (hydrated.durationSec !== undefined) {
         store.setArcDurationSec(hydrated.durationSec);
       }
+      for (const id of SLOT_IDS) {
+        store.setLoopConfig(id, hydrated.loops[id]);
+      }
 
       const unknownArc = hydrated.warnings.some((w) =>
         w.includes('unknown arc'),
@@ -114,7 +122,13 @@ export default function App() {
         sharedCount > 0 ||
         hydrated.engineId !== 'sine' ||
         engineEntries.length > 0 ||
-        hydrated.mode !== 'open'
+        hydrated.mode !== 'open' ||
+        SLOT_IDS.some(
+          (id) =>
+            hydrated.loops[id].frozen ||
+            hydrated.loops[id].muted ||
+            hydrated.loops[id].driftCoupled,
+        )
       ) {
         showToast('Loaded shared session');
       }
@@ -147,7 +161,7 @@ export default function App() {
                 className="font-mono text-[10px] uppercase tracking-[0.18em]"
                 style={{ color: '#78716c' }}
               >
-                v0.5 · prototype
+                v0.6 · prototype
               </span>
             </div>
             <p
@@ -164,6 +178,7 @@ export default function App() {
               params={params}
               engineId={engineId}
               engineParams={engineParams[engineId] ?? {}}
+              loops={loopConfig}
               onResult={showToast}
             />
 
@@ -249,6 +264,8 @@ export default function App() {
         </div>
 
         <InputPanel input={input} />
+
+        <LoopPedal loops={loops} inputConnected={input.state === 'connected'} />
 
         <ControlPanel
           params={params}
