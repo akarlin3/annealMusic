@@ -23,12 +23,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Install
-        run: pip install -e ".[dev]" pyright
+        run: pip install -e ".[dev]"
       - name: Typecheck (pyright)
-        # Point pyright at the interpreter that has the installed packages, so
-        # imports resolve (otherwise every third-party import is "missing").
-        run: pyright --pythonpath "$(python -c 'import sys; print(sys.executable)')" app
+        # Run pyright via npm (uses the runner's Node — the pip package would try
+        # to download its own Node binary, which the CI network policy blocks).
+        # `--pythonpath` points it at the interpreter that has the deps installed,
+        # otherwise every third-party import resolves as "missing".
+        run: npx --yes pyright --pythonpath "$(python -c 'import sys; print(sys.executable)')" app
       - name: Test (pytest)
         run: pytest -q
 
