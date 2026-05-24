@@ -16,6 +16,8 @@ export interface DrawState {
   spectrum: Uint8Array | null;
   sampleRate: number;
   fftSize: number;
+  /** Live-input amplitude (0..1); undefined when no input is connected. */
+  inputLevel?: number;
 }
 
 /** Sample an amplitude proxy (0..1) for a frequency from the spectrum. */
@@ -43,8 +45,18 @@ function ampForFreq(
  * advance each orbit; otherwise does not retain state between calls.
  */
 export function drawFrame(ctx2d: CanvasRenderingContext2D, state: DrawState) {
-  const { w, h, dt, phases, freqs, count, spectrum, sampleRate, fftSize } =
-    state;
+  const {
+    w,
+    h,
+    dt,
+    phases,
+    freqs,
+    count,
+    spectrum,
+    sampleRate,
+    fftSize,
+    inputLevel,
+  } = state;
 
   // long-trail fade
   ctx2d.fillStyle = PALETTE.trailFade;
@@ -53,6 +65,22 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: DrawState) {
   const cx = w / 2;
   const cy = h / 2;
   const baseR = Math.min(w, h) * VISUAL.baseRadiusFactor;
+
+  // Faint input ring around the halo — present only when input is connected,
+  // swelling with the live signal so it reads as part of the field.
+  if (inputLevel !== undefined) {
+    const lvl = Math.max(0, Math.min(1, inputLevel));
+    const ringR =
+      baseR *
+      VISUAL.inputRingRadiusMultiple *
+      (1 + lvl * VISUAL.inputRingSwell);
+    const alpha = VISUAL.inputRingBaseAlpha + lvl * VISUAL.inputRingAlphaScale;
+    ctx2d.strokeStyle = PALETTE.inputRing(alpha);
+    ctx2d.lineWidth = VISUAL.inputRingLineWidth;
+    ctx2d.beginPath();
+    ctx2d.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx2d.stroke();
+  }
 
   // central dim halo
   const halo = ctx2d.createRadialGradient(

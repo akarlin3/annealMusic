@@ -26,6 +26,7 @@ export interface AnnealMusicApi {
   stopSession: SessionApi['stopSession'];
   arcProgress: SessionApi['arcProgress'];
   engineRef: SessionApi['engineRef'];
+  ensureOrchestrator: SessionApi['ensureOrchestrator'];
 }
 
 /** Top-level orchestration hook: param store + session/orchestrator. */
@@ -50,6 +51,7 @@ export function useAnnealMusic(): AnnealMusicApi {
     stopSession,
     arcProgress,
     engineRef,
+    ensureOrchestrator,
   } = useSession();
 
   return {
@@ -71,5 +73,6 @@ export function useAnnealMusic(): AnnealMusicApi {
     stopSession,
     arcProgress,
     engineRef,
+    ensureOrchestrator,
   };
 }
