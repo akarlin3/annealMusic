@@ -30,6 +30,10 @@ dev = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# Put the project root on sys.path so `from tests.conftest import …` resolves
+# under the `pytest` console script (which, unlike `python -m pytest`, does not
+# add the cwd).
+pythonpath = ["."]
 
 [tool.pyright]
 include = ["app", "tests"]
