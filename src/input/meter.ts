@@ -13,3 +13,35 @@ export function readRms(analyser: AnalyserNode): number {
   }
   return Math.sqrt(sum / buf.length);
 }
+
+/**
+ * Trips when the monitored input RMS stays above `threshold` for `needed`
+ * consecutive samples — a sustained-loudness test for runaway feedback, so a
+ * single loud strum doesn't trip it. Stateful + pure (no timers): the caller
+ * pushes one sample per tick.
+ */
+export class FeedbackDetector {
+  private overCount = 0;
+
+  constructor(
+    private readonly threshold = 0.9,
+    private readonly needed = 20,
+  ) {}
+
+  push(rms: number): boolean {
+    if (rms <= this.threshold) {
+      this.overCount = 0;
+      return false;
+    }
+    this.overCount += 1;
+    if (this.overCount >= this.needed) {
+      this.overCount = 0;
+      return true;
+    }
+    return false;
+  }
+
+  reset(): void {
+    this.overCount = 0;
+  }
+}

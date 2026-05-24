@@ -4,6 +4,48 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-24
+
+### Added
+
+- **Live instrument input.** A mic / line-in / audio interface can be brought
+  into the texture as a sibling voice alongside the engine. Opt-in via a
+  **Connect input** affordance that calls `getUserMedia`; permission denial is
+  handled gracefully with per-browser fix instructions and a retry.
+- **`InputVoice`** (`src/input/InputVoice.ts`): owns the per-voice processing
+  chain — high-pass @ 80 Hz, a gentle `DynamicsCompressor` (−24 dB / 3:1 / soft
+  knee), an optional (default-off) soft-clip shaper, the user **Input Level**,
+  and a **drift-modulated peaking filter** whose center frequency tracks the
+  drift loop's mean detune, so the live voice breathes on the same field as the
+  engine partials. Output feeds the shared post-fx chain.
+- **Music-friendly capture**: `echoCancellation`, `noiseSuppression`, and
+  `autoGainControl` are disabled so the signal reaches the engine clean.
+- **Monitoring is muted by default** (feedback-safe). A pre-gate analyser drives
+  the level meter and visualizer ring even when monitoring is off.
+- **Input panel UI**: device picker (handles empty labels pre-grant), warm-amber
+  LED **level meter** (~30 Hz, peak + clip indicators), Input Level slider,
+  monitoring toggle (with a feedback warning), a latency estimate readout, and a
+  disconnect affordance. The panel stays controllable in every mode — the arc
+  never touches input.
+- **Visualizer input ring**: input amplitude pulses a faint ring around the
+  central halo (absent entirely when no input is connected).
+- **Feedback guard**: while monitoring, sustained hot RMS (>0.9 for >2 s) dims
+  monitoring and surfaces a toast.
+- **Resilience**: stereo input is summed to mono; device-change / unplug
+  gracefully reconnects to the default device without crashing the audio graph;
+  the audio core (context + post-fx) is decoupled from the session lifecycle so
+  input can be live before Begin and survives engine swaps and arc start/stop.
+
+### Notes
+
+- Input is a **runtime/hardware concern** and is intentionally **absent from the
+  URL schema** — sharing a link never carries input state. No schema bump.
+- Input latency is surfaced as a labeled **estimate**: Web Audio does not expose
+  true mic→node latency, so the readout uses `baseLatency` + `outputLatency`
+  (formula in `src/input/latency.ts`, documented in `COMPAT.md`).
+- v0.5 is a single mono routed voice; pitch detection / harmonization, the loop
+  pedal, multi-input, and sidechain/ducking are out of scope (see ROADMAP).
+
 ## [0.4.0] - 2026-05-24
 
 ### Added
@@ -113,6 +155,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Tooling: ESLint + Prettier, Husky + lint-staged pre-commit, CI workflow.
 - Docs: `INIT_PLAN`, `ROADMAP`, `COMPAT`, and the preserved prototype.
 
+[0.5.0]: https://github.com/akarlin3/annealMusic/releases/tag/v0.5.0
 [0.4.0]: https://github.com/akarlin3/annealMusic/releases/tag/v0.4.0
 [0.3.0]: https://github.com/akarlin3/annealMusic/releases/tag/v0.3.0
 [0.2.0]: https://github.com/akarlin3/annealMusic/releases/tag/v0.2.0

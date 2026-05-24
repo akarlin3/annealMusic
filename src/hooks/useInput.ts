@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Orchestrator } from '@/audio/orchestrator';
 import { enumerateInputDevices } from '@/input/devices';
+import { FeedbackDetector, readRms } from '@/input/meter';
 import { InputError, type InputDevice, type InputState } from '@/input/types';
+
+const FEEDBACK_GUARD_MS = 100;
+const FEEDBACK_RMS = 0.9;
+const FEEDBACK_SUSTAIN_MS = 2000;
 
 export interface InputApi {
   state: InputState;
@@ -142,6 +147,24 @@ export function useInput(
     },
     [],
   );
+
+  // Feedback guard: while monitoring, dim it if the input RMS sustains hot.
+  useEffect(() => {
+    if (!monitoring) return;
+    const detector = new FeedbackDetector(
+      FEEDBACK_RMS,
+      Math.ceil(FEEDBACK_SUSTAIN_MS / FEEDBACK_GUARD_MS),
+    );
+    const timer = setInterval(() => {
+      const analyser = orchRef.current?.getInputVoice()?.getAnalyser();
+      if (!analyser) return;
+      if (detector.push(readRms(analyser))) {
+        setMonitoring(false);
+        onToast?.('Possible feedback — reduce input or use headphones.');
+      }
+    }, FEEDBACK_GUARD_MS);
+    return () => clearInterval(timer);
+  }, [monitoring, setMonitoring, onToast]);
 
   return {
     state,
