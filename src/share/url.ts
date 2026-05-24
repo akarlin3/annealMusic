@@ -48,6 +48,18 @@ export function writeStateToHash(params: AnnealMusicParams): void {
 }
 
 /**
+ * Build the full shareable URL (origin + path + `#s=1:` + payload) for the
+ * given params, without mutating the current location.
+ */
+export function buildShareUrl(params: AnnealMusicParams): string {
+  const base =
+    typeof window === 'undefined'
+      ? ''
+      : window.location.origin + window.location.pathname;
+  return `${base}#${PREFIX}${SCHEMA_VERSION}:${encodeParams(params)}`;
+}
+
+/**
  * Subscribe a param store to the URL: on every change, debounce and write the
  * latest params to the hash. Returns an unsubscribe function that also cancels
  * any pending write.

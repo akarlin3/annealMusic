@@ -134,6 +134,7 @@ export function clampParam(key: ParamKey, value: number): number {
 export interface ParamStore {
   params: AnnealMusicParams;
   setParam: (key: ParamKey, value: number) => void;
+  setMany: (partial: Partial<AnnealMusicParams>) => void;
   reset: () => void;
 }
 
@@ -143,5 +144,14 @@ export const useParamStore = create<ParamStore>((set) => ({
     set((state) => ({
       params: { ...state.params, [key]: clampParam(key, value) },
     })),
+  setMany: (partial) =>
+    set((state) => {
+      const next = { ...state.params };
+      for (const key of Object.keys(partial) as ParamKey[]) {
+        const value = partial[key];
+        if (value !== undefined) next[key] = clampParam(key, value);
+      }
+      return { params: next };
+    }),
   reset: () => set({ params: DEFAULT_PARAMS }),
 }));
