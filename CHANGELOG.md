@@ -4,6 +4,51 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-05-24
+
+The v1.0 release. Completes the roadmap (v0.1 → v1.0): a physics-driven ambient
+sandbox with four synthesis engines, live input + a granular loop pedal, session
+arcs, anonymous persistence, a public gallery with server-rendered previews, and
+now recording export and an embeddable player.
+
+### Added
+
+- **Physical modeling engine** (4th engine, `e=physical`). Three continuously
+  excited sub-models selected by `ph.model`: **string** (Karplus-Strong with a
+  filtered-noise sustain extension), **tube** (cylindrical digital waveguide with
+  a Smith-style reed), and **plate** (a ~20-mode bandpass modal bank). Per-partial
+  AudioWorklet processors over the harmonic lattice; the DSP is pure TypeScript
+  (single source of truth, unit-tested) bundled into one self-contained worklet
+  script. Params: `ph.excitationLevel`, `ph.damping`, `ph.brightness`, `ph.reed`,
+  `ph.inharm`. Platforms without AudioWorklet refuse the swap with a toast (never
+  a silent failure). See `docs/MODELS.md`.
+- **Recording export.** Realtime session capture (tapped post-fx, so it includes
+  engine + input + loops) to **Opus** (MediaRecorder) or lossless **WAV** (PCM
+  worklet), capped at 60 min with a 50-min warning. Client-side **offline render**
+  of a saved patch via `OfflineAudioContext`, reusing the real engine DSP, drift
+  math, ArcRunner, and IR. A **My Recordings** drawer (inline play, download,
+  delete, share) and a public `/r/<slug>` player. Backend gains a real multipart
+  upload pipeline, recording short slugs, and gated public access, against the
+  existing v0.7 quota. See `docs/RECORDING.md`.
+- **Embed route.** A tiny (~1.6 KB gz), React-free `/embed/<slug>` player that
+  streams a public patch's preview audio — play/pause, scrub, title, wordmark —
+  with dark/light themes. Served as a separate Vite entry; the embed surface is
+  the only one allowed to be iframed (`frame-ancestors *`) while every other route
+  stays `X-Frame-Options: DENY`. "Get embed code" affordances on gallery and My
+  Patches cards. A CI gate enforces the < 50 KB budget. See `docs/EMBED.md`.
+
+### Changed
+
+- **URL schema v6**: adds `e=physical` and the `ph.*` engine namespace.
+  Backward-compatible — v1–v5 links still decode.
+- Security headers are now route-aware (embed exemption); `firebase.json` mirrors
+  the policy for static hosting.
+
+### Docs
+
+- New: `docs/MODELS.md`, `docs/RECORDING.md`, `docs/EMBED.md`,
+  `docs/RETROSPECTIVE.md`, `docs/v1.0-PLAN.md`.
+
 ## [0.9.0] - 2026-05-24
 
 ### Added

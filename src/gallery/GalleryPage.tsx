@@ -6,13 +6,16 @@ import GalleryCard from '@/gallery/GalleryCard';
 import GalleryFilters, { type FilterState } from '@/gallery/GalleryFilters';
 import GallerySearch from '@/gallery/GallerySearch';
 import ReportDialog from '@/gallery/ReportDialog';
+import EmbedDialog from '@/embed/EmbedDialog';
 
 const SORTS: GallerySort[] = ['newest', 'oldest', 'most_loaded'];
 
 function readFilters(params: URLSearchParams): FilterState {
   const sort = params.get('sort');
   return {
-    sort: SORTS.includes(sort as GallerySort) ? (sort as GallerySort) : 'newest',
+    sort: SORTS.includes(sort as GallerySort)
+      ? (sort as GallerySort)
+      : 'newest',
     engine: params.get('engine') ?? '',
     mode: params.get('mode') ?? '',
     hasCaptures: params.get('has_captures') === 'true',
@@ -30,6 +33,7 @@ export default function GalleryPage() {
   const [error, setError] = useState(false);
   const [playingSlug, setPlayingSlug] = useState<string | null>(null);
   const [reportTarget, setReportTarget] = useState<string | null>(null);
+  const [embedTarget, setEmbedTarget] = useState<GalleryItem | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const fetchPage = useCallback(
@@ -95,16 +99,22 @@ export default function GalleryPage() {
     setPlayingSlug((cur) => (cur === slug ? null : slug));
 
   return (
-    <div className="min-h-screen w-full" style={{ background: '#0c0a09', color: '#f5f5f4' }}>
+    <div
+      className="min-h-screen w-full"
+      style={{ background: '#0c0a09', color: '#f5f5f4' }}
+    >
       <div className="mx-auto max-w-6xl px-6 py-10">
         <header className="mb-8 flex items-baseline justify-between">
           <div>
-            <h1 className="font-display text-4xl tracking-tight" style={{ color: '#fef3c7' }}>
+            <h1
+              className="font-display text-4xl tracking-tight"
+              style={{ color: '#fef3c7' }}
+            >
               <em>Gallery</em>
             </h1>
             <p className="mt-1 font-body text-sm" style={{ color: '#a8a29e' }}>
-              Public patches shared by the community. Preview, then load any into
-              the sandbox.
+              Public patches shared by the community. Preview, then load any
+              into the sandbox.
             </p>
           </div>
           <Link
@@ -124,7 +134,11 @@ export default function GalleryPage() {
         {error && (
           <div
             className="mb-6 rounded-md p-4 text-sm"
-            style={{ background: '#1c1917', border: '1px solid #44403c', color: '#fca5a5' }}
+            style={{
+              background: '#1c1917',
+              border: '1px solid #44403c',
+              color: '#fca5a5',
+            }}
           >
             Couldn't reach the gallery. The sandbox still works —{' '}
             <Link to="/" style={{ color: '#f59e0b' }}>
@@ -149,13 +163,17 @@ export default function GalleryPage() {
               playing={playingSlug === item.short_slug}
               onTogglePreview={() => togglePreview(item.short_slug)}
               onReport={() => setReportTarget(item.id)}
+              onEmbed={() => setEmbedTarget(item)}
             />
           ))}
         </div>
 
         <div className="mt-8 flex justify-center">
           {loading ? (
-            <span className="font-mono text-[11px] uppercase tracking-[0.2em]" style={{ color: '#57534e' }}>
+            <span
+              className="font-mono text-[11px] uppercase tracking-[0.2em]"
+              style={{ color: '#57534e' }}
+            >
               Loading…
             </span>
           ) : cursor ? (
@@ -178,10 +196,23 @@ export default function GalleryPage() {
         />
       )}
 
+      {embedTarget && (
+        <EmbedDialog
+          slug={embedTarget.short_slug}
+          title={embedTarget.title ?? 'Untitled'}
+          onClose={() => setEmbedTarget(null)}
+          showToast={setToast}
+        />
+      )}
+
       {toast && (
         <div
           className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full px-4 py-2 text-sm"
-          style={{ background: '#1c1917', border: '1px solid #44403c', color: '#e7e5e4' }}
+          style={{
+            background: '#1c1917',
+            border: '1px solid #44403c',
+            color: '#e7e5e4',
+          }}
         >
           {toast}
         </div>

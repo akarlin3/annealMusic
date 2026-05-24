@@ -16,6 +16,8 @@ export interface SessionApi {
   engineRef: React.MutableRefObject<Orchestrator | null>;
   /** Create (or get) the orchestrator. Lets input connect before Begin. */
   ensureOrchestrator: () => Orchestrator;
+  /** Register a sink for engine errors (e.g. physical worklet unsupported). */
+  setEngineErrorHandler: (fn: (error: Error) => void) => void;
 }
 
 /**
@@ -26,6 +28,7 @@ export interface SessionApi {
  */
 export function useSession(): SessionApi {
   const engineRef = useRef<Orchestrator | null>(null);
+  const errorHandlerRef = useRef<((error: Error) => void) | null>(null);
   const [sessionState, setSessionState] = useState<SessionState>('idle');
   const [arcProgress, setArcProgress] = useState<ArcProgress | null>(null);
 
@@ -44,9 +47,14 @@ export function useSession(): SessionApi {
         state.loops,
       );
       orch.subscribe(setSessionState);
+      orch.setEngineErrorHandler((error) => errorHandlerRef.current?.(error));
       engineRef.current = orch;
     }
     return engineRef.current;
+  }, []);
+
+  const setEngineErrorHandler = useCallback((fn: (error: Error) => void) => {
+    errorHandlerRef.current = fn;
   }, []);
 
   // Mirror store → orchestrator (these are no-ops until the orchestrator exists).
@@ -114,5 +122,6 @@ export function useSession(): SessionApi {
     arcProgress,
     engineRef,
     ensureOrchestrator,
+    setEngineErrorHandler,
   };
 }

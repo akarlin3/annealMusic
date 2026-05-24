@@ -30,22 +30,26 @@ npm run format     # Prettier --write
 ```
 src/
   audio/         # orchestrator (session machine, post-fx, drift, crossfade, input), IR
-    engines/     # AnnealEngine interface, sine + fm + granular engines, registry
+    engines/     # AnnealEngine interface, sine + fm + granular + physical, registry
+    engines/physical-dsp/      # pure string/tube/plate DSP (single source of truth)
+    engines/physical-worklets/ # AudioWorkletProcessor wrappers (bundled separately)
     granular/    # GrainCloud core, look-ahead scheduler, window math
     sources/     # curated source bank registry + lazy loader
   session/       # arc data model, preset arcs, easing curves, ArcRunner
   input/         # InputVoice (live-input chain), devices, latency, meter
   loop/          # LoopSlot state machine, capture, SeamLoopPlayer, GranularPlayer, windows
+  record/        # RealtimeRecorder, OfflineRenderer, recorder hook + dialog, My Recordings
+  embed/         # standalone embed player (separate Vite entry), theme, embed dialog
   components/    # Visualizer, ControlPanel, EngineSelector, InputPanel, LoopPedal, …
   hooks/         # useAnnealMusic (orchestration), useSession, useInput, useLoops
   state/         # param store, defaults, control schema
   visual/        # canvas draw loop, palette, math helpers
-  pages/         # App
+  pages/         # App, RecordingPage (/r/<slug>)
   styles/        # global css + slider styles
   types/         # shared types
   test/          # vitest setup + Web Audio mock
   share/         # URL state schema, encode/decode, hash read/write
-docs/            # INIT_PLAN, ROADMAP, COMPAT, version plans, prototype reference
+docs/            # INIT_PLAN, ROADMAP, COMPAT, MODELS, RECORDING, EMBED, version plans
 ```
 
 ## Engines
@@ -69,6 +73,9 @@ default) to mask grain start-up; sine/FM use the default.
 - **Granular** — one grain cloud per partial, all reading the same curated
   source buffer (see [Granular engine](#granular-engine)). The partial's pitch
   sets the grain playback rate; drift detunes it like the other engines.
+- **Physical** — per-partial digital waveguide / modal DSP in AudioWorklets,
+  continuously excited for sustain. Three sub-models (string / tube / plate). See
+  [`docs/MODELS.md`](docs/MODELS.md).
 
 Sine and FM share the same baseline + slow-LFO amplitude shape, so switching
 between them changes timbre without changing the field's envelope.

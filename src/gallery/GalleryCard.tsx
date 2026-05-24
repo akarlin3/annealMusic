@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Square, MoreHorizontal, Flag, Download } from 'lucide-react';
+import {
+  Play,
+  Square,
+  MoreHorizontal,
+  Flag,
+  Download,
+  Code,
+} from 'lucide-react';
 import { drawCardFrame } from '@/gallery/cardVisual';
 import { galleryApi } from '@/gallery/api';
 import type { GalleryItem } from '@/gallery/types';
@@ -13,6 +20,7 @@ interface Props {
   playing: boolean;
   onTogglePreview: () => void;
   onReport: () => void;
+  onEmbed: () => void;
 }
 
 function truncate(s: string, n: number): string {
@@ -24,6 +32,7 @@ export default function GalleryCard({
   playing,
   onTogglePreview,
   onReport,
+  onEmbed,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -106,9 +115,19 @@ export default function GalleryCard({
                 <button
                   onClick={() => {
                     setMenuOpen(false);
+                    onEmbed();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs"
+                  style={{ color: '#d6d3d1' }}
+                >
+                  <Code size={12} /> Get embed code
+                </button>
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
                     onReport();
                   }}
-                  className="flex items-center gap-2 px-3 py-1.5 text-xs"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs"
                   style={{ color: '#d6d3d1' }}
                 >
                   <Flag size={12} /> Report
@@ -149,7 +168,10 @@ export default function GalleryCard({
                   : 'preview rendering'}
               </span>
             )}
-            <span className="font-mono text-[10px]" style={{ color: '#57534e' }}>
+            <span
+              className="font-mono text-[10px]"
+              style={{ color: '#57534e' }}
+            >
               {item.load_count} loads
             </span>
           </div>

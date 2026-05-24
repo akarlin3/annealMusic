@@ -12,6 +12,7 @@ import {
 } from '@/audio/engines/index';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
 import SourcePicker from '@/components/SourcePicker';
+import { PHYSICAL_MODELS } from '@/audio/engines/physical';
 
 interface ControlPanelProps {
   params: AnnealMusicParams;
@@ -86,6 +87,68 @@ function Slider({
   );
 }
 
+const MODEL_LABELS: Record<string, string> = {
+  string: 'String',
+  tube: 'Tube',
+  plate: 'Plate',
+};
+
+const MODEL_HINTS: Record<string, string> = {
+  string: 'Bowed Karplus-Strong',
+  tube: 'Blown waveguide',
+  plate: 'Struck modal bank',
+};
+
+/** Card selector for the physical engine sub-model (string / tube / plate). */
+function ModelPicker({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: number;
+  disabled: boolean;
+  onChange: (index: number) => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Physical model"
+      className="grid grid-cols-3 gap-2"
+      style={{ opacity: disabled ? 0.5 : 1 }}
+    >
+      {PHYSICAL_MODELS.map((model, i) => {
+        const active = i === Math.round(value);
+        return (
+          <button
+            key={model}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            disabled={disabled}
+            onClick={() => onChange(i)}
+            className="rounded-md px-3 py-2.5 text-left transition-all"
+            style={{
+              background: active ? 'rgba(245, 158, 11, 0.10)' : 'transparent',
+              border: `1px solid ${active ? '#f59e0b' : '#44403c'}`,
+              cursor: disabled ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <div
+              className="font-mono text-[11px] uppercase tracking-[0.16em]"
+              style={{ color: active ? '#fbbf24' : '#d6d3d1' }}
+            >
+              {MODEL_LABELS[model]}
+            </div>
+            <div className="mt-0.5 text-[10px]" style={{ color: '#78716c' }}>
+              {MODEL_HINTS[model]}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ControlPanel({
   params,
   setParam,
@@ -131,7 +194,9 @@ export default function ControlPanel({
       {engineDefs.length > 0 && (
         <div
           className={`mt-10 transition-opacity duration-300 ${
-            engineId === 'granular' ? 'max-w-xl' : 'max-w-xs'
+            engineId === 'granular' || engineId === 'physical'
+              ? 'max-w-xl'
+              : 'max-w-xs'
           }`}
         >
           <div className="mb-4 flex items-baseline gap-2">
@@ -158,9 +223,18 @@ export default function ControlPanel({
               />
             </div>
           )}
+          {engineId === 'physical' && (
+            <div className="mb-6">
+              <ModelPicker
+                value={engineParams.model ?? 0}
+                disabled={arcLocked}
+                onChange={(idx) => setEngineParam('model', idx)}
+              />
+            </div>
+          )}
           <div className="space-y-5">
             {engineDefs
-              .filter((def) => def.key !== 'source')
+              .filter((def) => def.key !== 'source' && def.key !== 'model')
               .map((def) => (
                 <Slider
                   key={def.key}

@@ -1,7 +1,7 @@
 import type { AnnealMusicParams } from '@/state/params';
 
 /** Identifier for a selectable synthesis engine. */
-export type EngineId = 'sine' | 'fm' | 'granular';
+export type EngineId = 'sine' | 'fm' | 'granular' | 'physical';
 
 /**
  * Shared physics + post-fx params, owned by the orchestration layer and passed
@@ -72,6 +72,14 @@ export interface AnnealEngine {
 
   /** Per-partial fundamental frequencies (Hz) — drives the visualizer overlay. */
   getPartialFrequencies(): number[];
+
+  /**
+   * Register a sink for *asynchronous* engine errors that surface after `start`
+   * returns (e.g. a worklet module that fails to load). Synchronous start
+   * failures throw from `start`; this is only for the deferred path. Optional —
+   * engines with no async failure mode omit it.
+   */
+  setErrorHandler?(fn: (error: Error) => void): void;
 }
 
 /** Build the default engine-param bag for a set of param defs. */

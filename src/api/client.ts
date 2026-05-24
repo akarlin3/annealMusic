@@ -6,6 +6,10 @@ import {
   type CreatePatchBody,
   type Patch,
   type PatchList,
+  type Recording,
+  type RecordingList,
+  type RecordingMeta,
+  type UploadRecordingBody,
   type UserMe,
 } from '@/api/types';
 
@@ -122,5 +126,42 @@ export const api = {
     });
     if (!res.ok) throw new ApiError(res.status, `http_${res.status}`);
     return res.arrayBuffer();
+  },
+
+  // --- recordings (v1.0) ---------------------------------------------------
+
+  /** Upload a finished recording blob (multipart). */
+  async uploadRecording(body: UploadRecordingBody): Promise<Recording> {
+    const form = new FormData();
+    const ext = body.format === 'wav' ? 'wav' : 'webm';
+    form.append('file', body.blob, `recording.${ext}`);
+    form.append('format', body.format);
+    form.append('duration_ms', String(Math.round(body.durationMs)));
+    if (body.title) form.append('title', body.title);
+    form.append('visibility', body.visibility ?? 'unlisted');
+    if (body.patchId) form.append('patch_id', body.patchId);
+    return request<Recording>('/api/v1/recordings', { method: 'POST', form });
+  },
+
+  async myRecordings(): Promise<RecordingList> {
+    return request<RecordingList>('/api/v1/recordings/me');
+  },
+
+  async deleteRecording(id: string): Promise<void> {
+    await request<void>(`/api/v1/recordings/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  /** Public metadata for the `/r/<slug>` player. */
+  async recordingMeta(idOrSlug: string): Promise<RecordingMeta> {
+    return request<RecordingMeta>(
+      `/api/v1/recordings/${encodeURIComponent(idOrSlug)}/meta`,
+    );
+  },
+
+  /** Direct (302-followed) audio URL for an `<audio>` element. */
+  recordingAudioUrl(idOrSlug: string): string {
+    return `${API_BASE}/api/v1/recordings/${encodeURIComponent(idOrSlug)}`;
   },
 };

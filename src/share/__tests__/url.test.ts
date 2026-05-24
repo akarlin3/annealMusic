@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_PARAMS } from '@/state/params';
 import { encodeState } from '@/share/encode';
+import { SCHEMA_VERSION } from '@/share/schema';
 import {
   buildShareUrl,
   readStateFromHash,
@@ -66,11 +67,11 @@ describe('readStateFromHash', () => {
 });
 
 describe('writeStateToHash', () => {
-  it('writes a v5 payload via replaceState without adding history', () => {
+  it('writes a versioned payload via replaceState without adding history', () => {
     const before = window.history.length;
     writeStateToHash(DEFAULT_PARAMS, 'sine', {});
     expect(window.location.hash).toBe(
-      `#s=5:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
+      `#s=${SCHEMA_VERSION}:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
     );
     expect(window.history.length).toBe(before);
   });
@@ -90,7 +91,7 @@ describe('writeStateToHash', () => {
 describe('buildShareUrl', () => {
   it('embeds the mode + engine selector in the fragment', () => {
     const url = buildShareUrl(DEFAULT_PARAMS, 'fm', { modRatio: 1 });
-    expect(url).toContain('#s=5:m=open&e=fm&');
+    expect(url).toContain(`#s=${SCHEMA_VERSION}:m=open&e=fm&`);
   });
 
   it('embeds an arc session selection', () => {
@@ -104,7 +105,7 @@ describe('buildShareUrl', () => {
         durationSec: 900,
       },
     );
-    expect(url).toContain('#s=5:m=arc&arc=dusk&dur=900&');
+    expect(url).toContain(`#s=${SCHEMA_VERSION}:m=arc&arc=dusk&dur=900&`);
   });
 });
 
@@ -142,7 +143,7 @@ describe('subscribeStoreToHash', () => {
     expect(window.location.hash).toBe(''); // not yet written
     vi.advanceTimersByTime(500);
     expect(window.location.hash).toBe(
-      `#s=5:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
+      `#s=${SCHEMA_VERSION}:${encodeState(DEFAULT_PARAMS, 'sine', {})}`,
     );
 
     // After unsubscribe, a pending/late change does not write.

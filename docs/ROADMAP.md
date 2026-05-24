@@ -39,7 +39,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v0.7 ✅ | Backend + persistence (patches table, anon IDs)    | Unlocks gallery + recordings               |
 | v0.8 ✅ | Public gallery                                     | Community surface                          |
 | v0.9 ✅ | Granular engine                                    | Third synthesis engine                     |
-| v1.0    | Physical modeling + embed route + recording export | Feature-complete v1                        |
+| v1.0 ✅ | Physical modeling + embed route + recording export | Feature-complete v1                        |
 
 ## Shipped notes
 
@@ -150,6 +150,19 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
   **index** to keep `EngineParams` numeric. Deferred per plan: user-uploaded
   sources, multi-source-per-partial, reverse/spectral grains → v1.0+ / never.
   Next is **physical modeling** (v1.0).
+- **v1.0** — the **ship**. Three features completing the vision: (1) the
+  **physical modeling engine** (4th engine) with string/tube/plate sub-models,
+  per-partial AudioWorklets, pure-TS DSP as the single source of truth, and
+  **schema v6** (`ph.*`); (2) **recording export** — realtime capture (Opus/WAV,
+  60-min cap) tapped post-fx, client-side offline render via
+  `OfflineAudioContext`, a My Recordings drawer, and the `/r/<slug>` player on the
+  v0.7 recordings quota; (3) the **embed route** — a ~1.6 KB React-free
+  `/embed/<slug>` player streaming v0.8 previews, the only iframe-able surface,
+  with a CI-enforced < 50 KB budget. The `AnnealEngine` interface absorbed an
+  async-start, worklet-backed engine with only additive changes
+  (`setErrorHandler`). Biggest surprise: Vite has no AudioWorklet bundling, so the
+  worklet ships as a dedicated self-contained build. See `docs/RETROSPECTIVE.md`.
+  **The roadmap as defined is complete.**
 
 ## Principles
 
@@ -159,11 +172,19 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 - Backend (v0.7) is deferred as long as possible; everything before is pure client-side.
 - Cross-browser Web Audio behavior is verified per version; Safari caveats logged in `docs/COMPAT.md`.
 
-## Post-v1.0 candidates (not committed)
+## Post-v1.0 ideas (deferred across the project, not committed)
 
-- WebGL / shader visualization upgrade
-- Android shell (Capacitor or PrismTask-style native Kotlin)
-- MIDI input
-- DAW export (stems)
+Consolidated from every "deferred" flag raised v0.1 → v1.0:
+
+- Real auth (email / OAuth / social); claim anon-saved content via auth
+- Creator display names + profiles; comments / likes / follows on the gallery
+- Featured / staff-picked gallery surface; public preview pages (own URL, OG image)
+- Multi-input / multi-track input; MIDI input / output
+- DAW export (stems); spectral processing tools; sidechain / ducking
 - Collaborative sessions (two users sculpting one field)
-- AI-assisted patch generation
+- User-uploaded sources for the granular engine; reverse/spectral grains
+- More physical models (membrane, bowed string, …); more engines beyond the four
+- AI-assisted patch generation; built-in tuner
+- WebGL / shader visualization upgrade
+- Mobile native shells (Capacitor / native Kotlin)
+- Tempo-locked anything (intentionally against the aesthetic)

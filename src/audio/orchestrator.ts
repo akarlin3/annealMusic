@@ -53,7 +53,7 @@ export interface ArcProgress {
 }
 
 /** Map brightness (0..1) to the lowpass cutoff frequency. */
-function cutoffFor(brightness: number): number {
+export function cutoffFor(brightness: number): number {
   return 200 * Math.pow(30, brightness);
 }
 
@@ -116,6 +116,9 @@ export class Orchestrator {
   private arcProgress = { progress: 0, segmentIndex: 0 };
   private applyArcParams: ((p: Partial<SharedParams>) => void) | null = null;
 
+  /** Sink for engine errors (e.g. physical worklet unsupported/failed). */
+  private onEngineError: ((error: Error) => void) | null = null;
+
   constructor(
     shared: SharedParams,
     engineId: EngineId = 'sine',
@@ -134,6 +137,17 @@ export class Orchestrator {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  /** Register a sink for engine errors (React wires this to a toast). */
+  setEngineErrorHandler(fn: (error: Error) => void): void {
+    this.onEngineError = fn;
+  }
+
+  private makeEngineWithErrors(id: EngineId): AnnealEngine {
+    const engine = this.makeEngine(id);
+    engine.setErrorHandler?.((error) => this.onEngineError?.(error));
+    return engine;
   }
 
   getSessionState(): SessionState {
@@ -173,6 +187,17 @@ export class Orchestrator {
 
   getAnalyser(): AnalyserNode | null {
     return this.nodes?.analyser ?? null;
+  }
+
+  /**
+   * A tap on the post-fx master output (post-volume), for realtime recording.
+   * This is exactly "what the user hears" — engine(s), live input, and loops all
+   * sum through here. Returns null until the audio core exists. The caller owns
+   * disconnecting whatever it attaches to the returned node.
+   */
+  getRecordingTap(): { ctx: AudioContext; node: AudioNode } | null {
+    if (!this.ctx || !this.nodes) return null;
+    return { ctx: this.ctx, node: this.nodes.masterVol };
   }
 
   getPartialCount(): number {
@@ -355,16 +380,28 @@ export class Orchestrator {
     if (ctx) void ctx.close().catch(() => undefined);
   }
 
-  /** Build the audio core (if needed), start the active engine, fade in, begin drift. */
-  start(): void {
-    if (this.running) return;
+  /**
+   * Build the audio core (if needed), start the active engine, fade in, begin
+   * drift. Returns false if the engine can't start on this device (e.g. physical
+   * with no AudioWorklet) so the caller can avoid entering a running state.
+   */
+  start(): boolean {
+    if (this.running) return true;
 
     const { ctx, nodes } = this.ensureCore();
     const p = this.shared;
 
     // Build the first engine and fade its bus in over the long "bloom".
-    const engine = this.makeEngine(this.engineId);
-    engine.start(ctx, p, this.engineParams[this.engineId] ?? {});
+    const engine = this.makeEngineWithErrors(this.engineId);
+    try {
+      engine.start(ctx, p, this.engineParams[this.engineId] ?? {});
+    } catch (err) {
+      // An engine that can't run on this device (e.g. physical with no
+      // AudioWorklet) must not leave a half-built session. Surface + abort.
+      this.onEngineError?.(err instanceof Error ? err : new Error(String(err)));
+      this.teardownCore();
+      return false;
+    }
     const bus = ctx.createGain();
     bus.gain.value = 0;
     engine.getOutputNode().connect(bus);
@@ -377,6 +414,7 @@ export class Orchestrator {
 
     this.seedDrift(engine.getPartialCount());
     this.startDrift();
+    return true;
   }
 
   /** Seed the orchestrator's pure drift state to match the engine's partials. */
@@ -583,8 +621,14 @@ export class Orchestrator {
       return;
     }
 
-    const engine = this.makeEngine(id);
-    engine.start(ctx, this.shared, this.engineParams[id] ?? {});
+    const engine = this.makeEngineWithErrors(id);
+    try {
+      engine.start(ctx, this.shared, this.engineParams[id] ?? {});
+    } catch (err) {
+      // Incoming engine can't run here — keep the current one, surface the error.
+      this.onEngineError?.(err instanceof Error ? err : new Error(String(err)));
+      return;
+    }
     const bus = ctx.createGain();
     bus.gain.value = 0;
     engine.getOutputNode().connect(bus);
@@ -642,7 +686,11 @@ export class Orchestrator {
     }
 
     this.setState('starting');
-    this.start();
+    if (!this.start()) {
+      // Engine refused to start (e.g. unsupported physical); back to idle.
+      this.setState('idle');
+      return;
+    }
 
     if (opts.mode === 'open') {
       this.setState('running-open');

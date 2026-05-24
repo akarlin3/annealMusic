@@ -23,6 +23,10 @@ import MyPatchesDrawer from '@/components/MyPatchesDrawer';
 import Toast, { type ToastMessage } from '@/components/Toast';
 import { api } from '@/api/client';
 import { usePatches } from '@/api/usePatches';
+import { useRecorder } from '@/record/useRecorder';
+import RecordControls from '@/record/RecordControls';
+import RecordingDialog from '@/record/RecordingDialog';
+import MyRecordings, { type MyRecordingsHandle } from '@/record/MyRecordings';
 
 function fmtDuration(sec: number): string {
   const total = Math.max(0, Math.round(sec));
@@ -52,6 +56,7 @@ export default function App() {
     arcProgress,
     engineRef,
     ensureOrchestrator,
+    setEngineErrorHandler,
   } = useAnnealMusic();
 
   const arcLocked = arcProgress !== null;
@@ -83,11 +88,18 @@ export default function App() {
   }, []);
   const dismissToast = useCallback(() => setToast(null), []);
 
+  // Surface engine errors (e.g. physical worklet unsupported) as a toast.
+  useEffect(() => {
+    setEngineErrorHandler((error) => showToast(error.message));
+  }, [setEngineErrorHandler, showToast]);
+
   const input = useInput(ensureOrchestrator, showToast);
   const loops = useLoops(ensureOrchestrator, showToast);
   const loopConfig = useParamStore((s) => s.loops);
 
   const patches = usePatches(ensureOrchestrator, loops, showToast);
+  const recorder = useRecorder(ensureOrchestrator, showToast);
+  const recordingsRef = useRef<MyRecordingsHandle>(null);
   const backendOn = api.isBackendConfigured();
   const hasCaptures = SLOT_IDS.some((id) => loops.slots[id].hasBuffer);
 
@@ -169,7 +181,7 @@ export default function App() {
                 className="font-mono text-[10px] uppercase tracking-[0.18em]"
                 style={{ color: '#78716c' }}
               >
-                v0.8 · prototype
+                v1.0
               </span>
             </div>
             <p
@@ -205,7 +217,13 @@ export default function App() {
                   hasCaptures={hasCaptures}
                   showToast={showToast}
                 />
-                <MyPatchesDrawer patches={patches} onLoad={patches.loadPatch} />
+                <RecordControls recorder={recorder} />
+                <MyPatchesDrawer
+                  patches={patches}
+                  onLoad={patches.loadPatch}
+                  showToast={showToast}
+                />
+                <MyRecordings ref={recordingsRef} showToast={showToast} />
               </>
             )}
 
@@ -316,6 +334,19 @@ export default function App() {
           <span>kuramoto · ornstein–uhlenbeck</span>
         </footer>
       </div>
+
+      {recorder.pending && (
+        <RecordingDialog
+          recording={recorder.pending}
+          onClose={recorder.discardPending}
+          onSaved={(slug) => {
+            recorder.discardPending();
+            recordingsRef.current?.refresh();
+            showToast(`Recording saved · /r/${slug}`);
+          }}
+          showToast={showToast}
+        />
+      )}
 
       <Toast toast={toast} onDismiss={dismissToast} />
     </div>

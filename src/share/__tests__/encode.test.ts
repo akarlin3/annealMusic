@@ -255,6 +255,48 @@ describe('granular engine + schema v5', () => {
   });
 });
 
+describe('physical engine + schema v6', () => {
+  it('encodes physical params under the ph namespace', () => {
+    const encoded = encodeState(DEFAULT_PARAMS, 'physical', {
+      model: 2,
+      excitationLevel: 0.7,
+      damping: 0.3,
+      brightness: 0.6,
+      reed: 0.5,
+      inharm: 0.4,
+    });
+    expect(encoded).toContain('e=physical');
+    expect(encoded).toContain('ph.model=2');
+    expect(encoded).toContain('ph.excitationLevel=0.70');
+    expect(encoded).toContain('ph.damping=0.30');
+    expect(encoded).toContain('ph.brightness=0.60');
+    expect(encoded).toContain('ph.reed=0.50');
+    expect(encoded).toContain('ph.inharm=0.40');
+  });
+
+  it('round-trips physical params (encode → decode)', () => {
+    const engineParams = {
+      model: 1,
+      excitationLevel: 0.55,
+      damping: 0.2,
+      brightness: 0.8,
+      reed: 0.65,
+      inharm: 0.15,
+    };
+    const payload = encodeState(DEFAULT_PARAMS, 'physical', engineParams);
+    const decoded = decodeState(6, payload);
+    expect(decoded.engineId).toBe('physical');
+    expect(decoded.engineParams.physical).toEqual(engineParams);
+    expect(decoded.warnings).toEqual([]);
+  });
+
+  it('clamps the model index out of range with a warning', () => {
+    const decoded = decodeState(6, 'e=physical&ph.model=9');
+    expect(decoded.engineParams.physical?.model).toBe(2);
+    expect(decoded.warnings.some((w) => w.includes('ph.model'))).toBe(true);
+  });
+});
+
 describe('loop config (schema v4)', () => {
   it('omits loop pairs for default/empty slots', () => {
     const loops = makeDefaultLoopConfig();

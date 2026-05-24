@@ -16,6 +16,7 @@ from app.render import RenderQueue
 from app.routers import (
     admin,
     captures,
+    embed,
     gallery,
     health,
     patches,
@@ -46,7 +47,7 @@ def create_app() -> FastAPI:
     configure_logging()
     init_sentry(settings)
 
-    app = FastAPI(title="AnnealMusic API", version="0.8.0", lifespan=lifespan)
+    app = FastAPI(title="AnnealMusic API", version="1.0.0", lifespan=lifespan)
     app.state.storage = make_storage(settings)
     app.state.rate_limiter = RateLimiter()
     app.state.render_queue = RenderQueue(settings)
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(gallery.router)
     app.include_router(reports.router)
     app.include_router(admin.router)
+    app.include_router(embed.router)
 
     return app
 

@@ -1,12 +1,13 @@
 {
   "name": "annealmusic",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "A generative ambient meditation sandbox: physics-driven sound, session arc, and audio-reactive visuals.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:worklets": "vite build --config vite.worklet.config.ts",
+    "build": "npm run build:worklets && tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest",
     "lint": "eslint .",
@@ -15,6 +16,7 @@
     "format:check": "prettier --check .",
     "gen:schema": "vite-node schema/gen-manifest.ts",
     "gen:sources": "vite-node scripts/gen-sources.ts",
+    "check:embed-size": "node scripts/check-embed-bundle.mjs",
     "prepare": "husky"
   },
   "lint-staged": {

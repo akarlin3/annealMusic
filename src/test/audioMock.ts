@@ -87,6 +87,7 @@ export type NodeKind =
   | 'compressor'
   | 'shaper'
   | 'mediastreamsource'
+  | 'mediastreamdest'
   | 'buffersource'
   | 'destination';
 
@@ -225,6 +226,14 @@ export class MockAudioContext {
 
   createMediaStreamSource(): MockNode {
     return this.track(new MockNode('mediastreamsource'));
+  }
+
+  createMediaStreamDestination(): MockNode & { stream: MediaStream } {
+    const node = new MockNode('mediastreamdest') as MockNode & {
+      stream: MediaStream;
+    };
+    node.stream = {} as MediaStream;
+    return this.track(node) as MockNode & { stream: MediaStream };
   }
 
   createOscillator(): MockNode {

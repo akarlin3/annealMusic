@@ -1,21 +1,26 @@
 import { useCallback, useState } from 'react';
-import { Library, Trash2, Music2 } from 'lucide-react';
+import { Library, Trash2, Music2, Code } from 'lucide-react';
 import type { PatchPersistence } from '@/api/usePatches';
 import type { Patch } from '@/api/types';
+import EmbedDialog from '@/embed/EmbedDialog';
 
 interface MyPatchesDrawerProps {
   patches: PatchPersistence;
   /** Load a patch by slug/id into the live session. */
   onLoad: (idOrSlug: string) => Promise<boolean>;
+  /** Surface a toast (e.g. "embed code copied"). */
+  showToast?: (msg: string) => void;
 }
 
 export default function MyPatchesDrawer({
   patches,
   onLoad,
+  showToast,
 }: MyPatchesDrawerProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Patch[]>([]);
   const [busy, setBusy] = useState(false);
+  const [embedTarget, setEmbedTarget] = useState<Patch | null>(null);
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -127,20 +132,41 @@ export default function MyPatchesDrawer({
                         <span>{p.visibility}</span>
                       </div>
                     </button>
-                    <button
-                      type="button"
-                      aria-label="Delete patch"
-                      onClick={() => void remove(p.id)}
-                      style={{ color: '#78716c' }}
-                    >
-                      <Trash2 size={14} strokeWidth={1.5} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                      {p.visibility === 'public' && (
+                        <button
+                          type="button"
+                          aria-label="Get embed code"
+                          onClick={() => setEmbedTarget(p)}
+                          style={{ color: '#78716c' }}
+                        >
+                          <Code size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        aria-label="Delete patch"
+                        onClick={() => void remove(p.id)}
+                        style={{ color: '#78716c' }}
+                      >
+                        <Trash2 size={14} strokeWidth={1.5} />
+                      </button>
+                    </div>
                   </div>
                 </li>
               ))}
             </ul>
           </aside>
         </div>
+      )}
+
+      {embedTarget && (
+        <EmbedDialog
+          slug={embedTarget.short_slug}
+          title={embedTarget.title ?? 'Untitled'}
+          onClose={() => setEmbedTarget(null)}
+          showToast={showToast ?? (() => undefined)}
+        />
       )}
     </>
   );

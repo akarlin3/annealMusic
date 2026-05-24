@@ -32,3 +32,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check embed bundle size
+        run: npm run check:embed-size
