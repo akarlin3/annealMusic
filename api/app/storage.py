@@ -125,27 +125,33 @@ def make_storage(settings: Settings) -> StorageClient:
     return MemoryStorage()
 
 
-async def transcode_to_opus(wav: bytes, bitrate_kbps: int) -> bytes:
-    """Transcode PCM WAV to Opus via ffmpeg (stdin->stdout)."""
+async def _ffmpeg(args: list[str], data: bytes) -> bytes:
     proc = await asyncio.create_subprocess_exec(
-        "ffmpeg",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-i",
-        "pipe:0",
-        "-c:a",
-        "libopus",
-        "-b:a",
-        f"{bitrate_kbps}k",
-        "-f",
-        "ogg",
-        "pipe:1",
+        "ffmpeg", "-hide_banner", "-loglevel", "error", *args,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    out, err = await proc.communicate(input=wav)
+    out, err = await proc.communicate(input=data)
     if proc.returncode != 0:
         raise RuntimeError(f"ffmpeg failed: {err.decode(errors='replace')}")
     return out
+
+
+async def transcode_to_opus(wav: bytes, bitrate_kbps: int) -> bytes:
+    """Transcode PCM WAV to Opus via ffmpeg (stdin->stdout)."""
+    return await _ffmpeg(
+        ["-i", "pipe:0", "-c:a", "libopus", "-b:a", f"{bitrate_kbps}k",
+         "-f", "ogg", "pipe:1"],
+        wav,
+    )
+
+
+async def encode_preview_opus(raw: bytes, bitrate_kbps: int) -> bytes:
+    """Repackage a browser-rendered audio blob (WebM/Opus) into a small
+    Ogg/Opus preview: mono, fixed bitrate. Decodes whatever ffmpeg can read."""
+    return await _ffmpeg(
+        ["-i", "pipe:0", "-ac", "1", "-c:a", "libopus", "-b:a", f"{bitrate_kbps}k",
+         "-f", "ogg", "pipe:1"],
+        raw,
+    )

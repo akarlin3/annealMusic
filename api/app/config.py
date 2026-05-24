@@ -55,6 +55,27 @@ class Settings(BaseSettings):
     max_capture_seconds: int = 60
     max_capture_bytes: int = 30 * 1024 * 1024  # generous WAV ceiling
 
+    # --- v0.8 gallery ---------------------------------------------------------
+    # Moderation: a small static term list lives in app/moderation.py; this is a
+    # comma-separated env extension (heuristic-drift rule: one home, two inputs).
+    moderation_extra_terms: str = ""
+    # Admin panel auth. When unset, the admin endpoints are disabled (404).
+    admin_key: str | None = None
+    # Server-side preview rendering (headless Chromium). Off in tests/local.
+    render_enabled: bool = False
+    render_backend: str = "inprocess"  # "inprocess" | "external" (future)
+    render_concurrency: int = 2
+    preview_duration_sec: int = 20
+    preview_bitrate_kbps: int = 96
+    # A render stuck in 'rendering' longer than this is re-enqueued (restart sweep).
+    render_stale_seconds: int = 300
+    # Hard wall-clock cap for a single render before it's failed.
+    render_timeout_seconds: int = 45
+    # URL the headless harness is loaded from. The web build emits it at
+    # `/render.html`; in prod set this to the web origin (e.g.
+    # https://annealmusic.web.app/render.html). See docs/DEPLOY.md.
+    render_harness_url: str = "http://localhost:5173/render.html"
+
     # Observability.
     sentry_dsn: str | None = None
 

@@ -1,4 +1,4 @@
-# AnnealMusic API (v0.7)
+# AnnealMusic API (v0.8)
 
 Base URL: `https://api.annealmusic.<root>` (prod) · `http://localhost:8000` (dev).
 All `/api/v1/*` endpoints are versioned. JSON in, JSON out, except capture upload
@@ -18,13 +18,17 @@ Typed JSON bodies: `{ "error": "<code>", ...context }`.
 
 | Status | `error`          | Meaning                                             |
 | ------ | ---------------- | --------------------------------------------------- |
-| 400    | `bad_request`    | malformed input (e.g. upload isn't a valid WAV)     |
+| 400    | `bad_request`    | malformed input (e.g. upload isn't a valid WAV, bad cursor) |
+| 401    | `unauthorized`   | admin endpoint, missing/wrong `x-admin-key`         |
 | 403    | `forbidden`      | not your resource                                   |
-| 404    | `not_found`      | unknown id/slug                                     |
+| 403    | `under_review`   | patch is `flagged` (hidden pending moderation)      |
+| 404    | `not_found`      | unknown id/slug (or admin disabled)                 |
 | 409    | `quota_exceeded` | count or byte quota reached (`resource`, `limit`)   |
 | 413    | `file_too_large` | a single upload exceeds the per-file cap            |
 | 422    | `invalid_state`  | patch payload failed schema validation (`errors[]`) |
+| 422    | `content_rejected` | publish title/description failed screening (`field`) |
 | 429    | `rate_limited`   | hourly rate limit hit                               |
+| 503    | `preview_failed` | preview render failed for this patch                |
 
 ## Health
 
@@ -92,8 +96,56 @@ patch_id?, title?, visibility? }`.
 - `GET /api/v1/recordings/:id` (302), `GET /api/v1/recordings/me`,
   `DELETE /api/v1/recordings/:id`.
 
+## Gallery (v0.8)
+
+Public, no auth. Surfaces `visibility: public` patches.
+
+- `GET /api/v1/gallery?sort=&engine=&mode=&has_captures=&q=&cursor=&limit=`
+  - `sort`: `newest` (default) | `oldest` | `most_loaded`.
+  - `engine`: `sine` | `fm`; `mode`: `open` | `arc`; `has_captures`: `true`.
+  - `q`: full-text over title+description (Postgres `tsvector`; title weighted).
+  - Keyset cursor (page size 24, max 48). A cursor is bound to its `sort` — using
+    it with a different sort returns `400`. `Cache-Control: public, max-age=30,
+    stale-while-revalidate=60`.
+  - → `{ items: GalleryItem[], next_cursor }`. A `GalleryItem` carries the patch
+    `state` (for the card visual), `engine`/`mode`/`has_captures` badges,
+    `load_count`, `published_at`, and `preview_status`.
+- `GET /api/v1/patches/:idOrSlug/preview` — the audio thumbnail.
+  - `302` → presigned Opus URL (`Cache-Control: …max-age=31536000, immutable`)
+    when ready; `202` while rendering; `404` if not public; `503` if render failed.
+- `POST /api/v1/patches/:idOrSlug/load` — increments `load_count` (rate-limited
+  per IP+patch; over the limit it's a silent no-op so loading is never blocked).
+  → `{ load_count }`.
+
+A patch becomes public via `POST /patches` with `visibility:public` or `PATCH`ing
+an existing one. Publishing **screens** the title/description (banned-word + spam
+heuristics); a match → `422 content_rejected {field}` and the patch is **not**
+published. On success the server sets `published_at` (once) and enqueues an async
+preview render. `flagged` patches are hidden from the gallery and return `403
+under_review` from the short-link read.
+
+## Reports (v0.8)
+
+- `POST /api/v1/reports` — `{ patch_id, reason: 'spam'|'inappropriate'|'other',
+  detail? }`. Anonymous allowed (reporter recorded from `x-anon-id` if present).
+  → `201 { id, status: 'open' }`.
+
+## Admin (v0.8)
+
+Gated by `x-admin-key` (constant-time compared to `ADMIN_KEY`). When `ADMIN_KEY`
+is unset every admin route returns `404` (no oracle that a panel exists).
+
+- `GET /api/v1/admin/reports?status=open` → open reports joined with patch title,
+  slug, visibility, preview status, and a reporter label.
+- `PATCH /api/v1/admin/reports/:id` — `{ status: 'dismissed' | 'upheld' }`. Uphold
+  also sets the patch to `flagged`.
+- `PATCH /api/v1/admin/patches/:id/visibility` — `{ visibility:
+  'unlisted'|'public'|'flagged' }`. Restoring to public re-publishes (no
+  re-screening — admin override).
+
 ## Rate limits & quotas
 
-Per anonId, hourly: 60 patches, 20 captures, 5 recordings, 600 GETs. Missing
-anonId falls back to a stricter per-IP ceiling. Quotas per anonId: 100 patches,
-50 captures, 10 recordings, 1 GB total bytes.
+Per anonId, hourly: 60 patches, 20 captures, 5 recordings, 20 reports, 600 GETs.
+Missing anonId falls back to a stricter per-IP ceiling. Load increments are capped
+per (IP, patch). Quotas per anonId: 100 patches, 50 captures, 10 recordings, 1 GB
+total bytes.

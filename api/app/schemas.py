@@ -7,6 +7,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 Visibility = Literal["unlisted", "public"]
+# A patch's stored visibility can also be 'flagged' (moderator action); only the
+# first two are client-settable on create/update.
+PatchVisibility = Literal["unlisted", "public", "flagged"]
 
 
 class UserOut(BaseModel):
@@ -55,7 +58,7 @@ class PatchOut(BaseModel):
     state: str
     title: str | None
     description: str | None
-    visibility: Visibility
+    visibility: PatchVisibility
     capture_refs: list[uuid.UUID]
     short_slug: str
     created_at: datetime
@@ -104,3 +107,73 @@ class RecordingOut(BaseModel):
 
 class RecordingListOut(BaseModel):
     items: list[RecordingOut]
+
+
+# --- v0.8 gallery ------------------------------------------------------------
+
+GallerySort = Literal["newest", "oldest", "most_loaded"]
+PreviewStatus = Literal["none", "rendering", "ready", "failed"]
+AdminVisibility = Literal["unlisted", "public", "flagged"]
+ReportReason = Literal["spam", "inappropriate", "other"]
+ReportStatus = Literal["open", "dismissed", "upheld"]
+
+
+class GalleryItemOut(BaseModel):
+    id: uuid.UUID
+    short_slug: str
+    title: str | None
+    description: str | None
+    state: str
+    engine: str
+    mode: str
+    has_captures: bool
+    load_count: int
+    published_at: datetime | None
+    preview_status: PreviewStatus
+    preview_duration_ms: int | None
+
+
+class GalleryListOut(BaseModel):
+    items: list[GalleryItemOut]
+    next_cursor: str | None = None
+
+
+class LoadOut(BaseModel):
+    load_count: int
+
+
+class ReportCreate(BaseModel):
+    patch_id: uuid.UUID
+    reason: ReportReason
+    detail: str | None = Field(default=None, max_length=2000)
+
+
+class ReportOut(BaseModel):
+    id: uuid.UUID
+    status: ReportStatus
+
+
+class AdminReportItem(BaseModel):
+    id: uuid.UUID
+    patch_id: uuid.UUID
+    patch_title: str | None
+    patch_slug: str
+    patch_visibility: AdminVisibility
+    preview_status: PreviewStatus
+    reason: ReportReason
+    detail: str | None
+    reporter: str | None
+    status: ReportStatus
+    created_at: datetime
+
+
+class AdminReportListOut(BaseModel):
+    items: list[AdminReportItem]
+
+
+class AdminReportUpdate(BaseModel):
+    status: Literal["dismissed", "upheld"]
+
+
+class AdminVisibilityUpdate(BaseModel):
+    visibility: AdminVisibility

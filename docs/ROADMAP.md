@@ -37,7 +37,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v0.5 ✅ | Mic input (live processed)                         | Instrument integration begins              |
 | v0.6 ✅ | Loop pedal (capture / replay / freeze)             | Full instrument integration                |
 | v0.7 ✅ | Backend + persistence (patches table, anon IDs)    | Unlocks gallery + recordings               |
-| v0.8    | Public gallery                                     | Community surface                          |
+| v0.8 ✅ | Public gallery                                     | Community surface                          |
 | v0.9    | Granular engine                                    | Third synthesis engine                     |
 | v1.0    | Physical modeling + embed route + recording export | Feature-complete v1                        |
 
@@ -112,6 +112,26 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
   backend down. Deferred per plan: real auth + claim-by-email → post-v1.0,
   public gallery surface → v0.8, recording export pipeline + embed → v1.0,
   soft-delete/undo → never. Next is the **public gallery** (v0.8).
+- **v0.8** — **public gallery**. A browsable `/gallery` route surfaces
+  `visibility: public` patches: responsive card grid, sort (newest / oldest /
+  most-loaded), filters (engine / mode / has-captures), debounced Postgres
+  full-text search, keyset-cursor "Load more". Each card shows a **deterministic
+  static visualizer frame** (reuses `drawFrame`) and a **Preview** button playing a
+  short server-rendered **Opus thumbnail**. Previews are rendered **server-side in
+  headless Chromium** (Option B) so they use the *exact* client engine + DSP — the
+  engine is real-time and timer-driven, so it's played in real time and recorded,
+  not offline-synthesized; an in-process `asyncio` queue (concurrency 2, retries)
+  renders asynchronously after publish (write-once, since state is immutable).
+  **Moderation** is lightweight: publish-time auto-screening (banned-word + spam
+  heuristics, env-extensible) and a public **report** flow feeding a minimal
+  key-gated `/admin` panel (dismiss / uphold → `flagged`, hidden from gallery +
+  short links). **Load counts** increment per IP+patch. New columns on `patches`
+  (`preview_*`, `load_count`, `published_at`, derived `engine`/`mode`/
+  `has_captures`) + a `reports` table (migration `0002_gallery`); `visibility`
+  admits `flagged`. `react-router` introduced for the new routes. Deferred per
+  plan: comments / likes / follows / profiles, algorithmic feeds, collections,
+  staff-picks, public OG share images, semantic search, third-party moderation
+  services → post-v1.0 / never. Next is the **granular engine** (v0.9).
 
 ## Principles
 

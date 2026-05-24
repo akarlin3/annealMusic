@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Pause, Play } from 'lucide-react';
 import { useAnnealMusic } from '@/hooks/useAnnealMusic';
 import { useInput } from '@/hooks/useInput';
@@ -168,7 +169,7 @@ export default function App() {
                 className="font-mono text-[10px] uppercase tracking-[0.18em]"
                 style={{ color: '#78716c' }}
               >
-                v0.7 · prototype
+                v0.8 · prototype
               </span>
             </div>
             <p
@@ -181,6 +182,14 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              to="/gallery"
+              className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors"
+              style={{ color: '#a8a29e' }}
+            >
+              Gallery
+            </Link>
+
             <CopyLinkButton
               params={params}
               engineId={engineId}

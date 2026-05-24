@@ -213,6 +213,29 @@ MinIO + API + web) and Railway deploy. Design rationale is in
 The API deploys to **Railway** (managed Postgres); object storage is
 **Cloudflare R2** (S3 API, zero egress). The web app stays on Firebase Hosting.
 
+## Gallery (v0.8)
+
+The [**`/gallery`**](https://anneal.averykarlin.org/gallery) route surfaces patches
+their creators set to `public`. It's a separate, deep-linkable page — browse
+anonymously, **Preview** a short audio thumbnail inline, and **Load** any patch
+into the sandbox in one click. Sort (newest / oldest / most-loaded), filter
+(engine, mode, has-captures), and full-text search are basic and predictable;
+pagination is a stable "Load more" cursor.
+
+Each card shows a **deterministic static frame** of the patch's visualizer (same
+params → same art). Audio previews are **rendered server-side**: because the
+engine is real-time and depends on the browser's Web Audio DSP, previews are
+produced by playing the *real* engine in **headless Chromium** and capturing 20 s
+to Opus — same code, same sound. Rendering is async; a card shows "preview
+rendering" until it's ready.
+
+A patch becomes public only when its creator toggles it; flipping back to
+`unlisted` removes it from the gallery within a minute. Publishing auto-screens the
+title/description, and any card can be **reported** (`…` → Report) for review.
+Moderation + the minimal `/admin` panel are documented in
+[`docs/MODERATION.md`](docs/MODERATION.md) and [`docs/ADMIN.md`](docs/ADMIN.md);
+design rationale is in [`docs/v0.8-PLAN.md`](docs/v0.8-PLAN.md).
+
 ## Deploy
 
 Production target: **Google Cloud — Firebase Hosting** (static SPA, global CDN,

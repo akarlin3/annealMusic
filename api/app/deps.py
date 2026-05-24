@@ -35,6 +35,25 @@ def get_storage(request: Request) -> StorageClient:
 StorageDep = Annotated[StorageClient, Depends(get_storage)]
 
 
+def get_render_queue(request: Request):
+    return request.app.state.render_queue
+
+
+def require_admin(request: Request) -> None:
+    """Gate admin endpoints on ``x-admin-key``. When ``ADMIN_KEY`` is unset the
+    endpoints behave as if absent (404) — no oracle that a panel exists."""
+    import secrets
+
+    from app.errors import not_found, unauthorized
+
+    key = get_settings().admin_key
+    if not key:
+        raise not_found("resource")
+    provided = request.headers.get("x-admin-key") or ""
+    if not secrets.compare_digest(provided, key):
+        raise unauthorized()
+
+
 async def _resolve_user(
     request: Request, session: AsyncSession, *, allow_cookie: bool
 ) -> User:
