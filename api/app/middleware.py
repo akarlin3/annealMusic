@@ -29,7 +29,16 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         response.headers["x-request-id"] = request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["X-Frame-Options"] = "DENY"
+
+        # The embed route is the *only* surface allowed to be iframed (it's
+        # designed to live on blogs/Bandcamp-style pages). Everything else stays
+        # DENY. X-Frame-Options has no allow-list modern browsers honor, so for
+        # the embed we drop it and use CSP frame-ancestors instead.
+        if request.url.path.startswith("/embed"):
+            response.headers["Content-Security-Policy"] = "frame-ancestors *"
+        else:
+            response.headers["X-Frame-Options"] = "DENY"
+
         if get_settings().is_prod:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"

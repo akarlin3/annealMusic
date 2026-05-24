@@ -218,7 +218,11 @@ export default function App() {
                   showToast={showToast}
                 />
                 <RecordControls recorder={recorder} />
-                <MyPatchesDrawer patches={patches} onLoad={patches.loadPatch} />
+                <MyPatchesDrawer
+                  patches={patches}
+                  onLoad={patches.loadPatch}
+                  showToast={showToast}
+                />
                 <MyRecordings ref={recordingsRef} showToast={showToast} />
               </>
             )}

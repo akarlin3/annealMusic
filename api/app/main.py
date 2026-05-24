@@ -16,6 +16,7 @@ from app.render import RenderQueue
 from app.routers import (
     admin,
     captures,
+    embed,
     gallery,
     health,
     patches,
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(gallery.router)
     app.include_router(reports.router)
     app.include_router(admin.router)
+    app.include_router(embed.router)
 
     return app
 

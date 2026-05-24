@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "gen:schema": "vite-node schema/gen-manifest.ts",
     "gen:sources": "vite-node scripts/gen-sources.ts",
+    "check:embed-size": "node scripts/check-embed-bundle.mjs",
     "prepare": "husky"
   },
   "lint-staged": {
