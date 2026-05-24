@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Orchestrator } from '@/audio/orchestrator';
+import { ENGINES, makeDefaultEngineParams } from '@/audio/engines/index';
+import { GranularEngine } from '@/audio/engines/granular';
 import { DEFAULT_PARAMS, type AnnealMusicParams } from '@/state/params';
 import { MockAudioContext, type MockNode } from '@/test/audioMock';
 import type { AnnealEngine } from '@/audio/engines/types';
@@ -326,6 +328,55 @@ describe('Orchestrator — crossfade', () => {
 
     vi.advanceTimersByTime(600);
     expect(orch.getEngineId()).toBe('fm');
+
+    orch.stop();
+    vi.advanceTimersByTime(2200);
+  });
+
+  it('crossfades sine → granular → fm → sine with no abrupt jumps', () => {
+    // Granular uses an injected loader so it never touches the network in tests.
+    const factories = {
+      ...ENGINES,
+      granular: () =>
+        new GranularEngine(
+          (ctx) =>
+            Promise.resolve(
+              ctx.createBuffer(
+                1,
+                ctx.sampleRate,
+                ctx.sampleRate,
+              ) as unknown as AudioBuffer,
+            ),
+          () => 0.5,
+        ),
+    };
+    const orch = new Orchestrator(
+      DEFAULT_PARAMS,
+      'sine',
+      makeDefaultEngineParams(),
+      factories,
+    );
+    orch.start();
+    const ctx = MockAudioContext.instances.at(-1)!;
+
+    // sine → granular: incoming asks for the 800ms window.
+    orch.setEngine('granular');
+    expect(orch.getEngineId()).toBe('granular');
+    const incoming = ctx
+      .nodesOfKind('gain')
+      .find((g) => hasGainRamp(g, 1, 0.8));
+    expect(incoming).toBeDefined(); // granular's 800ms crossfade requested
+    vi.advanceTimersByTime(800);
+
+    // granular → fm: back to the default 600ms window.
+    orch.setEngine('fm');
+    expect(orch.getEngineId()).toBe('fm');
+    vi.advanceTimersByTime(600);
+
+    // fm → sine.
+    orch.setEngine('sine');
+    expect(orch.getEngineId()).toBe('sine');
+    vi.advanceTimersByTime(600);
 
     orch.stop();
     vi.advanceTimersByTime(2200);

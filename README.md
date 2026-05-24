@@ -30,7 +30,9 @@ npm run format     # Prettier --write
 ```
 src/
   audio/         # orchestrator (session machine, post-fx, drift, crossfade, input), IR
-    engines/     # AnnealEngine interface, sine + fm engines, registry
+    engines/     # AnnealEngine interface, sine + fm + granular engines, registry
+    granular/    # GrainCloud core, look-ahead scheduler, window math
+    sources/     # curated source bank registry + lazy loader
   session/       # arc data model, preset arcs, easing curves, ArcRunner
   input/         # InputVoice (live-input chain), devices, latency, meter
   loop/          # LoopSlot state machine, capture, SeamLoopPlayer, GranularPlayer, windows
@@ -54,7 +56,9 @@ every engine builds its own voices and exposes a single output node, while the
 drift) and post-fx (brightness filter, reverb space, volume) and pushes
 per-partial detune from the drift loop into the active engine. This makes
 engines hot-swappable: pick one from the segmented control under the header and
-the orchestrator **crossfades** (equal-gain, ~600ms) without a page reload.
+the orchestrator **crossfades** (equal-gain) without a page reload. Each engine
+can request its own crossfade window — granular asks for ~800ms (vs the ~600ms
+default) to mask grain start-up; sine/FM use the default.
 
 - **Sine** — the coupled sine bank: one sine oscillator per partial over the
   harmonic lattice. No engine-specific params.
@@ -62,9 +66,35 @@ the orchestrator **crossfades** (equal-gain, ~600ms) without a page reload.
   a modulator at `carrier × Ratio` with depth `Index × carrier` Hz, plus
   optional modulator self-**Feedback**. Params: **Ratio** (0.5–4), **Index**
   (0–10), **Feedback** (0–1).
+- **Granular** — one grain cloud per partial, all reading the same curated
+  source buffer (see [Granular engine](#granular-engine)). The partial's pitch
+  sets the grain playback rate; drift detunes it like the other engines.
 
-Both engines share the same baseline + slow-LFO amplitude shape, so switching
-engines changes timbre without changing the overall envelope of the field.
+Sine and FM share the same baseline + slow-LFO amplitude shape, so switching
+between them changes timbre without changing the field's envelope.
+
+### Granular engine
+
+Granular synthesis sprays short Hann-windowed **grains** read from a source
+buffer. The reusable core is `GrainCloud` (`src/audio/granular/`), which also
+powers the v0.6 loop-pedal freeze — one granular implementation, two consumers.
+The engine runs N clouds over the harmonic lattice (one per partial); each
+partial's frequency maps to a per-cloud `pitchOffset` in cents, so grains play
+the source faster/slower to voice the harmonic, and the drift loop's detune
+rides on top exactly as for sine/FM.
+
+The source is picked from a curated bank (the **source picker** card grid);
+sources load lazily on selection (Opus, ~96 kbps, fetched same-origin and
+decoded once per session). Grain params are shared across the bank: **Grain**
+size (30–300 ms), **Density** (4–40 grains/s _per partial_), **Jitter**
+(position spread 0–1), **Pitch Jit** (per-grain cents 0–100), and **Center**
+(0–1, where in the source grains cluster). `Center` also drifts on its own, so a
+static patch keeps moving. A soft ceiling on simultaneous grains degrades
+gracefully (sparser texture) rather than glitching under extreme settings.
+
+See [`docs/SOURCES.md`](docs/SOURCES.md) for the source bank and
+[`LICENSES.md`](LICENSES.md) for per-source licensing (all v0.9 sources are
+original, CC0).
 
 ## Session modes
 
@@ -168,15 +198,19 @@ fragment uses a versioned, human-readable schema — `#s=<version>:<key=value…
 and updates live (debounced) as you sculpt, via `history.replaceState` so it
 never pollutes browser history.
 
-Schema **v4** adds per-slot loop config — flags (`L<id>.m`/`f`/`c` for
-muted/frozen/drift-coupled) and, for frozen slots, grain params
-(`L<id>.gs/gd/gp/gx`) — on top of v3's session mode (`m=<open|arc>`, plus
-`arc=<id>&dur=<sec>`), v2's engine selector (`e=<id>`), and namespaced engine
-params (e.g. `fm.modRatio`). Buffer **audio** is never encoded. Example (an arc
-session with a frozen loop):
+Schema **v5** adds the granular engine: `e=granular` plus its params under the
+short `gr` namespace — `gr.source` (a stable source **index**), `gr.size`,
+`gr.density`, `gr.posJitter`, `gr.pitchJitter`, `gr.posCenter`. (The engine id
+stays `granular`; the namespace is `gr` to keep links compact.) This sits on top
+of v4's per-slot loop config — flags (`L<id>.m`/`f`/`c` for muted/frozen/
+drift-coupled) and, for frozen slots, grain params (`L<id>.gs/gd/gp/gx`) — v3's
+session mode (`m=<open|arc>`, plus `arc=<id>&dur=<sec>`), v2's engine selector
+(`e=<id>`), and namespaced engine params (e.g. `fm.modRatio`). Older schemas
+(v1–v4) still load. Buffer **audio** is never encoded. Example (a granular
+session):
 
 ```
-https://anneal.averykarlin.org/#s=4:m=arc&arc=bell&dur=720&e=fm&rootFreq=147&spread=1.08&density=7&coupling=0.62&drift=0.30&brightness=0.74&space=0.55&fm.modRatio=2.00&fm.modIndex=4.50&fm.feedback=0.20&LA.f=1&LA.gs=140&LA.gd=14&LA.gp=0.50&LA.gx=0
+https://anneal.averykarlin.org/#s=5:m=open&e=granular&rootFreq=110&spread=1.00&density=6&coupling=0.30&drift=0.50&brightness=0.50&space=0.40&gr.source=2&gr.size=120&gr.density=14&gr.posJitter=0.30&gr.pitchJitter=0&gr.posCenter=0.50
 ```
 
 A link with frozen slots but no buffers loads the slots **empty** with the
@@ -225,7 +259,7 @@ pagination is a stable "Load more" cursor.
 Each card shows a **deterministic static frame** of the patch's visualizer (same
 params → same art). Audio previews are **rendered server-side**: because the
 engine is real-time and depends on the browser's Web Audio DSP, previews are
-produced by playing the *real* engine in **headless Chromium** and capturing 20 s
+produced by playing the _real_ engine in **headless Chromium** and capturing 20 s
 to Opus — same code, same sound. Rendering is async; a card shows "preview
 rendering" until it's ready.
 

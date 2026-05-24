@@ -69,6 +69,7 @@ def validate_payload(payload: str, version: int) -> list[str]:
 
     shared = manifest["sharedKeys"]
     engines = manifest["engines"]
+    engine_order = manifest["engineOrder"]
     session = manifest["session"]
     loop = manifest["loop"]
 
@@ -100,9 +101,11 @@ def validate_payload(payload: str, version: int) -> list[str]:
             _num_in_bounds(raw, {**session["duration"]}, "dur", errors)
             continue
 
-        # Engine selector.
+        # Engine selector. Validated against engineOrder (the engine ids), which
+        # may differ from the param namespaces in `engines` — e.g. the granular
+        # engine is selected as `e=granular` but its params live under `gr.*`.
         if key == "e":
-            if raw not in engines:
+            if raw not in engine_order:
                 errors.append(f"unknown engine '{raw}'")
             continue
 

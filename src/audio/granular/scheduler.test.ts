@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LookaheadScheduler } from '@/loop/scheduler';
+import { LookaheadScheduler } from '@/audio/granular/scheduler';
 
 afterEach(() => {
   vi.useRealTimers();

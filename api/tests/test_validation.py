@@ -17,6 +17,28 @@ def test_full_v4_payload_passes():
     assert validate_payload(payload, 4) == []
 
 
+def test_granular_v5_payload_passes():
+    payload = (
+        "m=open&e=granular&rootFreq=110&spread=1.00&"
+        "gr.source=2&gr.size=120&gr.density=14&gr.posJitter=0.30&"
+        "gr.pitchJitter=0&gr.posCenter=0.50"
+    )
+    assert validate_payload(payload, 5) == []
+
+
+@pytest.mark.parametrize(
+    "payload,needle",
+    [
+        ("e=granular&gr.source=99", "out of range"),
+        ("e=granular&gr.nope=1", "unknown engine param"),
+        ("e=granular&gr.size=9", "out of range"),
+    ],
+)
+def test_invalid_granular_payloads_rejected(payload, needle):
+    errors = validate_payload(payload, 5)
+    assert any(needle in e for e in errors), errors
+
+
 @pytest.mark.parametrize(
     "payload,needle",
     [

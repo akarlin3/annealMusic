@@ -11,6 +11,7 @@ import {
   engineParamDefs,
 } from '@/audio/engines/index';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
+import SourcePicker from '@/components/SourcePicker';
 
 interface ControlPanelProps {
   params: AnnealMusicParams;
@@ -128,7 +129,11 @@ export default function ControlPanel({
       </div>
 
       {engineDefs.length > 0 && (
-        <div className="mt-10 max-w-xs transition-opacity duration-300">
+        <div
+          className={`mt-10 transition-opacity duration-300 ${
+            engineId === 'granular' ? 'max-w-xl' : 'max-w-xs'
+          }`}
+        >
           <div className="mb-4 flex items-baseline gap-2">
             <span
               className="font-mono text-[10px] uppercase tracking-[0.22em]"
@@ -143,17 +148,29 @@ export default function ControlPanel({
               {ENGINE_LABELS[engineId]}
             </span>
           </div>
-          <div className="space-y-5">
-            {engineDefs.map((def) => (
-              <Slider
-                key={def.key}
-                def={def}
-                value={engineParams[def.key] ?? def.default}
+          {engineId === 'granular' && (
+            <div className="mb-6">
+              <SourcePicker
+                value={engineParams.source ?? 0}
                 disabled={arcLocked}
-                lockLabel="arc"
-                onChange={(v) => setEngineParam(def.key, v)}
+                isPlaying={isPlaying}
+                onChange={(idx) => setEngineParam('source', idx)}
               />
-            ))}
+            </div>
+          )}
+          <div className="space-y-5">
+            {engineDefs
+              .filter((def) => def.key !== 'source')
+              .map((def) => (
+                <Slider
+                  key={def.key}
+                  def={def}
+                  value={engineParams[def.key] ?? def.default}
+                  disabled={arcLocked}
+                  lockLabel="arc"
+                  onChange={(v) => setEngineParam(def.key, v)}
+                />
+              ))}
           </div>
         </div>
       )}

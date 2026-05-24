@@ -14,6 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "gen:schema": "vite-node schema/gen-manifest.ts",
+    "gen:sources": "vite-node scripts/gen-sources.ts",
     "prepare": "husky"
   },
   "lint-staged": {

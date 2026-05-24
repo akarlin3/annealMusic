@@ -38,7 +38,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v0.6 ✅ | Loop pedal (capture / replay / freeze)             | Full instrument integration                |
 | v0.7 ✅ | Backend + persistence (patches table, anon IDs)    | Unlocks gallery + recordings               |
 | v0.8 ✅ | Public gallery                                     | Community surface                          |
-| v0.9    | Granular engine                                    | Third synthesis engine                     |
+| v0.9 ✅ | Granular engine                                    | Third synthesis engine                     |
 | v1.0    | Physical modeling + embed route + recording export | Feature-complete v1                        |
 
 ## Shipped notes
@@ -132,6 +132,24 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
   plan: comments / likes / follows / profiles, algorithmic feeds, collections,
   staff-picks, public OG share images, semantic search, third-party moderation
   services → post-v1.0 / never. Next is the **granular engine** (v0.9).
+- **v0.9** — **granular engine**, the third selectable synthesis engine, slotting
+  into the v0.3 `AnnealEngine` interface. The v0.6 freeze granular code was
+  refactored into a reusable **`GrainCloud`** core (look-ahead scheduler + Hann
+  windows moved to `src/audio/granular/`), consumed by both the loop freeze and
+  the new engine — one implementation, two consumers. The engine runs N clouds
+  over the harmonic lattice (one per partial); a partial's pitch maps to the
+  cloud's grain playback rate (cents vs. the source's reference pitch), and drift
+  detune rides on top via the same `setPartialDetune` path. A curated **bank of 8
+  CC0 sources** (synthesized offline by `scripts/gen-sources.ts`, ~3 MB of Opus in
+  `public/sources/`) loads lazily on selection. **Schema v5** adds `e=granular` +
+  `gr.*` params (under a per-engine URL namespace, so `gr` ≠ the id `granular`);
+  v1–v4 still load. Two small, additive interface extensions: per-engine
+  `crossfadeMs` (granular asks for 800 ms) and `urlNs`. Server-side preview works
+  unchanged (Option B fetches sources same-origin). The abstraction held — the
+  only strain was the non-numeric source id, encoded as a stable append-only
+  **index** to keep `EngineParams` numeric. Deferred per plan: user-uploaded
+  sources, multi-source-per-partial, reverse/spectral grains → v1.0+ / never.
+  Next is **physical modeling** (v1.0).
 
 ## Principles
 

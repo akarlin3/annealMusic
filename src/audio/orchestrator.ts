@@ -31,7 +31,6 @@ import { HARMONICS, type DriftPartial, type GraphNodes } from '@/types/audio';
 const FADE_IN_SECONDS = 3.0;
 const FADE_OUT_TC = 0.6;
 const TEARDOWN_MS = 2200;
-const CROSSFADE_SECONDS = 0.6;
 const CROSSFADE_MS = 600;
 const DRIFT_INTERVAL_MS = 50;
 const DRIFT_DT = 0.05;
@@ -597,12 +596,17 @@ export class Orchestrator {
       engine.setPartialDetune(i, part.detune),
     );
 
+    // The incoming engine may request a longer crossfade (granular asks for
+    // 800ms to mask grain start-up jitter); fall back to the default.
+    const xfadeMs = engine.capabilities.crossfadeMs ?? CROSSFADE_MS;
+    const xfadeSec = xfadeMs / 1000;
+
     const t0 = ctx.currentTime;
     active.bus.gain.cancelScheduledValues(t0);
     active.bus.gain.setValueAtTime(active.bus.gain.value, t0);
-    active.bus.gain.linearRampToValueAtTime(0, t0 + CROSSFADE_SECONDS);
+    active.bus.gain.linearRampToValueAtTime(0, t0 + xfadeSec);
     bus.gain.setValueAtTime(0, t0);
-    bus.gain.linearRampToValueAtTime(1, t0 + CROSSFADE_SECONDS);
+    bus.gain.linearRampToValueAtTime(1, t0 + xfadeSec);
 
     this.outgoing = active;
     this.active = { engine, bus };
@@ -619,7 +623,7 @@ export class Orchestrator {
       const queued = this.pendingSwap;
       this.pendingSwap = null;
       if (queued && queued !== this.active?.engine.id) this.crossfadeTo(queued);
-    }, CROSSFADE_MS);
+    }, xfadeMs);
   }
 
   /**

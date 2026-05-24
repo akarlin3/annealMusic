@@ -18,7 +18,11 @@ import {
   decimalsForStep,
 } from '@/share/schema';
 import { GRAIN_FIELDS } from '@/share/encode';
-import { ENGINE_ORDER, engineParamDefs } from '@/audio/engines/index';
+import {
+  ENGINE_ORDER,
+  ENGINE_URL_NS,
+  engineParamDefs,
+} from '@/audio/engines/index';
 import { PRESET_ARCS, ARC_DURATION } from '@/session/arcs';
 import { SESSION_MODES } from '@/session/types';
 import { SLOT_IDS, GRAIN_BOUNDS, MAX_CAPTURE_SEC } from '@/loop/types';
@@ -56,6 +60,8 @@ function buildManifest(): SchemaManifest {
     sharedKeys[key] = { min: b.min, max: b.max, decimals: b.decimals };
   }
 
+  // Keyed by URL namespace (sine/fm = id, granular = `gr`), matching the wire
+  // form the validator parses from `<ns>.<param>` keys.
   const engines: Record<string, Record<string, NumBound>> = {};
   for (const id of ENGINE_ORDER) {
     const params: Record<string, NumBound> = {};
@@ -66,7 +72,7 @@ function buildManifest(): SchemaManifest {
         decimals: decimalsForStep(def.step),
       };
     }
-    engines[id] = params;
+    engines[ENGINE_URL_NS[id]] = params;
   }
 
   const grainFields: Record<string, NumBound & { key: string }> = {};
