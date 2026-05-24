@@ -24,7 +24,11 @@ class PlaywrightRenderer:
     async def _ensure_browser(self):
         async with self._lock:
             if self._browser is None:
-                from playwright.async_api import async_playwright
+                # Optional `render` extra (see pyproject); absent in the base /
+                # test install, so pyright must not flag the import there.
+                from playwright.async_api import (  # pyright: ignore[reportMissingImports]
+                    async_playwright,
+                )
 
                 self._pw = await async_playwright().start()
                 self._browser = await self._pw.chromium.launch(

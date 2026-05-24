@@ -16,10 +16,15 @@ dependencies = [
   "boto3>=1.35",
   "python-json-logger>=2.0",
   "slowapi>=0.1.9",
-  "playwright>=1.48",
 ]
 
 [project.optional-dependencies]
+# Headless-Chromium preview rendering. Only the render path (the Docker image)
+# needs this — kept out of the base deps so the CI test/migrations installs stay
+# lean and don't pull a browser-automation stack they never use.
+render = [
+  "playwright>=1.48",
+]
 dev = [
   "pytest>=8.3",
   "pytest-asyncio>=0.24",

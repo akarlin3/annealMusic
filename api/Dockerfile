@@ -8,7 +8,8 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir .
+# Include the `render` extra (Playwright) — this image runs the preview renderer.
+RUN pip install --no-cache-dir ".[render]"
 
 # Headless Chromium for server-side preview rendering (v0.8, Option B). The
 # render harness itself is served by the web build at RENDER_HARNESS_URL.
