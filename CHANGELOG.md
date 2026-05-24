@@ -4,6 +4,52 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-05-24
+
+### Added
+
+- **Granular engine.** A third selectable synthesis engine: granular synthesis
+  from a curated source bank. N grain clouds over the harmonic lattice (one per
+  partial), each reading the same source buffer; the partial's pitch sets the
+  grain playback rate (cents relative to the source's reference pitch), and the
+  drift loop's per-partial detune rides on top via the same `setPartialDetune`
+  path as sine/FM. Per-bank grain params: **Grain** size (30–300 ms), **Density**
+  (4–40 grains/s per partial), **Jitter** (position 0–1), **Pitch Jit** (0–100¢),
+  **Center** (0–1) — which also drifts autonomously so static patches keep moving.
+  A soft live-grain ceiling degrades gracefully under extreme settings.
+- **`GrainCloud` core (`src/audio/granular/`).** The v0.6 loop-freeze granular
+  code was refactored into a reusable, policy-free core (look-ahead scheduler +
+  Hann window math moved here too), consumed by **both** the loop freeze and the
+  new engine — one granular implementation, two consumers. The v0.6
+  `GranularPlayer` is now a thin wrapper; freeze behavior is unchanged.
+- **Curated source bank.** 8 ambient sources (glass pad, bowed metal, tape organ,
+  pine wind, deep drone, choir air, rain glass, warm tape), all **original works
+  released CC0**, synthesized deterministically by `scripts/gen-sources.ts` and
+  shipped as ~3 MB of Ogg/Opus (~96 kbps) in `public/sources/`. A typed,
+  append-only registry (`src/audio/sources/registry.ts`) + a lazy fetch/decode
+  loader with per-session caching and graceful failure. `LICENSES.md` +
+  `docs/SOURCES.md` record per-source licensing; a test enforces a license on
+  every source.
+- **Source picker UI.** A card-grid picker (ARIA radiogroup) with a per-source
+  icon, a hover/focus license + description footer, and a loading spinner while a
+  freshly-selected source decodes during playback.
+- **URL schema v5.** `e=granular` plus `gr.source` (a stable source **index**),
+  `gr.size`, `gr.density`, `gr.posJitter`, `gr.pitchJitter`, `gr.posCenter`.
+  Granular params serialize under a short per-engine URL namespace (`gr`), while
+  the engine id stays `granular`. Schemas v1–v4 still load unchanged.
+
+### Changed
+
+- **Per-engine crossfade window.** Engines may advertise a preferred crossfade
+  duration via a new optional `crossfadeMs` capability; the orchestrator uses it
+  for the incoming engine. Granular requests 800 ms (to mask grain start-up
+  jitter); sine/FM keep the 600 ms default.
+- **Schema manifest + validator.** `engines` is keyed by URL namespace (so `gr.*`
+  validates), and the `e=` selector is validated against `engineOrder` (so
+  `e=granular` is accepted while its params live under `gr`). Server-side preview
+  rendering is unchanged — Option B (headless Chromium) fetches sources
+  same-origin, so granular previews render with the exact client DSP.
+
 ## [0.8.0] - 2026-05-24
 
 ### Added
@@ -18,7 +64,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `(published_at, id)` / `(load_count, …)` keyset cursors bound to their sort
   mode. Postgres `tsvector` search (title weighted over description) with a
   portable `LIKE` fallback for the SQLite test DB. `Cache-Control: max-age=30,
-  stale-while-revalidate=60`.
+stale-while-revalidate=60`.
 - **Server-side preview rendering.** A short (20 s) Opus audio thumbnail is
   rendered when a patch is published, by driving the **real** engine in **headless
   Chromium** (Option B) — Chromium is the production runtime, so previews use the

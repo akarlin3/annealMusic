@@ -118,6 +118,30 @@ shared baseline + LFO amplitude shape means FM and sine have identical envelopes
 > all-native node graph; a hands-on Safari listen is still worth doing before a
 > tagged release.
 
+## Granular engine — Opus `decodeAudioData` (Safari)
+
+The granular engine (`src/audio/engines/granular.ts`) fetches each source as an
+Ogg/Opus file and decodes it with `ctx.decodeAudioData`. **Safari historically
+lagged on Opus**: Ogg/Opus `decodeAudioData` is supported in **Safari 15+**
+(macOS Monterey / iOS 15+); older Safari would reject the decode. This is why
+loop **captures** upload as WAV and are transcoded server-side (see the WAV note
+in `src/api/wav.ts`) — but the granular bank is decode-only, and the shipped
+files are standard Ogg/Opus at 96 kbps (`scripts/gen-sources.ts` via ffmpeg
+libopus), which modern Safari, Chrome and Firefox all decode natively. The
+loader (`src/audio/sources/loader.ts`) treats a decode failure as a normal load
+error: it rejects, evicts the cache entry so a retry is clean, and the engine
+stays silent on the previous buffer rather than crashing — so on a pre-15 Safari
+the field simply doesn't gain the new source instead of erroring out.
+
+Each grain is a native `AudioBufferSourceNode` with a Hann gain envelope
+(`setValueCurveAtTime`) and a `detune` offset for pitch — all native nodes, no
+`AudioWorklet`, consistent across browsers. The look-ahead scheduler is the same
+`currentTime`-based loop the loop pedal uses (already verified cross-browser).
+
+> Note: verify a hands-on Safari (desktop + iOS 15+) listen of the granular bank
+> before a tagged release — confirm each source decodes and the source-swap is
+> click-free.
+
 ## Arc timing — AudioContext clock (both)
 
 Arc mode (`src/session/ArcRunner.ts` + the orchestrator's arc tick) advances on

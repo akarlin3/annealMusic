@@ -20,12 +20,39 @@ async def _publish(client) -> dict:
     ).json()
 
 
+GRANULAR_PAYLOAD = (
+    "m=open&e=granular&rootFreq=110&spread=1.00&density=6&coupling=0.30&"
+    "drift=0.50&brightness=0.50&space=0.40&gr.source=2&gr.size=120&"
+    "gr.density=14&gr.posJitter=0.30&gr.pitchJitter=0&gr.posCenter=0.50"
+)
+
+
 async def test_preview_rendering_returns_202(client):
     p = await _publish(client)
     r = await client.get(f"/api/v1/patches/{p['short_slug']}/preview")
     assert r.status_code == 202
     assert r.json()["status"] == "rendering"
     assert r.headers["cache-control"] == "no-store"
+
+
+async def test_granular_patch_publishes_and_previews(client):
+    # A v5 granular payload must pass save-path validation and queue a render.
+    created = (
+        await client.post(
+            "/api/v1/patches",
+            headers=_hdr(),
+            json={
+                "state": GRANULAR_PAYLOAD,
+                "schema_ver": 5,
+                "title": "grain",
+                "visibility": "public",
+            },
+        )
+    ).json()
+    assert "short_slug" in created, created
+    r = await client.get(f"/api/v1/patches/{created['short_slug']}/preview")
+    assert r.status_code == 202
+    assert r.json()["status"] == "rendering"
 
 
 async def test_preview_not_public_404(client):
