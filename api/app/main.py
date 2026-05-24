@@ -1,17 +1,44 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import get_settings
+from app.db import get_sessionmaker
 from app.errors import ApiError
 from app.logging_config import configure_logging
 from app.middleware import AnonContextMiddleware, RequestContextMiddleware
 from app.rate_limit import RateLimiter
-from app.routers import captures, health, patches, recordings, users
+from app.render import RenderQueue
+from app.routers import (
+    admin,
+    captures,
+    gallery,
+    health,
+    patches,
+    recordings,
+    reports,
+    users,
+)
 from app.sentry import init_sentry
 from app.storage import make_storage
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    queue: RenderQueue = app.state.render_queue
+    if settings.render_enabled and settings.render_backend == "inprocess":
+        from app.renderer_playwright import PlaywrightRenderer
+
+        await queue.start(
+            get_sessionmaker(), app.state.storage, PlaywrightRenderer(settings)
+        )
+    yield
+    await queue.stop()
 
 
 def create_app() -> FastAPI:
@@ -19,9 +46,10 @@ def create_app() -> FastAPI:
     configure_logging()
     init_sentry(settings)
 
-    app = FastAPI(title="AnnealMusic API", version="0.7.0")
+    app = FastAPI(title="AnnealMusic API", version="0.8.0", lifespan=lifespan)
     app.state.storage = make_storage(settings)
     app.state.rate_limiter = RateLimiter()
+    app.state.render_queue = RenderQueue(settings)
 
     # Order matters: CORS outermost, then request context, then anon echo
     # (innermost so it runs after the route has resolved the id).
@@ -45,6 +73,9 @@ def create_app() -> FastAPI:
     app.include_router(patches.router)
     app.include_router(captures.router)
     app.include_router(recordings.router)
+    app.include_router(gallery.router)
+    app.include_router(reports.router)
+    app.include_router(admin.router)
 
     return app
 

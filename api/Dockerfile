@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-# ffmpeg is required to transcode uploaded WAV captures to Opus.
+# ffmpeg: transcode uploaded WAV captures to Opus + repackage rendered previews.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
@@ -10,12 +10,17 @@ WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
 
+# Headless Chromium for server-side preview rendering (v0.8, Option B). The
+# render harness itself is served by the web build at RENDER_HARNESS_URL.
+RUN playwright install --with-deps chromium
+
 COPY app ./app
 COPY alembic ./alembic
 COPY alembic.ini ./
 
 ENV TRANSCODE_ENABLED=true \
     STORAGE_BACKEND=s3 \
+    RENDER_ENABLED=true \
     ENV=prod
 
 EXPOSE 8000

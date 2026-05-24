@@ -57,6 +57,11 @@ services:
       S3_SECRET_ACCESS_KEY: minioadmin
       TRANSCODE_ENABLED: 'true'
       CORS_ORIGINS: '["http://localhost:5173"]'
+      # Preview rendering: the Dockerfile bundles Chromium; the harness is served
+      # by the web container. Off by default locally (flip to 'true' to exercise).
+      RENDER_ENABLED: 'false'
+      RENDER_HARNESS_URL: http://web:5173/render.html
+      # ADMIN_KEY: localdev
     command: >
       /bin/sh -c "alembic upgrade head &&
       uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
