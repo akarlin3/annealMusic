@@ -5,6 +5,7 @@ import {
   VOLUME_DEF,
   clampParam,
   useParamStore,
+  getClosestNote,
 } from '@/state/params';
 
 const ALL_DEFS = [...CONTROL_DEFS, VOLUME_DEF];
@@ -55,5 +56,25 @@ describe('useParamStore.setParam', () => {
   it('updates an in-range value', () => {
     useParamStore.getState().setParam('spread', 1.1);
     expect(useParamStore.getState().params.spread).toBe(1.1);
+  });
+});
+
+describe('getClosestNote', () => {
+  it('correctly maps octaves of A', () => {
+    expect(getClosestNote(55)).toBe('A1');
+    expect(getClosestNote(110)).toBe('A2');
+    expect(getClosestNote(220)).toBe('A3');
+  });
+
+  it('correctly identifies other notes in the range', () => {
+    // E2 is roughly 82.4 Hz
+    expect(getClosestNote(82)).toBe('E2');
+    expect(getClosestNote(83)).toBe('E2');
+
+    // C3 is roughly 130.8 Hz
+    expect(getClosestNote(131)).toBe('C3');
+
+    // Middle C (C4) is roughly 261.6 Hz
+    expect(getClosestNote(262)).toBe('C4');
   });
 });

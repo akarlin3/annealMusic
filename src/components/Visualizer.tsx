@@ -5,7 +5,7 @@ import { drawFrame, type DrawState, type LoopRing } from '@/visual/draw';
 import { readRms } from '@/input/meter';
 import { HARMONICS } from '@/types/audio';
 import { SLOT_IDS } from '@/loop/types';
-import { useParamStore } from '@/state/params';
+import { useParamStore, getClosestNote } from '@/state/params';
 
 interface VisualizerProps {
   engineRef: React.MutableRefObject<Orchestrator | null>;
@@ -185,7 +185,8 @@ export default function Visualizer({
               : 'silent'}
         </span>
         <span>
-          {params.density} partials · root {params.rootFreq.toFixed(0)} Hz
+          {params.density} partials · root {params.rootFreq.toFixed(0)} Hz (
+          {getClosestNote(params.rootFreq)})
         </span>
       </div>
     </div>

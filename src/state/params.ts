@@ -51,6 +51,28 @@ export interface ControlDef {
   lockWhilePlaying?: boolean;
 }
 
+/** Convert a frequency in Hz to the closest standard Western musical note name (e.g. A2). */
+export function getClosestNote(freq: number): string {
+  const NOTE_NAMES = [
+    'C',
+    'C#',
+    'D',
+    'D#',
+    'E',
+    'F',
+    'F#',
+    'G',
+    'G#',
+    'A',
+    'A#',
+    'B',
+  ];
+  const midi = Math.round(12 * Math.log2(freq / 440) + 69);
+  const noteName = NOTE_NAMES[((midi % 12) + 12) % 12];
+  const octave = Math.floor(midi / 12) - 1;
+  return `${noteName}${octave}`;
+}
+
 /** Grouped controls rendered in the control panel (excludes volume). */
 export const CONTROL_DEFS: readonly ControlDef[] = [
   {
@@ -60,7 +82,7 @@ export const CONTROL_DEFS: readonly ControlDef[] = [
     min: 55,
     max: 220,
     step: 1,
-    fmt: (v) => `${v.toFixed(0)} Hz`,
+    fmt: (v) => `${v.toFixed(0)} Hz (${getClosestNote(v)})`,
   },
   {
     key: 'spread',
