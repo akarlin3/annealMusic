@@ -60,3 +60,39 @@ if (typeof window !== 'undefined') {
     configurable: true,
   });
 }
+
+// Mock Canvas context to suppress JSDOM prototype getContext warnings.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = function (contextId: string) {
+    if (contextId === '2d') {
+      const dummyCtx = {
+        setTransform: () => {},
+        fillRect: () => {},
+        clearRect: () => {},
+        beginPath: () => {},
+        moveTo: () => {},
+        lineTo: () => {},
+        stroke: () => {},
+        fill: () => {},
+        arc: () => {},
+        createRadialGradient: () => {
+          return {
+            addColorStop: () => {},
+          };
+        },
+        fillStyle: '',
+        strokeStyle: '',
+        lineWidth: 1,
+      };
+      return dummyCtx as unknown as CanvasRenderingContext2D;
+    }
+    return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
+
+// Mock HTMLMediaElement functions to avoid JSDOM warnings about media playback.
+if (typeof HTMLMediaElement !== 'undefined') {
+  HTMLMediaElement.prototype.play = async () => {};
+  HTMLMediaElement.prototype.pause = () => {};
+}

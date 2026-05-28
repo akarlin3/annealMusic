@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react';
 import CopyLinkButton from '@/components/CopyLinkButton';
 import { DEFAULT_PARAMS } from '@/state/params';
 import { buildShareUrl } from '@/share/url';
@@ -26,7 +32,10 @@ describe('CopyLinkButton', () => {
     render(<CopyLinkButton params={DEFAULT_PARAMS} onResult={onResult} />);
     expect(screen.getByText('Copy Link')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button'));
+    });
+
     await vi.waitFor(() => {
       expect(screen.getByText('Copied')).toBeInTheDocument();
     });
@@ -36,14 +45,26 @@ describe('CopyLinkButton', () => {
   });
 
   it('reverts the label after the timeout', async () => {
+    vi.useFakeTimers();
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
 
     render(<CopyLinkButton params={DEFAULT_PARAMS} />);
-    fireEvent.click(screen.getByRole('button'));
-    await screen.findByText('Copied');
-    // Revert fires at 1500ms real time; poll until it does.
-    await screen.findByText('Copy Link', {}, { timeout: 2500 });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button'));
+    });
+
+    await vi.waitFor(() => {
+      expect(screen.getByText('Copied')).toBeInTheDocument();
+    });
+
+    // Advance timers by 1500ms to trigger the label revert state update
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(screen.getByText('Copy Link')).toBeInTheDocument();
   });
 
   it('falls back to execCommand when clipboard write is denied', async () => {
@@ -53,7 +74,10 @@ describe('CopyLinkButton', () => {
     const onResult = vi.fn();
 
     render(<CopyLinkButton params={DEFAULT_PARAMS} onResult={onResult} />);
-    fireEvent.click(screen.getByRole('button'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button'));
+    });
 
     await vi.waitFor(() => {
       expect(execCommand).toHaveBeenCalledWith('copy');
@@ -70,7 +94,10 @@ describe('CopyLinkButton', () => {
     const onResult = vi.fn();
 
     render(<CopyLinkButton params={DEFAULT_PARAMS} onResult={onResult} />);
-    fireEvent.click(screen.getByRole('button'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button'));
+    });
 
     await vi.waitFor(() => {
       expect(prompt).toHaveBeenCalled();
@@ -86,7 +113,10 @@ describe('CopyLinkButton', () => {
     const onResult = vi.fn();
 
     render(<CopyLinkButton params={DEFAULT_PARAMS} onResult={onResult} />);
-    fireEvent.click(screen.getByRole('button'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button'));
+    });
 
     await vi.waitFor(() => {
       expect(execCommand).toHaveBeenCalledWith('copy');
