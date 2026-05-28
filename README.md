@@ -384,4 +384,4 @@ discuss before larger changes.
 
 ## License
 
-[MIT](LICENSE).
+[AGPL-3.0-or-later](LICENSE).

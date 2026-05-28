@@ -1,6 +1,7 @@
 {
   "name": "annealmusic",
   "private": true,
+  "license": "AGPL-3.0-or-later",
   "version": "1.0.0",
   "type": "module",
   "description": "A generative ambient meditation sandbox: physics-driven sound, session arc, and audio-reactive visuals.",
