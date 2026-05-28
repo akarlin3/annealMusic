@@ -1,5 +1,9 @@
 # AnnealMusic
 
+[![Client CI](https://github.com/akarlin3/annealMusic/actions/workflows/ci.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/ci.yml)
+[![API CI](https://github.com/akarlin3/annealMusic/actions/workflows/api.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/api.yml)
+[![Firebase Deploy](https://github.com/akarlin3/annealMusic/actions/workflows/deploy.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/deploy.yml)
+
 **A browser instrument that generates endless, slowly-evolving ambient soundscapes — set a few sliders and let it drift. Good for focus, sleep, or background calm.**
 
 ### ▶︎ [Hear it in 10 seconds → anneal.averykarlin.org](https://anneal.averykarlin.org/)
@@ -311,36 +315,66 @@ Moderation + the minimal `/admin` panel are documented in
 [`docs/MODERATION.md`](docs/MODERATION.md) and [`docs/ADMIN.md`](docs/ADMIN.md);
 design rationale is in [`docs/v0.8-PLAN.md`](docs/v0.8-PLAN.md).
 
-## Deploy
+## Continuous Integration & Deployment (CI/CD)
 
-Production target: **Google Cloud — Firebase Hosting** (static SPA, global CDN,
-managed TLS). The deploy workflow (`.github/workflows/deploy.yml`) triggers when
-CI succeeds on `main`, then builds and deploys `dist/`. Production builds emit no
-source maps (`vite.config.ts` → `build.sourcemap: false`).
+AnnealMusic uses GitHub Actions to automate quality gates and continuous delivery. Every pull request and push to the main branch triggers automated validation sweeps across both the client and API layers.
 
-### One-time setup
+### GitHub Workflows
 
-1. Create a Firebase project and enable Hosting. Set its project id as the
-   `default` in [`.firebaserc`](.firebaserc) (currently `annealmusic`) and as the
-   `projectId` in the deploy workflow.
-2. Create a service account with the **Firebase Hosting Admin** role, download
-   its JSON key, and add it as the `FIREBASE_SERVICE_ACCOUNT` GitHub Actions
-   secret. (`firebase init hosting:github` can generate this for you.)
-3. Push to `main` — once CI is green the deploy workflow publishes to the `live`
-   channel.
+The repository runs three specialized pipelines:
 
-### DNS for `anneal.averykarlin.org`
+#### 1. Client CI (`.github/workflows/ci.yml`)
 
-Custom-domain records are issued per-project by Firebase Hosting when you add
-the domain in the console. Typically:
+Runs on all pushes and pull requests to ensure the frontend compiles and matches our quality criteria:
 
-1. Add `anneal.averykarlin.org` under Hosting → Add custom domain.
-2. Add the **TXT** record Firebase provides to verify ownership.
-3. Add the **A** records (Firebase's hosting IPs) — or the **CNAME** target
-   Firebase provides — at your DNS provider for the `anneal` subdomain.
-4. Wait for the managed certificate to provision.
+- **Environment**: Node.js 20 on `ubuntu-latest`.
+- **Dependencies**: Restored cleanly via `npm ci` with caching.
+- **Linting**: ESLint checks code quality (`npm run lint`).
+- **Typechecking**: Strict TypeScript validation (`npm run typecheck`).
+- **Testing**: Runs the Vitest test suite (`npm run test -- --run`) testing 338+ individual cases.
+  > [!NOTE]
+  > Native `localStorage` and `sessionStorage` in Node.js 22+/25+ can clash with JSDOM's virtual implementations. We use a custom memory-backed storage override in [setup.ts](file:///Users/averykarlin/annealMusic/src/test/setup.ts) to guarantee consistent test environments in CI.
+- **Production Build**: Compiles AudioWorklets, compiles TypeScript bundles, and outputs static assets (`npm run build`).
+- **Embed Size Gate**: Verifies that the React-free embed bundle stays within its performance budget (`npm run check:embed-size` < 50 KB).
 
-> No DNS changes are made by this repo; configure them at your DNS provider.
+#### 2. API CI (`.github/workflows/api.yml`)
+
+Validates the FastAPI backend, database migrations, and schema schema contracts:
+
+- **Testing**: Boots up Python 3.12 and runs the pytest suite (`pytest -q`).
+- **Database Migrations**: Provisions a temporary live PostgreSQL container service, applies Alembic migrations, and verifies the schema is successfully upgraded to the latest revision.
+- **Schema Contract Drift Guard**: Generates the latest JSON schema manifest (`npm run gen:schema`) and checks for code drift against `schema/` (`git diff --exit-code schema/`). This ensures the client-side TypeScript definitions and the backend Python validator are always in 100% agreement.
+- **Deploy Verification**: Verifies the deployment readiness state once pushed to production by querying `/readyz`.
+
+#### 3. Deploy & CD (`.github/workflows/deploy.yml`)
+
+Automates publishing of the stable client to global CDNs:
+
+- **Trigger**: Runs only after a successful execution of the main **CI** workflow on the `main` branch.
+- **Build**: Compiles the final production-ready assets to `dist/`.
+- **Deployment**: Leverages the official Firebase action to push to **Google Cloud Firebase Hosting** under the `live` channel.
+
+---
+
+### Setup & Deploy Guide
+
+To configure the automatic deployment pipeline for your fork or environment:
+
+#### 1. Firebase Configuration
+
+1. Initialize or select a project in the [Firebase Console](https://console.firebase.google.com/).
+2. Add your project ID to [`.firebaserc`](file:///Users/averykarlin/annealMusic/.firebaserc) as the `default` key (e.g. `annealmusic`) and reference it in `.github/workflows/deploy.yml`'s `projectId`.
+3. Create a Google Cloud Service Account with the **Firebase Hosting Admin** role, export its JSON key, and add it as the `FIREBASE_SERVICE_ACCOUNT` repository secret in your GitHub settings.
+4. Git push to `main` — once the `CI` workflow is green, the `Deploy` workflow will release the project.
+
+#### 2. DNS & Custom Domains
+
+Custom domains are served with managed SSL/TLS automatically. To bind `anneal.averykarlin.org`:
+
+1. In the Firebase Hosting console, select **Add Custom Domain**.
+2. Create the recommended **TXT** record at your DNS provider to verify ownership.
+3. Configure the **A** records or **CNAME** pointers issued by Firebase at your domain registrar.
+4. The SSL certificate will automatically provision and activate (typically within a few hours).
 
 ## Contributing
 

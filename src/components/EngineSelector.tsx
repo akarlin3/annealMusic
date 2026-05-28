@@ -13,6 +13,8 @@ const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
   fm: 'Frequency modulation with operator self-feedback. Produces metallic, glass-like, and harmonically rich timbres.',
   granular:
     'Splices acoustic and synthetic source files into micro-grains. Generates lush, atmospheric, and cloud-like textures.',
+  physical:
+    'Digital waveguides and modal resonators (string, tube, plate) excited by continuous noise. Recreates acoustic instrument physics.',
 };
 
 /**
