@@ -90,6 +90,8 @@ export const FEATURE_IDS = [
   // Gallery & sharing
   'feature.gallery',
   'feature.share',
+  // Presets
+  'presets',
 ] as const;
 
 /** The one-sentence pitch, mirrored by the README and the Help panel intro. */
@@ -555,6 +557,15 @@ const ENTRIES: Explain[] = [
     tooltip:
       'Copies a link holding all your current settings. Anyone who opens it hears the same soundscape.',
     help: 'Copies a link that captures all your current settings. Send it to a friend and it opens to the exact same soundscape you built — no account or download needed. (Your live recording is not included, just the settings.)',
+  },
+  {
+    id: 'presets',
+    label: 'Presets',
+    group: 'sound',
+    caption: 'Ready-made sound settings to instantly change the vibe.',
+    tooltip:
+      'Curated sound profiles that set the core note, synthesis parameters, and active engine.',
+    help: 'Saves you time by instantly loading a complete soundscape. Click any preset to change the active engine, core frequency, and slider settings at once.',
   },
 ];
 

@@ -16,6 +16,7 @@ import LoopPedal from '@/components/LoopPedal';
 import EngineSelector from '@/components/EngineSelector';
 import ModeToggle from '@/components/ModeToggle';
 import ArcPanel from '@/components/ArcPanel';
+import PresetsPanel from '@/components/PresetsPanel';
 import ArchitectureDiagram from '@/components/ArchitectureDiagram';
 import CopyLinkButton from '@/components/CopyLinkButton';
 import SavePatchButton from '@/components/SavePatchButton';
@@ -321,6 +322,8 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        <PresetsPanel showToast={showToast} disabled={arcLocked} />
 
         {sessionMode === 'arc' && (
           <ArcPanel
