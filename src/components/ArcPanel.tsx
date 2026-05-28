@@ -1,5 +1,6 @@
 import { ARC_DURATION, PRESET_ARCS, getArcById } from '@/session/arcs';
 import { engineCapabilities } from '@/audio/engines/index';
+import InfoTip from '@/components/InfoTip';
 import type { ArcTargetKey } from '@/session/types';
 import type { EngineId } from '@/audio/engines/types';
 
@@ -50,6 +51,15 @@ export default function ArcPanel({
       className="mt-6 transition-opacity duration-300"
       style={{ opacity: disabled ? 0.6 : 1 }}
     >
+      <div className="mb-2 flex items-center gap-1.5">
+        <span
+          className="font-mono text-[10px] uppercase tracking-[0.22em]"
+          style={{ color: '#78716c' }}
+        >
+          Journey
+        </span>
+        <InfoTip id="arc.preset" label="Journey" />
+      </div>
       <div
         role="radiogroup"
         aria-label="Preset arc"
@@ -91,12 +101,15 @@ export default function ArcPanel({
 
       <div className="mt-6 max-w-xs">
         <div className="mb-1.5 flex items-baseline justify-between">
-          <label
-            className="font-mono text-[10px] uppercase tracking-[0.22em]"
-            style={{ color: '#78716c' }}
-          >
-            Duration
-          </label>
+          <span className="flex items-center gap-1.5">
+            <label
+              className="font-mono text-[10px] uppercase tracking-[0.22em]"
+              style={{ color: '#78716c' }}
+            >
+              Duration
+            </label>
+            <InfoTip id="arc.duration" label="Duration" />
+          </span>
           <span
             className="font-mono text-[11px] tabular-nums"
             style={{ color: disabled ? '#57534e' : '#fbbf24' }}

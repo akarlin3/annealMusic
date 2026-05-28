@@ -13,6 +13,8 @@ import {
 import type { EngineId, EngineParams } from '@/audio/engines/types';
 import SourcePicker from '@/components/SourcePicker';
 import { PHYSICAL_MODELS } from '@/audio/engines/physical';
+import InfoTip from '@/components/InfoTip';
+import ControlCaption from '@/components/ControlCaption';
 
 interface ControlPanelProps {
   params: AnnealMusicParams;
@@ -23,6 +25,11 @@ interface ControlPanelProps {
   setEngineParam: (key: string, value: number) => void;
   /** While an arc runs, all sculpt controls are read-only (live values shown). */
   arcLocked?: boolean;
+  /**
+   * Whether to render the always-visible captions under each control. Default on
+   * for the main app; the minimal embed surface can pass `false` to save space.
+   */
+  showCaptions?: boolean;
 }
 
 const GROUPS: ControlGroup[] = ['Pitch', 'Physics', 'Tone'];
@@ -41,31 +48,42 @@ function Slider({
   value,
   disabled,
   lockLabel = 'locked',
+  explainId,
+  showCaption = true,
+  tourId,
   onChange,
 }: {
   def: SliderDef;
   value: number;
   disabled: boolean;
   lockLabel?: string;
+  /** Explanation id for the info tooltip + caption (omit to show neither). */
+  explainId?: string;
+  showCaption?: boolean;
+  /** Optional marker so the first-run tour can spotlight this control. */
+  tourId?: string;
   onChange: (v: number) => void;
 }) {
   return (
-    <div>
+    <div data-tour={tourId}>
       <div className="mb-1.5 flex items-baseline justify-between">
-        <label
-          className="text-[13px]"
-          style={{ color: disabled ? '#57534e' : '#d6d3d1' }}
-        >
-          {def.label}
-          {disabled && (
-            <span
-              className="ml-2 font-mono text-[9px] uppercase tracking-[0.18em]"
-              style={{ color: '#57534e' }}
-            >
-              {lockLabel}
-            </span>
-          )}
-        </label>
+        <span className="flex items-center gap-1.5">
+          <label
+            className="text-[13px]"
+            style={{ color: disabled ? '#57534e' : '#d6d3d1' }}
+          >
+            {def.label}
+            {disabled && (
+              <span
+                className="ml-2 font-mono text-[9px] uppercase tracking-[0.18em]"
+                style={{ color: '#57534e' }}
+              >
+                {lockLabel}
+              </span>
+            )}
+          </label>
+          {explainId && <InfoTip id={explainId} label={def.label} />}
+        </span>
         <span
           className="font-mono text-[11px] tabular-nums"
           style={{ color: disabled ? '#57534e' : '#fbbf24' }}
@@ -83,6 +101,7 @@ function Slider({
         disabled={disabled}
         onChange={(e) => onChange(parseFloat(e.target.value))}
       />
+      {explainId && showCaption && <ControlCaption id={explainId} />}
     </div>
   );
 }
@@ -157,6 +176,7 @@ export default function ControlPanel({
   engineParams,
   setEngineParam,
   arcLocked = false,
+  showCaptions = true,
 }: ControlPanelProps) {
   const caps = engineCapabilities(engineId);
   const structuralLock = isPlaying && caps.densityLockedWhilePlaying;
@@ -183,6 +203,9 @@ export default function ControlPanel({
                     arcLocked || (Boolean(c.lockWhilePlaying) && structuralLock)
                   }
                   lockLabel={arcLocked ? 'arc' : 'locked'}
+                  explainId={c.key}
+                  showCaption={showCaptions}
+                  tourId={c.key}
                   onChange={(v) => setParam(c.key, v)}
                 />
               ))}
@@ -215,21 +238,41 @@ export default function ControlPanel({
           </div>
           {engineId === 'granular' && (
             <div className="mb-6">
+              <div className="mb-2 flex items-center gap-1.5">
+                <span
+                  className="font-mono text-[10px] uppercase tracking-[0.18em]"
+                  style={{ color: '#78716c' }}
+                >
+                  Source
+                </span>
+                <InfoTip id="granular.source" label="Source" />
+              </div>
               <SourcePicker
                 value={engineParams.source ?? 0}
                 disabled={arcLocked}
                 isPlaying={isPlaying}
                 onChange={(idx) => setEngineParam('source', idx)}
               />
+              {showCaptions && <ControlCaption id="granular.source" />}
             </div>
           )}
           {engineId === 'physical' && (
             <div className="mb-6">
+              <div className="mb-2 flex items-center gap-1.5">
+                <span
+                  className="font-mono text-[10px] uppercase tracking-[0.18em]"
+                  style={{ color: '#78716c' }}
+                >
+                  Model
+                </span>
+                <InfoTip id="physical.model" label="Model" />
+              </div>
               <ModelPicker
                 value={engineParams.model ?? 0}
                 disabled={arcLocked}
                 onChange={(idx) => setEngineParam('model', idx)}
               />
+              {showCaptions && <ControlCaption id="physical.model" />}
             </div>
           )}
           <div className="space-y-5">
@@ -242,6 +285,8 @@ export default function ControlPanel({
                   value={engineParams[def.key] ?? def.default}
                   disabled={arcLocked}
                   lockLabel="arc"
+                  explainId={`${engineId}.${def.key}`}
+                  showCaption={showCaptions}
                   onChange={(v) => setEngineParam(def.key, v)}
                 />
               ))}
@@ -251,12 +296,15 @@ export default function ControlPanel({
 
       <div className="mt-10 max-w-xs">
         <div className="mb-1.5 flex items-baseline justify-between">
-          <label
-            className="font-mono text-[10px] uppercase tracking-[0.22em]"
-            style={{ color: '#78716c' }}
-          >
-            {VOLUME_DEF.label}
-          </label>
+          <span className="flex items-center gap-1.5">
+            <label
+              className="font-mono text-[10px] uppercase tracking-[0.22em]"
+              style={{ color: '#78716c' }}
+            >
+              {VOLUME_DEF.label}
+            </label>
+            <InfoTip id="volume" label={VOLUME_DEF.label} />
+          </span>
           <span
             className="font-mono text-[11px] tabular-nums"
             style={{ color: '#a8a29e' }}
@@ -273,6 +321,7 @@ export default function ControlPanel({
           value={params.volume}
           onChange={(e) => setParam('volume', parseFloat(e.target.value))}
         />
+        {showCaptions && <ControlCaption id="volume" />}
       </div>
     </>
   );

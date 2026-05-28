@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import InfoTip from '@/components/InfoTip';
 
 interface EmbedDialogProps {
   /** Patch slug or id for the `/embed/<slug>` URL. */
@@ -55,10 +56,11 @@ export default function EmbedDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <h2
-          className="mb-4 font-mono text-[11px] uppercase tracking-[0.22em]"
+          className="mb-4 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.22em]"
           style={{ color: '#fef3c7' }}
         >
           Embed this patch
+          <InfoTip id="embed.code" label="Embed code" />
         </h2>
 
         <div className="mb-3 flex flex-wrap gap-2">

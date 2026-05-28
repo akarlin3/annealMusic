@@ -1,5 +1,6 @@
 import { Headphones, Mic, MicOff } from 'lucide-react';
 import LevelMeter from '@/components/LevelMeter';
+import InfoTip from '@/components/InfoTip';
 import type { InputApi } from '@/hooks/useInput';
 
 interface InputPanelProps {
@@ -48,6 +49,7 @@ export default function InputPanel({ input }: InputPanelProps) {
         <span className={labelCaps} style={{ color: '#78716c' }}>
           Input
         </span>
+        <InfoTip id="input.connect" label="live input" />
       </div>
 
       {(state === 'idle' || state === 'prompting') && (
@@ -113,9 +115,12 @@ export default function InputPanel({ input }: InputPanelProps) {
       {state === 'connected' && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className={labelCaps} style={{ color: '#78716c' }}>
-              Device
-            </label>
+            <span className="flex items-center gap-1.5">
+              <label className={labelCaps} style={{ color: '#78716c' }}>
+                Device
+              </label>
+              <InfoTip id="input.device" label="Device" />
+            </span>
             <select
               aria-label="Input device"
               value={deviceId ?? ''}
@@ -144,9 +149,12 @@ export default function InputPanel({ input }: InputPanelProps) {
 
           <div className="max-w-xs">
             <div className="mb-1.5 flex items-baseline justify-between">
-              <label className="text-[13px]" style={{ color: '#d6d3d1' }}>
-                Input Level
-              </label>
+              <span className="flex items-center gap-1.5">
+                <label className="text-[13px]" style={{ color: '#d6d3d1' }}>
+                  Input Level
+                </label>
+                <InfoTip id="input.level" label="Input Level" />
+              </span>
               <span
                 className="font-mono text-[11px] tabular-nums"
                 style={{ color: '#fbbf24' }}
@@ -167,31 +175,38 @@ export default function InputPanel({ input }: InputPanelProps) {
           </div>
 
           <div className="flex items-center justify-between">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={monitoring}
-              aria-label="Monitoring"
-              onClick={() => setMonitoring(!monitoring)}
-              title="Monitoring plays your input through the speakers. Use headphones to avoid feedback."
-              className="flex items-center gap-2 rounded-full px-3 py-1.5 transition-all"
-              style={{
-                background: monitoring
-                  ? 'rgba(245, 158, 11, 0.12)'
-                  : 'transparent',
-                border: '1px solid #44403c',
-                color: monitoring ? '#fef3c7' : '#78716c',
-              }}
-            >
-              {monitoring ? (
-                <Mic size={12} strokeWidth={1.5} style={{ color: '#f59e0b' }} />
-              ) : (
-                <MicOff size={12} strokeWidth={1.5} />
-              )}
-              <span className={labelCaps}>
-                Monitoring {monitoring ? 'on' : 'off'}
-              </span>
-            </button>
+            <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={monitoring}
+                aria-label="Monitoring"
+                onClick={() => setMonitoring(!monitoring)}
+                title="Monitoring plays your input through the speakers. Use headphones to avoid feedback."
+                className="flex items-center gap-2 rounded-full px-3 py-1.5 transition-all"
+                style={{
+                  background: monitoring
+                    ? 'rgba(245, 158, 11, 0.12)'
+                    : 'transparent',
+                  border: '1px solid #44403c',
+                  color: monitoring ? '#fef3c7' : '#78716c',
+                }}
+              >
+                {monitoring ? (
+                  <Mic
+                    size={12}
+                    strokeWidth={1.5}
+                    style={{ color: '#f59e0b' }}
+                  />
+                ) : (
+                  <MicOff size={12} strokeWidth={1.5} />
+                )}
+                <span className={labelCaps}>
+                  Monitoring {monitoring ? 'on' : 'off'}
+                </span>
+              </button>
+              <InfoTip id="input.monitoring" label="Monitoring" />
+            </span>
 
             <button
               type="button"
@@ -203,8 +218,12 @@ export default function InputPanel({ input }: InputPanelProps) {
             </button>
           </div>
 
-          <div className={labelCaps} style={{ color: '#57534e' }}>
+          <div
+            className={`flex items-center gap-1.5 ${labelCaps}`}
+            style={{ color: '#57534e' }}
+          >
             ~{latencyMs} MS INPUT LATENCY · ESTIMATE
+            <InfoTip id="input.latency" label="Latency" />
           </div>
         </div>
       )}

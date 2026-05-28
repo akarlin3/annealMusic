@@ -1,6 +1,7 @@
 import { Circle, Snowflake, Trash2, Volume2, VolumeX } from 'lucide-react';
 import LevelMeter from '@/components/LevelMeter';
 import WaveformThumbnail from '@/components/WaveformThumbnail';
+import InfoTip from '@/components/InfoTip';
 import { GRAIN_BOUNDS, type GrainParams, type SlotId } from '@/loop/types';
 import type { LoopsApi, SlotView } from '@/hooks/useLoops';
 
@@ -48,6 +49,8 @@ interface GrainSliderProps {
   max: number;
   step: number;
   fmt: (v: number) => string;
+  /** Explanation id for the info tooltip. */
+  explainId: string;
   onChange: (v: number) => void;
 }
 
@@ -58,14 +61,18 @@ function GrainSlider({
   max,
   step,
   fmt,
+  explainId,
   onChange,
 }: GrainSliderProps) {
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between">
-        <label className="text-[12px]" style={{ color: '#d6d3d1' }}>
-          {label}
-        </label>
+        <span className="flex items-center gap-1.5">
+          <label className="text-[12px]" style={{ color: '#d6d3d1' }}>
+            {label}
+          </label>
+          <InfoTip id={explainId} label={label} />
+        </span>
         <span
           className="font-mono text-[11px] tabular-nums"
           style={{ color: '#fbbf24' }}
@@ -191,10 +198,11 @@ export default function LoopSlotCard({
             color: isFrozen ? '#7dd3fc' : '#78716c',
             opacity: !hasBuffer || isMuted ? 0.4 : 1,
           }}
-          title="Freeze (granular)"
+          title="Freeze into an endless drone"
         >
           <Snowflake size={13} strokeWidth={1.5} />
         </button>
+        <InfoTip id="loop.freeze" label="Freeze" />
 
         <button
           type="button"
@@ -240,6 +248,7 @@ export default function LoopSlotCard({
         <div className="flex flex-col gap-2.5 pt-1">
           <GrainSlider
             label="Grain size"
+            explainId="loop.grainSize"
             value={grain.sizeMs}
             min={GRAIN_BOUNDS.sizeMs.min}
             max={GRAIN_BOUNDS.sizeMs.max}
@@ -249,6 +258,7 @@ export default function LoopSlotCard({
           />
           <GrainSlider
             label="Density"
+            explainId="loop.grainDensity"
             value={grain.density}
             min={GRAIN_BOUNDS.density.min}
             max={GRAIN_BOUNDS.density.max}
@@ -258,6 +268,7 @@ export default function LoopSlotCard({
           />
           <GrainSlider
             label="Position jitter"
+            explainId="loop.posJitter"
             value={grain.posJitter}
             min={GRAIN_BOUNDS.posJitter.min}
             max={GRAIN_BOUNDS.posJitter.max}
@@ -267,6 +278,7 @@ export default function LoopSlotCard({
           />
           <GrainSlider
             label="Pitch jitter"
+            explainId="loop.pitchJitter"
             value={grain.pitchJitter}
             min={GRAIN_BOUNDS.pitchJitter.min}
             max={GRAIN_BOUNDS.pitchJitter.max}
@@ -274,25 +286,28 @@ export default function LoopSlotCard({
             fmt={(v) => `${v.toFixed(0)}¢`}
             onChange={(v) => setGrain({ pitchJitter: v })}
           />
-          <button
-            type="button"
-            role="switch"
-            aria-checked={config.driftCoupled}
-            onClick={() => api.setDriftCoupled(id, !config.driftCoupled)}
-            className="self-start rounded-full px-3 py-1 transition-all"
-            style={{
-              background: config.driftCoupled
-                ? 'rgba(245, 158, 11, 0.12)'
-                : 'transparent',
-              border: '1px solid #44403c',
-              color: config.driftCoupled ? '#fef3c7' : '#78716c',
-            }}
-            title="Couple grain wander to the drift field"
-          >
-            <span className={labelCaps}>
-              Drift-coupled {config.driftCoupled ? 'on' : 'off'}
-            </span>
-          </button>
+          <span className="flex items-center gap-1.5 self-start">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={config.driftCoupled}
+              onClick={() => api.setDriftCoupled(id, !config.driftCoupled)}
+              className="rounded-full px-3 py-1 transition-all"
+              style={{
+                background: config.driftCoupled
+                  ? 'rgba(245, 158, 11, 0.12)'
+                  : 'transparent',
+                border: '1px solid #44403c',
+                color: config.driftCoupled ? '#fef3c7' : '#78716c',
+              }}
+              title="Couple grain wander to the drift field"
+            >
+              <span className={labelCaps}>
+                Drift-coupled {config.driftCoupled ? 'on' : 'off'}
+              </span>
+            </button>
+            <InfoTip id="loop.driftCoupled" label="Drift-coupled" />
+          </span>
         </div>
       )}
     </div>
