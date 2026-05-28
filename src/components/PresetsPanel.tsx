@@ -1,6 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Sparkles, Sliders, ChevronDown, ChevronUp } from 'lucide-react';
-import { PRESET_SOUNDS, type MusicPreset } from '@/content/presets';
+import {
+  PRESET_CATEGORIES,
+  PRESET_SOUNDS,
+  type MusicPreset,
+} from '@/content/presets';
 import { useParamStore, type AnnealMusicParams } from '@/state/params';
 import type { EngineId } from '@/audio/engines/types';
 import InfoTip from '@/components/InfoTip';
@@ -43,6 +47,8 @@ export default function PresetsPanel({
   disabled = false,
 }: PresetsPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [activeCategoryId, setActiveCategoryId] =
+    useState<string>('ambient-space');
 
   const params = useParamStore((s) => s.params);
   const engineId = useParamStore((s) => s.engineId);
@@ -57,6 +63,18 @@ export default function PresetsPanel({
       isPresetActive(p, params, engineId, allEngineParams[p.engineId] ?? {}),
     );
   }, [params, engineId, allEngineParams]);
+
+  // Sync category tab if activePreset is found in another category (e.g. on external link hydration)
+  useEffect(() => {
+    if (activePreset) {
+      const parentCat = PRESET_CATEGORIES.find((cat) =>
+        cat.presets.some((p) => p.id === activePreset.id),
+      );
+      if (parentCat && parentCat.id !== activeCategoryId) {
+        setActiveCategoryId(parentCat.id);
+      }
+    }
+  }, [activePreset, activeCategoryId]);
 
   const handleSelectPreset = (preset: MusicPreset) => {
     if (disabled) return;
@@ -130,11 +148,65 @@ export default function PresetsPanel({
         </button>
       </div>
 
+      {/* Category Tabs Switcher */}
+      {!collapsed && (
+        <div
+          className="mt-4 flex flex-wrap gap-1 p-1 rounded-lg border"
+          style={{
+            background: 'rgba(28, 25, 23, 0.4)',
+            borderColor: '#292524',
+          }}
+        >
+          {PRESET_CATEGORIES.map((cat) => {
+            const isSelected = activeCategoryId === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                disabled={disabled}
+                onClick={() => setActiveCategoryId(cat.id)}
+                className="flex-1 min-w-[110px] px-2.5 py-1.5 rounded-md font-mono text-[9px] uppercase tracking-[0.1em] font-semibold text-center transition-all duration-200"
+                style={{
+                  background: isSelected
+                    ? 'rgba(245, 158, 11, 0.08)'
+                    : 'transparent',
+                  color: isSelected ? '#fbbf24' : '#78716c',
+                  border: isSelected
+                    ? '1px solid rgba(245, 158, 11, 0.2)'
+                    : '1px solid transparent',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Category Description */}
+      {!collapsed && (
+        <p
+          className="mt-2.5 px-1 font-mono text-[9px] uppercase tracking-[0.05em] transition-all duration-300"
+          style={{ color: '#57534e' }}
+        >
+          {
+            PRESET_CATEGORIES.find((c) => c.id === activeCategoryId)
+              ?.description
+          }
+        </p>
+      )}
+
       {/* Expanded Grid */}
       {!collapsed && (
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {PRESET_SOUNDS.map((preset) => {
             const active = activePreset?.id === preset.id;
+            const parentCat = PRESET_CATEGORIES.find((cat) =>
+              cat.presets.some((p) => p.id === preset.id),
+            );
+            const isVisible = parentCat?.id === activeCategoryId;
+
             return (
               <button
                 key={preset.id}
@@ -145,6 +217,7 @@ export default function PresetsPanel({
                 onClick={() => handleSelectPreset(preset)}
                 className="group relative flex flex-col justify-between rounded-lg p-3 text-left transition-all duration-200"
                 style={{
+                  display: isVisible ? 'flex' : 'none',
                   background: active
                     ? 'rgba(245, 158, 11, 0.08)'
                     : 'rgba(28, 25, 23, 0.5)',
@@ -156,7 +229,7 @@ export default function PresetsPanel({
                 }}
               >
                 {/* Title & Badge */}
-                <div>
+                <div className="w-full">
                   <div className="flex items-center justify-between gap-1">
                     <span
                       className="font-body text-xs font-medium transition-colors group-hover:text-amber-300"
@@ -191,7 +264,7 @@ export default function PresetsPanel({
 
                 {/* Footer specs */}
                 <div
-                  className="mt-3 flex items-center justify-between border-t pt-2 font-mono text-[8px] uppercase tracking-[0.1em]"
+                  className="mt-3 w-full flex items-center justify-between border-t pt-2 font-mono text-[8px] uppercase tracking-[0.1em]"
                   style={{
                     borderColor: active
                       ? 'rgba(245, 158, 11, 0.15)'
