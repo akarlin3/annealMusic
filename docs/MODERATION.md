@@ -31,10 +31,10 @@ has its own strict, manifest-driven validator (`app/validation.py`).
   - disappears from the gallery listing (the gallery only lists `public`), within
     the gallery cache TTL (30–60 s);
   - returns `403 under_review` from its short-link read (`GET
-    /patches/:idOrSlug`) — the creator's own link included — instead of a 404, so
+/patches/:idOrSlug`) — the creator's own link included — instead of a 404, so
     the SPA can show a "this patch is under review" state.
 - A moderator can later restore a patch with `PATCH
-  /api/v1/admin/patches/:id/visibility { visibility: 'public' }` (no re-screening —
+/api/v1/admin/patches/:id/visibility { visibility: 'public' }` (no re-screening —
   it's an explicit override), which re-publishes and re-renders the preview.
 
 ## Operator runbook

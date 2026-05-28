@@ -47,7 +47,11 @@ export default function ReportDialog({ patchId, onClose, onDone }: Props) {
           <h2 className="font-display text-xl" style={{ color: '#fef3c7' }}>
             Report patch
           </h2>
-          <button aria-label="Close" onClick={onClose} style={{ color: '#78716c' }}>
+          <button
+            aria-label="Close"
+            onClick={onClose}
+            style={{ color: '#78716c' }}
+          >
             <X size={16} />
           </button>
         </div>

@@ -8,6 +8,13 @@ interface EngineSelectorProps {
   disabled?: boolean;
 }
 
+const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
+  sine: 'Organic coupled oscillators drifting over a harmonic lattice. Frequencies dynamically lock and phase-couple.',
+  fm: 'Frequency modulation with operator self-feedback. Produces metallic, glass-like, and harmonically rich timbres.',
+  granular:
+    'Splices acoustic and synthetic source files into micro-grains. Generates lush, atmospheric, and cloud-like textures.',
+};
+
 /**
  * Segmented control for picking the active synthesis engine. Selecting a
  * segment dispatches an engine change (the orchestrator crossfades if playing).
@@ -53,24 +60,41 @@ export default function EngineSelector({
     >
       {ENGINE_ORDER.map((id) => {
         const active = id === engineId;
+        const label = ENGINE_LABELS[id];
+        const description = ENGINE_DESCRIPTIONS[id];
         return (
-          <button
-            key={id}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            tabIndex={active ? 0 : -1}
-            disabled={disabled}
-            onClick={() => setEngine(id)}
-            className="rounded-full px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.2em] transition-all"
-            style={{
-              background: active ? '#f59e0b' : 'transparent',
-              color: active ? '#0c0a09' : '#78716c',
-              cursor: disabled ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {ENGINE_LABELS[id]}
-          </button>
+          <div key={id} className="relative group">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active}
+              tabIndex={active ? 0 : -1}
+              disabled={disabled}
+              onClick={() => setEngine(id)}
+              aria-describedby={`tooltip-engine-${id}`}
+              className="rounded-full px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.2em] transition-all hover:text-[#fef3c7] focus-visible:text-[#fef3c7] outline-none"
+              style={{
+                background: active ? '#f59e0b' : 'transparent',
+                color: active ? '#0c0a09' : undefined,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {label}
+            </button>
+
+            {/* Premium Tooltip */}
+            <div
+              id={`tooltip-engine-${id}`}
+              role="tooltip"
+              className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-64 -translate-x-1/2 translate-y-1 scale-95 rounded-lg border border-[#292524] bg-[#0c0a09]/95 p-3 text-left font-body text-xs leading-relaxed text-[#e7e5e4] opacity-0 shadow-2xl backdrop-blur-md transition-all duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100 z-50"
+            >
+              <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#f59e0b] mb-1">
+                {label} Engine
+              </div>
+              <div className="text-[#a8a29e]">{description}</div>
+              <div className="absolute top-full left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 border-b border-r border-[#292524] bg-[#0c0a09]" />
+            </div>
+          </div>
         );
       })}
     </div>

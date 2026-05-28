@@ -66,9 +66,13 @@ export const adminApi = {
     reportId: string,
     status: 'dismissed' | 'upheld',
   ): Promise<void> {
-    await adminFetch(`/api/v1/admin/reports/${encodeURIComponent(reportId)}`, key, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
+    await adminFetch(
+      `/api/v1/admin/reports/${encodeURIComponent(reportId)}`,
+      key,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      },
+    );
   },
 };

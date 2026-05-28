@@ -19,7 +19,10 @@ export default function AdminPage() {
     try {
       setReports(await adminApi.listReports(k));
     } catch (err) {
-      if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
+      if (
+        err instanceof ApiError &&
+        (err.status === 401 || err.status === 404)
+      ) {
         sessionStorage.removeItem(KEY_STORAGE);
         setKey(null);
         setError('Invalid admin key');
@@ -52,7 +55,10 @@ export default function AdminPage() {
     return (
       <Shell>
         <div className="mx-auto max-w-sm pt-24">
-          <h1 className="mb-4 font-display text-3xl" style={{ color: '#fef3c7' }}>
+          <h1
+            className="mb-4 font-display text-3xl"
+            style={{ color: '#fef3c7' }}
+          >
             Admin
           </h1>
           <input
@@ -63,7 +69,11 @@ export default function AdminPage() {
             onChange={(e) => setKeyInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submitKey()}
             className="mb-3 w-full rounded-md p-2 text-sm outline-none"
-            style={{ background: '#1c1917', border: '1px solid #44403c', color: '#e7e5e4' }}
+            style={{
+              background: '#1c1917',
+              border: '1px solid #44403c',
+              color: '#e7e5e4',
+            }}
           />
           {error && (
             <p className="mb-3 text-sm" style={{ color: '#fca5a5' }}>
@@ -120,11 +130,18 @@ export default function AdminPage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="font-display text-lg" style={{ color: '#fef3c7' }}>
+                  <div
+                    className="font-display text-lg"
+                    style={{ color: '#fef3c7' }}
+                  >
                     {r.patch_title || 'Untitled'}
                   </div>
-                  <div className="mt-1 font-mono text-[11px]" style={{ color: '#a8a29e' }}>
-                    {r.reason} · {r.reporter} · {new Date(r.created_at).toLocaleString()}
+                  <div
+                    className="mt-1 font-mono text-[11px]"
+                    style={{ color: '#a8a29e' }}
+                  >
+                    {r.reason} · {r.reporter} ·{' '}
+                    {new Date(r.created_at).toLocaleString()}
                   </div>
                   {r.detail && (
                     <p className="mt-2 text-sm" style={{ color: '#d6d3d1' }}>
@@ -168,7 +185,10 @@ export default function AdminPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen w-full px-6" style={{ background: '#0c0a09', color: '#f5f5f4' }}>
+    <div
+      className="min-h-screen w-full px-6"
+      style={{ background: '#0c0a09', color: '#f5f5f4' }}
+    >
       {children}
     </div>
   );

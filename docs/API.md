@@ -16,19 +16,19 @@ a write on its own.
 
 Typed JSON bodies: `{ "error": "<code>", ...context }`.
 
-| Status | `error`          | Meaning                                             |
-| ------ | ---------------- | --------------------------------------------------- |
-| 400    | `bad_request`    | malformed input (e.g. upload isn't a valid WAV, bad cursor) |
-| 401    | `unauthorized`   | admin endpoint, missing/wrong `x-admin-key`         |
-| 403    | `forbidden`      | not your resource                                   |
-| 403    | `under_review`   | patch is `flagged` (hidden pending moderation)      |
-| 404    | `not_found`      | unknown id/slug (or admin disabled)                 |
-| 409    | `quota_exceeded` | count or byte quota reached (`resource`, `limit`)   |
-| 413    | `file_too_large` | a single upload exceeds the per-file cap            |
-| 422    | `invalid_state`  | patch payload failed schema validation (`errors[]`) |
-| 422    | `content_rejected` | publish title/description failed screening (`field`) |
-| 429    | `rate_limited`   | hourly rate limit hit                               |
-| 503    | `preview_failed` | preview render failed for this patch                |
+| Status | `error`            | Meaning                                                     |
+| ------ | ------------------ | ----------------------------------------------------------- |
+| 400    | `bad_request`      | malformed input (e.g. upload isn't a valid WAV, bad cursor) |
+| 401    | `unauthorized`     | admin endpoint, missing/wrong `x-admin-key`                 |
+| 403    | `forbidden`        | not your resource                                           |
+| 403    | `under_review`     | patch is `flagged` (hidden pending moderation)              |
+| 404    | `not_found`        | unknown id/slug (or admin disabled)                         |
+| 409    | `quota_exceeded`   | count or byte quota reached (`resource`, `limit`)           |
+| 413    | `file_too_large`   | a single upload exceeds the per-file cap                    |
+| 422    | `invalid_state`    | patch payload failed schema validation (`errors[]`)         |
+| 422    | `content_rejected` | publish title/description failed screening (`field`)        |
+| 429    | `rate_limited`     | hourly rate limit hit                                       |
+| 503    | `preview_failed`   | preview render failed for this patch                        |
 
 ## Health
 
@@ -106,7 +106,7 @@ Public, no auth. Surfaces `visibility: public` patches.
   - `q`: full-text over title+description (Postgres `tsvector`; title weighted).
   - Keyset cursor (page size 24, max 48). A cursor is bound to its `sort` — using
     it with a different sort returns `400`. `Cache-Control: public, max-age=30,
-    stale-while-revalidate=60`.
+stale-while-revalidate=60`.
   - → `{ items: GalleryItem[], next_cursor }`. A `GalleryItem` carries the patch
     `state` (for the card visual), `engine`/`mode`/`has_captures` badges,
     `load_count`, `published_at`, and `preview_status`.
@@ -127,7 +127,7 @@ under_review` from the short-link read.
 ## Reports (v0.8)
 
 - `POST /api/v1/reports` — `{ patch_id, reason: 'spam'|'inappropriate'|'other',
-  detail? }`. Anonymous allowed (reporter recorded from `x-anon-id` if present).
+detail? }`. Anonymous allowed (reporter recorded from `x-anon-id` if present).
   → `201 { id, status: 'open' }`.
 
 ## Admin (v0.8)
@@ -140,7 +140,7 @@ is unset every admin route returns `404` (no oracle that a panel exists).
 - `PATCH /api/v1/admin/reports/:id` — `{ status: 'dismissed' | 'upheld' }`. Uphold
   also sets the patch to `flagged`.
 - `PATCH /api/v1/admin/patches/:id/visibility` — `{ visibility:
-  'unlisted'|'public'|'flagged' }`. Restoring to public re-publishes (no
+'unlisted'|'public'|'flagged' }`. Restoring to public re-publishes (no
   re-screening — admin override).
 
 ## Rate limits & quotas

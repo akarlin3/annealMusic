@@ -34,6 +34,6 @@ The key is compared in constant time against the `x-admin-key` request header.
 - `GET  /api/v1/admin/reports?status=open`
 - `PATCH /api/v1/admin/reports/:id` — `{ status: 'dismissed' | 'upheld' }`
 - `PATCH /api/v1/admin/patches/:id/visibility` — `{ visibility:
-  'unlisted' | 'public' | 'flagged' }` (restore/override; public re-publishes)
+'unlisted' | 'public' | 'flagged' }` (restore/override; public re-publishes)
 
 A wrong/missing key on an enabled panel returns `401 unauthorized`.

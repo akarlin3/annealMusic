@@ -62,7 +62,9 @@ describe('GalleryPage', () => {
     vi.spyOn(galleryApi, 'list').mockRejectedValue(new Error('offline'));
     renderAt('/gallery');
     await waitFor(() =>
-      expect(screen.getByText(/Couldn't reach the gallery/)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/Couldn't reach the gallery/),
+      ).toBeInTheDocument(),
     );
   });
 });
