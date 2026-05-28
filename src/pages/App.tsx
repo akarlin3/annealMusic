@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pause, Play } from 'lucide-react';
+import { HelpCircle, Pause, Play } from 'lucide-react';
 import { useAnnealMusic } from '@/hooks/useAnnealMusic';
 import { useInput } from '@/hooks/useInput';
 import { useLoops } from '@/hooks/useLoops';
@@ -27,6 +27,10 @@ import { useRecorder } from '@/record/useRecorder';
 import RecordControls from '@/record/RecordControls';
 import RecordingDialog from '@/record/RecordingDialog';
 import MyRecordings, { type MyRecordingsHandle } from '@/record/MyRecordings';
+import InfoTip from '@/components/InfoTip';
+import HelpPanel from '@/components/HelpPanel';
+import Tour from '@/components/Tour';
+import { useTour } from '@/hooks/useTour';
 
 function fmtDuration(sec: number): string {
   const total = Math.max(0, Math.round(sec));
@@ -79,6 +83,9 @@ export default function App() {
     }
     return out;
   }, [sessionMode, arcId]);
+
+  const [helpOpen, setHelpOpen] = useState(false);
+  const tour = useTour();
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const toastId = useRef(0);
@@ -188,27 +195,46 @@ export default function App() {
               className="mt-1 max-w-md font-body text-sm"
               style={{ color: '#a8a29e' }}
             >
-              A generative ambient sandbox. Coupled oscillators drift over a
-              harmonic lattice; you sculpt the field.
+              Endless, slowly-shifting ambient soundscapes. Set a few sliders,
+              press play, and let it drift — good for focus, sleep, or calm.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              to="/gallery"
-              className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors"
-              style={{ color: '#a8a29e' }}
+            <button
+              type="button"
+              aria-label="What is AnnealMusic? Open help"
+              onClick={() => setHelpOpen(true)}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all"
+              style={{ border: '1px solid #44403c', color: '#a8a29e' }}
             >
-              Gallery
-            </Link>
+              <HelpCircle size={13} strokeWidth={1.5} />
+              <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                Help
+              </span>
+            </button>
 
-            <CopyLinkButton
-              params={params}
-              engineId={engineId}
-              engineParams={engineParams[engineId] ?? {}}
-              loops={loopConfig}
-              onResult={showToast}
-            />
+            <span className="flex items-center gap-1.5">
+              <Link
+                to="/gallery"
+                className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors"
+                style={{ color: '#a8a29e' }}
+              >
+                Gallery
+              </Link>
+              <InfoTip id="feature.gallery" label="Gallery" />
+            </span>
+
+            <span className="flex items-center gap-1.5">
+              <CopyLinkButton
+                params={params}
+                engineId={engineId}
+                engineParams={engineParams[engineId] ?? {}}
+                loops={loopConfig}
+                onResult={showToast}
+              />
+              <InfoTip id="feature.share" label="Copy link" />
+            </span>
 
             {backendOn && (
               <>
@@ -228,6 +254,7 @@ export default function App() {
             )}
 
             <button
+              data-tour="play"
               onClick={() => (isPlaying ? stopSession() : startSession())}
               className="group flex items-center gap-3 rounded-full px-5 py-2.5 transition-all"
               style={{
@@ -260,11 +287,14 @@ export default function App() {
 
         <div className="mb-6 flex flex-wrap items-center gap-x-8 gap-y-3">
           <div className="flex items-center gap-3">
-            <span
-              className="font-mono text-[10px] uppercase tracking-[0.22em]"
-              style={{ color: '#57534e' }}
-            >
-              Mode
+            <span className="flex items-center gap-1.5">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.22em]"
+                style={{ color: '#57534e' }}
+              >
+                Mode
+              </span>
+              <InfoTip id="mode" label="Mode" />
             </span>
             <ModeToggle
               mode={sessionMode}
@@ -273,17 +303,22 @@ export default function App() {
             />
           </div>
           <div className="flex items-center gap-3">
-            <span
-              className="font-mono text-[10px] uppercase tracking-[0.22em]"
-              style={{ color: '#57534e' }}
-            >
-              Engine
+            <span className="flex items-center gap-1.5">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.22em]"
+                style={{ color: '#57534e' }}
+              >
+                Sound
+              </span>
+              <InfoTip id="engine" label="Sound" />
             </span>
-            <EngineSelector
-              engineId={engineId}
-              setEngine={setEngine}
-              disabled={arcLocked}
-            />
+            <div data-tour="engine">
+              <EngineSelector
+                engineId={engineId}
+                setEngine={setEngine}
+                disabled={arcLocked}
+              />
+            </div>
           </div>
         </div>
 
@@ -347,6 +382,18 @@ export default function App() {
           showToast={showToast}
         />
       )}
+
+      {helpOpen && (
+        <HelpPanel
+          onClose={() => setHelpOpen(false)}
+          onReplayTour={() => {
+            setHelpOpen(false);
+            tour.start();
+          }}
+        />
+      )}
+
+      <Tour tour={tour} />
 
       <Toast toast={toast} onDismiss={dismissToast} />
     </div>

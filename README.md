@@ -1,6 +1,40 @@
 # AnnealMusic
 
-A generative ambient meditation sandbox: coupled oscillators drift over a harmonic lattice while you sculpt the field. Physics-driven sound, audio-reactive visuals.
+**A browser instrument that generates endless, slowly-evolving ambient soundscapes — set a few sliders and let it drift. Good for focus, sleep, or background calm.**
+
+### ▶︎ [Hear it in 10 seconds → anneal.averykarlin.org](https://anneal.averykarlin.org/)
+
+No install, no account, nothing to download. Open the link, press **Begin**, and listen.
+
+![AnnealMusic visualizer](docs/media/demo.gif)
+
+<!-- TODO: replace placeholder with a 6–10s, 800px-wide looping GIF of the visualizer reacting to sound + a slider move. Recipe in scripts/capture-demo.ts. -->
+
+## What you actually do
+
+- **Pick a base note** — the home note everything is tuned to. Lower for deep and weighty, higher for light and airy.
+- **Shape the texture** — a few sliders set how wide, thick, and bright the sound is. Drag and you hear it change.
+- **Set how much it drifts** — at zero it holds still; turn it up and the sound keeps gently reshaping itself with no input from you.
+- **Switch the sound's character** — four different ways to make the raw sound, each with its own personality. And if you want: play along live, loop a phrase, record the result, or share it as a link.
+
+New here? Press the **Help (?)** button in the app for a plain-language guide to every control, or take the 30-second walkthrough that pops up on your first visit.
+
+## Feature tour
+
+- **Four sound characters** — pure and glassy, metallic and bell-like, built from real recordings, or modeled real instruments (strings, pipes, plates). Switch any time.
+- **Sessions & journeys** — play freely forever, or pick a timed "journey" that shapes the sound from gentle open to deep middle to calm finish, all on its own.
+- **Play along live** — bring a guitar, voice, or any mic into the soundscape as another layer (headphones recommended).
+- **Loop pedal** — record a phrase and let it repeat underneath; freeze it into an endless, breathing drone.
+- **Recording** — capture exactly what you hear to a file you can keep or share.
+- **Embed** — drop a tiny play-only player onto your own blog or website.
+- **Gallery** — browse and load soundscapes other people have shared.
+- **Share links** — copy a link that reopens your exact sound for anyone you send it to.
+
+---
+
+## For developers
+
+Everything below is the engineering reference: stack, architecture, engine internals, and dev commands. Under the hood this is a generative ambient sandbox — coupled oscillators drifting over a harmonic lattice — with physics-driven sound and audio-reactive visuals.
 
 ## Tech stack
 

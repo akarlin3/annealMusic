@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Circle, Square } from 'lucide-react';
+import InfoTip from '@/components/InfoTip';
 import type { RecorderApi } from '@/record/useRecorder';
 import type { RecordingFormat } from '@/record/RealtimeRecorder';
 
@@ -26,6 +27,9 @@ export default function RecordControls({
 
   return (
     <div className="flex items-center gap-2">
+      {recorder.state === 'idle' && (
+        <InfoTip id="record.format" label="Format" />
+      )}
       {recorder.state === 'idle' && (
         <div
           role="radiogroup"
@@ -95,6 +99,9 @@ export default function RecordControls({
           </>
         )}
       </button>
+      {recorder.state === 'idle' && (
+        <InfoTip id="record.button" label="Record" />
+      )}
     </div>
   );
 }

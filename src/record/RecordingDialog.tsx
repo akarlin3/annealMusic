@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import InfoTip from '@/components/InfoTip';
 import { api } from '@/api/client';
 import { ApiError, NetworkError, type Visibility } from '@/api/types';
 import type { RealtimeRecording } from '@/record/RealtimeRecorder';
@@ -83,10 +84,11 @@ export default function RecordingDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <h2
-          className="mb-1 font-mono text-[11px] uppercase tracking-[0.22em]"
+          className="mb-1 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.22em]"
           style={{ color: '#fef3c7' }}
         >
           Save recording
+          <InfoTip id="record.save" label="Save recording" />
         </h2>
         <p
           className="mb-4 font-mono text-[10px] uppercase tracking-[0.16em]"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { HelpCircle, Repeat } from 'lucide-react';
 import LoopSlotCard from '@/components/LoopSlotCard';
+import InfoTip from '@/components/InfoTip';
 import { SLOT_IDS, type SlotId } from '@/loop/types';
 import type { LoopsApi } from '@/hooks/useLoops';
 
@@ -64,6 +65,7 @@ export default function LoopPedal({ loops, inputConnected }: LoopPedalProps) {
           <span className={labelCaps} style={{ color: '#78716c' }}>
             Loop Pedal
           </span>
+          <InfoTip id="loop.slot" label="Loop pedal" />
         </div>
         <button
           type="button"
