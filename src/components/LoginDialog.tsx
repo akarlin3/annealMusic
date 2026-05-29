@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthProvider';
 import { X, Mail, Chrome, Github } from 'lucide-react';
 
@@ -198,6 +199,26 @@ export default function LoginDialog({
                 </span>
               </button>
             </div>
+
+            <p className="mt-6 text-center text-[9px] uppercase tracking-[0.08em] text-stone-600 leading-normal">
+              By continuing, you agree to our{' '}
+              <Link
+                to="/legal/terms"
+                onClick={handleClose}
+                className="hover:text-amber-500 underline underline-offset-2 transition-colors"
+              >
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link
+                to="/legal/privacy"
+                onClick={handleClose}
+                className="hover:text-amber-500 underline underline-offset-2 transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </div>
         )}
       </div>

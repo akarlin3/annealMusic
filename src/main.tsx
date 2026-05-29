@@ -7,6 +7,7 @@ import AdminPage from '@/admin/AdminPage';
 import RecordingPage from '@/pages/RecordingPage';
 import AccountSettingsPage from '@/pages/AccountSettingsPage';
 import ProfilePage from '@/pages/ProfilePage';
+import { TermsPage, PrivacyPage } from '@/pages/LegalPages';
 import { AuthProvider } from '@/auth/AuthProvider';
 import '@/styles/index.css';
 
@@ -25,6 +26,8 @@ createRoot(rootEl).render(
           <Route path="/r/:slug" element={<RecordingPage />} />
           <Route path="/account" element={<AccountSettingsPage />} />
           <Route path="/u/:account_id" element={<ProfilePage />} />
+          <Route path="/legal/terms" element={<TermsPage />} />
+          <Route path="/legal/privacy" element={<PrivacyPage />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
