@@ -1,14 +1,14 @@
-# AnnealMusic MIDI CC Output Mapping Table (v1.6)
+# Anneal Ambiance MIDI CC Output Mapping Table (v1.6)
 
-This document standardizes the outgoing Control Change (CC) channels emitted by AnnealMusic. When **Emit CC Streams** is enabled in the MIDI Dashboard, any manual parameter changes or drift-driven automated modulations are streamed on these CC channels.
+This document standardizes the outgoing Control Change (CC) channels emitted by Anneal Ambiance. When **Emit CC Streams** is enabled in the MIDI Dashboard, any manual parameter changes or drift-driven automated modulations are streamed on these CC channels.
 
-This standard layout allows creators to easily record AnnealMusic performances directly into a DAW (e.g. Ableton, Logic, Reaper) as automation lanes alongside multitrack stems, or route them to modulate external physical synthesizers.
+This standard layout allows creators to easily record Anneal Ambiance performances directly into a DAW (e.g. Ableton, Logic, Reaper) as automation lanes alongside multitrack stems, or route them to modulate external physical synthesizers.
 
 ---
 
 ## Standard CC Output Map
 
-By default, AnnealMusic transmits the 8 primary synthesiser parameters on the following standard MIDI CC channels:
+By default, Anneal Ambiance transmits the 8 primary synthesiser parameters on the following standard MIDI CC channels:
 
 | Parameter Key | MIDI CC Channel | Standard CC Assignment Name       | Description                                   | Output Range |
 | :------------ | :-------------- | :-------------------------------- | :-------------------------------------------- | :----------- |

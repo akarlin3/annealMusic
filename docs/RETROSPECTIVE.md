@@ -1,4 +1,4 @@
-# AnnealMusic — Retrospective (v1.0)
+# Anneal Ambiance — Retrospective (v1.0)
 
 The roadmap as defined (v0.1 → v1.0) is complete: a physics-driven ambient
 sandbox with four synthesis engines, live input + a granular loop pedal, session

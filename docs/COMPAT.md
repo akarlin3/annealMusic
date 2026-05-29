@@ -1,6 +1,6 @@
 # Cross-browser compatibility notes
 
-Web Audio behavior that differs between Chrome and Safari, and how AnnealMusic
+Web Audio behavior that differs between Chrome and Safari, and how Anneal Ambiance
 handles it. Update this file whenever a new version touches the audio path.
 
 ## AudioContext construction (Safari)

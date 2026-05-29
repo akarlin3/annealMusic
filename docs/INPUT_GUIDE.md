@@ -1,6 +1,6 @@
 # Live Input Guide
 
-A short guide to wiring up an instrument so it blends into the AnnealMusic field.
+A short guide to wiring up an instrument so it blends into the Anneal Ambiance field.
 
 ## Use headphones
 

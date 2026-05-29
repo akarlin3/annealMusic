@@ -12,16 +12,16 @@ All v0.9 sources are **original works** synthesized algorithmically by
 [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).
 No attribution is required; none of these files contain third-party material.
 
-| id         | file                    | license | attribution                          |
-| ---------- | ----------------------- | ------- | ------------------------------------ |
-| glasspad   | sources/glasspad.opus   | CC0-1.0 | Original (synthesized) — AnnealMusic |
-| bowedmetal | sources/bowedmetal.opus | CC0-1.0 | Original (synthesized) — AnnealMusic |
-| tapeorgan  | sources/tapeorgan.opus  | CC0-1.0 | Original (synthesized) — AnnealMusic |
-| pinewind   | sources/pinewind.opus   | CC0-1.0 | Original (synthesized) — AnnealMusic |
-| deepdrone  | sources/deepdrone.opus  | CC0-1.0 | Original (synthesized) — AnnealMusic |
-| choirair   | sources/choirair.opus   | CC0-1.0 | Original (synthesized) — AnnealMusic |
-| rainglass  | sources/rainglass.opus  | CC0-1.0 | Original (synthesized) — AnnealMusic |
-| warmtape   | sources/warmtape.opus   | CC0-1.0 | Original (synthesized) — AnnealMusic |
+| id         | file                    | license | attribution                              |
+| ---------- | ----------------------- | ------- | ---------------------------------------- |
+| glasspad   | sources/glasspad.opus   | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
+| bowedmetal | sources/bowedmetal.opus | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
+| tapeorgan  | sources/tapeorgan.opus  | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
+| pinewind   | sources/pinewind.opus   | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
+| deepdrone  | sources/deepdrone.opus  | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
+| choirair   | sources/choirair.opus   | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
+| rainglass  | sources/rainglass.opus  | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
+| warmtape   | sources/warmtape.opus   | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
 
 If a future source is licensed from a third party (e.g. a Freesound CC0/CC-BY
 recording), add a row with the exact license and a full attribution line, and

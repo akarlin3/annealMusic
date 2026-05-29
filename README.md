@@ -1,4 +1,4 @@
-# AnnealMusic
+# Anneal Ambiance
 
 [![Client CI](https://github.com/akarlin3/annealMusic/actions/workflows/ci.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/ci.yml)
 [![API CI](https://github.com/akarlin3/annealMusic/actions/workflows/api.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/api.yml)
@@ -10,7 +10,7 @@
 
 No install, no account, nothing to download. Open the link, press **Begin**, and listen.
 
-![AnnealMusic visualizer](docs/media/demo.gif)
+![Anneal Ambiance visualizer](docs/media/demo.gif)
 
 <!-- TODO: replace placeholder with a 6–10s, 800px-wide looping GIF of the visualizer reacting to sound + a slider move. Recipe in scripts/capture-demo.ts. -->
 
@@ -181,7 +181,7 @@ A few deliberate choices:
   `noiseSuppression`, and `autoGainControl` are turned off so the signal hits the
   engine clean — those features are tuned for speech on a call and mangle music.
 - **Monitoring is off by default.** You hear yourself acoustically or through
-  your amp/instrument; the AnnealMusic field is best heard on **headphones**.
+  your amp/instrument; the Anneal Ambiance field is best heard on **headphones**.
   Turning monitoring on routes your processed input to the speakers — which can
   feed back, so use headphones. A guard dims monitoring if it detects sustained
   runaway level.
@@ -319,7 +319,7 @@ design rationale is in [`docs/v0.8-PLAN.md`](docs/v0.8-PLAN.md).
 
 ## Continuous Integration & Deployment (CI/CD)
 
-AnnealMusic uses GitHub Actions to automate quality gates and continuous delivery. Every pull request and push to the main branch triggers automated validation sweeps across both the client and API layers.
+Anneal Ambiance uses GitHub Actions to automate quality gates and continuous delivery. Every pull request and push to the main branch triggers automated validation sweeps across both the client and API layers.
 
 ### GitHub Workflows
 

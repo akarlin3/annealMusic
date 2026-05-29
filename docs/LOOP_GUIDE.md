@@ -1,6 +1,6 @@
 # Loop Pedal Guide
 
-A short guide to capturing, layering, and freezing loops in the AnnealMusic
+A short guide to capturing, layering, and freezing loops in the Anneal Ambiance
 field. The loop pedal works on the **live input**, so connect an instrument or
 mic first (see [`INPUT_GUIDE.md`](INPUT_GUIDE.md)).
 

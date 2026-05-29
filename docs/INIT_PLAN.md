@@ -1,4 +1,4 @@
-# AnnealMusic — Init Plan (Checkpoint 0)
+# Anneal Ambiance — Init Plan (Checkpoint 0)
 
 Diagnosis-first plan for scaffolding a production-grade web app around the
 existing single-file prototype (`docs/prototype.jsx`). **No production code is
@@ -15,7 +15,7 @@ written in this checkpoint.** Awaiting explicit "go" before Checkpoint 1.
 
 ## Prototype audit (read end to end)
 
-The prototype is a single default-exported React component (`AnnealMusic`) that
+The prototype is a single default-exported React component (`Anneal Ambiance`) that
 holds the entire app: state, audio graph, drift loop, visual RAF loop, and UI.
 Salient facts the port must preserve exactly:
 

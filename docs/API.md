@@ -1,4 +1,4 @@
-# AnnealMusic API (v0.8)
+# Anneal Ambiance API (v0.8)
 
 Base URL: `https://api.annealmusic.<root>` (prod) · `http://localhost:8000` (dev).
 All `/api/v1/*` endpoints are versioned. JSON in, JSON out, except capture upload

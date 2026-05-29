@@ -17,7 +17,7 @@ produces copy-pastable HTML:
   height="80"
   frameborder="0"
   loading="lazy"
-  title="My Patch — AnnealMusic"
+  title="My Patch — Anneal Ambiance"
 ></iframe>
 ```
 
@@ -27,7 +27,7 @@ produces copy-pastable HTML:
   preview has rendered). Otherwise it shows a polite "this patch is not public"
   state.
 - A single-row player: play/pause, a scrub bar, the patch title, the creator
-  ("Anonymous" until display names ship), and an AnnealMusic wordmark linking
+  ("Anonymous" until display names ship), and an Anneal Ambiance wordmark linking
   back to the full patch.
 - `?theme=dark` (default) or `?theme=light` to match the host page.
 - Responsive down to 320 px wide; ~80 px tall (taller sizes also work).

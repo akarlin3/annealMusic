@@ -1,6 +1,6 @@
 # Collaborative Sessions (Jam Mode)
 
-AnnealMusic v1.8 introduces **Jam Mode**, a real-time collaborative sculpting experience. Two users (or more in future releases) can co-create and sculpt a single sound field simultaneously across the internet.
+Anneal Ambiance v1.8 introduces **Jam Mode**, a real-time collaborative sculpting experience. Two users (or more in future releases) can co-create and sculpt a single sound field simultaneously across the internet.
 
 ---
 
@@ -53,7 +53,7 @@ Reliable connectivity is achieved using a dual-transport failover design:
 
 ## 3. Loop Capture Sharing
 
-In AnnealMusic, users can capture audio loops into slots (A, B, C). When a user records a loop in a collaborative session:
+In Anneal Ambiance, users can capture audio loops into slots (A, B, C). When a user records a loop in a collaborative session:
 
 1. The local client encodes the captured AudioBuffer to standard PCM WAV bytes.
 2. The WAV binary is uploaded to the backend captures storage (`POST /api/v1/captures`).

@@ -9,7 +9,7 @@ all sources are **original works, synthesized algorithmically** and released
 It is the only path that is fully self-contained (no third-party downloads to
 vet), reproducible (a committed deterministic generator), legally clean (no
 attribution risk), and small (~3 MB for the whole bank). It also fits the app's
-identity — AnnealMusic is a synthesis instrument. The registry's `license` field
+identity — Anneal Ambiance is a synthesis instrument. The registry's `license` field
 is freeform, so licensed/recorded sources can be added later without code change.
 
 ## Regenerating the assets

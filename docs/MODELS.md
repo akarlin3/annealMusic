@@ -5,7 +5,7 @@ than spectra. Three sub-models, selected by `ph.model`: **string**, **tube**,
 **plate**. All are **continuously excited** — fed a steady stream of filtered
 noise rather than a single pluck/strike — so they sustain for ambient use
 instead of decaying like a struck note. That excitation pivot is the whole
-reason physical modeling fits AnnealMusic.
+reason physical modeling fits Anneal Ambiance.
 
 ## Architecture
 

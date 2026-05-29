@@ -1,6 +1,6 @@
-# AnnealMusic MIDI Integration Guide (v1.6)
+# Anneal Ambiance MIDI Integration Guide (v1.6)
 
-This document provides a comprehensive operational guide for using **MIDI Input and Output** in AnnealMusic. The Web MIDI API enables native communication between physical MIDI controllers, synthesizers, and your browser for manual parameter sculpting, pitch keyboard tracking, and downstream device clock synchronization.
+This document provides a comprehensive operational guide for using **MIDI Input and Output** in Anneal Ambiance. The Web MIDI API enables native communication between physical MIDI controllers, synthesizers, and your browser for manual parameter sculpting, pitch keyboard tracking, and downstream device clock synchronization.
 
 ---
 
@@ -15,7 +15,7 @@ This document provides a comprehensive operational guide for using **MIDI Input 
 
 ### Graceful Fallback
 
-When a user launches AnnealMusic in an unsupported browser (such as Safari) and navigates to the `/midi` settings page, the app automatically detects the lack of native Web MIDI support and displays a premium glassmorphic warning card. The warning directs the user to open the application in a supported browser.
+When a user launches Anneal Ambiance in an unsupported browser (such as Safari) and navigates to the `/midi` settings page, the app automatically detects the lack of native Web MIDI support and displays a premium glassmorphic warning card. The warning directs the user to open the application in a supported browser.
 
 ---
 
@@ -26,12 +26,12 @@ To start using MIDI, go to the **MIDI Dashboard** by clicking the MIDI icon in t
 ### Activating Access
 
 1. Click the **Enable MIDI** button on the settings card.
-2. The browser will present a native permission prompt: _"AnnealMusic wants to use your MIDI devices"_.
+2. The browser will present a native permission prompt: _"Anneal Ambiance wants to use your MIDI devices"_.
 3. Click **Allow**.
 
 > [!NOTE]
 > **SysEx Security Policy**
-> AnnealMusic initiates Web MIDI access with `{ sysex: false }` to guarantee a minimal security authorization profile. This avoids high-severity browser warnings and is fully sufficient for standard CC controllers, notes, clock signals, and transport parameters.
+> Anneal Ambiance initiates Web MIDI access with `{ sysex: false }` to guarantee a minimal security authorization profile. This avoids high-severity browser warnings and is fully sufficient for standard CC controllers, notes, clock signals, and transport parameters.
 
 ---
 
@@ -66,7 +66,7 @@ Once a CC is assigned, you can customize how the 7-bit physical range (0–127) 
 
 ### Built-in Controller Templates
 
-AnnealMusic includes pre-bundled, zero-configuration layout maps for popular controllers. If you connect one of these devices, you can click **Load Default Maps** to automatically populate your mappings:
+Anneal Ambiance includes pre-bundled, zero-configuration layout maps for popular controllers. If you connect one of these devices, you can click **Load Default Maps** to automatically populate your mappings:
 
 - **Ableton Push 2**
 - **Novation Launch Control XL**
@@ -87,7 +87,7 @@ You can play a physical MIDI Keyboard to set the synthesis base root pitch.
 
 ### Monophonic Pitch Behavior
 
-AnnealMusic tracks note inputs monophonically.
+Anneal Ambiance tracks note inputs monophonically.
 
 - **Last-Note-Priority**: When holding down multiple keys, the synthesizer's pitch responds to the most recently pressed key.
 - **Pre-MIDI Pitch Preservation**: The system captures your manual UI Root slider frequency before you strike a key so that it can return to it if configured.
@@ -114,14 +114,14 @@ You can map keyboard strike velocities (0–127 force) to modulate any of the fo
 
 ## 5. Output Clock & Transport Sync
 
-AnnealMusic can act as the **Master Clock of Record** for your studio. Downstream hardware synths, drum machines, or sequencer software can be synchronized to the same generative temporal cycle.
+Anneal Ambiance can act as the **Master Clock of Record** for your studio. Downstream hardware synths, drum machines, or sequencer software can be synchronized to the same generative temporal cycle.
 
 ### PPQN Clock Streaming
 
 When enabled, the app streams **24 PPQN (Pulses Per Quarter Note)** MIDI clock ticks to the selected active Output device.
 
 - **BPM Range**: Exposes a slider to adjust tempo from **30 BPM** up to **240 BPM**.
-- **Session Transport Integration**: Starting the main AnnealMusic session (Open Jam or Arc) automatically emits a **MIDI Start (0xFA)** transport signal. Stopping the session emits a **MIDI Stop (0xFC)** signal.
+- **Session Transport Integration**: Starting the main Anneal Ambiance session (Open Jam or Arc) automatically emits a **MIDI Start (0xFA)** transport signal. Stopping the session emits a **MIDI Stop (0xFC)** signal.
 - **Port Hot-Plugging**: Hardware output ports can be hot-plugged at run-time without interrupting the active clock thread.
 
 ### Outgoing CC Streaming

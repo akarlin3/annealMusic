@@ -1,4 +1,4 @@
-# AnnealMusic Roadmap
+# Anneal Ambiance Roadmap
 
 ## End-state vision (v1.0)
 

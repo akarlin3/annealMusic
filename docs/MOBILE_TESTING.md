@@ -31,11 +31,11 @@ This document details the exact smoke-testing checklist to verify mobile shell f
 
 - [ ] **T07 — Background Audio**: Play a patch, then lock the device or switch to the home screen. Verify that the ambient generator continues playing indefinitely.
 - [ ] **T08 — Incoming Call (iOS/Android)**: Play audio and simulate an incoming call (or call the device). Confirm that playback fades out in 200ms when the call begins, and fades back in when the call is ended/declined.
-- [ ] **T09 — Media Session Takeover**: Play audio, then open Spotify/Apple Music and press play. Confirm that Spotify begins playing and AnnealMusic pauses cleanly.
+- [ ] **T09 — Media Session Takeover**: Play audio, then open Spotify/Apple Music and press play. Confirm that Spotify begins playing and Anneal Ambiance pauses cleanly.
 - [ ] **T10 — Headphone Disconnection**: Unplug wired headphones or turn off Bluetooth AirPods while audio plays. Verify that playback pauses immediately as expected.
 
 ### Phase 4: Linking & Auth Round-Trip
 
-- [ ] **T11 — Universal Links (/p/\*)**: Tap a patch link (e.g. `https://anneal.averykarlin.org/p/warm-fields`) in a different app. Confirm that the AnnealMusic app opens and immediately boots into the target patch.
+- [ ] **T11 — Universal Links (/p/\*)**: Tap a patch link (e.g. `https://anneal.averykarlin.org/p/warm-fields`) in a different app. Confirm that the Anneal Ambiance app opens and immediately boots into the target patch.
 - [ ] **T12 — Magic Link Auth**: Request an email magic link from the app. Open the email in the mail client and tap the verify button. Verify that the app opens, verifies the token, shows a successful toast, and establishes the logged-in session.
 - [ ] **T13 — Account Deletion**: Go to Settings -> Danger Zone -> Delete Account. Verify that the account, sessions, and preferences are purged, and the app resets to unauthenticated guest mode.

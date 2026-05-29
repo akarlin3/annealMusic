@@ -1,6 +1,6 @@
-# AnnealMusic DAW Stem Export
+# Anneal Ambiance DAW Stem Export
 
-AnnealMusic v1.5 enables musicians and sound designers to render and export high-fidelity, sample-accurate, phase-aligned **multi-track stems** in lossless WAV format, packaged client-side into a zero-dependency ZIP archive.
+Anneal Ambiance v1.5 enables musicians and sound designers to render and export high-fidelity, sample-accurate, phase-aligned **multi-track stems** in lossless WAV format, packaged client-side into a zero-dependency ZIP archive.
 
 Stems can be directly imported into any professional digital audio workstation (DAW) including Ableton Live, Logic Pro, Pro Tools, Reaper, FL Studio, and Cubase.
 
@@ -43,7 +43,7 @@ To satisfy professional archiving standards, each WAV file includes standard str
 Written before the `data` sub-chunk (602 bytes):
 
 - **Description**: ASCII description of the track stem.
-- **Originator**: `"AnnealMusic v1.5.0"`
+- **Originator**: `"Anneal Ambiance v1.5.0"`
 - **OriginatorReference**: Session patch hash and title.
 - **OriginationDate**: `YYYY-MM-DD`
 - **OriginationTime**: `HH-MM-SS`
@@ -56,7 +56,7 @@ Enables semantic track identification and project context mapping inside the DAW
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <IXML>
-  <PROJECT>AnnealMusic Session</PROJECT>
+  <PROJECT>Anneal Ambiance Session</PROJECT>
   <SPEED>
     <FILE_SAMPLE_RATE>48000</FILE_SAMPLE_RATE>
     <AUDIO_BIT_DEPTH>24</AUDIO_BIT_DEPTH>
