@@ -20,6 +20,9 @@ router = APIRouter(prefix="/api/v1/account", tags=["account"])
 class ProfileUpdate(BaseModel):
     display_name: str | None = Field(default=None, min_length=2, max_length=32)
     avatar_seed: str | None = Field(default=None, max_length=120)
+    bio: str | None = Field(default=None, max_length=280)
+    likes_public: bool | None = Field(default=None)
+    follows_public: bool | None = Field(default=None)
 
 
 class ConfirmDelete(BaseModel):
@@ -63,6 +66,9 @@ async def get_my_profile(
         "email": account.email,
         "display_name": account.display_name,
         "avatar_seed": account.avatar_seed,
+        "bio": account.bio,
+        "likes_public": account.likes_public,
+        "follows_public": account.follows_public,
         "created_at": account.created_at.isoformat(),
         "last_login_at": account.last_login_at.isoformat() if account.last_login_at else None,
     }
@@ -87,6 +93,18 @@ async def update_my_profile(
     if body.avatar_seed is not None:
         account.avatar_seed = body.avatar_seed.strip()
 
+    if body.bio is not None:
+        bio_val = body.bio.strip()
+        if screen_publish(None, bio_val):
+            raise bad_request("Bio contains inappropriate terms.")
+        account.bio = bio_val
+
+    if body.likes_public is not None:
+        account.likes_public = body.likes_public
+
+    if body.follows_public is not None:
+        account.follows_public = body.follows_public
+
     await session.commit()
     await session.refresh(account)
 
@@ -95,6 +113,9 @@ async def update_my_profile(
         "email": account.email,
         "display_name": account.display_name,
         "avatar_seed": account.avatar_seed,
+        "bio": account.bio,
+        "likes_public": account.likes_public,
+        "follows_public": account.follows_public,
         "created_at": account.created_at.isoformat(),
         "last_login_at": account.last_login_at.isoformat() if account.last_login_at else None,
     }

@@ -7,12 +7,13 @@ import uuid
 from datetime import datetime, timezone
 from typing import Literal
 
+from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from app.deps import SessionDep, require_admin
 from app.errors import not_found
-from app.models import Patch, Report, UserSource
+from app.models import Patch, Report, UserSource, Account, FeaturedPick
 from app.schemas import (
     AdminReportItem,
     AdminReportListOut,
@@ -22,6 +23,7 @@ from app.schemas import (
     PatchOut,
     UserSourceOut,
     ReportStatus,
+    FeaturedPickCreate,
 )
 
 router = APIRouter(
@@ -145,3 +147,88 @@ async def set_user_source_visibility(
     await session.refresh(source)
 
     return UserSourceOut.model_validate(source)
+
+
+# --- Admin Curated Featured Picks Endpoints ----------------------------------
+
+@router.post("/featured")
+async def curate_featured_picks(
+    body: list[FeaturedPickCreate],
+    session: SessionDep,
+) -> dict:
+    # We curate for the current week's Monday
+    today = date.today()
+    current_monday = today - timedelta(days=today.weekday())
+
+    # Delete existing picks for the current week
+    await session.execute(
+        delete(FeaturedPick).where(FeaturedPick.week_starting == current_monday)
+    )
+
+    # Insert new picks
+    for pick_in in body:
+        # Check patch exists
+        patch = await session.get(Patch, pick_in.patch_id)
+        if patch is None or patch.visibility != "public":
+            raise not_found(f"public patch {pick_in.patch_id}")
+
+        pick = FeaturedPick(
+            week_starting=current_monday,
+            patch_id=pick_in.patch_id,
+            position=pick_in.position,
+            curator_note=pick_in.curator_note,
+        )
+        session.add(pick)
+
+    await session.commit()
+    return {"success": True}
+
+
+@router.delete("/featured/{pick_id}", status_code=204)
+async def delete_featured_pick(
+    pick_id: uuid.UUID,
+    session: SessionDep,
+) -> None:
+    pick = await session.get(FeaturedPick, pick_id)
+    if pick is None:
+        raise not_found("featured_pick")
+    await session.delete(pick)
+    await session.commit()
+
+
+# --- Admin User Suspension Endpoints ----------------------------------------
+
+@router.post("/accounts/{account_id}/suspend")
+async def suspend_account(
+    account_id: uuid.UUID,
+    session: SessionDep,
+) -> dict:
+    account = await session.get(Account, account_id)
+    if account is None:
+        raise not_found("account")
+
+    account.suspended = True
+
+    # Under-the-hood: hide all their patches by setting their visibility to flagged/unlisted
+    # (actually we just cascade hide in queries, but let's make sure we also revoke active sessions)
+    from app.models import Session as DbSession
+    await session.execute(
+        delete(DbSession).where(DbSession.account_id == account_id)
+    )
+    await session.commit()
+    return {"success": True}
+
+
+@router.delete("/accounts/{account_id}/suspend")
+async def unsuspend_account(
+    account_id: uuid.UUID,
+    session: SessionDep,
+) -> dict:
+    account = await session.get(Account, account_id)
+    if account is None:
+        raise not_found("account")
+
+    account.suspended = False
+    await session.commit()
+    return {"success": True}
+

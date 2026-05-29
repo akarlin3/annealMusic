@@ -91,6 +91,15 @@ async def get_identity(request: Request, session: SessionDep) -> Identity:
         if db_sess is not None:
             account_id = db_sess.account_id
 
+            # Check if account is suspended
+            from app.models import Account as DbAccount
+            acc_stmt = select(DbAccount.suspended).where(DbAccount.id == account_id)
+            acc_res = await session.execute(acc_stmt)
+            suspended = acc_res.scalar_one_or_none()
+            if suspended:
+                from app.errors import forbidden
+                raise forbidden("This account has been suspended. Please contact support@annealmusic.com to appeal.")
+
             # Slide session expiry if last_seen_at is older than 24 hours
             last_seen = db_sess.last_seen_at
             if last_seen.tzinfo is None:
