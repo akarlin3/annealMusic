@@ -65,7 +65,7 @@ describe('Jam Session UI Components', () => {
           id: 'session-123',
           host_id: 'user-1',
           created_at: '2026-05-29',
-        } as JamSession,
+        } as unknown as JamSession,
         participants: [
           {
             user_id: 'user-1',
@@ -149,7 +149,7 @@ describe('Jam Session UI Components', () => {
   describe('ParticipantCursor', () => {
     it('renders glowing borders and custom CSS styles for remote cursors', () => {
       vi.mocked(useJam).mockReturnValue({
-        session: { id: 'session-123' } as JamSession,
+        session: { id: 'session-123' } as unknown as JamSession,
         participants: [],
         status: 'connected',
         mode: 'webrtc',

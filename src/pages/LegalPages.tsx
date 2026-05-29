@@ -44,7 +44,7 @@ export const TermsPage: React.FC = () => {
                 Terms of Service
               </h1>
               <p className="text-[9px] uppercase tracking-wider text-stone-500 mt-1">
-                Version 1.4 · Last Updated: May 2026
+                Version 2.0 · Last Updated: May 2026
               </p>
             </div>
           </div>
@@ -83,13 +83,15 @@ export const TermsPage: React.FC = () => {
 
             <section className="space-y-2">
               <h2 className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-500/90">
-                3. Fair Use & Node Moderation
+                3. Fair Use, Community & Moderation
               </h2>
               <p>
                 You agree not to upload corrupt audio data, override client-side
-                file parameters, or publish offensive metadata. Admin moderators
-                reserve the right to flag, unlist, or purge content violating
-                user security guidelines.
+                file parameters, or publish offensive metadata/biographies.
+                Admin moderators reserve the right to flag content, unlist
+                items, or suspend accounts violating user security guidelines.
+                Suspended accounts lose active sessions, cannot log in, and
+                their public profiles and creations are hidden.
               </p>
             </section>
 
@@ -150,7 +152,7 @@ export const PrivacyPage: React.FC = () => {
                 Privacy Policy
               </h1>
               <p className="text-[9px] uppercase tracking-wider text-stone-500 mt-1">
-                Version 1.4 · Last Updated: May 2026
+                Version 2.0 · Last Updated: May 2026
               </p>
             </div>
           </div>
@@ -168,7 +170,8 @@ export const PrivacyPage: React.FC = () => {
               <p>
                 <strong>Authenticated Accounts:</strong> If you sign up using a
                 Magic Link or OAuth (Google, GitHub), we store your email
-                address, display name, and avatar seed.
+                address, display name, avatar seed, biography text, follows
+                list, and likes.
               </p>
             </section>
 
@@ -199,14 +202,15 @@ export const PrivacyPage: React.FC = () => {
 
             <section className="space-y-2">
               <h2 className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-500/90">
-                4. Your Rights & Account Deletion
+                4. Your Rights, Blocks & Cascading Deletion
               </h2>
               <p>
                 You hold complete control over your identity. You can unclaim
-                devices, unlink Google or GitHub logins at any time in Account
-                Settings, or execute complete account deletion. Deletion
-                permanently erases your credentials, linked session identifiers,
-                and user metadata from our systems.
+                devices, unlink OAuth logins, block or mute users, or execute
+                complete account deletion. In accordance with GDPR compliance,
+                executing account deletion permanently and recursively erases
+                your credentials, linked session identifiers, biography, and all
+                social indices (likes, follows, blocks, and mutes).
               </p>
             </section>
           </div>

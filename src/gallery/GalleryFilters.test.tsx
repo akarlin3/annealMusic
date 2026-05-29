@@ -14,7 +14,13 @@ const base: FilterState = {
 describe('GalleryFilters', () => {
   it('emits sort changes', () => {
     const onChange = vi.fn();
-    render(<GalleryFilters value={base} onChange={onChange} />);
+    render(
+      <GalleryFilters
+        value={base}
+        onChange={onChange}
+        showFollowedOnly={false}
+      />,
+    );
     fireEvent.change(screen.getByLabelText('Sort'), {
       target: { value: 'most_loaded' },
     });
@@ -23,7 +29,13 @@ describe('GalleryFilters', () => {
 
   it('emits engine + captures filter changes', () => {
     const onChange = vi.fn();
-    render(<GalleryFilters value={base} onChange={onChange} />);
+    render(
+      <GalleryFilters
+        value={base}
+        onChange={onChange}
+        showFollowedOnly={false}
+      />,
+    );
     fireEvent.change(screen.getByLabelText('Engine'), {
       target: { value: 'fm' },
     });

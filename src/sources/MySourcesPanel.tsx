@@ -20,7 +20,9 @@ function getSharedPreviewCtx(): AudioContext {
   if (!sharedPreviewCtx) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sharedPreviewCtx = new (
-      window.AudioContext || (window as any).webkitAudioContext
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext
     )();
   }
   return sharedPreviewCtx;

@@ -16,6 +16,9 @@ import {
   type Account,
   type ClaimedAnonId,
   type PublicProfile,
+  type RelationshipListOut,
+  type FeedListOut,
+  type FeaturedPickOut,
   type AIQuota,
   type AIGeneratedPatchOut,
   type AIModifyPatchOut,
@@ -242,6 +245,9 @@ export const api = {
   async updateProfile(body: {
     display_name?: string;
     avatar_seed?: string;
+    bio?: string;
+    likes_public?: boolean;
+    follows_public?: boolean;
   }): Promise<Account> {
     return request<Account>('/api/v1/account/me', {
       method: 'PATCH',
@@ -359,6 +365,198 @@ export const api = {
     return request<Patch>(
       `/api/v1/jam-sessions/${encodeURIComponent(id)}/save-patch`,
       { method: 'POST', body },
+    );
+  },
+
+  // --- social (v2.0) --------------------------------------------------------
+
+  async like(
+    targetKind: 'patch' | 'recording',
+    targetId: string,
+  ): Promise<{ liked: boolean }> {
+    return request<{ liked: boolean }>('/api/v1/likes', {
+      method: 'POST',
+      body: { target_kind: targetKind, target_id: targetId },
+    });
+  },
+
+  async unlike(
+    targetKind: 'patch' | 'recording',
+    targetId: string,
+  ): Promise<{ liked: boolean }> {
+    return request<{ liked: boolean }>(
+      `/api/v1/likes/${targetKind}/${encodeURIComponent(targetId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
+
+  async checkLikeStatus(
+    targetKind: 'patch' | 'recording',
+    targetId: string,
+  ): Promise<{ liked: boolean }> {
+    return request<{ liked: boolean }>(
+      `/api/v1/likes/status?target_kind=${targetKind}&target_id=${encodeURIComponent(targetId)}`,
+    );
+  },
+
+  async follow(accountId: string): Promise<{ following: boolean }> {
+    return request<{ following: boolean }>(
+      `/api/v1/follows/${encodeURIComponent(accountId)}`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  async unfollow(accountId: string): Promise<{ following: boolean }> {
+    return request<{ following: boolean }>(
+      `/api/v1/follows/${encodeURIComponent(accountId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
+
+  async block(accountId: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(
+      `/api/v1/blocks/${encodeURIComponent(accountId)}`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  async unblock(accountId: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(
+      `/api/v1/blocks/${encodeURIComponent(accountId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
+
+  async getBlockedAccounts(): Promise<RelationshipListOut> {
+    return request<RelationshipListOut>('/api/v1/blocks/me');
+  },
+
+  async mute(accountId: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(
+      `/api/v1/mutes/${encodeURIComponent(accountId)}`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  async unmute(accountId: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(
+      `/api/v1/mutes/${encodeURIComponent(accountId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
+
+  async getMutedAccounts(): Promise<RelationshipListOut> {
+    return request<RelationshipListOut>('/api/v1/mutes/me');
+  },
+
+  async getFeed(cursor?: string, limit = 24): Promise<FeedListOut> {
+    const q = new URLSearchParams();
+    if (cursor) q.set('cursor', cursor);
+    q.set('limit', String(limit));
+    return request<FeedListOut>(`/api/v1/feed?${q.toString()}`);
+  },
+
+  async getFeaturedPicks(): Promise<FeaturedPickOut[]> {
+    return request<FeaturedPickOut[]>('/api/v1/featured');
+  },
+
+  async getFeaturedHistory(limit = 48, offset = 0): Promise<FeaturedPickOut[]> {
+    return request<FeaturedPickOut[]>(
+      `/api/v1/featured/history?limit=${limit}&offset=${offset}`,
+    );
+  },
+
+  async getProfilePatches(
+    accountId: string,
+    cursor?: string,
+    limit = 24,
+  ): Promise<PatchList> {
+    const q = new URLSearchParams();
+    if (cursor) q.set('cursor', cursor);
+    q.set('limit', String(limit));
+    return request<PatchList>(
+      `/api/v1/profiles/${encodeURIComponent(accountId)}/patches?${q.toString()}`,
+    );
+  },
+
+  async getProfileRecordings(accountId: string): Promise<RecordingList> {
+    return request<RecordingList>(
+      `/api/v1/profiles/${encodeURIComponent(accountId)}/recordings`,
+    );
+  },
+
+  async getProfileLiked(
+    accountId: string,
+    cursor?: string,
+    limit = 24,
+  ): Promise<PatchList> {
+    const q = new URLSearchParams();
+    if (cursor) q.set('cursor', cursor);
+    q.set('limit', String(limit));
+    return request<PatchList>(
+      `/api/v1/profiles/${encodeURIComponent(accountId)}/liked?${q.toString()}`,
+    );
+  },
+
+  async updateAccountSettings(body: {
+    display_name?: string;
+    avatar_seed?: string;
+    bio?: string;
+    likes_public?: boolean;
+    follows_public?: boolean;
+  }): Promise<Account> {
+    return request<Account>('/api/v1/account/me', {
+      method: 'PATCH',
+      body,
+    });
+  },
+
+  async adminSetFeatured(
+    picks: { patch_id: string; position: number; curator_note?: string }[],
+  ): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>('/api/v1/admin/featured', {
+      method: 'POST',
+      body: picks,
+    });
+  },
+
+  async adminDeleteFeaturedPick(id: string): Promise<void> {
+    await request<void>(`/api/v1/admin/featured/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async adminSuspendAccount(accountId: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(
+      `/api/v1/admin/accounts/${encodeURIComponent(accountId)}/suspend`,
+      {
+        method: 'POST',
+      },
+    );
+  },
+
+  async adminUnsuspendAccount(
+    accountId: string,
+  ): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(
+      `/api/v1/admin/accounts/${encodeURIComponent(accountId)}/suspend`,
+      {
+        method: 'DELETE',
+      },
     );
   },
 };

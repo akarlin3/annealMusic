@@ -6,6 +6,7 @@ import GalleryPage from '@/gallery/GalleryPage';
 import RecordingPage from '@/pages/RecordingPage';
 import AccountSettingsPage from '@/pages/AccountSettingsPage';
 import ProfilePage from '@/pages/ProfilePage';
+import FeedPage from '@/pages/FeedPage';
 import { TermsPage, PrivacyPage } from '@/pages/LegalPages';
 import { AuthProvider } from '@/auth/AuthProvider';
 import DeepLinkHandler from '@/components/DeepLinkHandler';
@@ -44,6 +45,7 @@ createRoot(rootEl).render(
             />
             <Route path="/r/:slug" element={<RecordingPage />} />
             <Route path="/account" element={<AccountSettingsPage />} />
+            <Route path="/feed" element={<FeedPage />} />
             <Route path="/u/:account_id" element={<ProfilePage />} />
             <Route path="/legal/terms" element={<TermsPage />} />
             <Route path="/legal/privacy" element={<PrivacyPage />} />

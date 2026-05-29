@@ -75,4 +75,36 @@ export const adminApi = {
       },
     );
   },
+
+  async curateFeaturedPicks(
+    key: string,
+    picks: { patch_id: string; position: number; curator_note?: string }[],
+  ): Promise<{ success: boolean }> {
+    return adminFetch<{ success: boolean }>('/api/v1/admin/featured', key, {
+      method: 'POST',
+      body: JSON.stringify(picks),
+    });
+  },
+
+  async suspendAccount(
+    key: string,
+    accountId: string,
+  ): Promise<{ success: boolean }> {
+    return adminFetch<{ success: boolean }>(
+      `/api/v1/admin/accounts/${encodeURIComponent(accountId)}/suspend`,
+      key,
+      { method: 'POST' },
+    );
+  },
+
+  async unsuspendAccount(
+    key: string,
+    accountId: string,
+  ): Promise<{ success: boolean }> {
+    return adminFetch<{ success: boolean }>(
+      `/api/v1/admin/accounts/${encodeURIComponent(accountId)}/suspend`,
+      key,
+      { method: 'DELETE' },
+    );
+  },
 };

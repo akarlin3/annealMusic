@@ -4,7 +4,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { LissajousAvatar } from '@/components/LissajousAvatar';
 import { api, getErrorMessage } from '@/api/client';
 import { getAnonId } from '@/api/anon';
-import type { ClaimedAnonId } from '@/api/types';
+import type { ClaimedAnonId, RelationshipItem } from '@/api/types';
 import {
   ArrowLeft,
   User,
@@ -14,6 +14,8 @@ import {
   RefreshCw,
   Unlink,
   Link2,
+  EyeOff,
+  ShieldAlert,
 } from 'lucide-react';
 import Toast, { type ToastMessage } from '@/components/Toast';
 
@@ -35,6 +37,11 @@ export default function AccountSettingsPage() {
 
   const [displayName, setDisplayName] = useState('');
   const [avatarSeed, setAvatarSeed] = useState('');
+  const [bio, setBio] = useState('');
+  const [likesPublic, setLikesPublic] = useState(false);
+  const [followsPublic, setFollowsPublic] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<RelationshipItem[]>([]);
+  const [mutedUsers, setMutedUsers] = useState<RelationshipItem[]>([]);
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
@@ -64,12 +71,20 @@ export default function AccountSettingsPage() {
     if (!account) return;
     setDisplayName(account.display_name ?? '');
     setAvatarSeed(account.avatar_seed ?? '');
+    setBio(account.bio ?? '');
+    setLikesPublic(account.likes_public ?? false);
+    setFollowsPublic(account.follows_public ?? false);
     setLoadingClaims(true);
     try {
       const p = await api.getProviders();
       setProviders(p);
       const devices = await api.listClaimedAnonIds();
       setClaimedDevices(devices);
+
+      const blocksRes = await api.getBlockedAccounts();
+      setBlockedUsers(blocksRes.items);
+      const mutesRes = await api.getMutedAccounts();
+      setMutedUsers(mutesRes.items);
     } catch (err) {
       console.error('Failed to load settings data:', err);
     } finally {
@@ -91,6 +106,9 @@ export default function AccountSettingsPage() {
       await updateProfile({
         display_name: displayName.trim() || undefined,
         avatar_seed: avatarSeed.trim() || undefined,
+        bio: bio.trim(),
+        likes_public: likesPublic,
+        follows_public: followsPublic,
       });
       showToast('Profile updated');
     } catch (err) {
@@ -103,6 +121,26 @@ export default function AccountSettingsPage() {
   const handleRollSeed = () => {
     const newSeed = Math.random().toString(36).substring(2, 15);
     setAvatarSeed(newSeed);
+  };
+
+  const handleUnblock = async (id: string) => {
+    try {
+      await api.unblock(id);
+      setBlockedUsers((prev) => prev.filter((u) => u.id !== id));
+      showToast('Unblocked user');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to unblock user.'));
+    }
+  };
+
+  const handleUnmute = async (id: string) => {
+    try {
+      await api.unmute(id);
+      setMutedUsers((prev) => prev.filter((u) => u.id !== id));
+      showToast('Unmuted user');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to unmute user.'));
+    }
   };
 
   const handleUnlink = async (provider: 'email' | 'google' | 'github') => {
@@ -272,6 +310,31 @@ export default function AccountSettingsPage() {
                 />
               </div>
 
+              <div>
+                <label
+                  htmlFor="bio-input"
+                  className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500 flex justify-between"
+                >
+                  <span>Biography</span>
+                  <span
+                    className={
+                      bio.length > 280 ? 'text-red-500' : 'text-stone-500'
+                    }
+                  >
+                    {bio.length}/280
+                  </span>
+                </label>
+                <textarea
+                  id="bio-input"
+                  placeholder="Sound designer, meditator, human..."
+                  value={bio}
+                  maxLength={280}
+                  onChange={(e) => setBio(e.target.value)}
+                  className={`${fieldClass} resize-none`}
+                  style={{ ...fieldStyle, minHeight: '60px' }}
+                />
+              </div>
+
               {profileError && (
                 <div className="rounded px-3 py-2 text-[10px] uppercase text-red-400 bg-red-950/20 border border-red-900/30">
                   {profileError}
@@ -287,6 +350,126 @@ export default function AccountSettingsPage() {
                 {updatingProfile ? 'Saving...' : 'Save Profile'}
               </button>
             </form>
+          </section>
+
+          {/* Section: Community & Privacy */}
+          <section
+            className="rounded-xl p-6 border border-stone-850"
+            style={{ background: '#141210', borderColor: '#292524' }}
+          >
+            <div className="flex items-center gap-2 mb-6">
+              <Shield size={14} className="text-amber-500" />
+              <h2 className="text-[11px] uppercase tracking-[0.2em] font-semibold text-stone-200">
+                Community & Privacy Settings
+              </h2>
+            </div>
+
+            <div className="space-y-6">
+              {/* Privacy Toggles */}
+              <div className="space-y-4 pb-4 border-b border-stone-900">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={likesPublic}
+                    onChange={(e) => setLikesPublic(e.target.checked)}
+                    className="mt-0.5 rounded border-stone-800 bg-stone-900 text-amber-500 focus:ring-0 focus:ring-offset-0 focus:outline-none"
+                    style={{ borderColor: '#44403c' }}
+                  />
+                  <div>
+                    <span className="text-[10px] text-stone-300 font-semibold uppercase tracking-wider block">
+                      Make my liked patches public
+                    </span>
+                    <span className="text-[9px] text-stone-500 leading-normal block mt-0.5">
+                      Others will be able to see patches you liked on a
+                      dedicated tab on your public profile page.
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer pt-2">
+                  <input
+                    type="checkbox"
+                    checked={followsPublic}
+                    onChange={(e) => setFollowsPublic(e.target.checked)}
+                    className="mt-0.5 rounded border-stone-800 bg-stone-900 text-amber-500 focus:ring-0 focus:ring-offset-0 focus:outline-none"
+                    style={{ borderColor: '#44403c' }}
+                  />
+                  <div>
+                    <span className="text-[10px] text-stone-300 font-semibold uppercase tracking-wider block">
+                      Make my follows list public
+                    </span>
+                    <span className="text-[9px] text-stone-500 leading-normal block mt-0.5">
+                      Allow other users to click and view lists of who you are
+                      following or who is following you.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Muted Accounts List */}
+              <div className="pb-4 border-b border-stone-900">
+                <h3 className="text-[9px] uppercase tracking-wider text-stone-500 mb-3 font-semibold">
+                  Muted Accounts ({mutedUsers.length})
+                </h3>
+                {mutedUsers.length === 0 ? (
+                  <p className="text-[9px] text-stone-600 uppercase font-mono italic">
+                    No muted accounts
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {mutedUsers.map((u) => (
+                      <div
+                        key={u.id}
+                        className="flex items-center justify-between rounded bg-stone-950/40 px-3 py-2 border border-stone-900"
+                      >
+                        <span className="text-[10px] text-stone-300 font-mono">
+                          {u.display_name || 'Anonymous Creator'}
+                        </span>
+                        <button
+                          onClick={() => handleUnmute(u.id)}
+                          className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-semibold text-amber-500/80 hover:text-amber-400"
+                        >
+                          <EyeOff size={10} />
+                          Unmute
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Blocked Accounts List */}
+              <div>
+                <h3 className="text-[9px] uppercase tracking-wider text-stone-500 mb-3 font-semibold">
+                  Blocked Accounts ({blockedUsers.length})
+                </h3>
+                {blockedUsers.length === 0 ? (
+                  <p className="text-[9px] text-stone-600 uppercase font-mono italic">
+                    No blocked accounts
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {blockedUsers.map((u) => (
+                      <div
+                        key={u.id}
+                        className="flex items-center justify-between rounded bg-stone-950/40 px-3 py-2 border border-stone-900"
+                      >
+                        <span className="text-[10px] text-stone-300 font-mono">
+                          {u.display_name || 'Anonymous Creator'}
+                        </span>
+                        <button
+                          onClick={() => handleUnblock(u.id)}
+                          className="flex items-center gap-1 text-[9px] uppercase tracking-wider font-semibold text-red-400 hover:text-red-300"
+                        >
+                          <ShieldAlert size={10} />
+                          Unblock
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </section>
 
           {/* Section 2: Logins & OAuth */}

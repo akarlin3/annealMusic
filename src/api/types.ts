@@ -140,6 +140,12 @@ export interface Account {
   email: string;
   display_name: string | null;
   avatar_seed: string | null;
+  bio: string | null;
+  likes_public: boolean;
+  follows_public: boolean;
+  suspended: boolean;
+  follower_count: number;
+  following_count: number;
   created_at: string;
   last_login_at: string | null;
 }
@@ -158,11 +164,61 @@ export interface PublicProfile {
   id: string;
   display_name: string | null;
   avatar_seed: string | null;
+  bio: string | null;
   created_at: string;
+  follower_count: number;
+  following_count: number;
+  likes_public: boolean;
+  follows_public: boolean;
+  following: boolean;
   counts: {
     patches: number;
     recordings: number;
   };
+}
+
+export interface RelationshipItem {
+  id: string;
+  display_name: string | null;
+  avatar_seed: string | null;
+}
+
+export interface RelationshipListOut {
+  items: RelationshipItem[];
+}
+
+export interface FeedItemOut {
+  kind: 'patch' | 'recording';
+  id: string;
+  short_slug: string;
+  title: string | null;
+  description: string | null;
+  created_at: string;
+  like_count: number;
+  liked_by_me: boolean;
+  state?: string;
+  engine?: string;
+  mode?: string;
+  has_captures?: boolean;
+  duration_ms?: number;
+  format?: string;
+  creator_name: string | null;
+  creator_avatar_seed: string | null;
+  creator_id: string | null;
+}
+
+export interface FeedListOut {
+  items: FeedItemOut[];
+  next_cursor: string | null;
+}
+
+export interface FeaturedPickOut {
+  id: string;
+  week_starting: string;
+  patch_id: string;
+  position: number;
+  curator_note: string | null;
+  patch: Patch | null;
 }
 
 export interface AIQuota {

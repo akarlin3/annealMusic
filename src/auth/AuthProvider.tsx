@@ -18,6 +18,9 @@ interface AuthContextType {
   updateProfile: (body: {
     display_name?: string;
     avatar_seed?: string;
+    bio?: string;
+    likes_public?: boolean;
+    follows_public?: boolean;
   }) => Promise<Account>;
   claimCurrentDevice: () => Promise<{ success: boolean }>;
   unclaimDevice: (anonId: string) => Promise<void>;
@@ -94,6 +97,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateProfile = async (body: {
     display_name?: string;
     avatar_seed?: string;
+    bio?: string;
+    likes_public?: boolean;
+    follows_public?: boolean;
   }) => {
     setError(null);
     try {

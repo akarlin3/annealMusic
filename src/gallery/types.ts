@@ -1,6 +1,6 @@
 /** Types mirroring the v0.8 gallery API surface (see docs/API.md). */
 
-export type GallerySort = 'newest' | 'oldest' | 'most_loaded';
+export type GallerySort = 'newest' | 'oldest' | 'most_loaded' | 'most_liked';
 export type PreviewStatus = 'none' | 'rendering' | 'ready' | 'failed';
 export type ReportReason = 'spam' | 'inappropriate' | 'other';
 
@@ -30,6 +30,7 @@ export interface GalleryQuery {
   engine?: string;
   mode?: string;
   hasCaptures?: boolean;
+  followedOnly?: boolean;
   q?: string;
   cursor?: string;
 }

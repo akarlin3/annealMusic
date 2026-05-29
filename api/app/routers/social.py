@@ -375,6 +375,22 @@ async def unmute_account(
     return {"success": True}
 
 
+@router.get("/mutes/me", response_model=RelationshipListOut)
+async def list_my_muted_accounts(
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
+) -> RelationshipListOut:
+    my_account_id = await require_auth(identity)
+
+    stmt = (
+        select(Account)
+        .join(Mute, Mute.muted_account_id == Account.id)
+        .where(Mute.muter_account_id == my_account_id)
+        .order_by(Mute.created_at.desc())
+    )
+    res = await session.execute(stmt)
+    accounts = res.scalars().all()
+
     return RelationshipListOut(
         items=[
             RelationshipItem(

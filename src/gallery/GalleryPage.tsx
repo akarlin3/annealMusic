@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { galleryApi } from '@/gallery/api';
+import { api } from '@/api/client';
+import { useAuth } from '@/auth/AuthProvider';
 import type { GalleryItem, GallerySort } from '@/gallery/types';
+import type { FeaturedPickOut } from '@/api/types';
 import GalleryCard from '@/gallery/GalleryCard';
 import GalleryFilters, { type FilterState } from '@/gallery/GalleryFilters';
 import GallerySearch from '@/gallery/GallerySearch';
 import ReportDialog from '@/gallery/ReportDialog';
 import EmbedDialog from '@/embed/EmbedDialog';
+import { Sparkles, ChevronRight } from 'lucide-react';
 
-const SORTS: GallerySort[] = ['newest', 'oldest', 'most_loaded'];
+const SORTS: GallerySort[] = ['newest', 'oldest', 'most_loaded', 'most_liked'];
 
 function readFilters(params: URLSearchParams): FilterState {
   const sort = params.get('sort');
@@ -19,15 +23,18 @@ function readFilters(params: URLSearchParams): FilterState {
     engine: params.get('engine') ?? '',
     mode: params.get('mode') ?? '',
     hasCaptures: params.get('has_captures') === 'true',
+    followedOnly: params.get('followed_only') === 'true',
   };
 }
 
 export default function GalleryPage() {
   const [params, setParams] = useSearchParams();
+  const { isAuthenticated } = useAuth();
   const filters = useMemo(() => readFilters(params), [params]);
   const q = params.get('q') ?? '';
 
   const [items, setItems] = useState<GalleryItem[]>([]);
+  const [featuredPicks, setFeaturedPicks] = useState<FeaturedPickOut[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -46,6 +53,7 @@ export default function GalleryPage() {
           engine: filters.engine || undefined,
           mode: filters.mode || undefined,
           hasCaptures: filters.hasCaptures || undefined,
+          followedOnly: filters.followedOnly || undefined,
           q: q || undefined,
           cursor: nextCursor,
         });
@@ -60,6 +68,19 @@ export default function GalleryPage() {
     },
     [filters, q],
   );
+
+  // Fetch curated picks once on mount
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const picks = await api.getFeaturedPicks();
+        setFeaturedPicks(picks);
+      } catch (err) {
+        console.error('Failed to load featured picks in gallery:', err);
+      }
+    };
+    fetchFeatured();
+  }, []);
 
   // Refetch from scratch whenever the query (filters/search) changes.
   useEffect(() => {
@@ -90,6 +111,7 @@ export default function GalleryPage() {
       setOrDelete(p, 'engine', next.engine);
       setOrDelete(p, 'mode', next.mode);
       setOrDelete(p, 'has_captures', next.hasCaptures ? 'true' : '');
+      setOrDelete(p, 'followed_only', next.followedOnly ? 'true' : '');
     });
 
   const onSearch = (value: string) =>
@@ -117,17 +139,84 @@ export default function GalleryPage() {
               into the sandbox.
             </p>
           </div>
-          <Link
-            to="/"
-            className="font-mono text-[11px] uppercase tracking-[0.2em]"
-            style={{ color: '#f59e0b' }}
-          >
-            ← Sandbox
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              to="/feed"
+              className="font-mono text-[11px] uppercase tracking-[0.2em] hover:text-stone-300 transition-colors"
+              style={{ color: '#a8a29e' }}
+            >
+              Feed
+            </Link>
+            <Link
+              to="/"
+              className="font-mono text-[11px] uppercase tracking-[0.2em]"
+              style={{ color: '#f59e0b' }}
+            >
+              ← Sandbox
+            </Link>
+          </div>
         </header>
 
+        {featuredPicks.length > 0 && (
+          <div
+            className="mb-8 rounded-xl border p-5 animate-fade-in relative overflow-hidden"
+            style={{
+              background: 'rgba(245, 158, 11, 0.03)',
+              borderColor: 'rgba(245, 158, 11, 0.2)',
+              boxShadow: '0 0 20px rgba(245, 158, 11, 0.01)',
+            }}
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl -mr-16 -mt-16 pointer-events-none" />
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles size={13} className="text-amber-500 animate-pulse" />
+              <h2 className="font-mono text-[9px] uppercase tracking-[0.25em] font-semibold text-amber-400">
+                Curator Picks of the Week
+              </h2>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {featuredPicks.map((pick) => {
+                if (!pick.patch) return null;
+                return (
+                  <div
+                    key={pick.id}
+                    className="p-3.5 rounded-lg border border-stone-850 bg-stone-900/30 hover:border-stone-700/60 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="font-semibold text-stone-200 text-xs truncate">
+                        {pick.patch.title || 'Untitled Patch'}
+                      </div>
+                      {pick.curator_note && (
+                        <p className="text-[9px] text-amber-500/80 italic mt-1.5 leading-normal font-mono">
+                          "{pick.curator_note}"
+                        </p>
+                      )}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-stone-900/40 pt-2.5">
+                      <span className="text-[8px] text-stone-500 uppercase tracking-widest font-mono">
+                        Pos #{pick.position}
+                      </span>
+                      <Link
+                        to={`/p/${pick.patch.short_slug}`}
+                        className="text-[9px] uppercase font-semibold text-amber-500 hover:text-amber-400 font-mono flex items-center gap-0.5"
+                      >
+                        <span>Load</span>
+                        <ChevronRight size={10} />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <GalleryFilters value={filters} onChange={onFilters} />
+          <GalleryFilters
+            value={filters}
+            onChange={onFilters}
+            showFollowedOnly={isAuthenticated}
+          />
           <GallerySearch value={q} onSearch={onSearch} />
         </div>
 

@@ -5,11 +5,13 @@ export interface FilterState {
   engine: string;
   mode: string;
   hasCaptures: boolean;
+  followedOnly?: boolean;
 }
 
 interface Props {
   value: FilterState;
   onChange: (next: FilterState) => void;
+  showFollowedOnly: boolean;
 }
 
 const selectStyle: React.CSSProperties = {
@@ -21,7 +23,11 @@ const selectStyle: React.CSSProperties = {
   fontSize: 12,
 };
 
-export default function GalleryFilters({ value, onChange }: Props) {
+export default function GalleryFilters({
+  value,
+  onChange,
+  showFollowedOnly,
+}: Props) {
   return (
     <div className="flex flex-wrap items-center gap-4">
       <Labeled label="Sort">
@@ -36,6 +42,7 @@ export default function GalleryFilters({ value, onChange }: Props) {
           <option value="newest">Newest</option>
           <option value="oldest">Oldest</option>
           <option value="most_loaded">Most loaded</option>
+          <option value="most_liked">Most liked</option>
         </select>
       </Labeled>
 
@@ -78,6 +85,22 @@ export default function GalleryFilters({ value, onChange }: Props) {
         />
         Has captures
       </label>
+
+      {showFollowedOnly && (
+        <label
+          className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.15em] cursor-pointer"
+          style={{ color: '#a8a29e' }}
+        >
+          <input
+            type="checkbox"
+            checked={value.followedOnly || false}
+            onChange={(e) =>
+              onChange({ ...value, followedOnly: e.target.checked })
+            }
+          />
+          Followed only
+        </label>
+      )}
     </div>
   );
 }

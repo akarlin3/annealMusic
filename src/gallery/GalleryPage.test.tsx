@@ -5,6 +5,13 @@ import GalleryPage from '@/gallery/GalleryPage';
 import { galleryApi } from '@/gallery/api';
 import type { GalleryItem } from '@/gallery/types';
 
+vi.mock('@/auth/AuthProvider', () => ({
+  useAuth: () => ({
+    isAuthenticated: false,
+    account: null,
+  }),
+}));
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();

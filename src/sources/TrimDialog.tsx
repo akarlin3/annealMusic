@@ -85,7 +85,9 @@ export default function TrimDialog({
     if (!audioCtxRef.current) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       audioCtxRef.current = new (
-        window.AudioContext || (window as any).webkitAudioContext
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext
       )();
     }
     const ctx = audioCtxRef.current;

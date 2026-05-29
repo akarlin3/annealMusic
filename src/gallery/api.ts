@@ -19,6 +19,7 @@ function buildQuery(query: GalleryQuery): string {
   if (query.engine) p.set('engine', query.engine);
   if (query.mode) p.set('mode', query.mode);
   if (query.hasCaptures) p.set('has_captures', 'true');
+  if (query.followedOnly) p.set('followed_only', 'true');
   if (query.q) p.set('q', query.q);
   if (query.cursor) p.set('cursor', query.cursor);
   return p.toString();
