@@ -1,12 +1,18 @@
 /**
  * AudioWorklet wrapper for the modal plate. Renders the shared `ModalBank` DSP
- * class; an optional structural `{ modes }` message lets the host lower the mode
- * count under CPU pressure (the bank is rebuilt on the next param touch).
+ * tuned by `plateEigen`; an optional structural `{ modes }` message lets the host
+ * lower the mode count under CPU pressure (the bank is rebuilt with the same
+ * tuning). The plate's inharmonicity rides the first generic shape (`inharm`).
  */
-import { ModalBank, PLATE_MODES } from '@/audio/engines/physical-dsp/plate';
+import { ModalBank } from '@/audio/engines/physical-dsp/modal-bank';
+import { PLATE_MODES, plateEigen } from '@/audio/engines/physical-dsp/plate';
 
 class PlateProcessor extends AudioWorkletProcessor {
-  private dsp = new ModalBank(sampleRate);
+  private dsp = new ModalBank({
+    sampleRate,
+    eigen: plateEigen,
+    modeCount: PLATE_MODES,
+  });
 
   static get parameterDescriptors(): AudioParamDescriptor[] {
     return [
@@ -24,16 +30,11 @@ class PlateProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (e: MessageEvent): void => {
       const data = e.data as { modes?: number };
       if (typeof data?.modes === 'number') {
-        this.dsp = new ModalBank(
+        this.dsp = new ModalBank({
           sampleRate,
-          110,
-          0.4,
-          0.5,
-          0.5,
-          0.5,
-          Math.random,
-          data.modes,
-        );
+          eigen: plateEigen,
+          modeCount: data.modes,
+        });
       }
     };
   }
@@ -50,11 +51,10 @@ class PlateProcessor extends AudioWorkletProcessor {
     this.dsp.setDamping(params.damping?.[0] ?? 0.4);
     this.dsp.setBrightness(params.brightness?.[0] ?? 0.5);
     this.dsp.setExcitation(params.excitation?.[0] ?? 0.5);
-    this.dsp.setInharmonicity(params.inharm?.[0] ?? 0.5);
+    this.dsp.setShape1(params.inharm?.[0] ?? 0.5);
     this.dsp.render(out);
     return true;
   }
 }
 
 registerProcessor('plate-processor', PlateProcessor);
-void PLATE_MODES;
