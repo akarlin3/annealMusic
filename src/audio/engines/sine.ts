@@ -152,4 +152,8 @@ export class SineEngine implements AnnealEngine {
   getPartialFrequencies(): number[] {
     return this.partials.map((p) => p.osc.frequency.value);
   }
+
+  getPartialOutputs(): AudioNode[] {
+    return this.partials.map((p) => p.g);
+  }
 }

@@ -37,6 +37,7 @@ import InfoTip from '@/components/InfoTip';
 import HelpPanel from '@/components/HelpPanel';
 import Tour from '@/components/Tour';
 import { useTour } from '@/hooks/useTour';
+import ExportDialog from '@/export/ExportDialog';
 
 function fmtDuration(sec: number): string {
   const total = Math.max(0, Math.round(sec));
@@ -92,8 +93,14 @@ export default function App() {
 
   const [helpOpen, setHelpOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const { account } = useAuth();
   const tour = useTour();
+
+  const patchSlug = useMemo(() => {
+    const match = window.location.pathname.match(/^\/p\/([^/]+)$/);
+    return match && match[1] ? match[1] : 'free';
+  }, []);
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const toastId = useRef(0);
@@ -286,6 +293,20 @@ export default function App() {
               <InfoTip id="feature.share" label="Copy link" />
             </span>
 
+            <span className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setExportOpen(true)}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
+                style={{ border: '1px solid #44403c', color: '#a8a29e' }}
+              >
+                <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                  Export Stems
+                </span>
+              </button>
+              <InfoTip id="feature.export" label="Export stems" />
+            </span>
+
             {backendOn && (
               <>
                 <SavePatchButton
@@ -442,6 +463,16 @@ export default function App() {
             setHelpOpen(false);
             tour.start();
           }}
+        />
+      )}
+
+      {exportOpen && (
+        <ExportDialog
+          orchestrator={ensureOrchestrator()}
+          patchTitle="Untitled session"
+          patchHash={patchSlug}
+          onClose={() => setExportOpen(false)}
+          showToast={showToast}
         />
       )}
 

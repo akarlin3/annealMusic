@@ -447,4 +447,10 @@ export class PhysicalEngine implements AnnealEngine {
   getModel(): PhysicalModel {
     return this.model;
   }
+
+  getPartialOutputs(): AudioNode[] {
+    return this.partials
+      .map((p) => p.node?.node)
+      .filter((n): n is AudioNode => n !== null && n !== undefined);
+  }
 }

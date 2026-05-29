@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AnnealMusicSessionManifest",
+  "description": "Schema for the session.json manifest file included in AnnealMusic stem exports",
+  "type": "OBJECT",
+  "properties": {
+    "version": {
+      "type": "STRING",
+      "const": "1.5.0"
+    },
+    "timestamp": {
+      "type": "STRING",
+      "format": "date-time"
+    },
+    "patch": {
+      "type": "OBJECT",
+      "properties": {
+        "title": { "type": "STRING" },
+        "hash": { "type": "STRING" },
+        "engine": { "type": "STRING" }
+      },
+      "required": ["title", "hash", "engine"]
+    },
+    "format": {
+      "type": "OBJECT",
+      "properties": {
+        "sampleRate": { "type": "INTEGER", "enum": [44100, 48000, 96000] },
+        "bitDepth": { "type": "INTEGER", "enum": [24, 32] }
+      },
+      "required": ["sampleRate", "bitDepth"]
+    },
+    "render": {
+      "type": "OBJECT",
+      "properties": {
+        "durationSec": { "type": "INTEGER" },
+        "seed": { "type": "INTEGER" },
+        "mode": { "type": "STRING", "enum": ["open", "arc"] }
+      },
+      "required": ["durationSec", "seed", "mode"]
+    },
+    "stems": {
+      "type": "ARRAY",
+      "items": {
+        "type": "OBJECT",
+        "properties": {
+          "id": { "type": "STRING" },
+          "label": { "type": "STRING" },
+          "channels": { "type": "INTEGER", "enum": [1, 2] },
+          "type": {
+            "type": "STRING",
+            "enum": ["engine", "input", "loop", "master", "partial"]
+          },
+          "isFx": { "type": "BOOLEAN" }
+        },
+        "required": ["id", "label", "channels", "type", "isFx"]
+      }
+    }
+  },
+  "required": ["version", "timestamp", "patch", "format", "render", "stems"]
+}

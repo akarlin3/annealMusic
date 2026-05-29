@@ -213,6 +213,18 @@ export class Orchestrator {
     return this.inputVoice;
   }
 
+  getActiveEngine(): AnnealEngine | null {
+    return this.active?.engine ?? null;
+  }
+
+  getActiveVoiceBus(): GainNode | null {
+    return this.active?.bus ?? null;
+  }
+
+  getNodes(): GraphNodes | null {
+    return this.nodes;
+  }
+
   /**
    * Connect (or switch device on) the live input. Builds the audio core if
    * needed, routes the input voice into the shared post-fx, and ensures the

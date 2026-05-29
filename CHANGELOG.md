@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-05-29
+
+### Added
+
+- **Multi-Stem Session Export.** Enables users to render and export high-fidelity, sample-accurate, time-aligned multi-stem lossless WAV files suitable for direct import into professional DAWs (Logic, Ableton, Pro Tools, Reaper).
+- **Broadcast Wave Format (BWF) and iXML Metadata.** Embeds standard Broadcast Audio Extension (`bext` version 0) headers and `iXML` semantic XML chunks within exported WAV stems for project/track metadata identification inside the DAW.
+- **Seeded Mulberry32 PRNG Determinism.** Implements a seeded Mulberry32 pseudo-random number generator for offline renders, guaranteeing absolute, byte-level SHA-256 replication across identical renders.
+- **Sequential Offline Render Contexts.** Runs rapid sequentially managed `OfflineAudioContext` passes to maintain a strict memory ceiling on heavy stems, coupled with dynamic player lookahead ticking.
+- **Live Realtime Stems Capture.** Connects parallel, synchronized `AudioWorkletNode` PCM sample accumulators to tap live audio graph components (engine raw output, processed input feeds, loop slots) concurrently during live performances.
+- **Premium Glassmorphic Export Interface.** Introduces a gorgeous glassmorphic prompt letting creators configure sample rates (44.1/48/96 kHz) and bit depths (24-bit PCM / 32-bit Float), estimate export sizes dynamically, and view sequential progress checklists.
+- **Capacitor Mobile Native Export.** Automatically scales durations (10-minute mobile cap vs 30-minute web) and integrates Capacitor Filesystem cache saving and native system share sheets.
+
 ## [1.4.0] - 2026-05-29
 
 ### Added

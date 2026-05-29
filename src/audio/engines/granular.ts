@@ -373,6 +373,10 @@ export class GranularEngine implements AnnealEngine {
   getPitchOffsets(): number[] {
     return this.partials.map((p) => p.pitchOffsetBase);
   }
+
+  getPartialOutputs(): AudioNode[] {
+    return this.partials.map((p) => p.cloud.getOutputNode());
+  }
 }
 
 /** The soft total-grain ceiling, exposed for docs/tests. */

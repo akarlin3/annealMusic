@@ -80,6 +80,9 @@ export interface AnnealEngine {
    * engines with no async failure mode omit it.
    */
   setErrorHandler?(fn: (error: Error) => void): void;
+
+  /** [Optional] Expose individual partial output nodes for stem capture. */
+  getPartialOutputs?(): AudioNode[];
 }
 
 /** Build the default engine-param bag for a set of param defs. */

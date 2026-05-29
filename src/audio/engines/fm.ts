@@ -284,4 +284,8 @@ export class FmEngine implements AnnealEngine {
   getModulatorFrequencies(): number[] {
     return this.voices.map((v) => v.modulator.frequency.value);
   }
+
+  getPartialOutputs(): AudioNode[] {
+    return this.voices.map((v) => v.g);
+  }
 }
