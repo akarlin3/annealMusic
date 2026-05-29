@@ -52,7 +52,7 @@ export function encodeEngineParams(
   params: EngineParams,
 ): string {
   const ns = ENGINE_URL_NS[engineId];
-  return engineParamDefs(engineId)
+  const parts = engineParamDefs(engineId)
     .map((def) => {
       const value = params[def.key] ?? def.default;
       const serialized =
@@ -60,8 +60,11 @@ export function encodeEngineParams(
           ? value.toFixed(decimalsForStep(def.step))
           : String(value);
       return `${ns}.${def.key}=${serialized}`;
-    })
-    .join('&');
+    });
+  if (params.grid_lock === 1 || String(params.grid_lock) === 'true' || (params.grid_lock as any) === true) {
+    parts.push(`${ns}.grid_lock=1`);
+  }
+  return parts.join('&');
 }
 
 /** Grain field codes used in the URL (kept short). */
@@ -146,6 +149,7 @@ export interface DecodedPieceSegment {
 export interface DecodedPiece {
   title?: string;
   description?: string;
+  tempoBpm?: number | null; // <-- NEW
   defaultsState: {
     params: Partial<AnnealMusicParams>;
     engineId: EngineId;
@@ -343,6 +347,12 @@ function decodePatchState(
         warnings.push(`unknown engine namespace ignored: ${key}`);
         continue;
       }
+      if (paramKey === 'grid_lock') {
+        const bag = engineParams[engineNs] ?? {};
+        bag[paramKey] = raw === '1' || raw === 'true' ? 1 : 0;
+        engineParams[engineNs] = bag;
+        continue;
+      }
       const def = engineParamDefs(engineNs).find((d) => d.key === paramKey);
       if (!def) {
         warnings.push(`unknown engine param ignored: ${key}`);
@@ -416,6 +426,7 @@ function decodePatchState(
 export function decodePiecePayload(payload: string): DecodedPiece {
   let title: string | undefined;
   let description: string | undefined;
+  let tempoBpm: number | null = null;
   const defPairs: string[] = [];
   const segMap: Record<
     number,
@@ -433,6 +444,9 @@ export function decodePiecePayload(payload: string): DecodedPiece {
       title = decodeURIComponent(raw);
     } else if (key === 'desc') {
       description = decodeURIComponent(raw);
+    } else if (key === 'tempo') {
+      const parsed = Number(raw);
+      tempoBpm = isNaN(parsed) ? null : parsed;
     } else if (key.startsWith('def.')) {
       defPairs.push(pair.slice(4));
     } else if (key.startsWith('seg')) {
@@ -451,9 +465,10 @@ export function decodePiecePayload(payload: string): DecodedPiece {
             segMap[idx].dur = raw === 'null' ? null : parseInt(raw, 10);
           } else {
             const num = Number(raw);
-            segMap[idx].config[segKey] = isNaN(num)
-              ? decodeURIComponent(raw)
-              : num;
+            let parsedVal: any = isNaN(num) ? decodeURIComponent(raw) : num;
+            if (parsedVal === 'true') parsedVal = true;
+            if (parsedVal === 'false') parsedVal = false;
+            segMap[idx].config[segKey] = parsedVal;
           }
         }
       }
@@ -478,6 +493,7 @@ export function decodePiecePayload(payload: string): DecodedPiece {
   return {
     title,
     description,
+    tempoBpm,
     defaultsState: {
       params: decodedDef.params,
       engineId: decodedDef.engineId,
@@ -488,10 +504,11 @@ export function decodePiecePayload(payload: string): DecodedPiece {
   };
 }
 
-/** Encode a Piece into a version 8 URL payload string */
+/** Encode a Piece into a version 9 URL payload string */
 export function encodePiece(piece: {
   title?: string | null;
   description?: string | null;
+  tempoBpm?: number | null; // <-- NEW
   defaultsState: {
     params: AnnealMusicParams;
     engineId: EngineId;
@@ -508,6 +525,9 @@ export function encodePiece(piece: {
   if (piece.title) parts.push(`title=${encodeURIComponent(piece.title)}`);
   if (piece.description) {
     parts.push(`desc=${encodeURIComponent(piece.description)}`);
+  }
+  if (piece.tempoBpm !== undefined && piece.tempoBpm !== null) {
+    parts.push(`tempo=${piece.tempoBpm}`);
   }
 
   const defStateStr = encodeState(

@@ -63,6 +63,7 @@ export const FEATURE_IDS = [
   'engine.fm',
   'engine.granular',
   'engine.physical',
+  'engine.pulse',
   // Arcs / sessions
   'mode',
   'arc.preset',
@@ -220,6 +221,15 @@ const ENTRIES: Explain[] = [
       'Imitates how real objects make sound — a bowed string, a blown pipe, or a struck metal plate.',
     help: 'This imitates how real, physical objects make sound: a bowed string, a blown pipe, or a ringing metal plate. Pick which one with the model buttons, then shape it with the sliders. (Needs a modern browser; older devices may not support it.)',
   },
+  {
+    id: 'engine.pulse',
+    label: 'Pulse',
+    group: 'engines',
+    caption: 'Tempo-locked percussive acoustic clicks, ticks, and bells.',
+    tooltip:
+      'A rhythmic, percussive character — adds organic clicks and bell-like sounds locked to your piece tempo.',
+    help: 'A rhythmic, percussive sound source. It adds woodblock, drum, and bell-like ticks that lock perfectly to the piece tempo. Tweak its subdivision and swing below to shape the rhythmic pattern.',
+  },
 
   // ── FM engine params ───────────────────────────────────────────────────
   {
@@ -359,6 +369,51 @@ const ENTRIES: Explain[] = [
     tooltip:
       'Only affects the plate model — how bell-like and clangy it gets, versus clean and tuned.',
     help: 'Shapes the metal-plate model only. Low keeps it clean and tuned; high pushes it toward a clangy, gong-like ring. (Has no effect on the string or pipe.)',
+  },
+  {
+    id: 'pulse.density',
+    label: 'Subdivision',
+    group: 'engines',
+    caption: 'How fast the rhythmic ticks repeat.',
+    tooltip:
+      'Sets the rhythmic speed of the ticks — from slow once-a-bar beats to rapid shuffles and triplets.',
+    help: 'Controls how quickly the rhythmic ticks are played. You can choose slow whole notes, faster quarter notes, or rapid sixteenth notes and triplets to build up a rich pattern.',
+  },
+  {
+    id: 'pulse.accent',
+    label: 'Accent',
+    group: 'engines',
+    caption: 'Emphasizes the start of each bar.',
+    tooltip:
+      'When enabled, the first tick of every four beats plays slightly louder to anchor the rhythm.',
+    help: 'Puts a gentle emphasis on the very first beat of each four-beat measure. This gives the sound a natural, walking pulse and keeps your ears anchored in the rhythm.',
+  },
+  {
+    id: 'pulse.tone',
+    label: 'Tone',
+    group: 'engines',
+    caption: 'Shapes the character of the tick — from wood to metal.',
+    tooltip:
+      'Sets the brightness and resonance of the ticks. Low sounds like warm wooden blocks; high sounds like ringing glass and bells.',
+    help: 'Shapes the texture and decay of the rhythmic clicks. Turn it down for a warm, organic woodblock or drum sound. Turn it up for a bright, ringing bell or glass chime.',
+  },
+  {
+    id: 'pulse.swing',
+    label: 'Swing',
+    group: 'engines',
+    caption: 'Adds a lazy, organic shuffle to the rhythm.',
+    tooltip:
+      'Shifts every second tick slightly late for a laid-back, swinging feel instead of a rigid clockwork grid.',
+    help: 'Breaks the rigid mechanical grid by delaying alternate beats. Turn it up to introduce an organic, lazy shuffle or groove, giving the rhythm a more human, laid-back feel.',
+  },
+  {
+    id: 'pulse.humanize',
+    label: 'Humanize',
+    group: 'engines',
+    caption: 'Adds subtle, natural timing imperfections.',
+    tooltip:
+      'Introduces microscopic timing variations so the ticks feel like they are played by a real person rather than a computer.',
+    help: 'Introduces tiny, random timing micro-adjustments to each tick. This mimics a live musician playing slightly ahead or behind the beat, keeping the pattern from feeling sterile or mechanical.',
   },
 
   // ── Sessions / arcs ────────────────────────────────────────────────────

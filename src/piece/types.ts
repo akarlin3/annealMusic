@@ -22,6 +22,7 @@ export interface Piece {
   title: string | null;
   description: string | null;
   visibility: 'unlisted' | 'public';
+  tempoBpm: number | null; // <-- NEW
   totalDurationMs: number | null;
   hasOpenSegment: boolean;
   segments: PieceSegment[];

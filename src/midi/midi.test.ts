@@ -73,6 +73,7 @@ describe('MIDI Local Storage Persistence', () => {
       outputChannel: 10,
       clockEnabled: true,
       clockBpm: 120,
+      clockSyncToPieceTempo: false,
       ccOutputEnabled: true,
       notesEnabled: true,
       notesReleaseBehavior: 'return',

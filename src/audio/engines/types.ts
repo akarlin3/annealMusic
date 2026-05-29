@@ -1,7 +1,7 @@
 import type { AnnealMusicParams } from '@/state/params';
 
 /** Identifier for a selectable synthesis engine. */
-export type EngineId = 'sine' | 'fm' | 'granular' | 'physical';
+export type EngineId = 'sine' | 'fm' | 'granular' | 'physical' | 'pulse';
 
 /**
  * Shared physics + post-fx params, owned by the orchestration layer and passed
@@ -59,7 +59,7 @@ export interface AnnealEngine {
   getOutputNode(): AudioNode;
 
   /** Smoothly update shared params relevant to voice frequencies (root, spread). */
-  setSharedParams(partial: Partial<SharedParams>): void;
+  setSharedParams(partial: Partial<SharedParams>, targetTime?: number): void;
 
   /** Update engine-specific params (e.g. FM ratio, index). */
   setEngineParams(partial: Partial<EngineParams>): void;

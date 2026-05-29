@@ -36,6 +36,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
   // Main piece state
   const [piece, setPiece] = useState<Piece>({
     schemaVer: SCHEMA_VERSION,
+    tempoBpm: null,
     title: 'New Ambient Piece',
     description: 'A custom timeline composition.',
     visibility: 'unlisted',
@@ -225,6 +226,13 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
     }
   };
 
+  const snapToGrid = (ms: number, tempo: number | null): number => {
+    if (tempo === null) return ms;
+    const beatDurationMs = (60 / tempo) * 1000;
+    const beats = Math.round(ms / beatDurationMs);
+    return Math.max(1, beats) * beatDurationMs;
+  };
+
   // Horizontal Resize handler
   const handleMouseDownResize = (e: React.MouseEvent, idx: number) => {
     e.stopPropagation();
@@ -238,7 +246,11 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX;
       const deltaMs = Math.round((deltaX / PX_PER_SEC) * 1000);
-      const newDur = Math.max(1000, startDur + deltaMs); // minimum 1s
+      let newDur = Math.max(1000, startDur + deltaMs); // minimum 1s
+
+      if (piece.tempoBpm !== null) {
+        newDur = snapToGrid(newDur, piece.tempoBpm);
+      }
 
       const updated = piece.segments.map((s, i) =>
         i === idx ? { ...s, durationMs: newDur } : s,
@@ -269,6 +281,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
         title: piece.title,
         description: piece.description,
         visibility: piece.visibility,
+        tempo_bpm: piece.tempoBpm,
         segments: piece.segments.map((s) => ({
           type: s.type,
           duration_ms: s.durationMs,
@@ -304,6 +317,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
       title: item.title,
       description: item.description,
       visibility: item.visibility,
+      tempoBpm: item.tempo_bpm !== undefined ? item.tempo_bpm : null,
       defaultsState: item.defaults_state,
       totalDurationMs: item.total_duration_ms,
       hasOpenSegment: item.has_open_segment,
@@ -336,17 +350,54 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
     <div className="space-y-6 w-full max-w-6xl mx-auto p-4 select-none">
       {/* Top Header & Actions Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#18151f]/80 backdrop-blur-xl border border-white/5 p-6 rounded-3xl shadow-xl">
-        <div className="space-y-1">
-          <input
-            type="text"
-            value={piece.title || ''}
-            onChange={(e) => setPiece({ ...piece, title: e.target.value })}
-            className="bg-transparent text-xl font-extrabold text-white border-b border-transparent hover:border-white/20 focus:border-teal-500 focus:outline-none py-1 transition w-64 md:w-96"
-            placeholder="Piece Title..."
-          />
-          <p className="text-xs text-white/40">
-            v3.0 Pieces & Horizontal Arrangement Foundation
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center gap-6">
+          <div className="space-y-1">
+            <input
+              type="text"
+              value={piece.title || ''}
+              onChange={(e) => setPiece({ ...piece, title: e.target.value })}
+              className="bg-transparent text-xl font-extrabold text-white border-b border-transparent hover:border-white/20 focus:border-teal-500 focus:outline-none py-1 transition w-64 md:w-80"
+              placeholder="Piece Title..."
+            />
+            <p className="text-xs text-white/40">
+              v3.1 Pieces · Tempo + Pulse Engine
+            </p>
+          </div>
+
+          {/* Piece-level Tempo Control */}
+          <div className="flex items-center gap-3 bg-white/5 border border-white/10 px-4 py-2.5 rounded-2xl">
+            {piece.tempoBpm === null ? (
+              <button
+                onClick={() => setPiece({ ...piece, tempoBpm: 120 })}
+                className="flex items-center gap-2 text-xs font-bold text-teal-400 hover:text-teal-300 transition"
+              >
+                <Plus className="w-4 h-4" />
+                Add Tempo Layer
+              </button>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-white/60">Tempo:</span>
+                <input
+                  type="number"
+                  min="40"
+                  max="240"
+                  value={piece.tempoBpm}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setPiece({ ...piece, tempoBpm: isNaN(val) ? 120 : Math.max(40, Math.min(240, val)) });
+                  }}
+                  className="bg-white/5 border border-white/10 rounded-lg text-xs font-bold text-white text-center py-1 w-16 focus:outline-none focus:border-teal-500"
+                />
+                <span className="text-xs text-white/40 font-mono">BPM</span>
+                <button
+                  onClick={() => setPiece({ ...piece, tempoBpm: null })}
+                  className="text-xs font-bold text-rose-400 hover:text-rose-300 transition pl-2 border-l border-white/10"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -423,7 +474,30 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
 
         {/* Horizontal scrollable track area */}
         <div className="w-full overflow-x-auto custom-scrollbar bg-[#110e14] border border-white/5 rounded-2xl p-6 min-h-[140px] relative flex items-center">
-          <div className="flex items-center gap-1 relative min-w-full">
+          {/* Visual Grid Backdrop */}
+          {piece.tempoBpm !== null && (
+            <div className="absolute inset-y-0 left-6 right-6 pointer-events-none z-0">
+              {Array.from({
+                length: Math.ceil((piece.totalDurationMs || 30000) / ((60 / piece.tempoBpm) * 1000)) + 1,
+              }).map((_, bIdx) => {
+                const beatDurationMs = (60 / piece.tempoBpm!) * 1000;
+                const beatWidthPx = (beatDurationMs / 1000) * PX_PER_SEC * 10;
+                const left = bIdx * beatWidthPx;
+                const isBar = bIdx % 4 === 0;
+                return (
+                  <div
+                    key={bIdx}
+                    className={`absolute inset-y-0 border-l ${
+                      isBar ? 'border-teal-500/25 w-[2px]' : 'border-white/5 w-[1px]'
+                    }`}
+                    style={{ left: `${left}px` }}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex items-center gap-1 relative min-w-full z-10">
             {piece.segments.map((seg, idx) => {
               const durationSec = seg.durationMs ? seg.durationMs / 1000 : 30; // open is mapped to constant width
               const width =

@@ -2,6 +2,7 @@ import { SineEngine } from '@/audio/engines/sine';
 import { FmEngine } from '@/audio/engines/fm';
 import { GranularEngine } from '@/audio/engines/granular';
 import { PhysicalEngine } from '@/audio/engines/physical';
+import { PulseEngine } from '@/audio/engines/pulse';
 import {
   defaultsFromParamDefs,
   type AnnealEngine,
@@ -23,6 +24,7 @@ export const ENGINES: Partial<Record<EngineId, EngineFactory>> = {
   fm: () => new FmEngine(),
   granular: () => new GranularEngine(),
   physical: () => new PhysicalEngine(),
+  pulse: () => new PulseEngine(),
 };
 
 /** Selectable engines in display order (drives the selector + share schema). */
@@ -31,6 +33,7 @@ export const ENGINE_ORDER: readonly EngineId[] = [
   'fm',
   'granular',
   'physical',
+  'pulse',
 ];
 
 /** Human-facing labels for each engine. */
@@ -39,6 +42,7 @@ export const ENGINE_LABELS: Record<EngineId, string> = {
   fm: 'FM',
   granular: 'Granular',
   physical: 'Physical',
+  pulse: 'Pulse',
 };
 
 /**
@@ -51,6 +55,7 @@ export const ENGINE_URL_NS: Record<EngineId, string> = {
   fm: 'fm',
   granular: 'gr',
   physical: 'ph',
+  pulse: 'pu',
 };
 
 const URL_NS_TO_ENGINE: ReadonlyMap<string, EngineId> = new Map(

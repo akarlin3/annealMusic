@@ -15,6 +15,7 @@ const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
     'Splices acoustic and synthetic source files into micro-grains. Generates lush, atmospheric, and cloud-like textures.',
   physical:
     'Digital waveguides and modal resonators (string, tube, plate, membrane, bowed, mallet, edge, bell) excited continuously. Recreates acoustic instrument physics.',
+  pulse: 'Percussive physical resonators excited by brief noise bursts. Synthesizes tempo-locked acoustic ticks, clicks, and bells.',
 };
 
 /**

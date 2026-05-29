@@ -27,6 +27,7 @@ describe('PiecePlayer timeline', () => {
   it('resolves segment overrides correctly', () => {
     const piece: Piece = {
       schemaVer: 8,
+      tempoBpm: null,
       title: 'Test',
       description: null,
       visibility: 'unlisted',
