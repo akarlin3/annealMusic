@@ -208,15 +208,25 @@ const MODEL_LABELS: Record<string, string> = {
   string: 'String',
   tube: 'Tube',
   plate: 'Plate',
+  membrane: 'Membrane',
+  bowed: 'Bowed',
+  mallet: 'Mallet',
+  edge: 'Edge',
+  bell: 'Bell',
 };
 
 const MODEL_HINTS: Record<string, string> = {
-  string: 'Bowed Karplus-Strong',
-  tube: 'Blown waveguide',
+  string: 'Plucked Karplus-Strong',
+  tube: 'Blown reed waveguide',
   plate: 'Struck modal bank',
+  membrane: 'Circular drum modes',
+  bowed: 'Friction-driven string',
+  mallet: 'Vibraphone bar roll',
+  edge: 'Jet-blown air column',
+  bell: 'Bell partial modes',
 };
 
-/** Card selector for the physical engine sub-model (string / tube / plate). */
+/** Card selector for the physical engine sub-model (8 models, 2×4 grid). */
 function ModelPicker({
   value,
   disabled,
@@ -230,7 +240,7 @@ function ModelPicker({
     <div
       role="radiogroup"
       aria-label="Physical model"
-      className="grid grid-cols-3 gap-2"
+      className="grid grid-cols-2 gap-2 sm:grid-cols-4"
       style={{ opacity: disabled ? 0.5 : 1 }}
     >
       {PHYSICAL_MODELS.map((model, i) => {

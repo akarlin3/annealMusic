@@ -138,6 +138,45 @@ describe('PhysicalEngine — params', () => {
     expect(plateVoices[0]?.messages[0]).toEqual({ modes: 20 });
   });
 
+  it.each([
+    [3, 'membrane-processor', 12],
+    [4, 'bowed-processor', undefined],
+    [5, 'mallet-processor', 6],
+    [6, 'edge-processor', undefined],
+    [7, 'bell-processor', 9],
+  ])(
+    'builds the %i sub-model on its own processor (+ modal throttle msg)',
+    async (model, processor, modes) => {
+      const { eng, voices } = makeEngine();
+      eng.start(ctxOf(), shared({ density: 2 }), { model });
+      await flush();
+      expect(voices).toHaveLength(2);
+      expect(voices.every((v) => v.processor === processor)).toBe(true);
+      // Modal sub-models receive a structural mode-count message; the
+      // delay/waveguide ones (bowed/edge) receive none.
+      if (modes === undefined) {
+        expect(voices[0]?.messages).toHaveLength(0);
+      } else {
+        expect(voices[0]?.messages[0]).toEqual({ modes });
+      }
+    },
+  );
+
+  it('maps shared params onto every new sub-model voice', async () => {
+    const { eng, voices } = makeEngine();
+    eng.start(ctxOf(), shared({ density: 2, brightness: 0.5 }), {
+      model: 3,
+      excitationLevel: 0.5,
+      damping: 0.4,
+    });
+    await flush();
+    eng.setEngineParams({ damping: 0.9 });
+    expect(voices.every((v) => v.params.get('damping') === 0.9)).toBe(true);
+    eng.setEngineParams({ reed: 0.8, inharm: 0.2 });
+    expect(voices[0]?.params.get('reed')).toBe(0.8);
+    expect(voices[0]?.params.get('inharm')).toBe(0.2);
+  });
+
   it('surfaces async load failures through the error handler', async () => {
     const { factory } = fakeFactory();
     const onError = vi.fn();
