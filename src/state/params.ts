@@ -73,14 +73,54 @@ export function getClosestNote(freq: number): string {
   return `${noteName}${octave}`;
 }
 
+/** Convert a Western piano note name (e.g. A4, C#3, Gb5) to its frequency in Hz. */
+export function pianoNoteToFreq(note: string): number | null {
+  const cleaned = note.trim().replace(/\s+/g, '');
+  const match = cleaned.match(/^([A-G]|[a-g])(#|b|♯|♭)?(-?\d+)$/);
+  if (!match) return null;
+
+  const name = match[1] ? match[1].toUpperCase() : '';
+  const accidental = match[2] || '';
+  const octaveStr = match[3] || '';
+  const octave = parseInt(octaveStr, 10);
+
+  const NOTE_TO_PITCH: Record<string, number> = {
+    C: 0,
+    'C#': 1,
+    D: 2,
+    'D#': 3,
+    E: 4,
+    F: 5,
+    'F#': 6,
+    G: 7,
+    'G#': 8,
+    A: 9,
+    'A#': 10,
+    B: 11,
+  };
+
+  let pitch = NOTE_TO_PITCH[name];
+  if (pitch === undefined) return null;
+
+  if (accidental === 'b' || accidental === '♭') {
+    pitch -= 1;
+  } else if (accidental === '#' || accidental === '♯') {
+    pitch += 1;
+  }
+
+  const midi = (octave + 1) * 12 + pitch;
+  const freq = 440 * Math.pow(2, (midi - 69) / 12);
+  return isNaN(freq) ? null : freq;
+}
+
 /** Grouped controls rendered in the control panel (excludes volume). */
 export const CONTROL_DEFS: readonly ControlDef[] = [
   {
     key: 'rootFreq',
     label: 'Root',
     group: 'Pitch',
-    min: 55,
-    max: 220,
+    min: 20,
+    max: 4200,
     step: 1,
     fmt: (v) => `${v.toFixed(0)} Hz (${getClosestNote(v)})`,
   },

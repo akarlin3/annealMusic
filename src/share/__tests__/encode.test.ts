@@ -79,7 +79,7 @@ describe('encodeParams / decodeParams', () => {
   it('clamps out-of-range values and warns', () => {
     const { params, warnings } = decodeParams('coupling=9&rootFreq=10');
     expect(params.coupling).toBe(1); // max
-    expect(params.rootFreq).toBe(55); // min
+    expect(params.rootFreq).toBe(20); // min
     expect(warnings.length).toBe(2);
     expect(warnings.some((w) => w.includes('coupling'))).toBe(true);
     expect(warnings.some((w) => w.includes('rootFreq'))).toBe(true);

@@ -1,9 +1,12 @@
+import { useState, useEffect } from 'react';
 import {
   CONTROL_DEFS,
   VOLUME_DEF,
   type ControlGroup,
   type AnnealMusicParams,
   type ParamKey,
+  getClosestNote,
+  pianoNoteToFreq,
 } from '@/state/params';
 import {
   ENGINE_LABELS,
@@ -41,6 +44,87 @@ interface SliderDef {
   max: number;
   step: number;
   fmt: (v: number) => string;
+}
+
+function NoteConverter({
+  value,
+  min,
+  max,
+  disabled,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  disabled: boolean;
+  onChange: (v: number) => void;
+}) {
+  const [inputText, setInputText] = useState(() => getClosestNote(value));
+  const [isValid, setIsValid] = useState(true);
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Sync input text with the slider if the user is not actively typing
+  useEffect(() => {
+    if (!isFocused) {
+      setInputText(getClosestNote(value));
+      setIsValid(true);
+    }
+  }, [value, isFocused]);
+
+  const handleChange = (text: string) => {
+    setInputText(text);
+    const parsed = pianoNoteToFreq(text);
+    if (parsed !== null) {
+      setIsValid(true);
+      const clamped = Math.min(max, Math.max(min, parsed));
+      onChange(clamped);
+    } else {
+      setIsValid(text.trim() === '');
+    }
+  };
+
+  return (
+    <div className="mt-2.5 rounded-lg border border-[#2e2b28] bg-[#1a1715]/60 p-2.5 transition-all hover:border-[#44403c]">
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#78716c]">
+            Piano Note Converter
+          </span>
+          <span className="text-[9px] font-mono text-[#57534e]">
+            (e.g., A4, C#3, Eb5)
+          </span>
+        </div>
+        {inputText.trim() !== '' && (
+          <span
+            className="font-mono text-[9px] uppercase tracking-wider transition-colors duration-200"
+            style={{ color: isValid ? '#10b981' : '#ef4444' }}
+          >
+            {isValid ? 'Valid' : 'Invalid'}
+          </span>
+        )}
+      </div>
+      <div className="mt-1.5 flex gap-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            disabled={disabled}
+            value={inputText}
+            onChange={(e) => handleChange(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            placeholder="Type note (e.g. A4)"
+            className="w-full rounded border bg-[#0d0c0b] px-2 py-1 text-xs font-mono text-[#e7e5e4] placeholder-[#44403c] transition-all focus:border-[#fbbf24] focus:outline-none disabled:opacity-50"
+            style={{
+              borderColor: isValid ? '#2e2b28' : '#ef4444',
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-center rounded bg-[#1c1917] px-2.5 py-1 text-[11px] font-mono text-[#fbbf24]">
+          {value.toFixed(0)} Hz
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function Slider({
@@ -102,6 +186,15 @@ function Slider({
         onChange={(e) => onChange(parseFloat(e.target.value))}
       />
       {explainId && showCaption && <ControlCaption id={explainId} />}
+      {explainId === 'rootFreq' && (
+        <NoteConverter
+          value={value}
+          min={def.min}
+          max={def.max}
+          disabled={disabled}
+          onChange={onChange}
+        />
+      )}
     </div>
   );
 }
