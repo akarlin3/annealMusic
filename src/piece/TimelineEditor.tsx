@@ -81,7 +81,11 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
   // Helpers for notation playback progress tracking
   const getSegmentDuration = (seg: PieceSegment): number => {
     const raw = seg.durationMs ?? 5000;
-    if (seg.config?.tempoLocked && piece.tempoBpm !== null && piece.tempoBpm > 0) {
+    if (
+      seg.config?.tempoLocked &&
+      piece.tempoBpm !== null &&
+      piece.tempoBpm > 0
+    ) {
       return raw * 4 * (60 / piece.tempoBpm) * 1000;
     }
     return raw;
@@ -99,7 +103,13 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
     const currentSeg = piece.segments[activeSegIdx];
     const dur = currentSeg ? getSegmentDuration(currentSeg) : 5000;
     return total + playheadProgress * dur;
-  }, [isPlaying, activeSegIdx, playheadProgress, piece.segments, piece.tempoBpm]);
+  }, [
+    isPlaying,
+    activeSegIdx,
+    playheadProgress,
+    piece.segments,
+    piece.tempoBpm,
+  ]);
 
   // Load user's saved pieces on mount, and fetch targeted piece by slug if present
   useEffect(() => {
@@ -162,7 +172,23 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
           ? { easing: 'linear' }
           : type === 'arc'
             ? { arcId: 'bell' }
-            : { params: {} },
+            : type === 'meta-arc'
+              ? {
+                  kind: 'random-walk',
+                  seed: null,
+                  randomWalk: {
+                    params: ['rootFreq', 'brightness', 'space'],
+                    driftStrength: 0.15,
+                    meanReversion: 0.1,
+                    steps: 20,
+                    bounds: {
+                      rootFreq: { min: 0.5, max: 1.5 },
+                      brightness: { min: 0.3, max: 0.9 },
+                      space: { min: 0.2, max: 0.8 },
+                    },
+                  },
+                }
+              : { params: {} },
     };
     const updatedSegs = [...piece.segments, newSeg];
     updatePieceSegments(updatedSegs);
@@ -223,7 +249,8 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
         playerRef.current = new PiecePlayer(piece, orch);
       }
       // Register global reference for the notation editor glide toggle
-      (window as any).activePiecePlayer = playerRef.current;
+      (window as unknown as Record<string, unknown>).activePiecePlayer =
+        playerRef.current;
 
       setIsPlaying(true);
       playerRef.current.start(
@@ -414,7 +441,9 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
               </button>
             ) : (
               <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-white/60">Tempo:</span>
+                <span className="text-xs font-semibold text-white/60">
+                  Tempo:
+                </span>
                 <input
                   type="number"
                   min="40"
@@ -422,7 +451,12 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
                   value={piece.tempoBpm}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10);
-                    setPiece({ ...piece, tempoBpm: isNaN(val) ? 120 : Math.max(40, Math.min(240, val)) });
+                    setPiece({
+                      ...piece,
+                      tempoBpm: isNaN(val)
+                        ? 120
+                        : Math.max(40, Math.min(240, val)),
+                    });
                   }}
                   className="bg-white/5 border border-white/10 rounded-lg text-xs font-bold text-white text-center py-1 w-16 focus:outline-none focus:border-teal-500"
                 />
@@ -529,7 +563,11 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
           {piece.tempoBpm !== null && (
             <div className="absolute inset-y-0 left-6 right-6 pointer-events-none z-0">
               {Array.from({
-                length: Math.ceil((piece.totalDurationMs || 30000) / ((60 / piece.tempoBpm) * 1000)) + 1,
+                length:
+                  Math.ceil(
+                    (piece.totalDurationMs || 30000) /
+                      ((60 / piece.tempoBpm) * 1000),
+                  ) + 1,
               }).map((_, bIdx) => {
                 const beatDurationMs = (60 / piece.tempoBpm!) * 1000;
                 const beatWidthPx = (beatDurationMs / 1000) * PX_PER_SEC * 10;
@@ -539,7 +577,9 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
                   <div
                     key={bIdx}
                     className={`absolute inset-y-0 border-l ${
-                      isBar ? 'border-teal-500/25 w-[2px]' : 'border-white/5 w-[1px]'
+                      isBar
+                        ? 'border-teal-500/25 w-[2px]'
+                        : 'border-white/5 w-[1px]'
                     }`}
                     style={{ left: `${left}px` }}
                   />
@@ -563,6 +603,9 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
               if (seg.type === 'arc')
                 colorClasses =
                   'border-violet-500 bg-violet-500/10 text-violet-300';
+              if (seg.type === 'meta-arc')
+                colorClasses =
+                  'border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300';
               if (seg.type === 'open')
                 colorClasses = 'border-rose-500 bg-rose-500/10 text-rose-300';
               if (seg.type === 'transition')
@@ -626,7 +669,9 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
                       ? `Easing: ${seg.config.easing || 'linear'}`
                       : seg.type === 'arc'
                         ? `Arc: ${seg.config.arcId || 'bell'}`
-                        : 'Overrides Active'}
+                        : seg.type === 'meta-arc'
+                          ? `Kind: ${seg.config.kind || 'random-walk'}`
+                          : 'Overrides Active'}
                   </span>
 
                   {/* Bottom: Resize handles & durations */}
@@ -656,7 +701,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
             })}
 
             {/* Quick add affine box */}
-            <div className="flex items-center gap-2 pl-4">
+            <div className="flex flex-wrap items-center gap-2 pl-4">
               <button
                 onClick={() => handleAddSegment('fixed')}
                 className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
@@ -665,12 +710,35 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
                 Add Fixed
               </button>
               <button
+                onClick={() => handleAddSegment('arc')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
+              >
+                <Plus className="w-3.5 h-3.5 text-violet-400" />
+                Add Arc
+              </button>
+              <button
+                onClick={() => handleAddSegment('meta-arc')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
+              >
+                <Plus className="w-3.5 h-3.5 text-fuchsia-400" />
+                Add Meta-Arc
+              </button>
+              <button
                 onClick={() => handleAddSegment('transition')}
                 className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
               >
                 <Plus className="w-3.5 h-3.5 text-amber-400" />
                 Add Transition
               </button>
+              {!piece.hasOpenSegment && (
+                <button
+                  onClick={() => handleAddSegment('open')}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
+                >
+                  <Plus className="w-3.5 h-3.5 text-rose-400" />
+                  Add Open
+                </button>
+              )}
             </div>
           </div>
         </div>

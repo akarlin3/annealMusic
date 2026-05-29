@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import type { PieceSegment } from '@/piece/types';
 import { PRESET_ARCS } from '@/session/arcs';
+import { generateMetaArc } from '@/piece/generators';
+import { ArcRunner } from '@/session/ArcRunner';
+import { engineCapabilities } from '@/audio/engines/index';
+import type { Arc, ArcSegment } from '@/session/types';
+import type { AnnealMusicParams } from '@/state/params';
 
 interface SegmentPropertiesProps {
   segment: PieceSegment;
@@ -37,10 +42,22 @@ const OVERRIDE_PARAMS = [
   },
 ];
 
+const PARAM_COLORS: Record<string, string> = {
+  rootFreq: '#22d3ee', // Cyan
+  spread: '#14b8a6', // Teal
+  brightness: '#a855f7', // Purple
+  space: '#f97316', // Orange
+  drift: '#84cc16', // Lime
+  coupling: '#ec4899', // Pink
+  density: '#eab308', // Yellow
+};
+
 export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
   segment,
   onChange,
 }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
   const handleTypeChange = (type: PieceSegment['type']) => {
     const updated: PieceSegment = {
       ...segment,
@@ -51,7 +68,23 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
           ? { easing: 'linear' }
           : type === 'arc'
             ? { arcId: 'bell' }
-            : { params: {} },
+            : type === 'meta-arc'
+              ? {
+                  kind: 'random-walk',
+                  seed: null,
+                  randomWalk: {
+                    params: ['rootFreq', 'brightness', 'space'],
+                    driftStrength: 0.15,
+                    meanReversion: 0.1,
+                    steps: 20,
+                    bounds: {
+                      rootFreq: { min: 0.5, max: 1.5 },
+                      brightness: { min: 0.3, max: 0.9 },
+                      space: { min: 0.2, max: 0.8 },
+                    },
+                  },
+                }
+              : { params: {} },
     };
     onChange(updated);
   };
@@ -63,8 +96,7 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
     });
   };
 
-  const handleConfigChange = (key: string, value: any) => {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
+  const handleConfigChange = (key: string, value: unknown) => {
     onChange({
       ...segment,
       config: {
@@ -102,6 +134,203 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
     });
   };
 
+  // Meta-Arc Helpers
+  const handleMetaKindChange = (kind: string) => {
+    const newConfig: Record<string, any> = {
+      // eslint-disable-line @typescript-eslint/no-explicit-any
+      ...segment.config,
+      kind,
+    };
+
+    if (kind === 'random-walk' && !newConfig.randomWalk) {
+      newConfig.randomWalk = {
+        params: ['rootFreq', 'brightness', 'space'],
+        driftStrength: 0.15,
+        meanReversion: 0.1,
+        steps: 20,
+        bounds: {
+          rootFreq: { min: 0.5, max: 1.5 },
+          brightness: { min: 0.3, max: 0.9 },
+          space: { min: 0.2, max: 0.8 },
+        },
+      };
+    } else if (kind === 'waypoint-tour' && !newConfig.waypointTour) {
+      newConfig.waypointTour = {
+        params: ['rootFreq', 'brightness', 'space'],
+        waypointsCount: 5,
+        maxDistance: 0.4,
+        easing: 'easeInOut',
+        bounds: {
+          rootFreq: { min: 0.5, max: 1.5 },
+          brightness: { min: 0.3, max: 0.9 },
+          space: { min: 0.2, max: 0.8 },
+        },
+      };
+    } else if (
+      kind === 'bell-curve-variation' &&
+      !newConfig.bellCurveVariation
+    ) {
+      newConfig.bellCurveVariation = {
+        params: ['rootFreq', 'coupling', 'drift', 'space'],
+        paramBounds: {
+          rootFreq: { min: 0.6, max: 0.8 },
+          coupling: { min: 1.1, max: 1.5 },
+          drift: { min: 0.5, max: 0.7 },
+          space: { min: 1.2, max: 1.6 },
+        },
+        minSettleFraction: 0.25,
+        maxSettleFraction: 0.35,
+        minHoldFraction: 0.25,
+        maxHoldFraction: 0.35,
+      };
+    } else if (kind === 'spectral-evolution' && !newConfig.spectralEvolution) {
+      newConfig.spectralEvolution = {
+        rootBounds: { min: 0.6, max: 1.4 },
+        densityBounds: { min: 0.5, max: 2.0 },
+        brightnessBounds: { min: 0.3, max: 1.8 },
+        coordinationType: 'inverse-crossover',
+      };
+    }
+
+    onChange({
+      ...segment,
+      config: newConfig,
+    });
+  };
+
+  const toggleSeedLock = () => {
+    if (segment.config.seed !== null && segment.config.seed !== undefined) {
+      handleConfigChange('seed', null);
+    } else {
+      const randomSeed = Math.floor(Math.random() * 1000000);
+      handleConfigChange('seed', randomSeed);
+    }
+  };
+
+  const reRollSeed = () => {
+    const randomSeed = Math.floor(Math.random() * 1000000);
+    handleConfigChange('seed', randomSeed);
+  };
+
+  // Render Real-time preview wave onto canvas
+  useEffect(() => {
+    if (segment.type !== 'meta-arc' || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw grid background
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for (let x = 40; x < width; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = 30; y < height; y += 30) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+
+    // Generate Arc
+    const kind = segment.config.kind || 'random-walk';
+    const seed =
+      segment.config.seed !== null && segment.config.seed !== undefined
+        ? segment.config.seed
+        : 4242;
+    let arc: Arc;
+    try {
+      arc = generateMetaArc(kind, segment.config, seed);
+    } catch (e) {
+      console.warn('Preview generation failed', e);
+      return;
+    }
+
+    // Setup ArcRunner
+    const defaults = {
+      rootFreq: 110,
+      spread: 1.0,
+      density: 6,
+      coupling: 0.3,
+      drift: 0.5,
+      brightness: 0.5,
+      space: 0.4,
+      volume: 0.8,
+    };
+    const caps = engineCapabilities('sine');
+    const runner = new ArcRunner(arc, 10, defaults as AnnealMusicParams, caps);
+
+    // Simulate 100 points
+    const points: Record<string, number[]> = {};
+    const keys = arc.segments.reduce((acc: string[], s: ArcSegment) => {
+      if (s.targets !== 'restoreStart') {
+        Object.keys(s.targets).forEach((k) => {
+          if (!acc.includes(k)) acc.push(k);
+        });
+      }
+      return acc;
+    }, []);
+
+    keys.forEach((k: string) => {
+      points[k] = [];
+    });
+
+    const STEPS_COUNT = 100;
+    for (let step = 0; step <= STEPS_COUNT; step++) {
+      const t = (step / STEPS_COUNT) * 10;
+      const frame = runner.tick(t);
+      keys.forEach((k: string) => {
+        const val =
+          frame.params[k as keyof typeof frame.params] ??
+          defaults[k as keyof typeof defaults];
+        points[k]!.push(val as number);
+      });
+    }
+
+    // Plot curves
+    keys.forEach((k: string) => {
+      const color = PARAM_COLORS[k] || '#ffffff';
+      const vals = points[k]!;
+      if (vals.length === 0) return;
+
+      // Find bounds for normalization
+      let minVal = Math.min(...vals);
+      let maxVal = Math.max(...vals);
+      if (maxVal === minVal) {
+        maxVal = minVal + 1.0;
+        minVal = minVal - 1.0;
+      }
+      const range = maxVal - minVal;
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+
+      vals.forEach((v, index) => {
+        const posX = (index / STEPS_COUNT) * (width - 60) + 15;
+        const posY = height - (((v - minVal) / range) * (height - 40) + 20);
+        if (index === 0) {
+          ctx.moveTo(posX, posY);
+        } else {
+          ctx.lineTo(posX, posY);
+        }
+      });
+      ctx.stroke();
+    });
+
+    // Reset shadow
+    ctx.shadowBlur = 0;
+  }, [segment]);
+
   return (
     <div className="bg-[#121016]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl space-y-6 text-white">
       <div className="flex items-center justify-between border-b border-white/5 pb-4">
@@ -125,12 +354,14 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
             <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-2">
               Segment Type
             </label>
-            <div className="grid grid-cols-4 gap-2">
-              {(['fixed', 'arc', 'open', 'transition'] as const).map((t) => (
+            <div className="grid grid-cols-5 gap-1.5">
+              {(
+                ['fixed', 'arc', 'open', 'transition', 'meta-arc'] as const
+              ).map((t) => (
                 <button
                   key={t}
                   onClick={() => handleTypeChange(t)}
-                  className={`py-2 px-1 rounded-xl text-xs font-bold transition-all border ${
+                  className={`py-2 px-1 rounded-xl text-[10px] font-bold transition-all border ${
                     segment.type === t
                       ? 'bg-teal-500/20 border-teal-500/50 text-teal-300 shadow-[0_0_15px_rgba(20,184,166,0.15)]'
                       : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10 text-white/60'
@@ -192,7 +423,7 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
                 onChange={(e) => handleConfigChange('arcId', e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white/80 focus:outline-none focus:border-teal-500 transition"
               >
-                {PRESET_ARCS.map((arc: any) => (
+                {PRESET_ARCS.map((arc: Arc) => (
                   <option key={arc.id} value={arc.id}>
                     {arc.name}
                   </option>
@@ -200,72 +431,505 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
               </select>
             </div>
           )}
+
+          {/* Meta-Arc UI Controllers */}
+          {segment.type === 'meta-arc' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-2">
+                  Meta-Arc Generator Kind
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'random-walk', label: 'Random Walk' },
+                    { id: 'waypoint-tour', label: 'Waypoint Tour' },
+                    { id: 'bell-curve-variation', label: 'Bell Curve Var' },
+                    { id: 'spectral-evolution', label: 'Spectral Evol' },
+                  ].map((kind) => (
+                    <button
+                      key={kind.id}
+                      onClick={() => handleMetaKindChange(kind.id)}
+                      className={`py-2 px-2 rounded-xl text-xs font-bold transition-all border ${
+                        (segment.config.kind || 'random-walk') === kind.id
+                          ? 'bg-purple-500/20 border-purple-500/50 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                          : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10 text-white/60'
+                      }`}
+                    >
+                      {kind.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Seed Lock Controls */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-white/90">
+                      Seed Control
+                    </h4>
+                    <p className="text-[10px] text-white/40">
+                      Lock seed for deterministic playback.
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={toggleSeedLock}
+                      className={`p-2 rounded-xl border transition-all ${
+                        segment.config.seed !== null &&
+                        segment.config.seed !== undefined
+                          ? 'bg-purple-500/20 border-purple-500/40 text-purple-300'
+                          : 'bg-white/5 border-white/10 text-white/60'
+                      }`}
+                      title={
+                        segment.config.seed !== null &&
+                        segment.config.seed !== undefined
+                          ? 'Unlock Generation'
+                          : 'Lock Generation'
+                      }
+                    >
+                      {segment.config.seed !== null &&
+                      segment.config.seed !== undefined
+                        ? '🔒 Locked'
+                        : '🔓 Dynamic'}
+                    </button>
+                    {segment.config.seed !== null &&
+                      segment.config.seed !== undefined && (
+                        <button
+                          onClick={reRollSeed}
+                          className="p-2 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 text-white/80 text-xs transition"
+                          title="Re-roll seed"
+                        >
+                          🎲 Re-roll
+                        </button>
+                      )}
+                  </div>
+                </div>
+                {segment.config.seed !== null &&
+                  segment.config.seed !== undefined && (
+                    <div className="bg-black/20 rounded-xl px-3 py-1.5 border border-white/5 text-center">
+                      <span className="font-mono text-xs text-white/60">
+                        Seed: {segment.config.seed}
+                      </span>
+                    </div>
+                  )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right Column: Param overrides (only for fixed and open segments) */}
-        {(segment.type === 'fixed' || segment.type === 'open') && (
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold text-white/60 uppercase tracking-wider">
-              Parameter Overrides
-            </h4>
-            <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-              {OVERRIDE_PARAMS.map((p) => {
-                const isOverridden =
-                  segment.config.params?.[p.key] !== undefined;
-                const value = isOverridden
-                  ? segment.config.params[p.key]
-                  : p.min;
+        {/* Right Column: Param overrides or Meta-Arc Kind settings */}
+        <div className="space-y-4">
+          {(segment.type === 'fixed' || segment.type === 'open') && (
+            <>
+              <h4 className="text-xs font-bold text-white/60 uppercase tracking-wider">
+                Parameter Overrides
+              </h4>
+              <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                {OVERRIDE_PARAMS.map((p) => {
+                  const isOverridden =
+                    segment.config.params?.[p.key] !== undefined;
+                  const value = isOverridden
+                    ? segment.config.params[p.key]
+                    : p.min;
 
-                return (
-                  <div
-                    key={p.key}
-                    className="bg-white/5 border border-white/5 rounded-xl p-3 space-y-2"
-                  >
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={isOverridden}
-                          onChange={(e) =>
-                            handleOverrideToggle(p.key, e.target.checked)
-                          }
-                          className="rounded border-white/10 text-teal-600 focus:ring-teal-500 accent-teal-500 bg-white/5"
-                        />
-                        <span
-                          className={`text-xs font-semibold ${isOverridden ? 'text-white/90' : 'text-white/40'}`}
-                        >
-                          {p.label}
-                        </span>
-                      </label>
+                  return (
+                    <div
+                      key={p.key}
+                      className="bg-white/5 border border-white/5 rounded-xl p-3 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isOverridden}
+                            onChange={(e) =>
+                              handleOverrideToggle(p.key, e.target.checked)
+                            }
+                            className="rounded border-white/10 text-teal-600 focus:ring-teal-500 accent-teal-500 bg-white/5"
+                          />
+                          <span
+                            className={`text-xs font-semibold ${isOverridden ? 'text-white/90' : 'text-white/40'}`}
+                          >
+                            {p.label}
+                          </span>
+                        </label>
+                        {isOverridden && (
+                          <span className="text-xs font-mono text-teal-400">
+                            {value.toFixed(p.step >= 1 ? 0 : 2)}
+                            {p.suffix}
+                          </span>
+                        )}
+                      </div>
                       {isOverridden && (
-                        <span className="text-xs font-mono text-teal-400">
-                          {value.toFixed(p.step >= 1 ? 0 : 2)}
-                          {p.suffix}
-                        </span>
+                        <input
+                          type="range"
+                          min={p.min}
+                          max={p.max}
+                          step={p.step}
+                          value={value}
+                          onChange={(e) =>
+                            handleOverrideValueChange(
+                              p.key,
+                              Number(e.target.value),
+                            )
+                          }
+                          className="w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer"
+                        />
                       )}
                     </div>
-                    {isOverridden && (
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Meta-Arc Parameter Controls */}
+          {segment.type === 'meta-arc' && (
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold text-white/60 uppercase tracking-wider">
+                Procedural Generator Parameters
+              </h4>
+
+              {/* Random Walk Configuration */}
+              {(segment.config.kind || 'random-walk') === 'random-walk' &&
+                segment.config.randomWalk && (
+                  <div className="space-y-3 bg-white/5 border border-white/5 rounded-2xl p-4">
+                    <div>
+                      <label className="flex items-center justify-between text-xs font-semibold text-white/70 mb-1">
+                        <span>Drift Strength (Noise)</span>
+                        <span className="font-mono text-teal-400">
+                          {segment.config.randomWalk.driftStrength.toFixed(2)}
+                        </span>
+                      </label>
                       <input
                         type="range"
-                        min={p.min}
-                        max={p.max}
-                        step={p.step}
-                        value={value}
-                        onChange={(e) =>
-                          handleOverrideValueChange(
-                            p.key,
-                            Number(e.target.value),
-                          )
-                        }
+                        min="0.01"
+                        max="0.5"
+                        step="0.01"
+                        value={segment.config.randomWalk.driftStrength}
+                        onChange={(e) => {
+                          const rw = {
+                            ...segment.config.randomWalk,
+                            driftStrength: Number(e.target.value),
+                          };
+                          handleConfigChange('randomWalk', rw);
+                        }}
                         className="w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer"
                       />
-                    )}
+                    </div>
+                    <div>
+                      <label className="flex items-center justify-between text-xs font-semibold text-white/70 mb-1">
+                        <span>Mean Reversion (Pull)</span>
+                        <span className="font-mono text-teal-400">
+                          {segment.config.randomWalk.meanReversion.toFixed(2)}
+                        </span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0.0"
+                        max="0.5"
+                        step="0.01"
+                        value={segment.config.randomWalk.meanReversion}
+                        onChange={(e) => {
+                          const rw = {
+                            ...segment.config.randomWalk,
+                            meanReversion: Number(e.target.value),
+                          };
+                          handleConfigChange('randomWalk', rw);
+                        }}
+                        className="w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="flex items-center justify-between text-xs font-semibold text-white/70 mb-1">
+                        <span>Walk Steps (Fractions)</span>
+                        <span className="font-mono text-teal-400">
+                          {segment.config.randomWalk.steps}
+                        </span>
+                      </label>
+                      <input
+                        type="range"
+                        min="5"
+                        max="50"
+                        step="1"
+                        value={segment.config.randomWalk.steps}
+                        onChange={(e) => {
+                          const rw = {
+                            ...segment.config.randomWalk,
+                            steps: Number(e.target.value),
+                          };
+                          handleConfigChange('randomWalk', rw);
+                        }}
+                        className="w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer"
+                      />
+                    </div>
                   </div>
-                );
-              })}
+                )}
+
+              {/* Waypoint Tour Configuration */}
+              {segment.config.kind === 'waypoint-tour' &&
+                segment.config.waypointTour && (
+                  <div className="space-y-3 bg-white/5 border border-white/5 rounded-2xl p-4">
+                    <div>
+                      <label className="flex items-center justify-between text-xs font-semibold text-white/70 mb-1">
+                        <span>Waypoints Count</span>
+                        <span className="font-mono text-teal-400">
+                          {segment.config.waypointTour.waypointsCount}
+                        </span>
+                      </label>
+                      <input
+                        type="range"
+                        min="3"
+                        max="10"
+                        step="1"
+                        value={segment.config.waypointTour.waypointsCount}
+                        onChange={(e) => {
+                          const wt = {
+                            ...segment.config.waypointTour,
+                            waypointsCount: Number(e.target.value),
+                          };
+                          handleConfigChange('waypointTour', wt);
+                        }}
+                        className="w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="flex items-center justify-between text-xs font-semibold text-white/70 mb-1">
+                        <span>Max Waypoint Distance</span>
+                        <span className="font-mono text-teal-400">
+                          {segment.config.waypointTour.maxDistance.toFixed(2)}
+                        </span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1.0"
+                        step="0.05"
+                        value={segment.config.waypointTour.maxDistance}
+                        onChange={(e) => {
+                          const wt = {
+                            ...segment.config.waypointTour,
+                            maxDistance: Number(e.target.value),
+                          };
+                          handleConfigChange('waypointTour', wt);
+                        }}
+                        className="w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-2">
+                        Interpolation Easing
+                      </label>
+                      <select
+                        value={
+                          segment.config.waypointTour.easing || 'easeInOut'
+                        }
+                        onChange={(e) => {
+                          const wt = {
+                            ...segment.config.waypointTour,
+                            easing: e.target.value,
+                          };
+                          handleConfigChange('waypointTour', wt);
+                        }}
+                        className="w-full bg-[#121016] border border-white/10 rounded-xl px-3 py-2 text-xs text-white/80 focus:outline-none focus:border-teal-500 transition"
+                      >
+                        <option value="linear">Linear</option>
+                        <option value="easeInOut">Ease In Out (Smooth)</option>
+                        <option value="exponential">Exponential (Steep)</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+              {/* Bell Curve Variation Configuration */}
+              {segment.config.kind === 'bell-curve-variation' &&
+                segment.config.bellCurveVariation && (
+                  <div className="space-y-3 bg-white/5 border border-white/5 rounded-2xl p-4">
+                    <div className="flex items-center justify-between text-xs text-white/70 border-b border-white/5 pb-2 mb-2">
+                      <span>Generates randomized settle & hold durations</span>
+                    </div>
+                    <div>
+                      <label className="flex items-center justify-between text-xs font-semibold text-white/70 mb-1">
+                        <span>Min Settle Fraction</span>
+                        <span className="font-mono text-teal-400">
+                          {segment.config.bellCurveVariation.minSettleFraction.toFixed(
+                            2,
+                          )}
+                        </span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="0.4"
+                        step="0.05"
+                        value={
+                          segment.config.bellCurveVariation.minSettleFraction
+                        }
+                        onChange={(e) => {
+                          const bc = {
+                            ...segment.config.bellCurveVariation,
+                            minSettleFraction: Number(e.target.value),
+                          };
+                          handleConfigChange('bellCurveVariation', bc);
+                        }}
+                        className="w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="flex items-center justify-between text-xs font-semibold text-white/70 mb-1">
+                        <span>Min Hold Fraction</span>
+                        <span className="font-mono text-teal-400">
+                          {segment.config.bellCurveVariation.minHoldFraction.toFixed(
+                            2,
+                          )}
+                        </span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="0.4"
+                        step="0.05"
+                        value={
+                          segment.config.bellCurveVariation.minHoldFraction
+                        }
+                        onChange={(e) => {
+                          const bc = {
+                            ...segment.config.bellCurveVariation,
+                            minHoldFraction: Number(e.target.value),
+                          };
+                          handleConfigChange('bellCurveVariation', bc);
+                        }}
+                        className="w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
+
+              {/* Spectral Evolution Configuration */}
+              {segment.config.kind === 'spectral-evolution' &&
+                segment.config.spectralEvolution && (
+                  <div className="space-y-3 bg-white/5 border border-white/5 rounded-2xl p-4">
+                    <div>
+                      <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-2">
+                        Spectral Coordination Style
+                      </label>
+                      <select
+                        value={
+                          segment.config.spectralEvolution.coordinationType ||
+                          'inverse-crossover'
+                        }
+                        onChange={(e) => {
+                          const se = {
+                            ...segment.config.spectralEvolution,
+                            coordinationType: e.target.value,
+                          };
+                          handleConfigChange('spectralEvolution', se);
+                        }}
+                        className="w-full bg-[#121016] border border-white/10 rounded-xl px-3 py-2 text-xs text-white/80 focus:outline-none focus:border-teal-500 transition"
+                      >
+                        <option value="inverse-crossover">
+                          Inverse Crossover (Spectral Crossover)
+                        </option>
+                        <option value="parallel-sweep">
+                          Parallel Sweep (Sweep Pitch/Noise)
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+              {/* Live Preview Wave Canvas */}
+              <div className="bg-black/40 border border-white/10 rounded-2xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                    Procedural Shape Preview
+                  </h4>
+                  <span className="text-[9px] text-white/30 italic">
+                    Normalized 10s simulation
+                  </span>
+                </div>
+                <div className="relative bg-[#09080c] rounded-xl overflow-hidden border border-white/5 flex items-center justify-center">
+                  <canvas
+                    ref={canvasRef}
+                    width={280}
+                    height={120}
+                    className="w-full h-[120px] block"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 text-[9px] text-white/60 pt-1">
+                  {segment.config.kind === 'spectral-evolution' ? (
+                    <>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: PARAM_COLORS.rootFreq }}
+                        />{' '}
+                        Root
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: PARAM_COLORS.brightness }}
+                        />{' '}
+                        Brightness
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: PARAM_COLORS.density }}
+                        />{' '}
+                        Density
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: PARAM_COLORS.rootFreq }}
+                        />{' '}
+                        Root
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: PARAM_COLORS.brightness }}
+                        />{' '}
+                        Brightness
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: PARAM_COLORS.space }}
+                        />{' '}
+                        Space
+                      </span>
+                      {segment.config.kind === 'bell-curve-variation' && (
+                        <>
+                          <span className="flex items-center gap-1">
+                            <span
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: PARAM_COLORS.drift }}
+                            />{' '}
+                            Drift
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ backgroundColor: PARAM_COLORS.coupling }}
+                            />{' '}
+                            Coupling
+                          </span>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

@@ -3,7 +3,11 @@ import { makeIR } from '@/audio/ir';
 import { cutoffFor } from '@/audio/orchestrator';
 import { ENGINES, engineCapabilities } from '@/audio/engines/index';
 import type { EngineFactory } from '@/audio/engines/index';
-import type { EngineId, EngineParams, SharedParams } from '@/audio/engines/types';
+import type {
+  EngineId,
+  EngineParams,
+  SharedParams,
+} from '@/audio/engines/types';
 import { driftStep } from '@/audio/drift';
 import { ArcRunner } from '@/session/ArcRunner';
 import { getArcById } from '@/session/arcs';
@@ -52,9 +56,14 @@ export interface RenderProgressEvent {
   totalStems: number;
 }
 
-export type OfflineContextFactory = (channels: number, frames: number, sampleRate: number) => OfflineAudioContext;
+export type OfflineContextFactory = (
+  channels: number,
+  frames: number,
+  sampleRate: number,
+) => OfflineAudioContext;
 
-const defaultOfflineFactory: OfflineContextFactory = (ch, frames, sr) => new OfflineAudioContext(ch, frames, sr);
+const defaultOfflineFactory: OfflineContextFactory = (ch, frames, sr) =>
+  new OfflineAudioContext(ch, frames, sr);
 
 export function isOfflineRenderSupported(): boolean {
   return typeof OfflineAudioContext !== 'undefined';
@@ -82,7 +91,11 @@ export function resolvePieceStateAtTime(piece: Piece, tSec: number): any {
     const seg = piece.segments[idx]!;
 
     let duration = seg.durationMs ?? 5000;
-    if (seg.config?.tempoLocked && piece.tempoBpm !== null && piece.tempoBpm > 0) {
+    if (
+      seg.config?.tempoLocked &&
+      piece.tempoBpm !== null &&
+      piece.tempoBpm > 0
+    ) {
       duration = duration * 4 * (60 / piece.tempoBpm) * 1000;
     }
 
@@ -90,7 +103,11 @@ export function resolvePieceStateAtTime(piece: Piece, tSec: number): any {
     const endMs = elapsed + duration;
 
     // Check if the target time falls within this segment (or it's the last one)
-    if (seg.type === 'open' || tMs < endMs || idx === piece.segments.length - 1) {
+    if (
+      seg.type === 'open' ||
+      tMs < endMs ||
+      idx === piece.segments.length - 1
+    ) {
       if (seg.type === 'fixed' || seg.type === 'open') {
         const params = { ...currentParams, ...seg.config.params };
         const engineId = seg.config.engineId || defaults.engineId;
@@ -103,7 +120,8 @@ export function resolvePieceStateAtTime(piece: Piece, tSec: number): any {
         }
         return { params, engineId, engineParams };
       } else if (seg.type === 'arc' || seg.type === 'meta-arc') {
-        const arcDef = seg.config.generatedArc || getArcById(seg.config.arcId || 'bell');
+        const arcDef =
+          seg.config.generatedArc || getArcById(seg.config.arcId || 'bell');
         if (arcDef) {
           const localSec = Math.max(0, (tMs - startMs) / 1000);
           const durationSec = duration / 1000;
@@ -160,15 +178,21 @@ export function resolvePieceStateAtTime(piece: Piece, tSec: number): any {
         }
 
         const progress = duration > 0 ? (tMs - startMs) / duration : 1.0;
-        return interpolateState(prevState, nextState, Math.min(1.0, progress), seg.config.easing || 'linear');
+        return interpolateState(
+          prevState,
+          nextState,
+          Math.min(1.0, progress),
+          seg.config.easing || 'linear',
+        );
       }
     }
 
     // Advance currentParams to end of segment
-    if (seg.type === 'fixed' || seg.type === 'open') {
+    if (seg.type === 'fixed') {
       Object.assign(currentParams, seg.config.params);
     } else if (seg.type === 'arc' || seg.type === 'meta-arc') {
-      const arcDef = seg.config.generatedArc || getArcById(seg.config.arcId || 'bell');
+      const arcDef =
+        seg.config.generatedArc || getArcById(seg.config.arcId || 'bell');
       if (arcDef) {
         const durationSec = duration / 1000;
         const runner = new ArcRunner(
@@ -210,7 +234,9 @@ export async function renderStemsOffline(
       const make = engineFactories[config.engineId];
       if (!make) return 0;
       const eng = make();
-      return eng.capabilities.densityLockedWhilePlaying ? config.params.density : config.params.density;
+      return eng.capabilities.densityLockedWhilePlaying
+        ? config.params.density
+        : config.params.density;
     },
     getInputVoice: () => null, // Offline renders do not capture live input
     getLoopSlot: (id: SlotId) => {
@@ -237,7 +263,11 @@ export async function renderStemsOffline(
       segments: renderedPiece.segments.map((seg, idx) => {
         if (seg.type === 'meta-arc') {
           const seed = seg.config.seed ?? config.seed + idx;
-          const generatedArc = generateMetaArc(seg.config.kind || 'random-walk', seg.config, seed);
+          const generatedArc = generateMetaArc(
+            seg.config.kind || 'random-walk',
+            seg.config,
+            seed,
+          );
           return {
             ...seg,
             type: 'arc',
@@ -310,7 +340,10 @@ export async function renderStemsOffline(
       stemOutputNode = filter;
 
       // End fade-out on masterVol so tail doesn't clip
-      masterVol.gain.setValueAtTime(config.params.volume, Math.max(0, config.durationSec - FADE_OUT_SEC));
+      masterVol.gain.setValueAtTime(
+        config.params.volume,
+        Math.max(0, config.durationSec - FADE_OUT_SEC),
+      );
       masterVol.gain.linearRampToValueAtTime(0, config.durationSec);
 
       // Connect sources based on stem target
@@ -332,7 +365,9 @@ export async function renderStemsOffline(
       if (stem.type === 'master' || stem.type === 'loop') {
         // Build active loop players and route to filter
         const slotsToRender =
-          stem.type === 'master' ? (Object.keys(config.loopBuffers) as SlotId[]) : [stem.slotId!];
+          stem.type === 'master'
+            ? (Object.keys(config.loopBuffers) as SlotId[])
+            : [stem.slotId!];
 
         for (const slotId of slotsToRender) {
           const buffer = config.loopBuffers[slotId];
@@ -415,7 +450,12 @@ export async function renderStemsOffline(
     if (config.mode === 'arc' && config.arcId) {
       const def = getArcById(config.arcId);
       if (def) {
-        arc = new ArcRunner(def, config.durationSec, config.params, engineCapabilities(config.engineId));
+        arc = new ArcRunner(
+          def,
+          config.durationSec,
+          config.params,
+          engineCapabilities(config.engineId),
+        );
       }
     }
     const live: SharedParams = { ...config.params };
@@ -425,7 +465,12 @@ export async function renderStemsOffline(
       ctx.suspend(t).then(() => {
         // 1. Advance engine detune walk deterministically
         if (activeEngine && drift.length > 0) {
-          const next = driftStep(drift, { drift: live.drift, coupling: live.coupling }, DRIFT_DT, rng);
+          const next = driftStep(
+            drift,
+            { drift: live.drift, coupling: live.coupling },
+            DRIFT_DT,
+            rng,
+          );
           drift.forEach((p, i) => {
             const d = next[i];
             if (d === undefined) return;
