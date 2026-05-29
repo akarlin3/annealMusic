@@ -116,12 +116,43 @@ async def get_recording_meta(
 ) -> RecordingMetaOut:
     """Metadata for the `/r/<slug>` player. Public recordings are visible to
     anyone; private recordings only to their owner."""
-    rec = await _resolve(session, id_or_slug)
-    if rec is None:
+    from app.models import User, Account
+    from sqlalchemy import or_
+    try:
+        rid = uuid.UUID(id_or_slug)
+        cond = or_(Recording.short_slug == id_or_slug, Recording.id == rid)
+    except ValueError:
+        cond = Recording.short_slug == id_or_slug
+
+    stmt = (
+        select(Recording, Account.display_name, Account.avatar_seed, Account.id)
+        .outerjoin(User, User.id == Recording.user_id)
+        .outerjoin(Account, Account.id == User.account_id)
+        .where(cond)
+    )
+    res = await session.execute(stmt)
+    row = res.one_or_none()
+
+    if row is None:
         raise not_found("recording")
+
+    rec, display_name, avatar_seed, account_id = row
+
     if rec.visibility != "public" and (user is None or rec.user_id != user.id):
         raise not_found("recording")
-    return RecordingMetaOut.model_validate(rec)
+
+    return RecordingMetaOut(
+        id=rec.id,
+        short_slug=rec.short_slug,
+        duration_ms=rec.duration_ms,
+        format=rec.format,
+        title=rec.title,
+        patch_id=rec.patch_id,
+        created_at=rec.created_at,
+        creator_name=display_name,
+        creator_avatar_seed=avatar_seed,
+        creator_id=account_id,
+    )
 
 
 @router.get("/{id_or_slug}", dependencies=[Depends(rate_limit("get"))])

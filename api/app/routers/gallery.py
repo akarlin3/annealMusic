@@ -23,7 +23,12 @@ PAGE_DEFAULT = 24
 PAGE_MAX = 48
 
 
-def _to_item(p: Patch) -> GalleryItemOut:
+def _to_item(
+    p: Patch,
+    creator_name: str | None,
+    creator_avatar_seed: str | None,
+    creator_id: uuid.UUID | None,
+) -> GalleryItemOut:
     return GalleryItemOut(
         id=p.id,
         short_slug=p.short_slug,
@@ -37,6 +42,9 @@ def _to_item(p: Patch) -> GalleryItemOut:
         published_at=p.published_at,
         preview_status=p.preview_status,  # type: ignore[arg-type]
         preview_duration_ms=p.preview_duration_ms,
+        creator_name=creator_name,
+        creator_avatar_seed=creator_avatar_seed,
+        creator_id=creator_id,
     )
 
 
@@ -85,7 +93,14 @@ async def list_gallery(
     limit: int = Query(default=PAGE_DEFAULT, ge=1, le=PAGE_MAX),
 ) -> GalleryListOut:
     dialect = session.bind.dialect.name if session.bind is not None else "sqlite"
-    stmt = select(Patch).where(Patch.visibility == "public")
+    
+    from app.models import User, Account
+    stmt = (
+        select(Patch, Account.display_name, Account.avatar_seed, Account.id)
+        .outerjoin(User, User.id == Patch.user_id)
+        .outerjoin(Account, Account.id == User.account_id)
+        .where(Patch.visibility == "public")
+    )
 
     if engine:
         stmt = stmt.where(Patch.engine == engine)
@@ -129,12 +144,12 @@ async def list_gallery(
             )
 
     stmt = stmt.order_by(*order).limit(limit + 1)
-    rows = (await session.execute(stmt)).scalars().all()
+    rows = (await session.execute(stmt)).all()
 
     next_cursor: str | None = None
     if len(rows) > limit:
         rows = rows[:limit]
-        last = rows[-1]
+        last = rows[-1][0]
         pub_iso = last.published_at.isoformat() if last.published_at else None
         if sort == "most_loaded":
             keys: list[Any] = [last.load_count, pub_iso, str(last.id)]
@@ -143,7 +158,10 @@ async def list_gallery(
         next_cursor = _encode_cursor(sort, keys)
 
     response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=60"
-    return GalleryListOut(items=[_to_item(p) for p in rows], next_cursor=next_cursor)
+    return GalleryListOut(
+        items=[_to_item(row[0], row[1], row[2], row[3]) for row in rows],
+        next_cursor=next_cursor
+    )
 
 
 def _tuple_lt(cols: tuple, vals: tuple):

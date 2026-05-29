@@ -139,6 +139,9 @@ class RecordingMetaOut(BaseModel):
     title: str | None
     patch_id: uuid.UUID | None
     created_at: datetime
+    creator_name: str | None = None
+    creator_avatar_seed: str | None = None
+    creator_id: uuid.UUID | None = None
 
 
 # --- v0.8 gallery ------------------------------------------------------------
@@ -164,6 +167,9 @@ class GalleryItemOut(BaseModel):
     published_at: datetime | None
     preview_status: PreviewStatus
     preview_duration_ms: int | None
+    creator_name: str | None = None
+    creator_avatar_seed: str | None = None
+    creator_id: uuid.UUID | None = None
 
 
 class GalleryListOut(BaseModel):
