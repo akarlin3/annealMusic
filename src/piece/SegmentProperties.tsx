@@ -1,11 +1,14 @@
-import React, { useRef, useEffect } from 'react';
-import type { PieceSegment } from '@/piece/types';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useRef, useEffect, useState } from 'react';
+import type { PieceSegment, VariationPoint } from '@/piece/types';
 import { PRESET_ARCS } from '@/session/arcs';
 import { generateMetaArc } from '@/piece/generators';
 import { ArcRunner } from '@/session/ArcRunner';
 import { engineCapabilities } from '@/audio/engines/index';
 import type { Arc, ArcSegment } from '@/session/types';
 import type { AnnealMusicParams } from '@/state/params';
+import { VariationDialog } from '@/piece/components/VariationDialog';
+import { Sparkles } from 'lucide-react';
 
 interface SegmentPropertiesProps {
   segment: PieceSegment;
@@ -57,6 +60,36 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
   onChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const [activeVpEdit, setActiveVpEdit] = useState<{
+    paramKey: string;
+    paramLabel: string;
+    initialPoint?: VariationPoint;
+    minVal: number;
+    maxVal: number;
+    stepVal: number;
+  } | null>(null);
+
+  const handleSaveVariation = (vp: VariationPoint) => {
+    const vars = [...(segment.variations || [])].filter((v) => v.id !== vp.id);
+    vars.push(vp);
+    onChange({
+      ...segment,
+      variations: vars,
+    });
+    setActiveVpEdit(null);
+  };
+
+  const handleDeleteVariation = () => {
+    if (!activeVpEdit) return;
+    onChange({
+      ...segment,
+      variations: (segment.variations || []).filter(
+        (v) => v.paramKey !== activeVpEdit.paramKey,
+      ),
+    });
+    setActiveVpEdit(null);
+  };
 
   const handleTypeChange = (type: PieceSegment['type']) => {
     const updated: PieceSegment = {
@@ -533,10 +566,47 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
                     ? segment.config.params[p.key]
                     : p.min;
 
+                  const vp = segment.variations?.find(
+                    (v) => v.paramKey === p.key,
+                  );
+                  const isVaried = !!vp;
+
+                  const rangeBounds = vp
+                    ? (() => {
+                        const c = vp.constraint;
+                        const paramRange = p.max - p.min;
+                        if (paramRange <= 0) return null;
+                        let leftVal = value;
+                        let rightVal = value;
+                        if (c.type === 'range') {
+                          leftVal = c.min ?? p.min;
+                          rightVal = c.max ?? p.max;
+                        } else if (c.type === 'relative') {
+                          const pct = c.percent ?? 15;
+                          leftVal = value * (1 - pct / 100);
+                          rightVal = value * (1 + pct / 100);
+                        } else {
+                          return null;
+                        }
+                        const leftPct = Math.max(
+                          0,
+                          Math.min(100, ((leftVal - p.min) / paramRange) * 100),
+                        );
+                        const rightPct = Math.max(
+                          0,
+                          Math.min(
+                            100,
+                            ((rightVal - p.min) / paramRange) * 100,
+                          ),
+                        );
+                        return { left: leftPct, width: rightPct - leftPct };
+                      })()
+                    : null;
+
                   return (
                     <div
                       key={p.key}
-                      className="bg-white/5 border border-white/5 rounded-xl p-3 space-y-2"
+                      className="bg-white/5 border border-white/5 rounded-xl p-3 space-y-2 relative group/slider"
                     >
                       <div className="flex items-center justify-between">
                         <label className="flex items-center space-x-2 cursor-pointer">
@@ -554,28 +624,79 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
                             {p.label}
                           </span>
                         </label>
+
                         {isOverridden && (
-                          <span className="text-xs font-mono text-teal-400">
-                            {value.toFixed(p.step >= 1 ? 0 : 2)}
-                            {p.suffix}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {/* Hover Vary Button */}
+                            <button
+                              onClick={() =>
+                                setActiveVpEdit({
+                                  paramKey: p.key,
+                                  paramLabel: p.label,
+                                  initialPoint: vp,
+                                  minVal: p.min,
+                                  maxVal: p.max,
+                                  stepVal: p.step,
+                                })
+                              }
+                              className={`opacity-0 group-hover/slider:opacity-100 transition-opacity flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider ${
+                                isVaried
+                                  ? 'bg-[#eab308]/20 border-[#eab308]/40 text-[#eab308]'
+                                  : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
+                              }`}
+                            >
+                              <Sparkles className="w-2.5 h-2.5" />
+                              {isVaried ? 'Varied' : 'Vary'}
+                            </button>
+
+                            <span className="text-xs font-mono text-teal-400">
+                              {value.toFixed(p.step >= 1 ? 0 : 2)}
+                              {p.suffix}
+                            </span>
+                          </div>
                         )}
                       </div>
+
                       {isOverridden && (
-                        <input
-                          type="range"
-                          min={p.min}
-                          max={p.max}
-                          step={p.step}
-                          value={value}
-                          onChange={(e) =>
-                            handleOverrideValueChange(
-                              p.key,
-                              Number(e.target.value),
-                            )
-                          }
-                          className="w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer"
-                        />
+                        <div className="relative w-full py-2">
+                          {/* Glowing Range Band */}
+                          {rangeBounds && (
+                            <div
+                              style={{
+                                left: `${rangeBounds.left}%`,
+                                width: `${rangeBounds.width}%`,
+                              }}
+                              className="absolute top-1/2 -translate-y-1/2 h-1 bg-[#eab308]/20 border-l border-r border-[#eab308]/50 rounded-full"
+                            />
+                          )}
+
+                          {/* Slider dot if varied but not continuous range */}
+                          {isVaried && !rangeBounds && (
+                            <div
+                              style={{ left: '50%' }}
+                              className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-[#eab308] rounded-full shadow-[0_0_8px_#eab308] z-10"
+                            />
+                          )}
+
+                          <input
+                            type="range"
+                            min={p.min}
+                            max={p.max}
+                            step={p.step}
+                            value={value}
+                            onChange={(e) =>
+                              handleOverrideValueChange(
+                                p.key,
+                                Number(e.target.value),
+                              )
+                            }
+                            className={`w-full accent-teal-500 bg-white/10 rounded-lg h-1.5 appearance-none cursor-pointer relative z-10 ${
+                              isVaried
+                                ? 'accent-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.3)]'
+                                : ''
+                            }`}
+                          />
+                        </div>
                       )}
                     </div>
                   );
@@ -931,6 +1052,21 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
           )}
         </div>
       </div>
+
+      {activeVpEdit && (
+        <VariationDialog
+          isOpen={true}
+          onClose={() => setActiveVpEdit(null)}
+          paramKey={activeVpEdit.paramKey}
+          paramLabel={activeVpEdit.paramLabel}
+          initialPoint={activeVpEdit.initialPoint}
+          minVal={activeVpEdit.minVal}
+          maxVal={activeVpEdit.maxVal}
+          stepVal={activeVpEdit.stepVal}
+          onSave={handleSaveVariation}
+          onDelete={handleDeleteVariation}
+        />
+      )}
     </div>
   );
 };

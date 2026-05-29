@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it, vi } from 'vitest';
 import { PiecePlayer } from '@/piece/PiecePlayer';
 import { interpolateState } from '@/piece/transitions';
@@ -102,7 +103,7 @@ describe('PiecePlayer timeline', () => {
     } as unknown as Orchestrator;
 
     const player = new PiecePlayer(piece, mockOrch);
-    
+
     let mockTime = 1000;
     vi.spyOn(performance, 'now').mockImplementation(() => mockTime);
 
@@ -111,7 +112,7 @@ describe('PiecePlayer timeline', () => {
     // At t = 0 (globalPlayheadMs = 0), no active note, defaults to segment rootFreq (150)
     expect(mockOrch.setSharedParams).toHaveBeenCalledWith(
       expect.objectContaining({ rootFreq: 150 }),
-      false
+      false,
     );
 
     // Advance by 2.5 seconds (globalPlayheadMs = 2500), note-0 is active (C4 ~ 261.63 Hz)
@@ -121,7 +122,7 @@ describe('PiecePlayer timeline', () => {
     // At t = 2500ms, note-0 is active, frequency is overridden to C4 ~ 261.63
     expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
       expect.objectContaining({ rootFreq: expect.closeTo(261.63, 1) }),
-      false
+      false,
     );
 
     // Advance by another 2 seconds (globalPlayheadMs = 4500), note-0 is released
@@ -131,7 +132,7 @@ describe('PiecePlayer timeline', () => {
 
     expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
       expect.objectContaining({ rootFreq: expect.closeTo(261.63, 1) }),
-      false
+      false,
     );
   });
 
@@ -196,7 +197,67 @@ describe('PiecePlayer timeline', () => {
         rootFreq: expect.any(Number),
         brightness: expect.any(Number),
       }),
-      false
+      false,
     );
+  });
+
+  describe('PiecePlayer variations', () => {
+    it('applies variations and allows seed re-rolling', () => {
+      const piece: Piece = {
+        schemaVer: 12,
+        tempoBpm: null,
+        title: 'Variations Player Test',
+        description: null,
+        visibility: 'unlisted',
+        totalDurationMs: 5000,
+        hasOpenSegment: false,
+        defaultsState: {
+          params: { ...DEFAULT_PARAMS, brightness: 0.5 },
+          engineId: 'sine',
+          engineParams: {},
+        },
+        variations: [
+          {
+            id: 'vp-brightness',
+            paramKey: 'brightness',
+            constraint: { type: 'range', min: 0.2, max: 0.8 },
+            rule: 'per-play',
+          },
+        ],
+        segments: [
+          {
+            position: 0,
+            type: 'fixed',
+            durationMs: 5000,
+            config: { params: {} },
+          },
+        ],
+      };
+
+      const mockOrch = {
+        start: vi.fn(),
+        setEngine: vi.fn(),
+        setSharedParams: vi.fn(),
+        setEngineParams: vi.fn(),
+        setTempoBpm: vi.fn(),
+      } as unknown as Orchestrator;
+
+      const player = new PiecePlayer(piece, mockOrch);
+      player.start();
+
+      // Retrieve first tick shared params call
+      const firstCallParams = (mockOrch.setSharedParams as any).mock
+        .calls[0][0];
+      expect(firstCallParams.brightness).toBeGreaterThanOrEqual(0.2);
+      expect(firstCallParams.brightness).toBeLessThanOrEqual(0.8);
+
+      // Re-roll seed and check changes
+      player.reRoll();
+
+      const secondCallParams = (mockOrch.setSharedParams as any).mock
+        .calls[1][0];
+      expect(secondCallParams.brightness).toBeGreaterThanOrEqual(0.2);
+      expect(secondCallParams.brightness).toBeLessThanOrEqual(0.8);
+    });
   });
 });

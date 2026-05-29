@@ -18,9 +18,47 @@ import type { SlotId, SlotState, LoopConfigMap } from '@/loop/types';
 import { createPRNG } from './prng';
 import { getActiveStems } from './StemTaps';
 import { encodeWav } from './WavEncoder';
-import type { Piece } from '@/piece/types';
+import type { Piece, VariationPoint } from '@/piece/types';
 import { interpolateState } from '@/piece/transitions';
 import { generateMetaArc } from '@/piece/generators';
+import { resolveVariations, hashStringToInt } from '@/piece/resolver';
+
+function resolveNestedConfigVariations(
+  config: Record<string, any>,
+  variations: VariationPoint[],
+  seed: number,
+): Record<string, any> {
+  const resolvedConfig = JSON.parse(JSON.stringify(config));
+  const flatRecord: Record<string, number> = {};
+  for (const vp of variations) {
+    const parts = vp.paramKey.split('.');
+    let val = resolvedConfig;
+    for (const part of parts) {
+      val = val?.[part];
+    }
+    if (typeof val === 'number') {
+      flatRecord[vp.paramKey] = val;
+    } else {
+      flatRecord[vp.paramKey] = vp.constraint.min ?? 0;
+    }
+  }
+
+  const resolvedFlat = resolveVariations(flatRecord, variations, seed);
+
+  for (const vp of variations) {
+    const parts = vp.paramKey.split('.');
+    let target = resolvedConfig;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i]!;
+      if (!target[part]) target[part] = {};
+      target = target[part];
+    }
+    const lastPart = parts[parts.length - 1]!;
+    target[lastPart] = resolvedFlat[vp.paramKey];
+  }
+
+  return resolvedConfig;
+}
 
 const DRIFT_DT = 0.05;
 const DRIFT_INTERVAL_SEC = 0.05;
@@ -255,29 +293,112 @@ export async function renderStemsOffline(
 
   const totalStems = stems.length;
 
-  // Pre-resolve all meta-arc segments inside config.piece so resolvePieceStateAtTime remains completely stateless
+  // Pre-resolve all variation rules and meta-arc segments inside config.piece so resolvePieceStateAtTime remains completely stateless
   let renderedPiece = config.piece;
   if (renderedPiece && config.mode === 'piece') {
+    const activeVarSeed = renderedPiece.variationSeed ?? config.seed;
+
+    // Resolve piece-level variations (play/render rules are stable for the export)
+    const pieceVariations = renderedPiece.variations || [];
+    const playRenderVars = pieceVariations.filter(
+      (v) => v.rule !== 'per-segment',
+    );
+    const resolvedDefaultsParams = resolveVariations(
+      renderedPiece.defaultsState.params as Record<string, number>,
+      playRenderVars,
+      activeVarSeed,
+    );
+
     renderedPiece = {
       ...renderedPiece,
+      defaultsState: {
+        ...renderedPiece.defaultsState,
+        params: resolvedDefaultsParams,
+      },
       segments: renderedPiece.segments.map((seg, idx) => {
+        // Resolve piece-level variations that vary per-segment
+        const segmentPieceVars = pieceVariations.filter(
+          (v) => v.rule === 'per-segment',
+        );
+        let segmentDefaultsParams = resolvedDefaultsParams;
+        if (segmentPieceVars.length > 0) {
+          const segmentSeed =
+            (activeVarSeed + hashStringToInt('segment-piece-' + idx)) >>> 0;
+          segmentDefaultsParams = resolveVariations(
+            segmentDefaultsParams,
+            segmentPieceVars,
+            segmentSeed,
+          );
+        }
+
+        // Apply segment override variations
+        let segmentParams = {
+          ...segmentDefaultsParams,
+          ...(seg.config.params || {}),
+        };
+        if (
+          seg.variations &&
+          seg.variations.length > 0 &&
+          (seg.type === 'fixed' || seg.type === 'open')
+        ) {
+          const segmentSeed =
+            (activeVarSeed + hashStringToInt('segment-' + idx)) >>> 0;
+          segmentParams = resolveVariations(
+            segmentParams,
+            seg.variations,
+            segmentSeed,
+          );
+        }
+
+        // Apply segment overrides config
+        const updatedConfig = { ...seg.config };
+        if (seg.type === 'fixed' || seg.type === 'open') {
+          updatedConfig.params = {
+            ...seg.config.params,
+            ...segmentParams,
+          };
+        }
+
+        // Resolve meta-arc segment variations
         if (seg.type === 'meta-arc') {
-          const seed = seg.config.seed ?? config.seed + idx;
+          let seed = seg.config.seed;
+          if (seed === null || seed === undefined) {
+            seed = (activeVarSeed + hashStringToInt('meta-arc-' + idx)) >>> 0;
+          }
+
+          let resolvedConfig = seg.config;
+          if (seg.variations && seg.variations.length > 0) {
+            const segmentSeed =
+              (activeVarSeed + hashStringToInt('segment-config-' + idx)) >>> 0;
+            resolvedConfig = resolveNestedConfigVariations(
+              seg.config,
+              seg.variations,
+              segmentSeed,
+            );
+          }
+
           const generatedArc = generateMetaArc(
-            seg.config.kind || 'random-walk',
-            seg.config,
+            resolvedConfig.kind || 'random-walk',
+            resolvedConfig,
             seed,
           );
+
           return {
             ...seg,
             type: 'arc',
+            variations: [],
             config: {
-              ...seg.config,
+              ...resolvedConfig,
               generatedArc,
             },
           };
         }
-        return seg;
+
+        return {
+          ...seg,
+          variations: [],
+          config: updatedConfig,
+        };
       }),
     };
   }

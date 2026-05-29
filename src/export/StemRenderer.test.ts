@@ -292,4 +292,66 @@ describe('StemRenderer', () => {
     expect(Object.keys(results)).toEqual(['master']);
     expect(results.master).toBeInstanceOf(ArrayBuffer);
   });
+
+  it('renders a Piece with variation rules deterministically', async () => {
+    const piece = {
+      schemaVer: 12,
+      title: 'Variations Render Spec',
+      description: null,
+      visibility: 'unlisted' as const,
+      totalDurationMs: 4000,
+      hasOpenSegment: false,
+      defaultsState: {
+        params: DEFAULT_PARAMS,
+        engineId: 'sine' as const,
+        engineParams: {},
+      },
+      variations: [
+        {
+          id: 'vp-brightness',
+          paramKey: 'brightness',
+          constraint: { type: 'range', min: 0.2, max: 0.8 },
+          rule: 'per-play',
+        },
+      ],
+      segments: [
+        {
+          position: 0,
+          type: 'fixed' as const,
+          durationMs: 4000,
+          config: { params: {} },
+        },
+      ],
+    };
+
+    const config = {
+      params: DEFAULT_PARAMS,
+      engineId: 'sine' as const,
+      engineParams: {},
+      loopConfig: makeDefaultLoopConfig(),
+      loopBuffers: { A: null, B: null, C: null },
+      loopStates: { A: 'empty', B: 'empty', C: 'empty' },
+      mode: 'piece' as const,
+      piece,
+      durationSec: 4,
+      sampleRate: 48000,
+      bitDepth: 24 as const,
+      includeFx: true,
+      includePartials: false,
+      seed: 4567,
+      patchTitle: 'Test Variations Piece',
+      patchHash: 'hpiece-var',
+    } as any;
+
+    const cancelSignal = { aborted: false };
+    const results = await renderStemsOffline(
+      config,
+      () => {},
+      cancelSignal,
+      mockOfflineContext,
+    );
+
+    expect(Object.keys(results)).toEqual(['master']);
+    expect(results.master).toBeInstanceOf(ArrayBuffer);
+  });
 });

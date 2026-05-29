@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /** Types mirroring the v0.7 backend API surface (see docs/API.md). */
 
 export type Visibility = 'unlisted' | 'public';
@@ -294,6 +295,7 @@ export interface APIPieceSegment {
   type: 'fixed' | 'arc' | 'open' | 'transition' | 'meta-arc';
   duration_ms: number | null;
   config: Record<string, any>;
+  variations?: any[];
 }
 
 export interface APIPiece {
@@ -310,6 +312,10 @@ export interface APIPiece {
   updated_at: string;
   short_slug: string;
   segments: APIPieceSegment[];
+  tempo_bpm?: number | null;
+  variation_seed?: number | null;
+  variations?: any[];
+  notation?: any[];
 }
 
 export interface APIPieceList {

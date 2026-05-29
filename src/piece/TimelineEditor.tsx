@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import type { Piece, PieceSegment } from '@/piece/types';
+import type { Piece, PieceSegment, VariationPoint } from '@/piece/types';
 import { PiecePlayer } from '@/piece/PiecePlayer';
 import { SegmentProperties } from '@/piece/SegmentProperties';
 import { NotationEditor } from '@/piece/components/NotationEditor';
 import { api } from '@/api/client';
-import { useParamStore } from '@/state/params';
+import { useParamStore, CONTROL_DEFS } from '@/state/params';
 import { SCHEMA_VERSION } from '@/share/schema';
 import {
   Play,
@@ -20,8 +21,11 @@ import {
   FolderOpen,
   Volume2,
   Activity,
+  Dices,
 } from 'lucide-react';
 import type { Orchestrator } from '@/audio/orchestrator';
+import { VariationEditorPanel } from '@/piece/components/VariationEditorPanel';
+import { VariationDialog } from '@/piece/components/VariationDialog';
 
 interface TimelineEditorProps {
   ensureOrchestrator: () => Orchestrator;
@@ -75,6 +79,103 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
   const [saving, setSaving] = useState(false);
   const [showNotation, setShowNotation] = useState(false);
 
+  const [activeVpEdit, setActiveVpEdit] = useState<{
+    paramKey: string;
+    paramLabel: string;
+    initialPoint?: VariationPoint;
+    minVal: number;
+    maxVal: number;
+    stepVal: number;
+    target: 'piece' | 'segment';
+    segmentIndex?: number;
+  } | null>(null);
+
+  const handleEditPoint = (
+    point: VariationPoint,
+    target: 'piece' | 'segment',
+    segmentIndex?: number,
+  ) => {
+    const def = CONTROL_DEFS.find((d) => d.key === point.paramKey);
+    setActiveVpEdit({
+      paramKey: point.paramKey,
+      paramLabel: def?.label || point.paramKey,
+      initialPoint: point,
+      minVal: def?.min || 0,
+      maxVal: def?.max || 1,
+      stepVal: def?.step || 0.01,
+      target,
+      segmentIndex,
+    });
+  };
+
+  const handleSavePieceVariation = (vp: VariationPoint) => {
+    if (!activeVpEdit) return;
+
+    if (activeVpEdit.target === 'piece') {
+      const vars = [...(piece.variations || [])].filter((v) => v.id !== vp.id);
+      vars.push(vp);
+      const updated = { ...piece, variations: vars };
+      setPiece(updated);
+      if (playerRef.current) {
+        playerRef.current.updatePiece(updated);
+      }
+    } else {
+      const segmentIndex = activeVpEdit.segmentIndex!;
+      const updatedSegments = piece.segments.map((seg, idx) => {
+        if (idx === segmentIndex) {
+          const vars = [...(seg.variations || [])].filter(
+            (v) => v.id !== vp.id,
+          );
+          vars.push(vp);
+          return { ...seg, variations: vars };
+        }
+        return seg;
+      });
+      const updated = { ...piece, segments: updatedSegments };
+      setPiece(updated);
+      if (playerRef.current) {
+        playerRef.current.updatePiece(updated);
+      }
+    }
+    setActiveVpEdit(null);
+  };
+
+  const handleDeletePieceVariation = () => {
+    if (!activeVpEdit) return;
+
+    if (activeVpEdit.target === 'piece') {
+      const updated = {
+        ...piece,
+        variations: (piece.variations || []).filter(
+          (v) => v.paramKey !== activeVpEdit.paramKey,
+        ),
+      };
+      setPiece(updated);
+      if (playerRef.current) {
+        playerRef.current.updatePiece(updated);
+      }
+    } else {
+      const segmentIndex = activeVpEdit.segmentIndex!;
+      const updatedSegments = piece.segments.map((seg, idx) => {
+        if (idx === segmentIndex) {
+          return {
+            ...seg,
+            variations: (seg.variations || []).filter(
+              (v) => v.paramKey !== activeVpEdit.paramKey,
+            ),
+          };
+        }
+        return seg;
+      });
+      const updated = { ...piece, segments: updatedSegments };
+      setPiece(updated);
+      if (playerRef.current) {
+        playerRef.current.updatePiece(updated);
+      }
+    }
+    setActiveVpEdit(null);
+  };
+
   const playerRef = useRef<PiecePlayer | null>(null);
   const { slug } = useParams<{ slug: string }>();
 
@@ -103,6 +204,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
     const currentSeg = piece.segments[activeSegIdx];
     const dur = currentSeg ? getSegmentDuration(currentSeg) : 5000;
     return total + playheadProgress * dur;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isPlaying,
     activeSegIdx,
@@ -275,6 +377,17 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
     setActiveSegIdx(0);
   };
 
+  const handleReRoll = () => {
+    const nextSeed = Math.floor(Math.random() * 1000000);
+    const updated = { ...piece, variationSeed: nextSeed };
+    setPiece(updated);
+    if (playerRef.current) {
+      playerRef.current.updatePiece(updated);
+      playerRef.current.reRoll();
+    }
+    showToast(`Procedural variations re-rolled! (Seed: ${nextSeed})`);
+  };
+
   const handleNotationChange = (updatedPiece: Piece) => {
     setPiece(updatedPiece);
     if (playerRef.current) {
@@ -346,10 +459,13 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
         visibility: piece.visibility,
         tempo_bpm: piece.tempoBpm,
         notation: piece.notation || [],
+        variation_seed: piece.variationSeed,
+        variations: piece.variations || [],
         segments: piece.segments.map((s) => ({
           type: s.type,
           duration_ms: s.durationMs,
           config: s.config,
+          variations: s.variations || [],
         })),
       };
 
@@ -386,6 +502,9 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
       totalDurationMs: item.total_duration_ms,
       hasOpenSegment: item.has_open_segment,
       notation: item.notation !== undefined ? item.notation : [],
+      variationSeed:
+        item.variation_seed !== undefined ? item.variation_seed : null,
+      variations: item.variations !== undefined ? item.variations : [],
       segments: item.segments.map((s: any) => ({
         // eslint-disable-line @typescript-eslint/no-explicit-any
         id: s.id,
@@ -393,6 +512,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
         type: s.type,
         durationMs: s.duration_ms,
         config: s.config,
+        variations: s.variations !== undefined ? s.variations : [],
       })),
       shortSlug: item.short_slug,
     });
@@ -522,6 +642,21 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
               className="p-3 bg-white/5 border border-white/10 rounded-2xl text-white/80 hover:bg-white/10 transition"
             >
               <Square className="w-5 h-5 fill-current" />
+            </button>
+
+            {/* Re-Roll Variation Seed Button */}
+            <button
+              onClick={handleReRoll}
+              className="p-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-2xl text-amber-300 transition flex items-center gap-1.5"
+              title="Re-roll Variation Seed"
+            >
+              <Dices className="w-5 h-5" />
+              {piece.variationSeed !== null &&
+                piece.variationSeed !== undefined && (
+                  <span className="text-[10px] font-mono font-black uppercase tracking-wider bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20">
+                    {piece.variationSeed}
+                  </span>
+                )}
             </button>
 
             {/* Notation Track Toggle */}
@@ -744,6 +879,18 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
         </div>
       </div>
 
+      {/* Procedural Variation Space Panel */}
+      <VariationEditorPanel
+        piece={piece}
+        onUpdate={(updatedPiece) => {
+          setPiece(updatedPiece);
+          if (playerRef.current) {
+            playerRef.current.updatePiece(updatedPiece);
+          }
+        }}
+        onEditPoint={handleEditPoint}
+      />
+
       {/* Selected Segment Properties Panel */}
       {selectedIdx !== null && piece.segments[selectedIdx] && (
         <SegmentProperties
@@ -806,6 +953,21 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {activeVpEdit && (
+        <VariationDialog
+          isOpen={true}
+          onClose={() => setActiveVpEdit(null)}
+          paramKey={activeVpEdit.paramKey}
+          paramLabel={activeVpEdit.paramLabel}
+          initialPoint={activeVpEdit.initialPoint}
+          minVal={activeVpEdit.minVal}
+          maxVal={activeVpEdit.maxVal}
+          stepVal={activeVpEdit.stepVal}
+          onSave={handleSavePieceVariation}
+          onDelete={handleDeletePieceVariation}
+        />
       )}
     </div>
   );

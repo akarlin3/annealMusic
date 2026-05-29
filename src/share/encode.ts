@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { clampParam, type AnnealMusicParams } from '@/state/params';
 import {
   KEY_BOUNDS,
@@ -23,7 +24,7 @@ import {
   type LoopConfigMap,
   type SlotId,
 } from '@/loop/types';
-import type { NotationNote, SegmentType } from '@/piece/types';
+import type { NotationNote, SegmentType, VariationPoint } from '@/piece/types';
 
 const SHARED_KEY_SET: ReadonlySet<string> = new Set(SHARED_KEYS);
 
@@ -53,16 +54,19 @@ export function encodeEngineParams(
   params: EngineParams,
 ): string {
   const ns = ENGINE_URL_NS[engineId];
-  const parts = engineParamDefs(engineId)
-    .map((def) => {
-      const value = params[def.key] ?? def.default;
-      const serialized =
-        typeof value === 'number'
-          ? value.toFixed(decimalsForStep(def.step))
-          : String(value);
-      return `${ns}.${def.key}=${serialized}`;
-    });
-  if (params.grid_lock === 1 || String(params.grid_lock) === 'true' || (params.grid_lock as unknown) === true) {
+  const parts = engineParamDefs(engineId).map((def) => {
+    const value = params[def.key] ?? def.default;
+    const serialized =
+      typeof value === 'number'
+        ? value.toFixed(decimalsForStep(def.step))
+        : String(value);
+    return `${ns}.${def.key}=${serialized}`;
+  });
+  if (
+    params.grid_lock === 1 ||
+    String(params.grid_lock) === 'true' ||
+    (params.grid_lock as unknown) === true
+  ) {
     parts.push(`${ns}.grid_lock=1`);
   }
   return parts.join('&');
@@ -145,12 +149,15 @@ export interface DecodedPieceSegment {
   type: 'fixed' | 'arc' | 'open' | 'transition' | 'meta-arc';
   durationMs: number | null;
   config: Record<string, unknown>;
+  variations?: VariationPoint[];
 }
 
 export interface DecodedPiece {
   title?: string;
   description?: string;
   tempoBpm?: number | null; // <-- NEW
+  variationSeed?: number | null;
+  variations?: VariationPoint[];
   defaultsState: {
     params: Partial<AnnealMusicParams>;
     engineId: EngineId;
@@ -424,16 +431,67 @@ function decodePatchState(
   };
 }
 
+function encodeVariationPoint(vp: VariationPoint): string {
+  const c = vp.constraint;
+  let cfg = '';
+  if (c.type === 'range') {
+    cfg = `${c.min ?? ''},${c.max ?? ''}`;
+  } else if (c.type === 'enum') {
+    cfg = (c.choices ?? []).join('|');
+  } else if (c.type === 'relative') {
+    cfg = `${c.percent ?? ''}`;
+  } else if (c.type === 'correlated') {
+    cfg = `${c.targetParam ?? ''},${c.coefficient ?? ''}`;
+  }
+  return `${vp.id}:${vp.paramKey}:${c.type}:${cfg}:${vp.rule}`;
+}
+
+function decodeVariationPoint(str: string): VariationPoint | null {
+  const parts = str.split(':');
+  if (parts.length < 5) return null;
+  const [id, paramKey, type, cfg, rule] = parts;
+  if (!id || !paramKey || !type || cfg === undefined || !rule) return null;
+
+  const constraint: any = { type };
+  if (type === 'range') {
+    const [minStr, maxStr] = cfg.split(',');
+    constraint.min = minStr ? Number(minStr) : undefined;
+    constraint.max = maxStr ? Number(maxStr) : undefined;
+  } else if (type === 'enum') {
+    constraint.choices = cfg ? cfg.split('|').map(Number) : [];
+  } else if (type === 'relative') {
+    constraint.percent = cfg ? Number(cfg) : undefined;
+  } else if (type === 'correlated') {
+    const [targetParam, coeffStr] = cfg.split(',');
+    constraint.targetParam = targetParam || undefined;
+    constraint.coefficient = coeffStr ? Number(coeffStr) : undefined;
+  }
+
+  return {
+    id,
+    paramKey,
+    constraint,
+    rule: rule as 'per-play' | 'per-segment' | 'per-render',
+  };
+}
+
 /** Decode a v8 piece payload from URL */
 export function decodePiecePayload(payload: string): DecodedPiece {
   let title: string | undefined;
   let description: string | undefined;
   let tempoBpm: number | null = null;
+  let variationSeed: number | null = null;
+  let variations: VariationPoint[] = [];
   let notation: NotationNote[] = [];
   const defPairs: string[] = [];
   const segMap: Record<
     number,
-    { type?: SegmentType; dur?: number | null; config: Record<string, unknown> }
+    {
+      type?: SegmentType;
+      dur?: number | null;
+      config: Record<string, unknown>;
+      variations?: VariationPoint[];
+    }
   > = {};
 
   for (const pair of payload.split('&')) {
@@ -450,6 +508,14 @@ export function decodePiecePayload(payload: string): DecodedPiece {
     } else if (key === 'tempo') {
       const parsed = Number(raw);
       tempoBpm = isNaN(parsed) ? null : parsed;
+    } else if (key === 'varSeed') {
+      const parsed = Number(raw);
+      variationSeed = isNaN(parsed) ? null : parsed;
+    } else if (key === 'v.p' && raw !== '') {
+      variations = decodeURIComponent(raw)
+        .split(';')
+        .map(decodeVariationPoint)
+        .filter(Boolean) as VariationPoint[];
     } else if (key === 'notation' && raw !== '') {
       notation = raw.split(';').map((noteStr, idx) => {
         const parts = noteStr.split(',').map(Number);
@@ -479,9 +545,16 @@ export function decodePiecePayload(payload: string): DecodedPiece {
             segMap[idx].type = raw as SegmentType;
           } else if (segKey === 'dur') {
             segMap[idx].dur = raw === 'null' ? null : parseInt(raw, 10);
+          } else if (segKey === 'v' && raw !== '') {
+            segMap[idx].variations = decodeURIComponent(raw)
+              .split(';')
+              .map(decodeVariationPoint)
+              .filter(Boolean) as VariationPoint[];
           } else if (segKey === 'cfg') {
             try {
-              segMap[idx].config = JSON.parse(decodeURIComponent(raw)) as Record<string, unknown>;
+              segMap[idx].config = JSON.parse(
+                decodeURIComponent(raw),
+              ) as Record<string, unknown>;
             } catch (e) {
               console.warn('Failed to parse meta-arc config JSON', e);
             }
@@ -509,6 +582,7 @@ export function decodePiecePayload(payload: string): DecodedPiece {
       type: s.type || 'fixed',
       durationMs: s.dur !== undefined ? s.dur : 5000,
       config: s.config,
+      variations: s.variations || [],
     };
   });
 
@@ -516,6 +590,8 @@ export function decodePiecePayload(payload: string): DecodedPiece {
     title,
     description,
     tempoBpm,
+    variationSeed,
+    variations,
     defaultsState: {
       params: decodedDef.params,
       engineId: decodedDef.engineId,
@@ -527,11 +603,13 @@ export function decodePiecePayload(payload: string): DecodedPiece {
   };
 }
 
-/** Encode a Piece into a version 11 URL payload string */
+/** Encode a Piece into a version 12 URL payload string */
 export function encodePiece(piece: {
   title?: string | null;
   description?: string | null;
-  tempoBpm?: number | null; // <-- NEW
+  tempoBpm?: number | null;
+  variationSeed?: number | null;
+  variations?: VariationPoint[];
   defaultsState: {
     params: AnnealMusicParams;
     engineId: EngineId;
@@ -542,6 +620,7 @@ export function encodePiece(piece: {
     type: 'fixed' | 'arc' | 'open' | 'transition' | 'meta-arc';
     durationMs: number | null;
     config: Record<string, unknown>;
+    variations?: VariationPoint[];
   }[];
   notation?: {
     onset_ms: number;
@@ -556,6 +635,13 @@ export function encodePiece(piece: {
   }
   if (piece.tempoBpm !== undefined && piece.tempoBpm !== null) {
     parts.push(`tempo=${piece.tempoBpm}`);
+  }
+  if (piece.variationSeed !== undefined && piece.variationSeed !== null) {
+    parts.push(`varSeed=${piece.variationSeed}`);
+  }
+  if (piece.variations && piece.variations.length > 0) {
+    const val = piece.variations.map(encodeVariationPoint).join(';');
+    parts.push(`v.p=${encodeURIComponent(val)}`);
   }
   if (piece.notation && piece.notation.length > 0) {
     const encodedNotes = piece.notation
@@ -582,8 +668,14 @@ export function encodePiece(piece: {
     parts.push(
       `seg${idx}.dur=${seg.durationMs === null ? 'null' : seg.durationMs}`,
     );
+    if (seg.variations && seg.variations.length > 0) {
+      const val = seg.variations.map(encodeVariationPoint).join(';');
+      parts.push(`seg${idx}.v=${encodeURIComponent(val)}`);
+    }
     if (seg.type === 'meta-arc') {
-      parts.push(`seg${idx}.cfg=${encodeURIComponent(JSON.stringify(seg.config))}`);
+      parts.push(
+        `seg${idx}.cfg=${encodeURIComponent(JSON.stringify(seg.config))}`,
+      );
     } else {
       for (const [k, v] of Object.entries(seg.config)) {
         parts.push(

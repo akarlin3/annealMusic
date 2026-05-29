@@ -1,4 +1,5 @@
-import type { Piece, PieceSegment } from '@/piece/types';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Piece, PieceSegment, VariationPoint } from '@/piece/types';
 import type { Orchestrator } from '@/audio/orchestrator';
 import { interpolateState, type PieceState } from '@/piece/transitions';
 import { ArcRunner } from '@/session/ArcRunner';
@@ -7,6 +8,44 @@ import { engineCapabilities } from '@/audio/engines/index';
 import { generateMetaArc } from '@/piece/generators';
 import { doc, sessionConfigMap } from '@/jam/crdt';
 import { getAnonId } from '@/api/anon';
+import { resolveVariations, hashStringToInt } from '@/piece/resolver';
+
+function resolveNestedConfigVariations(
+  config: Record<string, any>,
+  variations: VariationPoint[],
+  seed: number,
+): Record<string, any> {
+  const resolvedConfig = JSON.parse(JSON.stringify(config));
+  const flatRecord: Record<string, number> = {};
+  for (const vp of variations) {
+    const parts = vp.paramKey.split('.');
+    let val = resolvedConfig;
+    for (const part of parts) {
+      val = val?.[part];
+    }
+    if (typeof val === 'number') {
+      flatRecord[vp.paramKey] = val;
+    } else {
+      flatRecord[vp.paramKey] = vp.constraint.min ?? 0;
+    }
+  }
+
+  const resolvedFlat = resolveVariations(flatRecord, variations, seed);
+
+  for (const vp of variations) {
+    const parts = vp.paramKey.split('.');
+    let target = resolvedConfig;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i]!;
+      if (!target[part]) target[part] = {};
+      target = target[part];
+    }
+    const lastPart = parts[parts.length - 1]!;
+    target[lastPart] = resolvedFlat[vp.paramKey];
+  }
+
+  return resolvedConfig;
+}
 
 export class PiecePlayer {
   private piece: Piece;
@@ -23,21 +62,113 @@ export class PiecePlayer {
   private smoothPitch = true;
 
   private activeArcRunner: ArcRunner | null = null;
+  private activeVariationSeed = 0;
 
-  private onProgressCallback: ((progress: number, segmentIdx: number) => void) | null = null;
+  private onProgressCallback:
+    | ((progress: number, segmentIdx: number) => void)
+    | null = null;
   private onEndedCallback: (() => void) | null = null;
 
   constructor(piece: Piece, orchestrator: Orchestrator) {
     this.piece = piece;
     this.orchestrator = orchestrator;
+    this.activeVariationSeed = this.getActiveVariationSeed();
     this.resolveAllSegmentStates();
+  }
+
+  private getActiveVariationSeed(): number {
+    const inJam = sessionConfigMap.size > 0;
+    if (inJam) {
+      const hostId = doc.getMap('metadata').get('hostId') as string | undefined;
+      const isLeader = hostId === getAnonId() || !hostId;
+      if (isLeader) {
+        let seed = this.piece.variationSeed;
+        if (seed === null || seed === undefined) {
+          const existing = sessionConfigMap.get('variation_seed_active') as
+            | number
+            | undefined;
+          if (existing !== undefined && existing !== null) {
+            seed = existing;
+          } else {
+            seed = Math.floor(Math.random() * 1000000);
+            sessionConfigMap.set('variation_seed_active', seed);
+          }
+        }
+        return seed;
+      } else {
+        const remoteSeed = sessionConfigMap.get('variation_seed_active') as
+          | number
+          | undefined;
+        if (remoteSeed !== undefined && remoteSeed !== null) {
+          return remoteSeed;
+        }
+        return this.piece.variationSeed ?? Math.floor(Math.random() * 1000000);
+      }
+    }
+    return this.piece.variationSeed ?? Math.floor(Math.random() * 1000000);
+  }
+
+  reRoll(): void {
+    const inJam = sessionConfigMap.size > 0;
+    if (inJam) {
+      const hostId = doc.getMap('metadata').get('hostId') as string | undefined;
+      const isLeader = hostId === getAnonId() || !hostId;
+      if (isLeader) {
+        const nextSeed = Math.floor(Math.random() * 1000000);
+        sessionConfigMap.set('variation_seed_active', nextSeed);
+        this.activeVariationSeed = nextSeed;
+      }
+    } else {
+      this.activeVariationSeed = Math.floor(Math.random() * 1000000);
+    }
+    this.resolveAllSegmentStates();
+    this.applyActiveState();
+  }
+
+  private getResolvedDefaultsParams(
+    segmentIdx: number,
+  ): Record<string, number> {
+    const defaults = this.piece.defaultsState;
+    const pieceVariations = this.piece.variations || [];
+
+    const playRenderVars = pieceVariations.filter(
+      (v) => v.rule !== 'per-segment',
+    );
+    const segmentVars = pieceVariations.filter((v) => v.rule === 'per-segment');
+
+    let resolved = resolveVariations(
+      defaults.params as Record<string, number>,
+      playRenderVars,
+      this.activeVariationSeed,
+    );
+
+    if (segmentVars.length > 0) {
+      const segmentSeed =
+        (this.activeVariationSeed +
+          hashStringToInt('segment-piece-' + segmentIdx)) >>>
+        0;
+      resolved = resolveVariations(resolved, segmentVars, segmentSeed);
+    }
+
+    return resolved;
   }
 
   private resolveAllSegmentStates(): void {
     const defaults = this.piece.defaultsState;
-    this.segmentResolvedStates = this.piece.segments.map((seg) => {
+    this.segmentResolvedStates = this.piece.segments.map((seg, idx) => {
+      const defaultsParams = this.getResolvedDefaultsParams(idx);
+
       if (seg.type === 'fixed' || seg.type === 'open') {
-        const params = { ...defaults.params, ...seg.config.params };
+        let params = { ...defaultsParams, ...(seg.config.params || {}) };
+
+        // Apply segment-level variations
+        if (seg.variations && seg.variations.length > 0) {
+          const segmentSeed =
+            (this.activeVariationSeed + hashStringToInt('segment-' + idx)) >>>
+            0;
+          params = resolveVariations(params, seg.variations, segmentSeed);
+        }
+
         const engineId = seg.config.engineId || defaults.engineId;
         const engineParams = { ...defaults.engineParams } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
         if (seg.config.engineParams) {
@@ -48,13 +179,13 @@ export class PiecePlayer {
         }
         return { params, engineId, engineParams };
       } else if (seg.type === 'arc' || seg.type === 'meta-arc') {
-        const params = { ...defaults.params };
+        const params = { ...defaultsParams };
         const engineId = defaults.engineId;
         const engineParams = { ...defaults.engineParams };
         return { params, engineId, engineParams };
       } else {
         return {
-          params: { ...defaults.params },
+          params: { ...defaultsParams },
           engineId: defaults.engineId,
           engineParams: { ...defaults.engineParams },
         };
@@ -62,8 +193,13 @@ export class PiecePlayer {
     });
   }
 
-  start(onProgress?: (progress: number, segmentIdx: number) => void, onEnded?: () => void): void {
+  start(
+    onProgress?: (progress: number, segmentIdx: number) => void,
+    onEnded?: () => void,
+  ): void {
     if (this.isPlaying) return;
+    this.activeVariationSeed = this.getActiveVariationSeed();
+    this.resolveAllSegmentStates();
     this.isPlaying = true;
     this.onProgressCallback = onProgress || null;
     this.onEndedCallback = onEnded || null;
@@ -104,7 +240,11 @@ export class PiecePlayer {
 
   private getSegmentDuration(seg: PieceSegment): number {
     const raw = seg.durationMs ?? 5000;
-    if (seg.config?.tempoLocked && this.piece.tempoBpm !== null && this.piece.tempoBpm > 0) {
+    if (
+      seg.config?.tempoLocked &&
+      this.piece.tempoBpm !== null &&
+      this.piece.tempoBpm > 0
+    ) {
       return raw * 4 * (60 / this.piece.tempoBpm) * 1000;
     }
     return raw;
@@ -142,7 +282,9 @@ export class PiecePlayer {
 
     if (this.onProgressCallback) {
       const duration = this.getSegmentDuration(currentSeg) || 1000;
-      const progress = isHoldOpen ? 1.0 : Math.min(1.0, this.playheadMs / duration);
+      const progress = isHoldOpen
+        ? 1.0
+        : Math.min(1.0, this.playheadMs / duration);
       this.onProgressCallback(progress, this.activeSegmentIdx);
     }
   }
@@ -157,7 +299,9 @@ export class PiecePlayer {
       const prevIdx = this.activeSegmentIdx - 1;
       const nextIdx = this.activeSegmentIdx + 1;
       const prevState =
-        prevIdx >= 0 ? this.segmentResolvedStates[prevIdx]! : (this.piece.defaultsState as PieceState);
+        prevIdx >= 0
+          ? this.segmentResolvedStates[prevIdx]!
+          : (this.piece.defaultsState as PieceState);
       const nextState =
         nextIdx < this.piece.segments.length
           ? this.segmentResolvedStates[nextIdx]!
@@ -172,7 +316,9 @@ export class PiecePlayer {
       if (!this.activeArcRunner) {
         const durationSec = this.getSegmentDuration(seg) / 1000;
         const defaults = this.piece.defaultsState;
-        const startParams = { ...defaults.params };
+        const defaultsParams =
+          this.segmentResolvedStates[this.activeSegmentIdx]!.params;
+        const startParams = { ...defaultsParams };
 
         if (seg.type === 'arc') {
           const def = getArcById(seg.config.arcId || 'bell');
@@ -188,29 +334,31 @@ export class PiecePlayer {
           // Resolve meta-arc seed
           let seed = seg.config.seed;
           if (seed === null || seed === undefined) {
-            const inJam = sessionConfigMap.size > 0;
-            if (inJam) {
-              const hostId = doc.getMap('metadata').get('hostId') as string | undefined;
-              const isLeader = hostId === getAnonId() || !hostId;
-
-              if (isLeader) {
-                const rolledSeed = Math.floor(Math.random() * 1000000);
-                sessionConfigMap.set(`meta_arc_seed_${this.activeSegmentIdx}`, rolledSeed);
-                seed = rolledSeed;
-              } else {
-                const remoteSeed = sessionConfigMap.get(`meta_arc_seed_${this.activeSegmentIdx}`) as number | undefined;
-                if (remoteSeed !== undefined && remoteSeed !== null) {
-                  seed = remoteSeed;
-                } else {
-                  seed = Math.floor(Math.random() * 1000000);
-                }
-              }
-            } else {
-              seed = Math.floor(Math.random() * 1000000);
-            }
+            seed =
+              (this.activeVariationSeed +
+                hashStringToInt('meta-arc-' + this.activeSegmentIdx)) >>>
+              0;
           }
 
-          const generatedArc = generateMetaArc(seg.config.kind || 'random-walk', seg.config, seed);
+          // Apply segment variations to meta-arc generator config (e.g. driftStrength)
+          let resolvedConfig = seg.config;
+          if (seg.variations && seg.variations.length > 0) {
+            const segmentSeed =
+              (this.activeVariationSeed +
+                hashStringToInt('segment-config-' + this.activeSegmentIdx)) >>>
+              0;
+            resolvedConfig = resolveNestedConfigVariations(
+              seg.config,
+              seg.variations,
+              segmentSeed,
+            );
+          }
+
+          const generatedArc = generateMetaArc(
+            resolvedConfig.kind || 'random-walk',
+            resolvedConfig,
+            seed,
+          );
           this.activeArcRunner = new ArcRunner(
             generatedArc,
             durationSec,
@@ -222,8 +370,10 @@ export class PiecePlayer {
 
       if (this.activeArcRunner) {
         const frame = this.activeArcRunner.tick(this.playheadMs / 1000);
+        const defaultsParams =
+          this.segmentResolvedStates[this.activeSegmentIdx]!.params;
         targetState = {
-          params: { ...this.piece.defaultsState.params, ...frame.params },
+          params: { ...defaultsParams, ...frame.params },
           engineId: this.piece.defaultsState.engineId,
           engineParams: this.piece.defaultsState.engineParams,
         };
@@ -242,7 +392,9 @@ export class PiecePlayer {
     playheadGlobalMs += this.playheadMs;
 
     const activeNote = this.piece.notation?.find(
-      (note) => playheadGlobalMs >= note.onset_ms && playheadGlobalMs < note.onset_ms + note.duration_ms,
+      (note) =>
+        playheadGlobalMs >= note.onset_ms &&
+        playheadGlobalMs < note.onset_ms + note.duration_ms,
     );
 
     let targetRootFreq = targetState.params.rootFreq;
@@ -272,7 +424,10 @@ export class PiecePlayer {
     // Set smooth/instant pitch change parameter
     const isInstantChange = !this.smoothPitch && isFromNotation;
 
-    this.orchestrator.setSharedParams({ ...targetState.params, rootFreq: targetRootFreq }, isInstantChange);
+    this.orchestrator.setSharedParams(
+      { ...targetState.params, rootFreq: targetRootFreq },
+      isInstantChange,
+    );
 
     const ep = targetState.engineParams[targetState.engineId];
     if (ep) {

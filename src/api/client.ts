@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getAnonId, setAnonId } from '@/api/anon';
 import {
   ApiError,
@@ -569,10 +570,15 @@ export const api = {
     title?: string | null;
     description?: string | null;
     visibility: 'unlisted' | 'public';
+    tempo_bpm?: number | null;
+    notation?: any[];
+    variation_seed?: number | null;
+    variations?: any[];
     segments: {
       type: string;
       duration_ms: number | null;
       config: Record<string, any>;
+      variations?: any[];
     }[];
   }): Promise<APIPiece> {
     return request<APIPiece>('/api/v1/pieces', { method: 'POST', body });
@@ -594,10 +600,15 @@ export const api = {
       description?: string | null;
       visibility?: 'unlisted' | 'public';
       defaults_state?: Record<string, any>;
+      tempo_bpm?: number | null;
+      notation?: any[];
+      variation_seed?: number | null;
+      variations?: any[];
       segments?: {
         type: string;
         duration_ms: number | null;
         config: Record<string, any>;
+        variations?: any[];
       }[];
     },
   ): Promise<APIPiece> {
