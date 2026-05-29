@@ -15,6 +15,8 @@ from app.deps import (
     SessionDep,
     StorageDep,
     rate_limit,
+    Identity,
+    get_identity,
 )
 from app.errors import (
     ApiError,
@@ -147,8 +149,14 @@ async def upload_user_source(
 async def list_my_user_sources(
     user: CurrentUser,
     session: SessionDep,
+    identity: Identity = Depends(get_identity),
 ) -> UserSourceListOut:
-    stmt = select(UserSource).where(UserSource.user_id == user.id).order_by(UserSource.created_at.desc())
+    if identity.account_id is not None:
+        stmt = select(UserSource).where(UserSource.user_id.in_(identity.owned_anon_ids))
+    else:
+        stmt = select(UserSource).where(UserSource.user_id == user.id)
+    
+    stmt = stmt.order_by(UserSource.created_at.desc())
     rows = (await session.execute(stmt)).scalars().all()
     await session.commit()
     return UserSourceListOut(items=[_to_out(s) for s in rows])

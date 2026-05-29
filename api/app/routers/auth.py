@@ -15,7 +15,11 @@ from app.deps import SessionDep, _client_ip, get_identity, Identity
 from app.errors import bad_request, rate_limited
 from app.models import Account, AccountProvider, MagicLink, Session
 from app.services.email import get_email_client
+from app.services.oauth import get_oauth_service
+import logging
 from pydantic import BaseModel, EmailStr
+
+logger = logging.getLogger("auth")
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -233,3 +237,188 @@ def _parse_uuid(value: str | None) -> uuid.UUID | None:
         return uuid.UUID(value)
     except ValueError:
         return None
+
+
+@router.get("/oauth/{provider}/start")
+async def oauth_start(
+    provider: Literal["google", "github"],
+    request: Request,
+):
+    settings = get_settings()
+    state = str(uuid.uuid4())
+    redirect_uri = f"{request.base_url}api/v1/auth/oauth/{provider}/callback"
+
+    try:
+        auth_url = get_oauth_service().get_authorize_url(provider, state, redirect_uri)
+    except Exception as e:
+        return RedirectResponse(
+            url=f"{settings.client_app_url}?error=oauth_not_configured",
+            status_code=302,
+        )
+
+    response = RedirectResponse(url=auth_url, status_code=302)
+    response.set_cookie(
+        key="am_oauth_state",
+        value=state,
+        secure=settings.session_cookie_secure,
+        httponly=True,
+        samesite="lax",
+        max_age=900,  # 15 minutes
+    )
+    return response
+
+
+@router.get("/oauth/{provider}/callback")
+async def oauth_callback(
+    provider: Literal["google", "github"],
+    request: Request,
+    response: Response,
+    session: SessionDep,
+    code: str = Query(...),
+    state: str = Query(...),
+):
+    settings = get_settings()
+    now_dt = datetime.now(tz=timezone.utc)
+
+    # 1. Validate State
+    state_cookie = request.cookies.get("am_oauth_state")
+    if not state_cookie or state_cookie != state:
+        return RedirectResponse(
+            url=f"{settings.client_app_url}?error=state_mismatch",
+            status_code=302,
+        )
+
+    # 2. Exchange Code
+    redirect_uri = f"{request.base_url}api/v1/auth/oauth/{provider}/callback"
+    try:
+        user_info = await get_oauth_service().exchange_and_get_user(provider, code, redirect_uri)
+    except Exception as e:
+        logger.error(f"OAuth exchange failed: {e}")
+        return RedirectResponse(
+            url=f"{settings.client_app_url}?error=oauth_failed",
+            status_code=302,
+        )
+
+    # Check if a user is already logged in (linked account request)
+    identity = await get_identity(request, session)
+
+    # 3. Resolve AccountProvider
+    prov_stmt = select(AccountProvider).where(
+        AccountProvider.provider == provider,
+        AccountProvider.subject == user_info.subject,
+    )
+    prov_res = await session.execute(prov_stmt)
+    db_prov = prov_res.scalar_one_or_none()
+
+    if identity.account_id is not None:
+        # Link account flow
+        account_id = identity.account_id
+        if db_prov is not None:
+            if db_prov.account_id == account_id:
+                # Already linked to this account, no-op redirect
+                redirect = RedirectResponse(
+                    url=f"{settings.client_app_url}?signed_in=1",
+                    status_code=302,
+                )
+                redirect.delete_cookie("am_oauth_state")
+                return redirect
+            else:
+                # Linked to another account -> Conflict!
+                return RedirectResponse(
+                    url=f"{settings.client_app_url}?error=provider_already_linked",
+                    status_code=302,
+                )
+        else:
+            # Link it to the active account
+            new_prov = AccountProvider(
+                account_id=account_id,
+                provider=provider,
+                subject=user_info.subject,
+            )
+            session.add(new_prov)
+            await session.commit()
+
+            redirect = RedirectResponse(
+                url=f"{settings.client_app_url}?signed_in=1",
+                status_code=302,
+            )
+            redirect.delete_cookie("am_oauth_state")
+            return redirect
+
+    else:
+        # Regular Login / Signup flow
+        if db_prov is not None:
+            # Account exists via this provider
+            account_stmt = select(Account).where(Account.id == db_prov.account_id)
+            account_res = await session.execute(account_stmt)
+            account = account_res.scalar_one()
+            account.last_login_at = now_dt
+        else:
+            # Check case-insensitive email match
+            account_stmt = select(Account).where(Account.email == user_info.email)
+            account_res = await session.execute(account_stmt)
+            account = account_res.scalar_one_or_none()
+
+            if account is not None:
+                # Email match: link this provider connection automatically
+                new_prov = AccountProvider(
+                    account_id=account.id,
+                    provider=provider,
+                    subject=user_info.subject,
+                )
+                session.add(new_prov)
+                account.last_login_at = now_dt
+            else:
+                # Create a fresh account
+                account = Account(
+                    id=uuid.uuid4(),
+                    email=user_info.email,
+                    email_verified=user_info.email_verified,
+                    display_name=user_info.display_name,
+                    avatar_seed=str(uuid.uuid4()),
+                )
+                session.add(account)
+                await session.flush()
+
+                new_prov = AccountProvider(
+                    account_id=account.id,
+                    provider=provider,
+                    subject=user_info.subject,
+                )
+                session.add(new_prov)
+
+        await session.commit()
+
+    # 4. Issue session
+    session_id = uuid.uuid4()
+    expires_at = now_dt + timedelta(days=30)
+    ip = _client_ip(request)
+    ip_hash = hashlib.sha256(ip.encode()).hexdigest()
+
+    db_sess = Session(
+        id=session_id,
+        account_id=account.id,
+        expires_at=expires_at,
+        user_agent=request.headers.get("user-agent"),
+        ip_hash=ip_hash,
+    )
+    session.add(db_sess)
+    await session.commit()
+
+    # 5. Redirect and set HttpOnly session cookie
+    redirect = RedirectResponse(
+        url=f"{settings.client_app_url}?signed_in=1",
+        status_code=302,
+    )
+    redirect.set_cookie(
+        key=settings.session_cookie_name,
+        value=str(session_id),
+        domain=settings.session_cookie_domain,
+        secure=settings.session_cookie_secure,
+        httponly=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30, # 30 days
+    )
+    redirect.delete_cookie("am_oauth_state")
+    return redirect
+

@@ -17,6 +17,8 @@ from app.deps import (
     StorageDep,
     _client_ip,
     rate_limit,
+    Identity,
+    get_identity,
 )
 import logging
 from app.errors import (
@@ -186,10 +188,14 @@ async def create_patch(
 async def list_my_patches(
     user: CurrentUser,
     session: SessionDep,
+    identity: Identity = Depends(get_identity),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> PatchListOut:
-    stmt = select(Patch).where(Patch.user_id == user.id)
+    if identity.account_id is not None:
+        stmt = select(Patch).where(Patch.user_id.in_(identity.owned_anon_ids))
+    else:
+        stmt = select(Patch).where(Patch.user_id == user.id)
     if cursor:
         before = _decode_cursor(cursor)
         if before is not None:

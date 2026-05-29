@@ -15,6 +15,8 @@ from app.deps import (
     SessionDep,
     StorageDep,
     rate_limit,
+    Identity,
+    get_identity,
 )
 from app.errors import bad_request, file_too_large, forbidden, not_found, quota_exceeded
 from app.models import Recording
@@ -92,15 +94,17 @@ async def upload_recording(
 @router.get("/me", response_model=RecordingListOut,
             dependencies=[Depends(rate_limit("get"))])
 async def list_my_recordings(
-    user: CurrentUser, session: SessionDep
+    user: CurrentUser,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
 ) -> RecordingListOut:
-    rows = (
-        await session.execute(
-            select(Recording)
-            .where(Recording.user_id == user.id)
-            .order_by(Recording.created_at.desc())
-        )
-    ).scalars().all()
+    if identity.account_id is not None:
+        stmt = select(Recording).where(Recording.user_id.in_(identity.owned_anon_ids))
+    else:
+        stmt = select(Recording).where(Recording.user_id == user.id)
+    
+    stmt = stmt.order_by(Recording.created_at.desc())
+    rows = (await session.execute(stmt)).scalars().all()
     await session.commit()
     return RecordingListOut(items=[RecordingOut.model_validate(r) for r in rows])
 

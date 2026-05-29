@@ -280,3 +280,150 @@ async def test_email_rate_limit(client, app):
         json={"email": "limit@example.com", "intent": "login"},
     )
     assert r.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_oauth_start_redirection(client):
+    # Google (needs mock env configuration in test or bypass configured check)
+    from app.config import get_settings
+    settings = get_settings()
+    with patch.object(settings, "google_client_id", "mock-google-id"):
+        r = await client.get("/api/v1/auth/oauth/google/start")
+        assert r.status_code == 302
+        assert "accounts.google.com" in r.headers["location"]
+        assert "am_oauth_state" in r.cookies
+
+    # GitHub
+    with patch.object(settings, "github_client_id", "mock-github-id"):
+        r = await client.get("/api/v1/auth/oauth/github/start")
+        assert r.status_code == 302
+        assert "github.com/login/oauth" in r.headers["location"]
+        assert "am_oauth_state" in r.cookies
+
+
+@pytest.mark.asyncio
+async def test_oauth_callback_state_mismatch(client):
+    r = await client.get(
+        "/api/v1/auth/oauth/google/callback?code=mock-code&state=bad-state"
+    )
+    assert r.status_code == 302
+    assert "error=state_mismatch" in r.headers["location"]
+
+
+@pytest.mark.asyncio
+async def test_oauth_callback_success_creates_account(client):
+    # Initialize start first to establish correct state cookie
+    from app.config import get_settings
+    settings = get_settings()
+    with patch.object(settings, "google_client_id", "mock-google-id"):
+        start_res = await client.get("/api/v1/auth/oauth/google/start")
+        state = start_res.cookies["am_oauth_state"]
+
+    from app.services.oauth import OAuthUserInfo, set_oauth_service
+    mock_service = AsyncMock()
+    mock_service.get_authorize_url.return_value = "https://mock-url"
+    mock_service.exchange_and_get_user.return_value = OAuthUserInfo(
+        subject="google_12345",
+        email="oauth_new@example.com",
+        email_verified=True,
+        display_name="OAuth Tester",
+    )
+    set_oauth_service(mock_service)
+
+    try:
+        # Request callback passing the state cookie
+        client.cookies.set("am_oauth_state", state)
+        r = await client.get(
+            f"/api/v1/auth/oauth/google/callback?code=mock-code&state={state}"
+        )
+        assert r.status_code == 302
+        assert "signed_in=1" in r.headers["location"]
+        assert "am_session" in r.cookies
+
+        # Verify Account & Provider created
+        from app.db import get_sessionmaker
+        sm = get_sessionmaker()
+        async with sm() as session:
+            # Account
+            stmt = select(Account).where(Account.email == "oauth_new@example.com")
+            account = (await session.execute(stmt)).scalar_one()
+            assert account.display_name == "OAuth Tester"
+
+            # Provider
+            prov = (
+                await session.execute(
+                    select(AccountProvider).where(
+                        AccountProvider.account_id == account.id
+                    )
+                )
+            ).scalar_one()
+            assert prov.provider == "google"
+            assert prov.subject == "google_12345"
+
+    finally:
+        # Reset OAuth service injection
+        from app.services.oauth import OAuthService
+        set_oauth_service(OAuthService())
+
+
+@pytest.mark.asyncio
+async def test_oauth_callback_email_match_links_provider(client):
+    # Setup: create existing account with same email but no oauth provider
+    from app.db import get_sessionmaker
+    sm = get_sessionmaker()
+    account_id = uuid.uuid4()
+
+    async with sm() as session:
+        session.add(
+            Account(
+                id=account_id,
+                email="oauth_match@example.com",
+                email_verified=True,
+                display_name="Email User",
+            )
+        )
+        await session.commit()
+
+    # Redirection state
+    from app.config import get_settings
+    settings = get_settings()
+    with patch.object(settings, "google_client_id", "mock-google-id"):
+        start_res = await client.get("/api/v1/auth/oauth/google/start")
+        state = start_res.cookies["am_oauth_state"]
+
+    from app.services.oauth import OAuthUserInfo, set_oauth_service
+    mock_service = AsyncMock()
+    mock_service.exchange_and_get_user.return_value = OAuthUserInfo(
+        subject="google_54321",
+        email="oauth_match@example.com",
+        email_verified=True,
+        display_name="Google User Override",
+    )
+    set_oauth_service(mock_service)
+
+    try:
+        client.cookies.set("am_oauth_state", state)
+        r = await client.get(
+            f"/api/v1/auth/oauth/google/callback?code=mock-code&state={state}"
+        )
+        assert r.status_code == 302
+        assert "signed_in=1" in r.headers["location"]
+
+        # Verify linked to the existing Account ID
+        async with sm() as session:
+            # Providers
+            provs = (
+                await session.execute(
+                    select(AccountProvider).where(
+                        AccountProvider.account_id == account_id
+                    )
+                )
+            ).scalars().all()
+            assert len(provs) == 1
+            assert provs[0].provider == "google"
+            assert provs[0].subject == "google_54321"
+
+    finally:
+        from app.services.oauth import OAuthService
+        set_oauth_service(OAuthService())
+
