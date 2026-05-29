@@ -395,7 +395,11 @@ export class PhysicalEngine implements AnnealEngine {
 
     // Model swap: rebuild every voice on the new processor.
     if (partial.model !== undefined) {
-      const next = modelName(partial.model);
+      const modelVal =
+        typeof partial.model === 'string'
+          ? parseFloat(partial.model)
+          : partial.model;
+      const next = modelName(modelVal);
       if (next !== this.model) {
         this.model = next;
         this.teardownVoices();

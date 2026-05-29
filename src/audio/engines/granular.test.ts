@@ -113,6 +113,25 @@ describe('GranularEngine', () => {
     void engine.stop();
   });
 
+  it('accepts and resolves namespaced user sources', () => {
+    const ctx = new MockAudioContext();
+    const { engine, loadFn } = makeEngine(ctx);
+    engine.start(ctx as unknown as AudioContext, shared({ density: 2 }), {
+      source: 'u:a5e4b10b-e419-4f1a-b808-a8d47de24c10',
+    });
+    expect(engine.getSourceIndex()).toBe(-1); // user source index is -1
+    expect(loadFn).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'u:a5e4b10b-e419-4f1a-b808-a8d47de24c10',
+    );
+
+    // Switch to namespaced bundled source
+    engine.setEngineParams({ source: 'b:tapeorgan' });
+    expect(engine.getSourceIndex()).toBe(2); // tapeorgan is index 2
+    expect(loadFn).toHaveBeenLastCalledWith(expect.anything(), 'b:tapeorgan');
+    void engine.stop();
+  });
+
   it('advertises a longer crossfade window', () => {
     const ctx = new MockAudioContext();
     const { engine } = makeEngine(ctx);

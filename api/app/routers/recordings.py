@@ -15,6 +15,8 @@ from app.deps import (
     SessionDep,
     StorageDep,
     rate_limit,
+    Identity,
+    get_identity,
 )
 from app.errors import bad_request, file_too_large, forbidden, not_found, quota_exceeded
 from app.models import Recording
@@ -92,15 +94,17 @@ async def upload_recording(
 @router.get("/me", response_model=RecordingListOut,
             dependencies=[Depends(rate_limit("get"))])
 async def list_my_recordings(
-    user: CurrentUser, session: SessionDep
+    user: CurrentUser,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
 ) -> RecordingListOut:
-    rows = (
-        await session.execute(
-            select(Recording)
-            .where(Recording.user_id == user.id)
-            .order_by(Recording.created_at.desc())
-        )
-    ).scalars().all()
+    if identity.account_id is not None:
+        stmt = select(Recording).where(Recording.user_id.in_(identity.owned_anon_ids))
+    else:
+        stmt = select(Recording).where(Recording.user_id == user.id)
+    
+    stmt = stmt.order_by(Recording.created_at.desc())
+    rows = (await session.execute(stmt)).scalars().all()
     await session.commit()
     return RecordingListOut(items=[RecordingOut.model_validate(r) for r in rows])
 
@@ -112,12 +116,43 @@ async def get_recording_meta(
 ) -> RecordingMetaOut:
     """Metadata for the `/r/<slug>` player. Public recordings are visible to
     anyone; private recordings only to their owner."""
-    rec = await _resolve(session, id_or_slug)
-    if rec is None:
+    from app.models import User, Account
+    from sqlalchemy import or_
+    try:
+        rid = uuid.UUID(id_or_slug)
+        cond = or_(Recording.short_slug == id_or_slug, Recording.id == rid)
+    except ValueError:
+        cond = Recording.short_slug == id_or_slug
+
+    stmt = (
+        select(Recording, Account.display_name, Account.avatar_seed, Account.id)
+        .outerjoin(User, User.id == Recording.user_id)
+        .outerjoin(Account, Account.id == User.account_id)
+        .where(cond)
+    )
+    res = await session.execute(stmt)
+    row = res.one_or_none()
+
+    if row is None:
         raise not_found("recording")
+
+    rec, display_name, avatar_seed, account_id = row
+
     if rec.visibility != "public" and (user is None or rec.user_id != user.id):
         raise not_found("recording")
-    return RecordingMetaOut.model_validate(rec)
+
+    return RecordingMetaOut(
+        id=rec.id,
+        short_slug=rec.short_slug,
+        duration_ms=rec.duration_ms,
+        format=rec.format,
+        title=rec.title,
+        patch_id=rec.patch_id,
+        created_at=rec.created_at,
+        creator_name=display_name,
+        creator_avatar_seed=avatar_seed,
+        creator_id=account_id,
+    )
 
 
 @router.get("/{id_or_slug}", dependencies=[Depends(rate_limit("get"))])

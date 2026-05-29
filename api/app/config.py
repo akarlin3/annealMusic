@@ -27,6 +27,25 @@ class Settings(BaseSettings):
     anon_cookie_domain: str | None = None
     anon_cookie_secure: bool = False  # True in prod (HTTPS only)
 
+    # Session cookie.
+    session_cookie_name: str = "am_session"
+    session_cookie_domain: str | None = None
+    session_cookie_secure: bool = False  # True in prod (HTTPS only)
+
+    # Email Service (Resend).
+    resend_api_key: str | None = None
+    email_from_address: str = "onboarding@resend.dev"
+
+    # OAuth Credentials.
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
+
+    # Redirect client app URL.
+    client_app_url: str = "http://localhost:5173"
+
+
     # Object storage (S3-compatible: Cloudflare R2 in prod, MinIO locally).
     s3_endpoint: str | None = None
     s3_region: str = "auto"
@@ -49,7 +68,9 @@ class Settings(BaseSettings):
     quota_patches: int = 100
     quota_captures: int = 50
     quota_recordings: int = 10
+    quota_user_sources: int = 20
     quota_bytes: int = 1024 * 1024 * 1024  # 1 GiB
+
 
     # Capture upload limits.
     max_capture_seconds: int = 60

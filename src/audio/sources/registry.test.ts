@@ -4,6 +4,7 @@ import {
   clampSourceIndex,
   sourceById,
   sourceByIndex,
+  resolveSource,
 } from '@/audio/sources/registry';
 
 describe('source registry', () => {
@@ -55,5 +56,53 @@ describe('source registry', () => {
     expect(clampSourceIndex(999)).toBe(SOURCES.length - 1);
     expect(clampSourceIndex(2.4)).toBe(2);
     expect(clampSourceIndex(NaN)).toBe(0);
+  });
+
+  describe('resolveSource', () => {
+    it('resolves bare numbers', () => {
+      const res = resolveSource(2);
+      expect(res.type).toBe('bundled');
+      expect(res.id).toBe('tapeorgan');
+      expect(res.url).toBe('/sources/tapeorgan.opus');
+    });
+
+    it('resolves bare numeric strings', () => {
+      const res = resolveSource('2');
+      expect(res.type).toBe('bundled');
+      expect(res.id).toBe('tapeorgan');
+    });
+
+    it('resolves bare string IDs', () => {
+      const res = resolveSource('tapeorgan');
+      expect(res.type).toBe('bundled');
+      expect(res.id).toBe('tapeorgan');
+    });
+
+    it('resolves b: prefixed bundled sources', () => {
+      const res = resolveSource('b:tapeorgan');
+      expect(res.type).toBe('bundled');
+      expect(res.id).toBe('tapeorgan');
+    });
+
+    it('resolves u: prefixed user sources', () => {
+      const res = resolveSource('u:a5e4b10b-e419-4f1a-b808-a8d47de24c10');
+      expect(res.type).toBe('user');
+      expect(res.id).toBe('a5e4b10b-e419-4f1a-b808-a8d47de24c10');
+      expect(res.url).toBe(
+        '/api/v1/user-sources/a5e4b10b-e419-4f1a-b808-a8d47de24c10',
+      );
+      expect(res.label).toBe('User Source');
+    });
+
+    it('falls back to glasspad for invalid indices or IDs', () => {
+      const res1 = resolveSource(999);
+      expect(res1.id).toBe('glasspad');
+
+      const res2 = resolveSource('b:doesnotexist');
+      expect(res2.id).toBe('glasspad');
+
+      const res3 = resolveSource('doesnotexist');
+      expect(res3.id).toBe('glasspad');
+    });
   });
 });

@@ -48,3 +48,12 @@ def content_rejected(field: str) -> ApiError:
 
 def under_review() -> ApiError:
     return ApiError(403, "under_review")
+
+
+def invalid_audio(message: str) -> ApiError:
+    return ApiError(422, "invalid_audio", message=message)
+
+
+def requires_source_consent() -> ApiError:
+    return ApiError(409, "requires_source_consent")
+

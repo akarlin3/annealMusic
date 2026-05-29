@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Annotated
 
 from fastapi import Depends, Request
@@ -54,6 +54,66 @@ def require_admin(request: Request) -> None:
         raise unauthorized()
 
 
+class Identity:
+    def __init__(
+        self,
+        anon_id: uuid.UUID | None = None,
+        account_id: uuid.UUID | None = None,
+        owned_anon_ids: list[uuid.UUID] | None = None,
+    ) -> None:
+        self.anon_id = anon_id
+        self.account_id = account_id
+        self.owned_anon_ids = owned_anon_ids or []
+
+
+async def get_identity(request: Request, session: SessionDep) -> Identity:
+    if hasattr(request.state, "identity"):
+        return request.state.identity
+
+    anon_header = request.headers.get("x-anon-id")
+    anon_id = _parse_uuid(anon_header)
+    if anon_id is None:
+        anon_cookie = request.cookies.get(get_settings().anon_cookie_name)
+        anon_id = _parse_uuid(anon_cookie)
+
+    session_cookie = request.cookies.get(get_settings().session_cookie_name)
+    session_id = _parse_uuid(session_cookie)
+
+    account_id = None
+    owned_anon_ids = []
+
+    if session_id is not None:
+        from app.models import Session as DbSession, User as DbUser
+        now_dt = datetime.now(tz=timezone.utc)
+        stmt = select(DbSession).where(DbSession.id == session_id, DbSession.expires_at > now_dt)
+        res = await session.execute(stmt)
+        db_sess = res.scalar_one_or_none()
+        if db_sess is not None:
+            account_id = db_sess.account_id
+
+            # Slide session expiry if last_seen_at is older than 24 hours
+            last_seen = db_sess.last_seen_at
+            if last_seen.tzinfo is None:
+                last_seen = last_seen.replace(tzinfo=timezone.utc)
+            if (now_dt - last_seen).total_seconds() > 86400:
+                db_sess.last_seen_at = now_dt
+                db_sess.expires_at = now_dt + timedelta(days=30)
+                await session.flush()
+
+            # Query all owned anon IDs
+            user_stmt = select(DbUser.id).where(DbUser.account_id == account_id)
+            user_res = await session.execute(user_stmt)
+            owned_anon_ids = list(user_res.scalars().all())
+
+    identity = Identity(
+        anon_id=anon_id,
+        account_id=account_id,
+        owned_anon_ids=owned_anon_ids,
+    )
+    request.state.identity = identity
+    return identity
+
+
 async def _resolve_user(
     request: Request, session: AsyncSession, *, allow_cookie: bool
 ) -> User:
@@ -81,6 +141,13 @@ async def _resolve_user(
     else:
         user.last_seen_at = datetime.now(tz=timezone.utc)
 
+    # Claim verification: if the user's account is claimed, require session verification
+    if user.account_id is not None:
+        identity = await get_identity(request, session)
+        if identity.account_id != user.account_id:
+            from app.errors import forbidden
+            raise forbidden("This device content is claimed by another account.")
+
     request.state.resolved_anon_id = str(anon_id)
     request.state.anon_minted = minted
     return user
@@ -105,7 +172,13 @@ async def optional_user(request: Request, session: SessionDep) -> User | None:
     )
     if anon_id is None:
         return None
-    return await session.get(User, anon_id)
+    user = await session.get(User, anon_id)
+    if user is not None and user.account_id is not None:
+        identity = await get_identity(request, session)
+        if identity.account_id != user.account_id:
+            return None
+    return user
+
 
 
 CurrentUser = Annotated[User, Depends(current_user)]

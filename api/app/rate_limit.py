@@ -61,5 +61,29 @@ class RateLimiter:
         """Per (IP, patch) cap on load-count increments (anti-gaming)."""
         return self._check("load", f"{ip}:{patch_id}", LOAD_LIMIT_PER_IP_PATCH)
 
+    def allow_email(self, email: str, ip: str) -> bool:
+        """Sliding-window: 5 magic links per email per hour, 20 per IP per hour."""
+        now = time.monotonic()
+        cutoff = now - WINDOW_SECONDS
+
+        email_key = f"email:{email.lower()}"
+        email_bucket = self._hits[("email_request", email_key)]
+        while email_bucket and email_bucket[0] < cutoff:
+            email_bucket.popleft()
+        if len(email_bucket) >= 5:
+            return False
+
+        ip_key = f"ip:{ip}"
+        ip_bucket = self._hits[("email_request_ip", ip_key)]
+        while ip_bucket and ip_bucket[0] < cutoff:
+            ip_bucket.popleft()
+        if len(ip_bucket) >= 20:
+            return False
+
+        email_bucket.append(now)
+        ip_bucket.append(now)
+        return True
+
     def reset(self) -> None:
         self._hits.clear()
+

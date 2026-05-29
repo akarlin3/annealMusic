@@ -98,3 +98,81 @@ async def test_admin_restore_visibility(client, admin_key):
     assert r.json()["visibility"] == "public"
     g = await client.get("/api/v1/gallery")
     assert len(g.json()["items"]) == 1
+
+
+async def test_admin_uphold_flags_user_source(client, admin_key):
+    from tests.test_user_sources import make_tone_wav, _upload
+
+    h = _hdr()
+    src_res = await _upload(client, h)
+    assert src_res.status_code == 201
+    src_id = src_res.json()["id"]
+
+    p = await _public_patch(client)
+
+    # 1. Report the user source
+    await client.post(
+        "/api/v1/reports",
+        json={
+            "patch_id": p["id"],
+            "reason": "source-content",
+            "source_id": src_id,
+            "detail": "flag me",
+        },
+    )
+
+    # 2. Get report ID as admin
+    listed = await client.get("/api/v1/admin/reports", headers={"x-admin-key": admin_key})
+    items = listed.json()["items"]
+    source_report = [i for i in items if i["reason"] == "source-content"][0]
+    report_id = source_report["id"]
+    assert source_report["source_id"] == src_id
+
+    # 3. Uphold the report
+    upheld = await client.patch(
+        f"/api/v1/admin/reports/{report_id}",
+        headers={"x-admin-key": admin_key},
+        json={"status": "upheld"},
+    )
+    assert upheld.status_code == 200
+    assert upheld.json()["source_id"] == src_id
+
+    # 4. Accessing the user source should now return 451
+    r_get = await client.get(f"/api/v1/user-sources/{src_id}", headers=h)
+    assert r_get.status_code == 451
+
+
+async def test_admin_set_user_source_visibility(client, admin_key):
+    from tests.test_user_sources import make_tone_wav, _upload
+
+    h = _hdr()
+    src_res = await _upload(client, h)
+    assert src_res.status_code == 201
+    src_id = src_res.json()["id"]
+
+    # Toggle to shared
+    r = await client.patch(
+        f"/api/v1/admin/user-sources/{src_id}/visibility",
+        headers={"x-admin-key": admin_key},
+        json={"visibility": "shared"},
+    )
+    assert r.status_code == 200
+    assert r.json()["visibility"] == "shared"
+
+    # Fetch anonymously via legacy render endpoint (follow_redirects=False to inspect Redirect)
+    r_render = await client.get(f"/api/v1/render/user-sources/{src_id}", follow_redirects=False)
+    assert r_render.status_code == 302
+    assert r_render.headers["location"].startswith("memory://user_sources/")
+
+    # Toggle to flagged
+    r_flag = await client.patch(
+        f"/api/v1/admin/user-sources/{src_id}/visibility",
+        headers={"x-admin-key": admin_key},
+        json={"visibility": "flagged"},
+    )
+    assert r_flag.status_code == 200
+    assert r_flag.json()["visibility"] == "flagged"
+
+    # Fetching should now be forbidden on render endpoint
+    r_render_flagged = await client.get(f"/api/v1/render/user-sources/{src_id}", follow_redirects=False)
+    assert r_render_flagged.status_code == 403

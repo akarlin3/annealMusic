@@ -15,8 +15,10 @@ def _quota() -> QuotaOut:
         patches=s.quota_patches,
         captures=s.quota_captures,
         recordings=s.quota_recordings,
+        user_sources=s.quota_user_sources,
         bytes=s.quota_bytes,
     )
+
 
 
 @router.post("", response_model=UserMeOut, dependencies=[Depends(rate_limit("get"))])

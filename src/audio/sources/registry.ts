@@ -147,3 +147,70 @@ export function clampSourceIndex(index: number): number {
   if (!Number.isFinite(index)) return DEFAULT_SOURCE_INDEX;
   return Math.max(0, Math.min(SOURCES.length - 1, Math.round(index)));
 }
+
+export interface ResolvedSource {
+  readonly type: 'bundled' | 'user';
+  readonly id: string;
+  readonly url: string;
+  readonly label: string;
+}
+
+/**
+ * Resolve an arbitrary wire representation of a granular engine source
+ * (bare index, bare string, namespaced bundled, or namespaced user UUID)
+ * to a clean, canonical format with an asset URL.
+ */
+export function resolveSource(sourceVal: string | number): ResolvedSource {
+  if (typeof sourceVal === 'number') {
+    const def = SOURCES[sourceVal] ?? SOURCES[0]!;
+    return {
+      type: 'bundled',
+      id: def.id,
+      url: def.url,
+      label: def.label,
+    };
+  }
+
+  const str = String(sourceVal).trim();
+  if (str.startsWith('b:')) {
+    const cleanId = str.slice(2);
+    const def = SOURCES.find((s) => s.id === cleanId) ?? SOURCES[0]!;
+    return {
+      type: 'bundled',
+      id: def.id,
+      url: def.url,
+      label: def.label,
+    };
+  }
+
+  if (str.startsWith('u:')) {
+    const cleanId = str.slice(2);
+    return {
+      type: 'user',
+      id: cleanId,
+      url: `/api/v1/user-sources/${cleanId}`,
+      label: 'User Source',
+    };
+  }
+
+  // Backward-compat: bare numeric string (e.g. "2")
+  const num = parseInt(str, 10);
+  if (!isNaN(num) && String(num) === str) {
+    const def = SOURCES[num] ?? SOURCES[0]!;
+    return {
+      type: 'bundled',
+      id: def.id,
+      url: def.url,
+      label: def.label,
+    };
+  }
+
+  // Backward-compat: bare id string (e.g. "wind-pine")
+  const def = SOURCES.find((s) => s.id === str) ?? SOURCES[0]!;
+  return {
+    type: 'bundled',
+    id: def.id,
+    url: def.url,
+    label: def.label,
+  };
+}

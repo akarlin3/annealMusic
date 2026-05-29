@@ -1,13 +1,8 @@
 import { HARMONICS } from '@/types/audio';
 import { partialShape } from '@/audio/engines/shape';
 import { GrainCloud } from '@/audio/granular/GrainCloud';
-import {
-  SOURCES,
-  clampSourceIndex,
-  sourceByIndex,
-  type SourceDef,
-} from '@/audio/sources/registry';
-import { loadSourceByIndex } from '@/audio/sources/loader';
+import { SOURCES, resolveSource } from '@/audio/sources/registry';
+import { loadSource } from '@/audio/sources/loader';
 import type {
   AnnealEngine,
   AnnealEngineCapabilities,
@@ -25,7 +20,7 @@ const CENTER_DRIFT_MS = 100;
 const MAX_LIVE_GRAINS = 120;
 
 interface GranularNumericParams {
-  source: number;
+  source: number | string;
   size: number;
   density: number;
   posJitter: number;
@@ -49,8 +44,11 @@ const PARAM_DEFS: readonly EngineParamDef[] = [
     min: 0,
     max: SOURCES.length - 1,
     step: 1,
-    default: DEFAULTS.source,
-    fmt: (v) => sourceByIndex(clampSourceIndex(v))?.label ?? '—',
+    default: 0,
+    fmt: (v) => {
+      const resolved = resolveSource(v);
+      return resolved.label;
+    },
   },
   {
     key: 'size',
@@ -115,7 +113,7 @@ interface GranularPartial {
 /** Resolver for a source buffer, injectable for tests. */
 export type SourceLoader = (
   ctx: AudioContext,
-  index: number,
+  sourceVal: string | number,
 ) => Promise<AudioBuffer>;
 
 /**
@@ -142,14 +140,15 @@ export class GranularEngine implements AnnealEngine {
   private partials: GranularPartial[] = [];
   private shared: SharedParams | null = null;
   private params: GranularNumericParams = { ...DEFAULTS };
-  private sourceIndex = DEFAULTS.source;
+  private sourceVal: string | number = DEFAULTS.source;
+  private sourceIndex: number = 0;
   private liveCenter = DEFAULTS.posCenter;
   private centerTimer: ReturnType<typeof setInterval> | null = null;
   private loadToken = 0;
   private stopped = false;
 
   constructor(
-    private readonly loadFn: SourceLoader = loadSourceByIndex,
+    private readonly loadFn: SourceLoader = loadSource,
     private readonly random: () => number = Math.random,
   ) {}
 
@@ -160,7 +159,16 @@ export class GranularEngine implements AnnealEngine {
     this.ctx = ctx;
     this.shared = { ...shared };
     this.params = { ...DEFAULTS, ...engine };
-    this.sourceIndex = clampSourceIndex(this.params.source);
+    this.sourceVal = this.params.source ?? DEFAULTS.source;
+
+    const resolved = resolveSource(this.sourceVal);
+    if (resolved.type === 'bundled') {
+      const def = SOURCES.find((s) => s.id === resolved.id);
+      this.sourceIndex = def ? def.index : 0;
+    } else {
+      this.sourceIndex = -1;
+    }
+
     this.liveCenter = this.params.posCenter;
     this.stopped = false;
 
@@ -168,7 +176,6 @@ export class GranularEngine implements AnnealEngine {
     out.gain.value = 1;
     this.out = out;
 
-    const source = sourceByIndex(this.sourceIndex);
     this.partials = HARMONICS.slice(0, shared.density).map((ratio, i) => {
       const cloud = new GrainCloud(ctx, this.random);
       cloud.getOutputNode().connect(out);
@@ -178,19 +185,24 @@ export class GranularEngine implements AnnealEngine {
         cloud,
         ratio,
         freq,
-        pitchOffsetBase: this.pitchOffsetFor(freq, source),
+        pitchOffsetBase: this.pitchOffsetFor(freq, this.sourceVal),
         detune: 0,
         gain: baselineOffset,
       };
     });
 
-    this.loadAndStart(this.sourceIndex);
+    this.loadAndStart(this.sourceVal);
     this.startCenterDrift();
   }
 
   /** Map a partial frequency to cents relative to the source reference pitch. */
-  private pitchOffsetFor(freq: number, source: SourceDef | undefined): number {
-    const ref = source?.fundamentalHz ?? this.shared?.rootFreq ?? freq;
+  private pitchOffsetFor(freq: number, sourceVal: string | number): number {
+    const resolved = resolveSource(sourceVal);
+    const def =
+      resolved.type === 'bundled'
+        ? SOURCES.find((s) => s.id === resolved.id)
+        : undefined;
+    const ref = def?.fundamentalHz ?? this.shared?.rootFreq ?? freq;
     if (ref <= 0 || freq <= 0) return 0;
     return 1200 * Math.log2(freq / ref);
   }
@@ -203,12 +215,12 @@ export class GranularEngine implements AnnealEngine {
     );
   }
 
-  /** Lazily load `index` and (re)start every cloud on the resolved buffer. */
-  private loadAndStart(index: number): void {
+  /** Lazily load the source and (re)start every cloud on the resolved buffer. */
+  private loadAndStart(sourceVal: string | number): void {
     const ctx = this.ctx;
     if (!ctx) return;
     const token = ++this.loadToken;
-    void this.loadFn(ctx, index)
+    void this.loadFn(ctx, sourceVal)
       .then((buffer) => {
         // A newer load (or a stop) superseded this one — discard.
         if (this.stopped || token !== this.loadToken || !this.ctx) return;
@@ -293,10 +305,9 @@ export class GranularEngine implements AnnealEngine {
     this.shared = { ...this.shared, ...partial };
     if (partial.rootFreq === undefined && partial.spread === undefined) return;
     const { rootFreq, spread } = this.shared;
-    const source = sourceByIndex(this.sourceIndex);
     for (const p of this.partials) {
       p.freq = rootFreq * Math.pow(p.ratio, spread);
-      p.pitchOffsetBase = this.pitchOffsetFor(p.freq, source);
+      p.pitchOffsetBase = this.pitchOffsetFor(p.freq, this.sourceVal);
       p.cloud.setPitchOffset(p.pitchOffsetBase + p.detune);
     }
   }
@@ -307,12 +318,16 @@ export class GranularEngine implements AnnealEngine {
       ...(partial as Partial<GranularNumericParams>),
     };
 
-    if (
-      partial.source !== undefined &&
-      clampSourceIndex(partial.source) !== this.sourceIndex
-    ) {
-      this.sourceIndex = clampSourceIndex(partial.source);
-      this.loadAndStart(this.sourceIndex);
+    if (partial.source !== undefined && partial.source !== this.sourceVal) {
+      this.sourceVal = partial.source;
+      const resolved = resolveSource(this.sourceVal);
+      if (resolved.type === 'bundled') {
+        const def = SOURCES.find((s) => s.id === resolved.id);
+        this.sourceIndex = def ? def.index : 0;
+      } else {
+        this.sourceIndex = -1;
+      }
+      this.loadAndStart(this.sourceVal);
     }
 
     if (partial.posCenter !== undefined) {
