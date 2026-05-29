@@ -110,7 +110,7 @@ export class SineEngine implements AnnealEngine {
     return this.out;
   }
 
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number): void {
+  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
     const ctx = this.ctx;
@@ -121,7 +121,10 @@ export class SineEngine implements AnnealEngine {
       const t = ctx.currentTime;
       this.partials.forEach((part) => {
         const targetFreq = rootFreq * Math.pow(part.ratio, spread);
-        if (targetTime !== undefined) {
+        if (instant) {
+          part.osc.frequency.cancelScheduledValues(targetTime ?? t);
+          part.osc.frequency.setValueAtTime(targetFreq, targetTime ?? t);
+        } else if (targetTime !== undefined) {
           const currentFreq = part.osc.frequency.value;
           part.osc.frequency.setValueAtTime(currentFreq, targetTime - 0.005);
           part.osc.frequency.setTargetAtTime(targetFreq, targetTime, FREQ_TC);

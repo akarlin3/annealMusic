@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-05-29
+
+### Added
+
+- **Monophonic Piano-Roll Notation Editor.** Introduces a scrollable vertical grid (C0-C8) and timeline supporting monophonic note overlay sequencing, pitch tracking, and edge-resizing.
+- **Priority-Override DSP Scheduling.** Active notation notes completely override segment-driven root frequency changes, with a sustain mode that holds the pitch after release unless the active segment introduces an explicit root change.
+- **Robust MIDI Import & Export.** Integrates the `@tonejs/midi` package to support importing custom `.mid` files with a glassmorphic multi-track picker, automatic monophonic conversion (highest pitch/last note wins), and optional grid-snapping. Enables exporting the notation track as a standard Type-0 MIDI file.
+- **URL Schema Version 10.** Updates the URL serialization to support the compact representation of notation tracks (`notation=onset,dur,pitch;...`), preserving original URL limits by dynamically generating unique note IDs at decode-time.
+- **Instant vs. Smooth Pitch Transitions.** Surfaces a toggle to allow users to bypass the engine's linear/exponential glide parameters and gate constraints for instant frequency changes.
+
 ## [3.0.0] - 2026-05-29
 
 ### Added

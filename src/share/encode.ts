@@ -23,6 +23,7 @@ import {
   type LoopConfigMap,
   type SlotId,
 } from '@/loop/types';
+import type { NotationNote } from '@/piece/types';
 
 const SHARED_KEY_SET: ReadonlySet<string> = new Set(SHARED_KEYS);
 
@@ -157,6 +158,7 @@ export interface DecodedPiece {
     loops: LoopConfigMap;
   };
   segments: DecodedPieceSegment[];
+  notation?: NotationNote[];
 }
 
 export type DecodedState =
@@ -427,6 +429,7 @@ export function decodePiecePayload(payload: string): DecodedPiece {
   let title: string | undefined;
   let description: string | undefined;
   let tempoBpm: number | null = null;
+  let notation: NotationNote[] = [];
   const defPairs: string[] = [];
   const segMap: Record<
     number,
@@ -447,6 +450,19 @@ export function decodePiecePayload(payload: string): DecodedPiece {
     } else if (key === 'tempo') {
       const parsed = Number(raw);
       tempoBpm = isNaN(parsed) ? null : parsed;
+    } else if (key === 'notation' && raw !== '') {
+      notation = raw.split(';').map((noteStr, idx) => {
+        const parts = noteStr.split(',').map(Number);
+        const onset = parts[0] ?? 0;
+        const dur = parts[1] ?? 500;
+        const pitch = parts[2] ?? 60;
+        return {
+          id: `note-${idx}-${Math.random().toString(36).substr(2, 5)}`,
+          onset_ms: onset,
+          duration_ms: dur,
+          pitch_midi: pitch,
+        };
+      });
     } else if (key.startsWith('def.')) {
       defPairs.push(pair.slice(4));
     } else if (key.startsWith('seg')) {
@@ -501,6 +517,7 @@ export function decodePiecePayload(payload: string): DecodedPiece {
       loops: decodedDef.loops,
     },
     segments,
+    notation,
   };
 }
 
@@ -520,6 +537,11 @@ export function encodePiece(piece: {
     durationMs: number | null;
     config: Record<string, any>;
   }[];
+  notation?: {
+    onset_ms: number;
+    duration_ms: number;
+    pitch_midi: number;
+  }[];
 }): string {
   const parts = ['kind=piece'];
   if (piece.title) parts.push(`title=${encodeURIComponent(piece.title)}`);
@@ -528,6 +550,12 @@ export function encodePiece(piece: {
   }
   if (piece.tempoBpm !== undefined && piece.tempoBpm !== null) {
     parts.push(`tempo=${piece.tempoBpm}`);
+  }
+  if (piece.notation && piece.notation.length > 0) {
+    const encodedNotes = piece.notation
+      .map((n) => `${n.onset_ms},${n.duration_ms},${n.pitch_midi}`)
+      .join(';');
+    parts.push(`notation=${encodedNotes}`);
   }
 
   const defStateStr = encodeState(

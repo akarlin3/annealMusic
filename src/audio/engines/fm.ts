@@ -219,7 +219,7 @@ export class FmEngine implements AnnealEngine {
     return this.out;
   }
 
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number): void {
+  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
     const ctx = this.ctx;
@@ -230,7 +230,20 @@ export class FmEngine implements AnnealEngine {
       const t = ctx.currentTime;
       this.voices.forEach((v) => {
         const targetFreq = rootFreq * Math.pow(v.ratio, spread);
-        if (targetTime !== undefined) {
+        if (instant) {
+          v.carrier.frequency.cancelScheduledValues(targetTime ?? t);
+          v.carrier.frequency.setValueAtTime(targetFreq, targetTime ?? t);
+          v.carrierFreq = targetFreq;
+          
+          const { modRatio, modIndex, feedback } = this.params;
+          const modFreq = targetFreq * modRatio;
+          v.modulator.frequency.cancelScheduledValues(targetTime ?? t);
+          v.modulator.frequency.setValueAtTime(modFreq, targetTime ?? t);
+          v.modGain.gain.cancelScheduledValues(targetTime ?? t);
+          v.modGain.gain.setValueAtTime(modIndex * targetFreq, targetTime ?? t);
+          v.fbGain.gain.cancelScheduledValues(targetTime ?? t);
+          v.fbGain.gain.setValueAtTime(feedback * modFreq * FEEDBACK_SCALE, targetTime ?? t);
+        } else if (targetTime !== undefined) {
           const currentFreq = v.carrier.frequency.value;
           v.carrier.frequency.setValueAtTime(currentFreq, targetTime - 0.005);
           v.carrier.frequency.setTargetAtTime(targetFreq, targetTime, FREQ_TC);

@@ -65,4 +65,73 @@ describe('PiecePlayer timeline', () => {
     expect(player.getActiveSegmentIndex()).toBe(0);
     expect(player.getPlayheadMs()).toBe(0);
   });
+
+  it('overrides root frequency based on notation notes during playback', () => {
+    const piece: Piece = {
+      schemaVer: 10,
+      tempoBpm: null,
+      title: 'Notation Test',
+      description: null,
+      visibility: 'unlisted',
+      totalDurationMs: 6000,
+      hasOpenSegment: false,
+      defaultsState: {
+        params: { ...DEFAULT_PARAMS, rootFreq: 150 },
+        engineId: 'sine',
+        engineParams: {},
+      },
+      segments: [
+        {
+          position: 0,
+          type: 'fixed',
+          durationMs: 6000,
+          config: { params: {} },
+        },
+      ],
+      notation: [
+        { id: 'note-0', onset_ms: 2000, duration_ms: 2000, pitch_midi: 60 }, // C4 ~ 261.63 Hz
+      ],
+    };
+
+    const mockOrch = {
+      start: vi.fn(),
+      setEngine: vi.fn(),
+      setSharedParams: vi.fn(),
+      setEngineParams: vi.fn(),
+      setTempoBpm: vi.fn(),
+    } as unknown as Orchestrator;
+
+    const player = new PiecePlayer(piece, mockOrch);
+    
+    let mockTime = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => mockTime);
+
+    player.start(); // sets lastTickTime = 1000 and runs first tick
+
+    // At t = 0 (globalPlayheadMs = 0), no active note, defaults to segment rootFreq (150)
+    expect(mockOrch.setSharedParams).toHaveBeenCalledWith(
+      expect.objectContaining({ rootFreq: 150 }),
+      false
+    );
+
+    // Advance by 2.5 seconds (globalPlayheadMs = 2500), note-0 is active (C4 ~ 261.63 Hz)
+    mockTime = 3500;
+    (player as any).tick();
+
+    // At t = 2500ms, note-0 is active, frequency is overridden to C4 ~ 261.63
+    expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+      expect.objectContaining({ rootFreq: expect.closeTo(261.63, 1) }),
+      false
+    );
+
+    // Advance by another 2 seconds (globalPlayheadMs = 4500), note-0 is released
+    // Since segment does not override rootFreq, last notation pitch persists!
+    mockTime = 5500;
+    (player as any).tick();
+
+    expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+      expect.objectContaining({ rootFreq: expect.closeTo(261.63, 1) }),
+      false
+    );
+  });
 });

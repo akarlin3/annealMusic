@@ -2,7 +2,7 @@
   "name": "annealmusic",
   "private": true,
   "license": "AGPL-3.0-or-later",
-  "version": "1.8.0",
+  "version": "3.2.0",
   "type": "module",
   "description": "A generative ambient meditation sandbox: physics-driven sound, session arc, and audio-reactive visuals.",
   "scripts": {
@@ -38,6 +38,7 @@
     "@capacitor/ios": "^8.3.4",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
+    "@tonejs/midi": "^2.0.28",
     "lucide-react": "^0.469.0",
     "ogl": "^1.0.11",
     "qrcode": "^1.5.4",

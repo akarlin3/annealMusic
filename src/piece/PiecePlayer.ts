@@ -13,6 +13,8 @@ export class PiecePlayer {
   private lastTickTime = 0;
 
   private segmentResolvedStates: PieceState[] = [];
+  private lastNotationPitchHz: number | null = null;
+  private smoothPitch = true;
 
   private onProgressCallback:
     | ((progress: number, segmentIdx: number) => void)
@@ -85,6 +87,15 @@ export class PiecePlayer {
     this.pause();
     this.playheadMs = 0;
     this.activeSegmentIdx = 0;
+    this.lastNotationPitchHz = null;
+  }
+
+  setSmoothPitch(smooth: boolean): void {
+    this.smoothPitch = smooth;
+  }
+
+  isSmoothPitch(): boolean {
+    return this.smoothPitch;
   }
 
   private getSegmentDuration(seg: any): number {
@@ -160,8 +171,50 @@ export class PiecePlayer {
       targetState = this.segmentResolvedStates[this.activeSegmentIdx]!;
     }
 
+    // Notation Overlay Override Logic
+    let playheadGlobalMs = 0;
+    for (let i = 0; i < this.activeSegmentIdx; i++) {
+      playheadGlobalMs += this.getSegmentDuration(this.piece.segments[i]);
+    }
+    playheadGlobalMs += this.playheadMs;
+
+    const activeNote = this.piece.notation?.find(
+      (note) =>
+        playheadGlobalMs >= note.onset_ms &&
+        playheadGlobalMs < note.onset_ms + note.duration_ms
+    );
+
+    let targetRootFreq = targetState.params.rootFreq;
+    let isFromNotation = false;
+
+    if (activeNote) {
+      const freq = 440 * Math.pow(2, (activeNote.pitch_midi - 69) / 12);
+      targetRootFreq = freq;
+      this.lastNotationPitchHz = freq;
+      isFromNotation = true;
+    } else {
+      const hasSegmentRootOverride = 
+        seg.type === 'transition' || 
+        seg.type === 'arc' || 
+        (seg.type === 'fixed' && seg.config?.params?.rootFreq !== undefined);
+
+      if (hasSegmentRootOverride) {
+        this.lastNotationPitchHz = null;
+      } else if (this.lastNotationPitchHz !== null) {
+        targetRootFreq = this.lastNotationPitchHz;
+      }
+    }
+
     this.orchestrator.setEngine(targetState.engineId);
-    this.orchestrator.setSharedParams(targetState.params);
+    
+    // Set smooth/instant pitch change parameter
+    const isInstantChange = !this.smoothPitch && isFromNotation;
+    
+    this.orchestrator.setSharedParams(
+      { ...targetState.params, rootFreq: targetRootFreq },
+      isInstantChange
+    );
+
     const ep = targetState.engineParams[targetState.engineId];
     if (ep) {
       this.orchestrator.setEngineParams(ep);
@@ -195,5 +248,10 @@ export class PiecePlayer {
 
   getActiveSegmentIndex(): number {
     return this.activeSegmentIdx;
+  }
+
+  updatePiece(piece: Piece): void {
+    this.piece = piece;
+    this.resolveAllSegmentStates();
   }
 }

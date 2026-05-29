@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Piece, PieceSegment } from '@/piece/types';
 import { PiecePlayer } from '@/piece/PiecePlayer';
 import { SegmentProperties } from '@/piece/SegmentProperties';
+import { NotationEditor } from '@/piece/components/NotationEditor';
 import { api } from '@/api/client';
 import { useParamStore } from '@/state/params';
 import { SCHEMA_VERSION } from '@/share/schema';
@@ -18,6 +19,7 @@ import {
   Share2,
   FolderOpen,
   Volume2,
+  Activity,
 } from 'lucide-react';
 import type { Orchestrator } from '@/audio/orchestrator';
 
@@ -71,9 +73,33 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
   const [savedPieces, setSavedPieces] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showNotation, setShowNotation] = useState(false);
 
   const playerRef = useRef<PiecePlayer | null>(null);
   const { slug } = useParams<{ slug: string }>();
+
+  // Helpers for notation playback progress tracking
+  const getSegmentDuration = (seg: PieceSegment): number => {
+    const raw = seg.durationMs ?? 5000;
+    if (seg.config?.tempoLocked && piece.tempoBpm !== null && piece.tempoBpm > 0) {
+      return raw * 4 * (60 / piece.tempoBpm) * 1000;
+    }
+    return raw;
+  };
+
+  const globalPlayheadMs = useMemo(() => {
+    if (!isPlaying) return 0;
+    let total = 0;
+    for (let i = 0; i < activeSegIdx; i++) {
+      const seg = piece.segments[i];
+      if (seg) {
+        total += getSegmentDuration(seg);
+      }
+    }
+    const currentSeg = piece.segments[activeSegIdx];
+    const dur = currentSeg ? getSegmentDuration(currentSeg) : 5000;
+    return total + playheadProgress * dur;
+  }, [isPlaying, activeSegIdx, playheadProgress, piece.segments, piece.tempoBpm]);
 
   // Load user's saved pieces on mount, and fetch targeted piece by slug if present
   useEffect(() => {
@@ -196,6 +222,9 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
       if (!playerRef.current) {
         playerRef.current = new PiecePlayer(piece, orch);
       }
+      // Register global reference for the notation editor glide toggle
+      (window as any).activePiecePlayer = playerRef.current;
+
       setIsPlaying(true);
       playerRef.current.start(
         (progress, idx) => {
@@ -217,6 +246,13 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
     setIsPlaying(false);
     setPlayheadProgress(0);
     setActiveSegIdx(0);
+  };
+
+  const handleNotationChange = (updatedPiece: Piece) => {
+    setPiece(updatedPiece);
+    if (playerRef.current) {
+      playerRef.current.updatePiece(updatedPiece);
+    }
   };
 
   const handleAdvanceOpen = () => {
@@ -282,6 +318,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
         description: piece.description,
         visibility: piece.visibility,
         tempo_bpm: piece.tempoBpm,
+        notation: piece.notation || [],
         segments: piece.segments.map((s) => ({
           type: s.type,
           duration_ms: s.durationMs,
@@ -321,6 +358,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
       defaultsState: item.defaults_state,
       totalDurationMs: item.total_duration_ms,
       hasOpenSegment: item.has_open_segment,
+      notation: item.notation !== undefined ? item.notation : [],
       segments: item.segments.map((s: any) => ({
         // eslint-disable-line @typescript-eslint/no-explicit-any
         id: s.id,
@@ -450,6 +488,19 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
               className="p-3 bg-white/5 border border-white/10 rounded-2xl text-white/80 hover:bg-white/10 transition"
             >
               <Square className="w-5 h-5 fill-current" />
+            </button>
+
+            {/* Notation Track Toggle */}
+            <button
+              onClick={() => setShowNotation(!showNotation)}
+              className={`flex items-center gap-2 px-4 py-2.5 border rounded-2xl text-xs font-bold transition-all ${
+                showNotation
+                  ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 shadow-[0_0_15px_rgba(139,92,246,0.15)] animate-pulse'
+                  : 'bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 hover:border-white/20'
+              }`}
+            >
+              <Activity className="w-4 h-4 text-violet-400" />
+              Notation Editor
             </button>
 
             {/* Hold Open indicator / Advance open button */}
@@ -630,6 +681,16 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
         <SegmentProperties
           segment={piece.segments[selectedIdx]!}
           onChange={handleSegmentChange}
+        />
+      )}
+
+      {/* Notation Editor Canvas Overlay */}
+      {showNotation && (
+        <NotationEditor
+          piece={piece}
+          onChange={handleNotationChange}
+          isPlaying={isPlaying}
+          globalPlayheadMs={globalPlayheadMs}
         />
       )}
 
