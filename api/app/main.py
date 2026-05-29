@@ -27,10 +27,13 @@ from app.routers import (
     auth,
     account,
     profiles,
+    ai,
 )
 
 from app.sentry import init_sentry
 from app.storage import make_storage
+from app.services.llm import AnthropicClient
+from app.services.embeddings import OpenAIEmbeddingClient
 
 
 @asynccontextmanager
@@ -55,6 +58,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="AnnealMusic API", version="1.0.0", lifespan=lifespan)
     app.state.storage = make_storage(settings)
     app.state.rate_limiter = RateLimiter()
+    app.state.llm = AnthropicClient()
+    app.state.embeddings = OpenAIEmbeddingClient()
     app.state.render_queue = RenderQueue(settings)
 
     # Order matters: CORS outermost, then request context, then anon echo
@@ -88,8 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(account.router)
     app.include_router(profiles.router)
-
-
+    app.include_router(ai.router)
 
     return app
 

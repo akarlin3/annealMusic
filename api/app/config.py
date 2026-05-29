@@ -110,6 +110,12 @@ class Settings(BaseSettings):
     # Observability.
     sentry_dsn: str | None = None
 
+    # AI Features
+    anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
+    voyage_api_key: str | None = None
+    monthly_cost_alarm_threshold: float = 100.0
+
     @property
     def is_prod(self) -> bool:
         return self.env == "prod"

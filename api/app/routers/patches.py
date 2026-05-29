@@ -4,7 +4,7 @@ import base64
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, BackgroundTasks
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +38,7 @@ from app.schemas import (
     PatchListOut,
     PatchOut,
     PatchUpdate,
+    GalleryListOut,
 )
 from app.share import parse_engine, parse_mode
 from app.slug import new_slug
@@ -82,6 +83,8 @@ def to_out(patch: Patch) -> PatchOut:
         short_slug=patch.short_slug,
         created_at=patch.created_at,
         updated_at=patch.updated_at,
+        ai_description=patch.ai_description,
+        ai_description_source=patch.ai_description_source,
     )
 
 
@@ -99,7 +102,8 @@ async def _insert_with_slug(session: AsyncSession, patch: Patch) -> Patch:
     dependencies=[Depends(rate_limit("patches"))],
 )
 async def create_patch(
-    body: PatchCreate, user: CurrentWriter, session: SessionDep, request: Request
+    body: PatchCreate, user: CurrentWriter, session: SessionDep, request: Request,
+    background_tasks: BackgroundTasks
 ) -> PatchOut:
     errors = validate_payload(body.state, body.schema_ver)
     if errors:
@@ -180,6 +184,17 @@ async def create_patch(
     user.patch_count += 1
     await session.commit()
     await session.refresh(patch)
+
+    if body.visibility == "public":
+        from app.db import get_sessionmaker
+        background_tasks.add_task(
+            embed_patch_task,
+            patch.id,
+            get_sessionmaker(),
+            request.app.state.llm,
+            request.app.state.embeddings
+        )
+
     return to_out(patch)
 
 
@@ -283,7 +298,7 @@ async def get_preview(
               dependencies=[Depends(rate_limit("patches"))])
 async def update_patch(
     id: uuid.UUID, body: PatchUpdate, user: CurrentWriter, session: SessionDep,
-    request: Request,
+    request: Request, background_tasks: BackgroundTasks
 ) -> PatchOut:
     patch = await session.get(Patch, id)
     if patch is None:
@@ -317,8 +332,21 @@ async def update_patch(
             raise content_rejected(rejected)
         _publish(patch, request)
 
+    description_changed = body.description is not None and body.description != patch.description
+
     await session.commit()
     await session.refresh(patch)
+
+    if going_public or (patch.visibility == "public" and description_changed):
+        from app.db import get_sessionmaker
+        background_tasks.add_task(
+            embed_patch_task,
+            patch.id,
+            get_sessionmaker(),
+            request.app.state.llm,
+            request.app.state.embeddings
+        )
+
     return to_out(patch)
 
 
@@ -376,3 +404,120 @@ def _decode_cursor(cursor: str) -> datetime | None:
         )
     except (ValueError, TypeError):
         return None
+
+
+async def embed_patch_task(
+    patch_id: uuid.UUID,
+    session_maker: Any,
+    llm: Any,
+    embeddings: Any,
+) -> None:
+    """Background task to generate AI description and embeddings for a public patch."""
+    async with session_maker() as session:
+        patch = await session.get(Patch, patch_id)
+        if not patch or patch.visibility != "public":
+            return
+
+        # If it doesn't have a description, let's suggest one using AI!
+        if not patch.description:
+            try:
+                from app.routers.ai import generate_ai_description_internal
+                desc = await generate_ai_description_internal(patch.state.get("payload", ""), llm)
+                patch.description = desc
+                patch.ai_description = desc
+                patch.ai_description_source = "ai"
+                await session.flush()
+            except Exception:
+                logger.error("Failed to generate AI description in background for patch %s", patch_id, exc_info=True)
+                return
+
+        # Generate embedding for the description
+        try:
+            vector = await embeddings.embed(patch.description)
+            patch.ai_description_embedding = vector
+            await session.commit()
+            logger.info("Successfully generated and saved embedding for patch %s", patch_id)
+        except Exception:
+            logger.error("Failed to generate embedding in background for patch %s", patch_id, exc_info=True)
+
+
+@router.get("/{id}/similar", response_model=GalleryListOut,
+            dependencies=[Depends(rate_limit("get"))])
+async def get_similar_patches(
+    id: uuid.UUID,
+    session: SessionDep,
+    limit: int = Query(default=8, ge=1, le=24),
+) -> GalleryListOut:
+    patch = await session.get(Patch, id)
+    if not patch or patch.visibility != "public" or not patch.ai_description_embedding:
+        return GalleryListOut(items=[])
+
+    dialect = session.bind.dialect.name if session.bind is not None else "sqlite"
+    from app.models import User, Account
+
+    # 1. Fetch public patches
+    if dialect == "postgresql":
+        stmt = (
+            select(Patch, Account.display_name, Account.avatar_seed, Account.id)
+            .outerjoin(User, User.id == Patch.user_id)
+            .outerjoin(Account, Account.id == User.account_id)
+            .where(
+                Patch.visibility == "public",
+                Patch.id != patch.id,
+                Patch.ai_description_embedding.is_not(None),
+            )
+            .order_by(Patch.ai_description_embedding.op("<=>")(patch.ai_description_embedding))
+            .limit(limit)
+        )
+        res = await session.execute(stmt)
+        rows = res.all()
+    else:
+        stmt = (
+            select(Patch, Account.display_name, Account.avatar_seed, Account.id)
+            .outerjoin(User, User.id == Patch.user_id)
+            .outerjoin(Account, Account.id == User.account_id)
+            .where(
+                Patch.visibility == "public",
+                Patch.id != patch.id,
+            )
+        )
+        res = await session.execute(stmt)
+        rows = res.all()
+
+    # 2. Compute similarity/distance in Python to ensure total consistency and fallback
+    import math
+    def get_cosine_dist(v1: list[float], v2: list[float]) -> float:
+        dot = sum(a * b for a, b in zip(v1, v2))
+        norm_a = math.sqrt(sum(a * a for a in v1))
+        norm_b = math.sqrt(sum(b * b for b in v2))
+        if norm_a == 0 or norm_b == 0:
+            return 1.0
+        return 1.0 - (dot / (norm_a * norm_b))
+
+    scored = []
+    target_vec = patch.ai_description_embedding
+    if isinstance(target_vec, str):
+        target_vec = json.loads(target_vec)
+
+    for r in rows:
+        other_patch = r[0]
+        if other_patch.ai_description_embedding:
+            try:
+                other_vec = other_patch.ai_description_embedding
+                if isinstance(other_vec, str):
+                    other_vec = json.loads(other_vec)
+
+                dist = get_cosine_dist(target_vec, other_vec)
+                if dist < 0.4:
+                    scored.append((dist, r))
+            except Exception:
+                pass
+
+    scored.sort(key=lambda x: x[0])
+    top_rows = [r for _, r in scored[:limit]]
+
+    from app.routers.gallery import _to_item
+    return GalleryListOut(
+        items=[_to_item(row[0], row[1], row[2], row[3]) for row in top_rows]
+    )
+

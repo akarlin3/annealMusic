@@ -16,7 +16,12 @@ import {
   type Account,
   type ClaimedAnonId,
   type PublicProfile,
+  type AIQuota,
+  type AIGeneratedPatchOut,
+  type AIModifyPatchOut,
+  type AIDescribePatchOut,
 } from '@/api/types';
+import type { GalleryList } from '@/gallery/types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
 const TIMEOUT_MS = 10_000;
@@ -285,6 +290,40 @@ export const api = {
     return request<PublicProfile>(
       `/api/v1/profiles/${encodeURIComponent(accountId)}`,
     );
+  },
+
+  async generatePatch(prompt: string): Promise<AIGeneratedPatchOut> {
+    return request<AIGeneratedPatchOut>('/api/v1/ai/generate-patch', {
+      method: 'POST',
+      body: { prompt },
+    });
+  },
+
+  async modifyPatch(
+    currentState: string,
+    direction: string,
+  ): Promise<AIModifyPatchOut> {
+    return request<AIModifyPatchOut>('/api/v1/ai/modify-patch', {
+      method: 'POST',
+      body: { current_state: currentState, direction },
+    });
+  },
+
+  async describePatch(state: string): Promise<AIDescribePatchOut> {
+    return request<AIDescribePatchOut>('/api/v1/ai/describe-patch', {
+      method: 'POST',
+      body: { state },
+    });
+  },
+
+  async similarPatches(id: string): Promise<GalleryList> {
+    return request<GalleryList>(
+      `/api/v1/patches/${encodeURIComponent(id)}/similar`,
+    );
+  },
+
+  async aiQuota(): Promise<AIQuota> {
+    return request<AIQuota>('/api/v1/ai/quota');
   },
 };
 
