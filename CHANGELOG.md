@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-05-29
+
+### Added
+
+- **User Accounts and Identity.** Adds email magic-link auth and secure Google & GitHub OAuth providers, supporting full cross-device patch, recording, and custom user source synchronization while keeping guest credentials completely private and offline-first.
+- **Manual Device Claiming.** Introduces a manual, confirm-only guest claiming flow via an elegant banner CTA. Multi-device claims safely link multiple guest `anon_id` references under a single unified user profile.
+- **Conflict Resolution and Enumeration Protection.** Implements robust server-side security, preventing email enumeration via universal 202 requests, and handles device claim conflicts with distinct warning cues.
+- **Deterministic Lissajous SVG Avatars.** Generates beautifully resonant phase-portrait wave patterns inside circular concentrics derived dynamically from an account's unique avatar seed.
+- **Public Creator Profile Pages.** Adds public profile pages (`/u/:account_id`) summarizing public patch and recording tallies alongside their deterministic phase-portrait wave signature.
+- **Legal Compliance Pages.** Integrates beautifully styled Terms of Service (`/legal/terms`) and Privacy Policy (`/legal/privacy`) pages tailored for the generative meditation sandbox.
+
 ## [1.2.0] - 2026-05-29
 
 ### Added
