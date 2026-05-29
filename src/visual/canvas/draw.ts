@@ -1,37 +1,8 @@
-import { PALETTE, VISUAL } from '@/visual/palette';
-
-export interface DrawState {
-  /** CSS-pixel canvas size (transform already applies DPR). */
-  w: number;
-  h: number;
-  /** Frame delta in seconds (clamped by the caller). */
-  dt: number;
-  /** Visual phase per partial, in radians. Advanced in place each frame. */
-  phases: number[];
-  /** Resolved frequency (Hz) per partial. */
-  freqs: number[];
-  /** Number of partials currently sounding (or the density fallback). */
-  count: number;
-  /** Latest analyser magnitude spectrum, or null when silent. */
-  spectrum: Uint8Array | null;
-  sampleRate: number;
-  fftSize: number;
-  /** Live-input amplitude (0..1); undefined when no input is connected. */
-  inputLevel?: number;
-  /** Active loop slots, in slot order, contributing orbital rings. */
-  loops?: LoopRing[];
-}
-
-export interface LoopRing {
-  /** Slot index 0..2 (selects ring color + radius). */
-  slot: number;
-  /** Amplitude proxy (0..1). */
-  level: number;
-  frozen: boolean;
-}
+import { PALETTE, VISUAL } from './palette';
+import type { VisualState } from '../types';
 
 /** Sample an amplitude proxy (0..1) for a frequency from the spectrum. */
-function ampForFreq(
+export function ampForFreq(
   freqHz: number,
   spectrum: Uint8Array,
   sampleRate: number,
@@ -54,7 +25,7 @@ function ampForFreq(
  * Render one frame of the visualizer. Mutates `state.phases` in place to
  * advance each orbit; otherwise does not retain state between calls.
  */
-export function drawFrame(ctx2d: CanvasRenderingContext2D, state: DrawState) {
+export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
   const {
     w,
     h,

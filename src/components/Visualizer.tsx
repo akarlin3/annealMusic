@@ -1,7 +1,12 @@
-import { useEffect, useRef } from 'react';
-import { Circle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Circle, Sliders, X } from 'lucide-react';
 import type { ArcProgress, Orchestrator } from '@/audio/orchestrator';
-import { drawFrame, type DrawState, type LoopRing } from '@/visual/draw';
+import {
+  createVisualRenderer,
+  type VisualState,
+  type LoopRing,
+  probeWebGL2,
+} from '@/visual';
 import { readRms } from '@/input/meter';
 import { HARMONICS } from '@/types/audio';
 import { SLOT_IDS } from '@/loop/types';
@@ -38,18 +43,76 @@ export default function Visualizer({
   );
   const sizeRef = useRef({ w: 0, h: 0 });
 
+  // Visual settings preferences, persisted to localStorage
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [rendererPref, setRendererPref] = useState<'auto' | 'canvas' | 'webgl'>(
+    () => {
+      if (typeof window === 'undefined') return 'auto';
+      return (
+        (localStorage.getItem('am_visual_renderer') as
+          | 'auto'
+          | 'canvas'
+          | 'webgl') || 'auto'
+      );
+    },
+  );
+  const [qualityPref, setQualityPref] = useState<'low' | 'medium' | 'high'>(
+    () => {
+      if (typeof window === 'undefined') return 'high';
+      return (
+        (localStorage.getItem('am_visual_quality') as
+          | 'low'
+          | 'medium'
+          | 'high') || 'high'
+      );
+    },
+  );
+  const [showSpectrumPref, setShowSpectrumPref] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem('am_visual_show_spectrum');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const handleRendererChange = (val: 'auto' | 'canvas' | 'webgl') => {
+    setRendererPref(val);
+    localStorage.setItem('am_visual_renderer', val);
+  };
+
+  const handleQualityChange = (val: 'low' | 'medium' | 'high') => {
+    setQualityPref(val);
+    localStorage.setItem('am_visual_quality', val);
+  };
+
+  const handleShowSpectrumChange = (val: boolean) => {
+    setShowSpectrumPref(val);
+    localStorage.setItem('am_visual_show_spectrum', String(val));
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const c2d = canvas.getContext('2d');
-    if (!c2d) return;
+
+    const cap = probeWebGL2();
+    const activeRenderer =
+      rendererPref === 'auto'
+        ? cap.webgl_supported
+          ? 'webgl'
+          : 'canvas'
+        : rendererPref;
+
+    // Resolve visualizer implementation
+    const renderer = createVisualRenderer({
+      renderer:
+        activeRenderer === 'webgl' && cap.webgl_supported ? 'webgl' : 'canvas',
+    });
+    renderer.mount(canvas);
+    renderer.setQuality(qualityPref);
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-      c2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const cappedDpr = Math.min(2, dpr);
+      renderer.resize(rect.width, rect.height, cappedDpr);
       sizeRef.current = { w: rect.width, h: rect.height };
     };
     resize();
@@ -103,20 +166,21 @@ export default function Visualizer({
         freqs.push(engineFreqs[i] ?? params.rootFreq * ratio);
       }
 
-      const state: DrawState = {
+      const state: VisualState = {
         w,
         h,
         dt,
         phases: phasesRef.current,
         freqs,
         count,
-        spectrum,
+        spectrum: showSpectrumPref ? spectrum : null,
         sampleRate,
         fftSize,
         inputLevel,
         loops,
       };
-      drawFrame(c2d, state);
+
+      renderer.drawFrame(state, now);
 
       raf = requestAnimationFrame(draw);
     };
@@ -125,8 +189,9 @@ export default function Visualizer({
     return () => {
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(raf);
+      renderer.dispose();
     };
-  }, [engineRef]);
+  }, [engineRef, rendererPref, qualityPref, showSpectrumPref]);
 
   const params = useParamStore((s) => s.params);
 
@@ -140,6 +205,113 @@ export default function Visualizer({
       }}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
+
+      {/* Visual Settings Overlay Toggle Button */}
+      <button
+        type="button"
+        onClick={() => setSettingsOpen(!settingsOpen)}
+        className="absolute top-3 right-4 p-1.5 rounded-full border border-stone-800 bg-stone-950/60 hover:border-stone-700 hover:text-white transition-colors"
+        style={{ color: '#a8a29e', zIndex: 10 }}
+        title="Visual settings"
+      >
+        <Sliders size={11} strokeWidth={1.5} />
+      </button>
+
+      {/* Amber-Dark HUD Settings Panel */}
+      {settingsOpen && (
+        <div
+          className="absolute right-4 top-11 rounded border p-4 font-mono text-[9px] uppercase tracking-wider backdrop-blur-md"
+          style={{
+            background: 'rgba(20, 18, 16, 0.92)',
+            color: '#a8a29e',
+            zIndex: 20,
+            width: 250,
+            borderColor: '#292524',
+          }}
+        >
+          <div className="flex items-center justify-between border-b border-stone-900 pb-2 mb-3">
+            <span className="font-semibold text-stone-200">
+              Visualizer setup
+            </span>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(false)}
+              className="text-stone-500 hover:text-white transition-colors"
+            >
+              <X size={11} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {/* Renderer Selection */}
+            <div>
+              <div className="text-stone-500 mb-1.5">Renderer</div>
+              <div className="flex gap-1.5">
+                {(['auto', 'webgl', 'canvas'] as const).map((r) => {
+                  const active = rendererPref === r;
+                  const unsupported =
+                    r === 'webgl' && !probeWebGL2().webgl_supported;
+                  return (
+                    <button
+                      type="button"
+                      key={r}
+                      disabled={unsupported}
+                      onClick={() => handleRendererChange(r)}
+                      className={`flex-1 rounded py-1 text-center font-mono text-[8px] font-semibold transition-all border ${
+                        active
+                          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 font-bold'
+                          : 'border-stone-900 bg-transparent hover:border-stone-800 text-stone-400'
+                      } ${unsupported ? 'opacity-30 cursor-not-allowed' : ''}`}
+                    >
+                      {r === 'webgl' && unsupported ? 'WebGL (N/A)' : r}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Quality Presets */}
+            <div>
+              <div className="text-stone-500 mb-1.5">Quality</div>
+              <div className="flex gap-1.5">
+                {(['low', 'medium', 'high'] as const).map((q) => {
+                  const active = qualityPref === q;
+                  return (
+                    <button
+                      type="button"
+                      key={q}
+                      onClick={() => handleQualityChange(q)}
+                      className={`flex-1 rounded py-1 text-center font-mono text-[8px] font-semibold transition-all border ${
+                        active
+                          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 font-bold'
+                          : 'border-stone-900 bg-transparent hover:border-stone-800 text-stone-400'
+                      }`}
+                    >
+                      {q}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Spectrum Trace Toggle */}
+            <div className="flex items-center justify-between border-t border-stone-900 pt-3">
+              <span className="text-stone-500">Show Spectrum</span>
+              <button
+                type="button"
+                onClick={() => handleShowSpectrumChange(!showSpectrumPref)}
+                className={`rounded px-3 py-0.5 font-mono text-[8px] font-semibold transition-all border ${
+                  showSpectrumPref
+                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 font-bold'
+                    : 'border-stone-900 text-stone-400 bg-transparent'
+                }`}
+              >
+                {showSpectrumPref ? 'On' : 'Off'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {arcProgress && (
         <div className="absolute left-0 right-0 top-0 h-[2px]">

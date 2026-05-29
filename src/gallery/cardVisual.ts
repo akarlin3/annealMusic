@@ -4,7 +4,8 @@
  * renders exactly one frame with phases seeded from a hash of the payload —
  * same patch → same image, different patches → visibly different geometry.
  */
-import { drawFrame, type LoopRing } from '@/visual/draw';
+import { drawFrame } from '@/visual/canvas/draw';
+import type { LoopRing } from '@/visual';
 import { HARMONICS } from '@/types/audio';
 import { decodeState } from '@/share/encode';
 import { DEFAULT_PARAMS } from '@/state/params';
