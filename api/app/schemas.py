@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -67,6 +67,8 @@ class PatchOut(BaseModel):
     short_slug: str
     created_at: datetime
     updated_at: datetime
+    ai_description: str | None = None
+    ai_description_source: str | None = None
 
 
 class PatchListOut(BaseModel):
@@ -170,6 +172,8 @@ class GalleryItemOut(BaseModel):
     creator_name: str | None = None
     creator_avatar_seed: str | None = None
     creator_id: uuid.UUID | None = None
+    ai_description: str | None = None
+    ai_description_source: str | None = None
 
 
 class GalleryListOut(BaseModel):
@@ -222,3 +226,35 @@ class AdminVisibilityUpdate(BaseModel):
 
 class AdminSourceVisibilityUpdate(BaseModel):
     visibility: AdminSourceVisibility
+
+
+# --- v1.7 AI Assisted Patches schemas ----------------------------------------
+
+class AIGeneratedPatchOut(BaseModel):
+    state: str
+    generation_id: uuid.UUID
+
+
+class AIChange(BaseModel):
+    key: str
+    oldValue: Any
+    newValue: Any
+    label: str
+    direction: str
+
+
+class AIModifyPatchOut(BaseModel):
+    state: str
+    changes: list[AIChange]
+
+
+class AIDescribePatchOut(BaseModel):
+    description: str
+
+
+class AIQuotaOut(BaseModel):
+    hour_limit: int
+    hour_used: int
+    day_limit: int
+    day_used: int
+

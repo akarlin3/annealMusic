@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import base64
 import json
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -45,6 +46,8 @@ def _to_item(
         creator_name=creator_name,
         creator_avatar_seed=creator_avatar_seed,
         creator_id=creator_id,
+        ai_description=p.ai_description,
+        ai_description_source=p.ai_description_source,
     )
 
 

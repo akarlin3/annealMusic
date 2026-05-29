@@ -90,6 +90,39 @@ class UUIDArray(TypeDecorator[list[uuid.UUID]]):
         return [uuid.UUID(v) for v in json.loads(value)]
 
 
+class VectorType(TypeDecorator[list[float]]):
+    """pgvector Vector on Postgres; JSON-encoded list of floats elsewhere."""
+
+    impl = String
+    cache_ok = True
+
+    def __init__(self, dimensions: int):
+        super().__init__()
+        self.dimensions = dimensions
+
+    def load_dialect_impl(self, dialect: Any) -> Any:
+        if dialect.name == "postgresql":
+            from pgvector.sqlalchemy import Vector
+            return dialect.type_descriptor(Vector(self.dimensions))
+        from sqlalchemy import String
+
+        return dialect.type_descriptor(String())
+
+    def process_bind_param(self, value: Any, dialect: Any) -> Any:
+        if value is None:
+            return None
+        if dialect.name == "postgresql":
+            return value
+        return json.dumps(list(value))
+
+    def process_result_value(self, value: Any, dialect: Any) -> list[float] | None:
+        if value is None:
+            return None
+        if dialect.name == "postgresql":
+            return list(value)
+        return [float(v) for v in json.loads(value)]
+
+
 _engine = None
 _sessionmaker: async_sessionmaker[AsyncSession] | None = None
 

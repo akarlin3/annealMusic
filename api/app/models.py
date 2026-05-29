@@ -11,11 +11,12 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Numeric,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db import GUID, Base, JSONType, UUIDArray
+from app.db import GUID, Base, JSONType, UUIDArray, VectorType
 
 
 def _uuid() -> uuid.UUID:
@@ -147,6 +148,13 @@ class Patch(Base):
         String, nullable=False, default="none"
     )
 
+    # AI Patches fields (v1.7)
+    ai_description: Mapped[str | None] = mapped_column(String, nullable=True)
+    ai_description_embedding: Mapped[list[float] | None] = mapped_column(
+        VectorType(1536), nullable=True
+    )
+    ai_description_source: Mapped[str | None] = mapped_column(String, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -277,3 +285,27 @@ class Report(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class AIGeneration(Base):
+    __tablename__ = "ai_generations"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String, nullable=False) # 'text-to-patch' | 'mood-transfer' | 'description'
+    prompt: Mapped[str] = mapped_column(String, nullable=False)
+    input_patch_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("patches.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    output_state: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
+    model: Mapped[str] = mapped_column(String, nullable=False)
+    prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cost_estimate_usd: Mapped[float | None] = mapped_column(Numeric(8, 6), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    cached: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+

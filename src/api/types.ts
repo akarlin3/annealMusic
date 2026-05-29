@@ -164,3 +164,32 @@ export interface PublicProfile {
     recordings: number;
   };
 }
+
+export interface AIQuota {
+  hour_limit: number;
+  hour_used: number;
+  day_limit: number;
+  day_used: number;
+}
+
+export interface AIChange {
+  key: string;
+  oldValue: unknown;
+  newValue: unknown;
+  label: string;
+  direction: 'increased' | 'decreased' | 'changed';
+}
+
+export interface AIGeneratedPatchOut {
+  state: string;
+  generation_id: string;
+}
+
+export interface AIModifyPatchOut {
+  state: string;
+  changes: AIChange[];
+}
+
+export interface AIDescribePatchOut {
+  description: string;
+}

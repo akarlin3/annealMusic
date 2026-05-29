@@ -18,6 +18,9 @@ import SourcePicker from '@/components/SourcePicker';
 import { PHYSICAL_MODELS } from '@/audio/engines/physical';
 import InfoTip from '@/components/InfoTip';
 import ControlCaption from '@/components/ControlCaption';
+import { Wand2 } from 'lucide-react';
+import { api } from '@/api/client';
+import ModifyPatchDialog from '@/components/ModifyPatchDialog';
 
 interface ControlPanelProps {
   params: AnnealMusicParams;
@@ -33,6 +36,7 @@ interface ControlPanelProps {
    * for the main app; the minimal embed surface can pass `false` to save space.
    */
   showCaptions?: boolean;
+  showToast: (msg: string) => void;
 }
 
 const GROUPS: ControlGroup[] = ['Pitch', 'Physics', 'Tone'];
@@ -285,7 +289,10 @@ export default function ControlPanel({
   setEngineParam,
   arcLocked = false,
   showCaptions = true,
+  showToast,
 }: ControlPanelProps) {
+  const [aiModifyOpen, setAiModifyOpen] = useState(false);
+  const backendOn = api.isBackendConfigured();
   const caps = engineCapabilities(engineId);
   const structuralLock = isPlaying && caps.densityLockedWhilePlaying;
   const engineDefs = engineParamDefs(engineId);
@@ -330,19 +337,39 @@ export default function ControlPanel({
               : 'max-w-xs'
           }`}
         >
-          <div className="mb-4 flex items-baseline gap-2">
-            <span
-              className="font-mono text-[10px] uppercase tracking-[0.22em]"
-              style={{ color: '#78716c' }}
-            >
-              Engine
-            </span>
-            <span
-              className="font-mono text-[10px] uppercase tracking-[0.22em]"
-              style={{ color: '#57534e' }}
-            >
-              {ENGINE_LABELS[engineId]}
-            </span>
+          <div className="mb-4 flex items-baseline justify-between">
+            <div className="flex items-baseline gap-2">
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.22em]"
+                style={{ color: '#78716c' }}
+              >
+                Engine
+              </span>
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.22em]"
+                style={{ color: '#57534e' }}
+              >
+                {ENGINE_LABELS[engineId]}
+              </span>
+            </div>
+            {backendOn && (
+              <button
+                type="button"
+                onClick={() => setAiModifyOpen(true)}
+                className="flex items-center gap-1.5 hover:text-violet-300 transition-colors"
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  cursor: 'pointer',
+                  color: '#a78bfa',
+                }}
+              >
+                <Wand2 size={11} className="animate-pulse" />
+                <span className="font-mono text-[9px] uppercase tracking-[0.15em]">
+                  AI Modify
+                </span>
+              </button>
+            )}
           </div>
           {engineId === 'granular' && (
             <div className="mb-6">
@@ -441,6 +468,13 @@ export default function ControlPanel({
         />
         {showCaptions && <ControlCaption id="volume" />}
       </div>
+      {backendOn && (
+        <ModifyPatchDialog
+          isOpen={aiModifyOpen}
+          onClose={() => setAiModifyOpen(false)}
+          showToast={showToast}
+        />
+      )}
     </>
   );
 }

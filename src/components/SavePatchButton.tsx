@@ -2,6 +2,9 @@ import { useCallback, useState } from 'react';
 import { Save } from 'lucide-react';
 import type { PatchPersistence, SaveOptions } from '@/api/usePatches';
 import type { Visibility } from '@/api/types';
+import { useParamStore } from '@/state/params';
+import { encodeState } from '@/share/encode';
+import { api, getErrorMessage } from '@/api/client';
 
 interface SavePatchButtonProps {
   patches: PatchPersistence;
@@ -51,6 +54,29 @@ export default function SavePatchButton({
     patches,
     showToast,
   ]);
+
+  const [suggesting, setSuggesting] = useState(false);
+
+  const suggestDescription = useCallback(async () => {
+    setSuggesting(true);
+    try {
+      const s = useParamStore.getState();
+      const payload = encodeState(
+        s.params,
+        s.engineId,
+        s.engineParams[s.engineId] ?? {},
+        { mode: s.sessionMode, arcId: s.arcId, durationSec: s.arcDurationSec },
+        s.loops,
+      );
+      const res = await api.describePatch(payload);
+      setDescription(res.description);
+      showToast('Description suggested!');
+    } catch (err) {
+      showToast(getErrorMessage(err, 'Failed to suggest description'));
+    } finally {
+      setSuggesting(false);
+    }
+  }, [showToast]);
 
   return (
     <>
@@ -106,13 +132,29 @@ export default function SavePatchButton({
               />
             </label>
 
-            <label className="mb-3 block">
-              <span
-                className="mb-1 block font-mono text-[10px] uppercase tracking-[0.18em]"
-                style={{ color: '#78716c' }}
-              >
-                Description
-              </span>
+            <div className="mb-3 block">
+              <div className="mb-1 flex items-center justify-between">
+                <span
+                  className="font-mono text-[10px] uppercase tracking-[0.18em]"
+                  style={{ color: '#78716c' }}
+                >
+                  Description
+                </span>
+                <button
+                  type="button"
+                  onClick={suggestDescription}
+                  disabled={suggesting}
+                  className="font-mono text-[9px] uppercase tracking-[0.15em] hover:text-amber-300 disabled:opacity-50"
+                  style={{
+                    color: '#fbbf24',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {suggesting ? 'Suggesting…' : 'AI Suggest'}
+                </button>
+              </div>
               <textarea
                 className={field}
                 style={fieldStyle}
@@ -121,7 +163,7 @@ export default function SavePatchButton({
                 rows={2}
                 onChange={(e) => setDescription(e.target.value)}
               />
-            </label>
+            </div>
 
             <div className="mb-3 flex items-center justify-between">
               <span

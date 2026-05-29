@@ -11,6 +11,7 @@ const baseProps = {
   engineId: 'sine' as const,
   engineParams: {},
   setEngineParam: () => {},
+  showToast: () => {},
 };
 
 describe('ControlPanel — arc lock', () => {

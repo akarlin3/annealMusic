@@ -84,6 +84,13 @@ class RateLimiter:
         ip_bucket.append(now)
         return True
 
+    def allow_ai(self, *, anon_id: str | None, ip: str, is_auth: bool) -> bool:
+        """Sliding-window: 50/hr for auth, 20/hr for anon."""
+        limit = 50 if is_auth else 20
+        if anon_id is not None:
+            return self._check("anon_ai", f"{anon_id}:ai", limit)
+        return self._check("ip_ai", f"{ip}:ai", limit)
+
     def reset(self) -> None:
         self._hits.clear()
 

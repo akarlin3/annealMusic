@@ -1,0 +1,59 @@
+[
+  {
+    "prompt": "Glassy bells in the distance, slow frozen lake",
+    "patch": {
+      "m": "open",
+      "e": "physical",
+      "rootFreq": 330,
+      "spread": 1.15,
+      "density": 6,
+      "coupling": 0.4,
+      "drift": 0.15,
+      "brightness": 0.35,
+      "space": 0.85,
+      "ph.model": 7,
+      "ph.excitationLevel": 0.6,
+      "ph.damping": 0.65,
+      "ph.reed": 0.1,
+      "ph.inharm": 0.4,
+      "ph.brightness": 0.75
+    }
+  },
+  {
+    "prompt": "A warm, slow evolving brassy swell that feels like late autumn dusk",
+    "patch": {
+      "m": "open",
+      "e": "fm",
+      "rootFreq": 110,
+      "spread": 0.95,
+      "density": 4,
+      "coupling": 0.3,
+      "drift": 0.2,
+      "brightness": 0.45,
+      "space": 0.7,
+      "fm.modRatio": 1.5,
+      "fm.modIndex": 3.0,
+      "fm.feedback": 0.2
+    }
+  },
+  {
+    "prompt": "Anxious granular wind, fast shifting dust and dynamic motion",
+    "patch": {
+      "m": "open",
+      "e": "granular",
+      "rootFreq": 220,
+      "spread": 1.05,
+      "density": 5,
+      "coupling": 0.75,
+      "drift": 0.85,
+      "brightness": 0.65,
+      "space": 0.45,
+      "gr.source": 2,
+      "gr.size": 80,
+      "gr.density": 25,
+      "gr.posJitter": 0.75,
+      "gr.pitchJitter": 20,
+      "gr.posCenter": 0.5
+    }
+  }
+]

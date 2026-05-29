@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { HelpCircle, Pause, Play } from 'lucide-react';
 import { useAnnealMusic } from '@/hooks/useAnnealMusic';
 import { useInput } from '@/hooks/useInput';
@@ -20,15 +20,18 @@ import PresetsPanel from '@/components/PresetsPanel';
 import ArchitectureDiagram from '@/components/ArchitectureDiagram';
 import CopyLinkButton from '@/components/CopyLinkButton';
 import SavePatchButton from '@/components/SavePatchButton';
+import GeneratePatchDialog from '@/components/GeneratePatchDialog';
+import SimilarPatchesRow from '@/components/SimilarPatchesRow';
 import MyPatchesDrawer from '@/components/MyPatchesDrawer';
 import Toast, { type ToastMessage } from '@/components/Toast';
 import { api } from '@/api/client';
+import type { Patch } from '@/api/types';
 import { usePatches } from '@/api/usePatches';
 import { useAuth } from '@/auth/AuthProvider';
 import { LissajousAvatar } from '@/components/LissajousAvatar';
 import LoginDialog from '@/components/LoginDialog';
 import ClaimBanner from '@/components/ClaimBanner';
-import { User } from 'lucide-react';
+import { Sparkles, User } from 'lucide-react';
 import { useRecorder } from '@/record/useRecorder';
 import RecordControls from '@/record/RecordControls';
 import RecordingDialog from '@/record/RecordingDialog';
@@ -145,6 +148,7 @@ export default function App() {
   const recorder = useRecorder(ensureOrchestrator, showToast);
   const recordingsRef = useRef<MyRecordingsHandle>(null);
   const backendOn = api.isBackendConfigured();
+  const { slug: routeSlug } = useParams();
   const hasCaptures = SLOT_IDS.some((id) => loops.slots[id].hasBuffer);
 
   // Boot: hydrate params from the URL before the audio engine is ever built
@@ -189,6 +193,8 @@ export default function App() {
     return subscribeStoreToHash(useParamStore);
   }, [showToast]);
 
+  const [aiGenerateOpen, setAiGenerateOpen] = useState(false);
+
   // Short-link route: `/p/<slug>` resolves a saved patch via the backend. Runs
   // once; the inline `#s=` path above stays the offline-capable default.
   const pRouteRan = useRef(false);
@@ -205,6 +211,23 @@ export default function App() {
     }
     void patches.loadPatch(slug);
   }, [patches, showToast]);
+
+  const [activePatch, setActivePatch] = useState<Patch | null>(null);
+
+  useEffect(() => {
+    if (routeSlug && api.isBackendConfigured()) {
+      api
+        .getPatch(routeSlug)
+        .then((patch) => {
+          setActivePatch(patch);
+        })
+        .catch(() => {
+          setActivePatch(null);
+        });
+    } else {
+      setActivePatch(null);
+    }
+  }, [routeSlug]);
 
   return (
     <div
@@ -337,6 +360,26 @@ export default function App() {
 
             {backendOn && (
               <>
+                <button
+                  type="button"
+                  onClick={() => setAiGenerateOpen(true)}
+                  aria-label="Generate patch with AI"
+                  className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.04)',
+                    border: '1px solid #44403c',
+                    color: '#d6d3d1',
+                  }}
+                >
+                  <Sparkles
+                    size={13}
+                    strokeWidth={1.5}
+                    style={{ color: '#fbbf24' }}
+                  />
+                  <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
+                    AI Generate
+                  </span>
+                </button>
                 <SavePatchButton
                   patches={patches}
                   hasCaptures={hasCaptures}
@@ -456,7 +499,15 @@ export default function App() {
           engineParams={engineParams[engineId] ?? {}}
           setEngineParam={(key, value) => setEngineParam(engineId, key, value)}
           arcLocked={arcLocked}
+          showToast={showToast}
         />
+
+        {activePatch && (
+          <>
+            <div className="am-hairline my-12" />
+            <SimilarPatchesRow patchId={activePatch.id} showToast={showToast} />
+          </>
+        )}
 
         <div className="am-hairline my-12" />
 
@@ -518,6 +569,11 @@ export default function App() {
       {backendOn && (
         <>
           <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+          <GeneratePatchDialog
+            isOpen={aiGenerateOpen}
+            onClose={() => setAiGenerateOpen(false)}
+            showToast={showToast}
+          />
           <ClaimBanner showToast={showToast} />
         </>
       )}
