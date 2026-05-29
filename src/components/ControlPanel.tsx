@@ -148,6 +148,11 @@ function Slider({
   tourId?: string;
   onChange: (v: number) => void;
 }) {
+  const isRoot = explainId === 'rootFreq';
+  const sliderMin = isRoot ? 55 : def.min;
+  const sliderMax = isRoot ? 220 : def.max;
+  const sliderVal = isRoot ? Math.min(220, Math.max(55, value)) : value;
+
   return (
     <div data-tour={tourId}>
       <div className="mb-1.5 flex items-baseline justify-between">
@@ -178,15 +183,15 @@ function Slider({
       <input
         type="range"
         className="am-range"
-        min={def.min}
-        max={def.max}
+        min={sliderMin}
+        max={sliderMax}
         step={def.step}
-        value={value}
+        value={sliderVal}
         disabled={disabled}
         onChange={(e) => onChange(parseFloat(e.target.value))}
       />
       {explainId && showCaption && <ControlCaption id={explainId} />}
-      {explainId === 'rootFreq' && (
+      {isRoot && (
         <NoteConverter
           value={value}
           min={def.min}
