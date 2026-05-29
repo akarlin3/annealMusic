@@ -9,6 +9,7 @@
     "dev": "vite",
     "build:worklets": "vite build --config vite.worklet.config.ts",
     "build": "npm run build:worklets && tsc -b && vite build",
+    "build:mobile": "npm run build:worklets && tsc -b && vite build --config vite.config.mobile.ts",
     "preview": "vite preview",
     "test": "vitest",
     "lint": "eslint .",
@@ -30,6 +31,11 @@
     ]
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/ios": "^8.3.4",
+    "@capacitor/preferences": "^8.0.1",
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -37,6 +43,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.4",
     "@eslint/js": "^8.57.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
