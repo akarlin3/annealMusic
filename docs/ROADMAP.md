@@ -42,6 +42,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v1.0 ✅ | Physical modeling + embed route + recording export | Feature-complete v1                        |
 | v1.2 ✅ | User-uploaded granular sources + TrimDialog       | Custom sound uploads                       |
 | v1.3 ✅ | Identity (Magic-Link, OAuth, Profiles, Claiming)   | Multi-device account sync                  |
+| v1.4 ✅ | Mobile Shell (Capacitor packaging, iOS + Android) | Installable native store apps              |
 
 ## Shipped notes
 
@@ -167,6 +168,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
   **The roadmap as defined is complete.**
 - **v1.2** — **User-Uploaded Granular Sources**. Lands high-fidelity custom engine sources (up to 25MB). Implements the HSL-styled **Trim Dialog** (sub-60s bounds downsampling and looping preview). Reuses `ffmpeg` transcoding on the backend to transcode segment uploads into mono Opus (96kbps). Features a **My Sources** panel drawer with slot progress tracking, inline rename, and cascading deletion confirmation prompts.
 - **v1.3** — **Identity & Multi-Device Claiming**. Adds real email magic-link and secure Google/GitHub OAuth accounts. Introduces the confirm-only **manual guest claiming flow** enabling cross-device sync of patches, recordings, and custom sources without auto-claiming. Generates premium, on-brand **deterministic Lissajous phase-portrait wave SVGs** for public creator profiles (`/u/:account_id`). Hardens security with rate limits, CSRF-resistant cookies, and email enumeration resistance.
+- **v1.4** — **Mobile Shell (Capacitor)**. Packages the existing web application in a native wrapper targeting iOS and Android platforms via Capacitor 6.x. Introduces a global `DeepLinkHandler` supporting seamless magic-link and patch deep routing, native cookie sharing via `CapacitorCookies`, custom `AVAudioSession` and `AudioManager` native focus/interruption shims, and Vite mobile build route tree-shaking for compact release assets.
 
 ## Principles
 

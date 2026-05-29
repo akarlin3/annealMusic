@@ -49,6 +49,7 @@ Everything below is the engineering reference: stack, architecture, engine inter
 - **Web Audio API** for synthesis (swappable engines + Ornstein–Uhlenbeck drift)
 - **Canvas 2D** for the visualizer
 - **Vitest** + jsdom for tests, **ESLint** + **Prettier** for quality
+- **Capacitor 6** for native iOS & Android shells
 
 ## Dev commands
 
@@ -56,11 +57,15 @@ Everything below is the engineering reference: stack, architecture, engine inter
 npm install        # install dependencies
 npm run dev        # start the Vite dev server (http://localhost:5173)
 npm run build      # typecheck + production build to dist/
+npm run build:mobile # build mobile-optimized bundle to dist-mobile/
 npm run preview    # preview the production build
 npm run test       # run unit tests (Vitest)
 npm run lint       # ESLint
 npm run typecheck  # tsc --noEmit
 npm run format     # Prettier --write
+npx cap sync       # sync mobile web assets to native app projects
+npx cap run ios    # run the native iOS app
+npx cap run android # run the native Android app
 ```
 
 ## Project structure

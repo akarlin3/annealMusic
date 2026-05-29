@@ -44,7 +44,7 @@ export const TermsPage: React.FC = () => {
                 Terms of Service
               </h1>
               <p className="text-[9px] uppercase tracking-wider text-stone-500 mt-1">
-                Version 1.3 · Last Updated: May 2026
+                Version 1.4 · Last Updated: May 2026
               </p>
             </div>
           </div>
@@ -150,7 +150,7 @@ export const PrivacyPage: React.FC = () => {
                 Privacy Policy
               </h1>
               <p className="text-[9px] uppercase tracking-wider text-stone-500 mt-1">
-                Version 1.3 · Last Updated: May 2026
+                Version 1.4 · Last Updated: May 2026
               </p>
             </div>
           </div>
@@ -177,9 +177,10 @@ export const PrivacyPage: React.FC = () => {
                 2. Cookies & Local Storage
               </h2>
               <p>
-                We use standard `localStorage` to retain anonymous sculpts
-                locally on your device. For signed-in users, we set a highly
-                secure, HttpOnly, SameSite=Lax session cookie (`am_session`) to
+                We use standard `localStorage` and native device preferences
+                (via Capacitor Preferences) to retain anonymous sculpts locally
+                on your device. For signed-in users, we set a highly secure,
+                HttpOnly, SameSite=Lax session cookie (`am_session`) to
                 authorize cross-device patch and recording synchronization. No
                 tracking or marketing cookies are utilized.
               </p>

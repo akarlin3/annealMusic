@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,8 +8,48 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Configure AVAudioSession category to playback to support background audio
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setActive(true)
+            
+            // Set up observations for audio interruptions
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(handleAudioInterruption),
+                name: AVAudioSession.interruptionNotification,
+                object: nil
+            )
+        } catch {
+            print("Failed to configure AVAudioSession: \(error.localizedDescription)")
+        }
         return true
+    }
+
+    @objc func handleAudioInterruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+        
+        if type == .began {
+            dispatchJSEvent(type: "begin")
+        } else if type == .ended {
+            guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume) {
+                dispatchJSEvent(type: "end")
+            }
+        }
+    }
+
+    private func dispatchJSEvent(type: String) {
+        let js = "window.dispatchEvent(new CustomEvent('am_audio_interruption', { detail: { type: '\(type)' } }));"
+        DispatchQueue.main.async {
+            if let vc = self.window?.rootViewController as? CAPBridgeViewController {
+                vc.webView?.evaluateJavaScript(js, completionHandler: nil)
+            }
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
