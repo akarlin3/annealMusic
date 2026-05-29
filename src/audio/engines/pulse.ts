@@ -97,9 +97,16 @@ const defaultFactory: WorkletNodeFactory = (ctx, processor) => {
   });
   return {
     node,
-    setParam(name, value) {
+    setParam(name, value, targetTime, instant) {
       const p = node.parameters.get(name);
-      if (p) p.setTargetAtTime(value, ctx.currentTime, 0.02);
+      if (p) {
+        if (instant) {
+          p.cancelScheduledValues(targetTime ?? ctx.currentTime);
+          p.setValueAtTime(value, targetTime ?? ctx.currentTime);
+        } else {
+          p.setTargetAtTime(value, targetTime ?? ctx.currentTime, 0.02);
+        }
+      }
     },
     post(message) {
       node.port.postMessage(message);
@@ -238,19 +245,19 @@ export class PulseEngine implements AnnealEngine {
     return this.out;
   }
 
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number): void {
+  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
     if (!this.voice) return;
 
     if (partial.rootFreq !== undefined) {
-      (this.voice as any).setParam('f0', partial.rootFreq, targetTime);
+      (this.voice as any).setParam('f0', partial.rootFreq, targetTime, instant);
     }
     if (partial.spread !== undefined) {
-      (this.voice as any).setParam('spread', partial.spread, targetTime);
+      (this.voice as any).setParam('spread', partial.spread, targetTime, instant);
     }
     if (partial.density !== undefined) {
-      (this.voice as any).setParam('densityVal', partial.density, targetTime);
+      (this.voice as any).setParam('densityVal', partial.density, targetTime, instant);
     }
   }
 

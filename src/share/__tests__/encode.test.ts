@@ -493,3 +493,42 @@ describe('v9 schema — piece tempo and grid_lock', () => {
   });
 });
 
+describe('v10 schema — piece notation track', () => {
+  it('round-trips piece notation track correctly', () => {
+    const piece = {
+      title: 'Melodic Composition',
+      defaultsState: {
+        params: DEFAULT_PARAMS,
+        engineId: 'sine' as const,
+        engineParams: {},
+        loops: makeDefaultLoopConfig(),
+      },
+      segments: [
+        { type: 'fixed' as const, durationMs: 5000, config: {} },
+      ],
+      notation: [
+        { id: 'note-0', onset_ms: 0, duration_ms: 1500, pitch_midi: 60 },
+        { id: 'note-1', onset_ms: 2000, duration_ms: 1000, pitch_midi: 64 },
+      ],
+    };
+
+    const encoded = encodePiece(piece);
+    expect(encoded).toContain('kind=piece');
+    expect(encoded).toContain('notation=0,1500,60;2000,1000,64');
+
+    const decoded = decodeState(10, encoded);
+    expect(decoded.kind).toBe('piece');
+    if (decoded.kind === 'piece') {
+      expect(decoded.piece.notation).toHaveLength(2);
+      expect(decoded.piece.notation![0].onset_ms).toBe(0);
+      expect(decoded.piece.notation![0].duration_ms).toBe(1500);
+      expect(decoded.piece.notation![0].pitch_midi).toBe(60);
+      expect(decoded.piece.notation![0].id).toBeDefined();
+      expect(decoded.piece.notation![1].onset_ms).toBe(2000);
+      expect(decoded.piece.notation![1].duration_ms).toBe(1000);
+      expect(decoded.piece.notation![1].pitch_midi).toBe(64);
+      expect(decoded.piece.notation![1].id).toBeDefined();
+    }
+  });
+});
+

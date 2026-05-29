@@ -162,7 +162,7 @@ export interface PhysicalVoiceNode {
   /** The underlying node, routed into the engine's output gain. */
   readonly node: AudioNode;
   /** Smoothly set a k-rate param (no-op if the processor lacks it). */
-  setParam(name: PhysicalParam, value: number, targetTime?: number): void;
+  setParam(name: PhysicalParam, value: number, targetTime?: number, instant?: boolean): void;
   /** Structural message to the processor (e.g. plate mode count). */
   post(message: unknown): void;
   /** Disconnect + tear down. */
@@ -219,10 +219,13 @@ const defaultFactory: WorkletNodeFactory = (ctx, processor) => {
   });
   return {
     node,
-    setParam(name, value, targetTime) {
+    setParam(name, value, targetTime, instant) {
       const p = node.parameters.get(name);
       if (p) {
-        if (targetTime !== undefined) {
+        if (instant) {
+          p.cancelScheduledValues(targetTime ?? ctx.currentTime);
+          p.setValueAtTime(value, targetTime ?? ctx.currentTime);
+        } else if (targetTime !== undefined) {
           const currentVal = p.value;
           p.setValueAtTime(currentVal, targetTime - 0.005);
           p.setTargetAtTime(value, targetTime, 0.05);
@@ -384,14 +387,14 @@ export class PhysicalEngine implements AnnealEngine {
     return this.out;
   }
 
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number): void {
+  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
     if (partial.rootFreq === undefined && partial.spread === undefined) return;
     const { rootFreq, spread } = this.shared;
     for (const p of this.partials) {
       p.freq = rootFreq * Math.pow(p.ratio, spread);
-      p.node?.setParam('f0', p.freq, targetTime);
+      p.node?.setParam('f0', p.freq, targetTime, instant);
     }
   }
 

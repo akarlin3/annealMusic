@@ -11,6 +11,13 @@ export interface PieceSegment {
   config: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
+export interface NotationNote {
+  id: string;
+  onset_ms: number;
+  duration_ms: number;
+  pitch_midi: number;
+}
+
 export interface Piece {
   id?: string;
   schemaVer: number;
@@ -27,4 +34,5 @@ export interface Piece {
   hasOpenSegment: boolean;
   segments: PieceSegment[];
   shortSlug?: string;
+  notation?: NotationNote[];
 }

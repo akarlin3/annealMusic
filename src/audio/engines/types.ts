@@ -59,7 +59,7 @@ export interface AnnealEngine {
   getOutputNode(): AudioNode;
 
   /** Smoothly update shared params relevant to voice frequencies (root, spread). */
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number): void;
+  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void;
 
   /** Update engine-specific params (e.g. FM ratio, index). */
   setEngineParams(partial: Partial<EngineParams>): void;

@@ -586,7 +586,7 @@ export class Orchestrator {
   }
 
   /** Apply live shared-param updates: post-fx here, voice freqs to the engines. */
-  setSharedParams(partial: Partial<SharedParams>): void {
+  setSharedParams(partial: Partial<SharedParams>, instant?: boolean): void {
     this.shared = { ...this.shared, ...partial };
 
     const ctx = this.ctx;
@@ -614,18 +614,18 @@ export class Orchestrator {
         (this.engineParams[this.engineId]?.grid_lock === 1 || 
          String(this.engineParams[this.engineId]?.grid_lock) === 'true');
          
-      if (gridLocked) {
+      if (gridLocked && !instant) {
         const elapsed = ctx.currentTime - this.playStartAudioTime;
         const beatDuration = 60 / this.tempoBpm!;
         let targetTime = this.playStartAudioTime + Math.ceil(elapsed / beatDuration) * beatDuration;
         if (targetTime <= ctx.currentTime) {
           targetTime += beatDuration;
         }
-        this.active?.engine.setSharedParams(voiceUpdate, targetTime);
-        this.outgoing?.engine.setSharedParams(voiceUpdate, targetTime);
+        this.active?.engine.setSharedParams(voiceUpdate, targetTime, false);
+        this.outgoing?.engine.setSharedParams(voiceUpdate, targetTime, false);
       } else {
-        this.active?.engine.setSharedParams(voiceUpdate);
-        this.outgoing?.engine.setSharedParams(voiceUpdate);
+        this.active?.engine.setSharedParams(voiceUpdate, undefined, instant);
+        this.outgoing?.engine.setSharedParams(voiceUpdate, undefined, instant);
       }
     }
   }
