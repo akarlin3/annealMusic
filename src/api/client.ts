@@ -13,6 +13,9 @@ import {
   type UserMe,
   type UserSource,
   type UserSourceList,
+  type Account,
+  type ClaimedAnonId,
+  type PublicProfile,
 } from '@/api/types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -203,4 +206,113 @@ export const api = {
   userSourceAudioUrl(id: string): string {
     return `${API_BASE}/api/v1/user-sources/${encodeURIComponent(id)}`;
   },
+
+  // --- auth & claim (v1.3) -------------------------------------------------
+
+  async requestMagicLink(
+    email: string,
+    intent: 'login' | 'signup' | 'add-email-to-account',
+  ): Promise<{ message: string }> {
+    return request<{ message: string }>('/api/v1/auth/email/request', {
+      method: 'POST',
+      body: { email, intent },
+    });
+  },
+
+  async logout(): Promise<void> {
+    await request<void>('/api/v1/auth/logout', { method: 'POST' });
+  },
+
+  async session(): Promise<{ account: Account | null }> {
+    return request<{ account: Account | null }>('/api/v1/auth/session');
+  },
+
+  async getProfile(): Promise<Account> {
+    return request<Account>('/api/v1/account/me');
+  },
+
+  async updateProfile(body: {
+    display_name?: string;
+    avatar_seed?: string;
+  }): Promise<Account> {
+    return request<Account>('/api/v1/account/me', {
+      method: 'PATCH',
+      body,
+    });
+  },
+
+  async deleteAccount(confirmEmail: string): Promise<void> {
+    await request<void>('/api/v1/account/me', {
+      method: 'DELETE',
+      body: { confirm_email: confirmEmail },
+    });
+  },
+
+  async getProviders(): Promise<string[]> {
+    return request<string[]>('/api/v1/account/me/providers');
+  },
+
+  async unlinkProvider(provider: 'email' | 'google' | 'github'): Promise<void> {
+    await request<void>(
+      `/api/v1/account/me/providers/${encodeURIComponent(provider)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
+
+  async claimAnonId(anonId: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>('/api/v1/account/me/claim', {
+      method: 'POST',
+      body: { anon_id: anonId },
+    });
+  },
+
+  async unclaimAnonId(anonId: string): Promise<void> {
+    await request<void>(
+      `/api/v1/account/me/claim/${encodeURIComponent(anonId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+  },
+
+  async listClaimedAnonIds(): Promise<ClaimedAnonId[]> {
+    return request<ClaimedAnonId[]>('/api/v1/account/me/anon-ids');
+  },
+
+  async getPublicProfile(accountId: string): Promise<PublicProfile> {
+    return request<PublicProfile>(
+      `/api/v1/profiles/${encodeURIComponent(accountId)}`,
+    );
+  },
 };
+
+export function getErrorMessage(
+  err: unknown,
+  defaultMessage = 'An unexpected error occurred.',
+): string {
+  if (err instanceof ApiError) {
+    const body = err.body;
+    if (body && typeof body === 'object') {
+      const b = body as Record<string, unknown>;
+      if ('detail' in b) {
+        const detail = b.detail;
+        if (typeof detail === 'string') {
+          return detail;
+        }
+        if (detail && typeof detail === 'object') {
+          const detObj = detail as Record<string, unknown>;
+          if ('message' in detObj && typeof detObj.message === 'string') {
+            return detObj.message;
+          }
+        }
+      }
+    }
+    return err.code;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return defaultMessage;
+}

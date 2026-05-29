@@ -134,3 +134,33 @@ export interface UserSource {
 export interface UserSourceList {
   items: UserSource[];
 }
+
+export interface Account {
+  id: string;
+  email: string;
+  display_name: string | null;
+  avatar_seed: string | null;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+export interface ClaimedAnonId {
+  anon_id: string;
+  patch_count: number;
+  capture_count: number;
+  recording_count: number;
+  source_count: number;
+  bytes_used: number;
+  created_at: string;
+}
+
+export interface PublicProfile {
+  id: string;
+  display_name: string | null;
+  avatar_seed: string | null;
+  created_at: string;
+  counts: {
+    patches: number;
+    recordings: number;
+  };
+}

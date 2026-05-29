@@ -24,6 +24,11 @@ import MyPatchesDrawer from '@/components/MyPatchesDrawer';
 import Toast, { type ToastMessage } from '@/components/Toast';
 import { api } from '@/api/client';
 import { usePatches } from '@/api/usePatches';
+import { useAuth } from '@/auth/AuthProvider';
+import { LissajousAvatar } from '@/components/LissajousAvatar';
+import LoginDialog from '@/components/LoginDialog';
+import ClaimBanner from '@/components/ClaimBanner';
+import { User } from 'lucide-react';
 import { useRecorder } from '@/record/useRecorder';
 import RecordControls from '@/record/RecordControls';
 import RecordingDialog from '@/record/RecordingDialog';
@@ -86,6 +91,8 @@ export default function App() {
   }, [sessionMode, arcId]);
 
   const [helpOpen, setHelpOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const { account } = useAuth();
   const tour = useTour();
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -235,6 +242,38 @@ export default function App() {
               </Link>
               <InfoTip id="feature.gallery" label="Gallery" />
             </span>
+
+            {backendOn && (
+              <>
+                {account ? (
+                  <Link
+                    to="/account"
+                    className="flex items-center gap-2 rounded-full pl-2 pr-3 py-1 transition-all border border-stone-800 hover:border-stone-700 bg-stone-950/20"
+                    title={`Logged in as ${account.display_name ?? account.email}`}
+                  >
+                    <LissajousAvatar
+                      seed={account.avatar_seed ?? 'default'}
+                      size={20}
+                    />
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-stone-300 max-w-[80px] truncate">
+                      {account.display_name ?? 'Settings'}
+                    </span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setLoginOpen(true)}
+                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all"
+                    style={{ border: '1px solid #44403c', color: '#a8a29e' }}
+                  >
+                    <User size={12} strokeWidth={1.5} />
+                    <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                      Sign In
+                    </span>
+                  </button>
+                )}
+              </>
+            )}
 
             <span className="flex items-center gap-1.5">
               <CopyLinkButton
@@ -407,6 +446,13 @@ export default function App() {
       )}
 
       <Tour tour={tour} />
+
+      {backendOn && (
+        <>
+          <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
+          <ClaimBanner showToast={showToast} />
+        </>
+      )}
 
       <Toast toast={toast} onDismiss={dismissToast} />
     </div>
