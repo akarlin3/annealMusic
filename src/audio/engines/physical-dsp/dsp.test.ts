@@ -5,35 +5,15 @@ import {
 } from '@/audio/engines/physical-dsp/noise';
 import { KarplusStrong } from '@/audio/engines/physical-dsp/string';
 import { Waveguide } from '@/audio/engines/physical-dsp/tube';
-import { ModalBank, PLATE_MODES } from '@/audio/engines/physical-dsp/plate';
-
-const SR = 48000;
-
-/** Deterministic pseudo-noise so tests are reproducible. */
-function seeded(seed = 1): () => number {
-  let s = seed >>> 0;
-  return () => {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    return s / 0xffffffff;
-  };
-}
-
-function rms(buf: Float32Array): number {
-  let sum = 0;
-  for (const v of buf) sum += v * v;
-  return Math.sqrt(sum / buf.length);
-}
-
-function allFinite(buf: Float32Array): boolean {
-  for (const v of buf) if (!Number.isFinite(v)) return false;
-  return true;
-}
-
-function peak(buf: Float32Array): number {
-  let p = 0;
-  for (const v of buf) p = Math.max(p, Math.abs(v));
-  return p;
-}
+import { ModalBank } from '@/audio/engines/physical-dsp/modal-bank';
+import { PLATE_MODES, plateEigen } from '@/audio/engines/physical-dsp/plate';
+import {
+  SR,
+  seeded,
+  rms,
+  allFinite,
+  peak,
+} from '@/audio/engines/physical-dsp/test-util';
 
 describe('NoiseExciter', () => {
   it('produces non-silent, bounded output and scales with level', () => {
@@ -87,19 +67,30 @@ describe('Waveguide (tube)', () => {
 });
 
 describe('ModalBank (plate)', () => {
+  const plate = (rng: () => number, modeCount = PLATE_MODES) =>
+    new ModalBank({
+      sampleRate: SR,
+      eigen: plateEigen,
+      f0: 110,
+      damping: 0.3,
+      brightness: 0.6,
+      excitation: 0.6,
+      shape1: 0.5,
+      rng,
+      modeCount,
+    });
+
   it('rings with non-silent, stable output across 20 modes', () => {
-    const p = new ModalBank(SR, 110, 0.3, 0.6, 0.6, 0.5, seeded(5));
     const out = new Float32Array(SR);
-    p.render(out);
+    plate(seeded(5)).render(out);
     expect(allFinite(out)).toBe(true);
     expect(rms(out)).toBeGreaterThan(0);
     expect(peak(out)).toBeLessThan(8);
   });
 
   it('honors a reduced mode count (CPU fallback)', () => {
-    const p = new ModalBank(SR, 110, 0.3, 0.6, 0.6, 0.5, seeded(6), 4);
     const out = new Float32Array(8192);
-    p.render(out);
+    plate(seeded(6), 4).render(out);
     expect(allFinite(out)).toBe(true);
     expect(rms(out)).toBeGreaterThan(0);
   });

@@ -291,9 +291,16 @@ describe('physical engine + schema v6', () => {
   });
 
   it('clamps the model index out of range with a warning', () => {
-    const decoded = decodeState(6, 'e=physical&ph.model=9');
-    expect(decoded.engineParams.physical?.model).toBe(2);
+    // Schema v7 widened ph.model to 0..7 (the five new sub-models); 9 clamps to 7.
+    const decoded = decodeState(7, 'e=physical&ph.model=9');
+    expect(decoded.engineParams.physical?.model).toBe(7);
     expect(decoded.warnings.some((w) => w.includes('ph.model'))).toBe(true);
+  });
+
+  it('round-trips a new sub-model id (bell = 7)', () => {
+    const decoded = decodeState(7, 'e=physical&ph.model=7');
+    expect(decoded.engineParams.physical?.model).toBe(7);
+    expect(decoded.warnings).toEqual([]);
   });
 });
 

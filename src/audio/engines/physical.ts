@@ -1,6 +1,9 @@
 import { HARMONICS } from '@/types/audio';
 import { partialShape } from '@/audio/engines/shape';
 import { PLATE_MODES } from '@/audio/engines/physical-dsp/plate';
+import { MEMBRANE_MODES } from '@/audio/engines/physical-dsp/membrane';
+import { MALLET_MODES } from '@/audio/engines/physical-dsp/mallet';
+import { BELL_MODES } from '@/audio/engines/physical-dsp/bell';
 import type {
   AnnealEngine,
   AnnealEngineCapabilities,
@@ -10,13 +13,40 @@ import type {
 } from '@/audio/engines/types';
 
 /** Sub-models, indexed so the value rides the numeric engine-param bag + URL. */
-export const PHYSICAL_MODELS = ['string', 'tube', 'plate'] as const;
+export const PHYSICAL_MODELS = [
+  'string',
+  'tube',
+  'plate',
+  'membrane',
+  'bowed',
+  'mallet',
+  'edge',
+  'bell',
+] as const;
 export type PhysicalModel = (typeof PHYSICAL_MODELS)[number];
 
 const PROCESSOR_BY_MODEL: Record<PhysicalModel, string> = {
   string: 'string-processor',
   tube: 'tube-processor',
   plate: 'plate-processor',
+  membrane: 'membrane-processor',
+  bowed: 'bowed-processor',
+  mallet: 'mallet-processor',
+  edge: 'edge-processor',
+  bell: 'bell-processor',
+};
+
+/**
+ * Mode count for the modal-bank sub-models. Sent as a structural `{ modes }`
+ * message after a voice is built so the host can throttle (lower) mode counts
+ * under CPU pressure; the non-modal sub-models (string/tube/bowed/edge) get no
+ * message. Single source for the per-model bank size.
+ */
+const MODAL_MODES: Partial<Record<PhysicalModel, number>> = {
+  plate: PLATE_MODES,
+  membrane: MEMBRANE_MODES,
+  mallet: MALLET_MODES,
+  bell: BELL_MODES,
 };
 
 /** Longer crossfade than sine/FM to mask resonator ring-up on a swap. */
@@ -50,7 +80,9 @@ const DEFAULTS: PhysicalNumericParams = {
 
 function modelName(index: number): PhysicalModel {
   return (
-    PHYSICAL_MODELS[Math.max(0, Math.min(2, Math.round(index)))] ?? 'string'
+    PHYSICAL_MODELS[
+      Math.max(0, Math.min(PHYSICAL_MODELS.length - 1, Math.round(index)))
+    ] ?? 'string'
   );
 }
 
@@ -294,7 +326,8 @@ export class PhysicalEngine implements AnnealEngine {
           voice.setParam('detune', p.detune);
           voice.setParam('reed', this.params.reed);
           voice.setParam('inharm', this.params.inharm);
-          if (this.model === 'plate') voice.post({ modes: PLATE_MODES });
+          const modes = MODAL_MODES[this.model];
+          if (modes !== undefined) voice.post({ modes });
           p.node = voice;
         }
       })

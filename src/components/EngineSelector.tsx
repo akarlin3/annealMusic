@@ -14,7 +14,7 @@ const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
   granular:
     'Splices acoustic and synthetic source files into micro-grains. Generates lush, atmospheric, and cloud-like textures.',
   physical:
-    'Digital waveguides and modal resonators (string, tube, plate) excited by continuous noise. Recreates acoustic instrument physics.',
+    'Digital waveguides and modal resonators (string, tube, plate, membrane, bowed, mallet, edge, bell) excited continuously. Recreates acoustic instrument physics.',
 };
 
 /**

@@ -1,18 +1,13 @@
 /**
- * AudioWorklet wrapper for the modal plate. Renders the shared `ModalBank` DSP
- * tuned by `plateEigen`; an optional structural `{ modes }` message lets the host
- * lower the mode count under CPU pressure (the bank is rebuilt with the same
- * tuning). The plate's inharmonicity rides the first generic shape (`inharm`).
+ * AudioWorklet wrapper for the bell. Renders the shared `ModalBank` tuned by
+ * `bellEigen` with the hum-forward `bellGain`. `inharm` → inharmonicity (shape1),
+ * `reed` → warmth (shape2). An optional `{ modes }` message lowers the mode
+ * count under CPU pressure.
  */
-import { ModalBank } from '@/audio/engines/physical-dsp/modal-bank';
-import { PLATE_MODES, plateEigen } from '@/audio/engines/physical-dsp/plate';
+import { createBellBank } from '@/audio/engines/physical-dsp/bell';
 
-class PlateProcessor extends AudioWorkletProcessor {
-  private dsp = new ModalBank({
-    sampleRate,
-    eigen: plateEigen,
-    modeCount: PLATE_MODES,
-  });
+class BellProcessor extends AudioWorkletProcessor {
+  private dsp = createBellBank(sampleRate);
 
   static get parameterDescriptors(): AudioParamDescriptor[] {
     return [
@@ -21,6 +16,7 @@ class PlateProcessor extends AudioWorkletProcessor {
       { name: 'damping', defaultValue: 0.4, automationRate: 'k-rate' },
       { name: 'brightness', defaultValue: 0.5, automationRate: 'k-rate' },
       { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+      { name: 'reed', defaultValue: 0.5, automationRate: 'k-rate' },
       { name: 'inharm', defaultValue: 0.5, automationRate: 'k-rate' },
     ];
   }
@@ -30,11 +26,7 @@ class PlateProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (e: MessageEvent): void => {
       const data = e.data as { modes?: number };
       if (typeof data?.modes === 'number') {
-        this.dsp = new ModalBank({
-          sampleRate,
-          eigen: plateEigen,
-          modeCount: data.modes,
-        });
+        this.dsp = createBellBank(sampleRate, data.modes);
       }
     };
   }
@@ -51,10 +43,11 @@ class PlateProcessor extends AudioWorkletProcessor {
     this.dsp.setDamping(params.damping?.[0] ?? 0.4);
     this.dsp.setBrightness(params.brightness?.[0] ?? 0.5);
     this.dsp.setExcitation(params.excitation?.[0] ?? 0.5);
-    this.dsp.setShape1(params.inharm?.[0] ?? 0.5);
+    this.dsp.setShape1(params.inharm?.[0] ?? 0.5); // inharmonicity
+    this.dsp.setShape2(params.reed?.[0] ?? 0.5); // warmth
     this.dsp.render(out);
     return true;
   }
 }
 
-registerProcessor('plate-processor', PlateProcessor);
+registerProcessor('bell-processor', BellProcessor);
