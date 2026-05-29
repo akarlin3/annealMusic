@@ -43,6 +43,8 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v1.2 ✅ | User-uploaded granular sources + TrimDialog       | Custom sound uploads                       |
 | v1.3 ✅ | Identity (Magic-Link, OAuth, Profiles, Claiming)   | Multi-device account sync                  |
 | v1.4 ✅ | Mobile Shell (Capacitor packaging, iOS + Android) | Installable native store apps              |
+| v1.5 ✅ | DAW Export / Stems                                 | Export high-fidelity multitrack stem ZIPs |
+| v1.6 ✅ | MIDI Input + Output                                | Physical controller map, note-to-root, output CC & clock sync |
 
 ## Shipped notes
 
@@ -169,6 +171,8 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 - **v1.2** — **User-Uploaded Granular Sources**. Lands high-fidelity custom engine sources (up to 25MB). Implements the HSL-styled **Trim Dialog** (sub-60s bounds downsampling and looping preview). Reuses `ffmpeg` transcoding on the backend to transcode segment uploads into mono Opus (96kbps). Features a **My Sources** panel drawer with slot progress tracking, inline rename, and cascading deletion confirmation prompts.
 - **v1.3** — **Identity & Multi-Device Claiming**. Adds real email magic-link and secure Google/GitHub OAuth accounts. Introduces the confirm-only **manual guest claiming flow** enabling cross-device sync of patches, recordings, and custom sources without auto-claiming. Generates premium, on-brand **deterministic Lissajous phase-portrait wave SVGs** for public creator profiles (`/u/:account_id`). Hardens security with rate limits, CSRF-resistant cookies, and email enumeration resistance.
 - **v1.4** — **Mobile Shell (Capacitor)**. Packages the existing web application in a native wrapper targeting iOS and Android platforms via Capacitor 6.x. Introduces a global `DeepLinkHandler` supporting seamless magic-link and patch deep routing, native cookie sharing via `CapacitorCookies`, custom `AVAudioSession` and `AudioManager` native focus/interruption shims, and Vite mobile build route tree-shaking for compact release assets.
+- **v1.5** — **DAW Export / Stems**. Enables high-fidelity multitrack session stem rendering and ZIP file bundling. Captures raw engine outputs, live mic signals, and loop pedal buffers individually, BWF/iXML metadata injection for sample alignment inside DAWs, seeded determinism for offline rendering parity, memory-conscious sequential rendering contexts, and native mobile Capacitor sharing integrations.
+- **v1.6** — **MIDI Input + Output**. Brings native MIDI controller and keyboard integration into the generative ambient meditation sandbox. Exposes interactive settings page under `/midi` for standard fader/knob mappings (using Linear, Exponential, and Logarithmic response curves), monophonic keyboard notes to set root pitch (Sustain vs. Return note-off options), dynamic strike velocity maps, 24 PPQN sync output clock, throttled 60Hz CC outgoing telemetry streams, and elegant browser compatibility warnings for Safari/Capacitor environments.
 
 ## Principles
 

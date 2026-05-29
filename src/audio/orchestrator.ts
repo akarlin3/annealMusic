@@ -1,5 +1,6 @@
 import { driftStep } from '@/audio/drift';
 import { makeIR } from '@/audio/ir';
+import { midiOutput } from '@/midi/outputController';
 import {
   ENGINES,
   engineCapabilities,
@@ -479,6 +480,7 @@ export class Orchestrator {
    * removed; otherwise the context is closed. Resolves after teardown.
    */
   stop(): Promise<void> {
+    midiOutput.triggerStop();
     const ctx = this.ctx;
     const nodes = this.nodes;
     const voices = [this.active, this.outgoing].filter(
@@ -703,6 +705,8 @@ export class Orchestrator {
       this.setState('idle');
       return;
     }
+
+    midiOutput.triggerStart();
 
     if (opts.mode === 'open') {
       this.setState('running-open');

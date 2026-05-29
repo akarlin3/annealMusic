@@ -38,6 +38,8 @@ import HelpPanel from '@/components/HelpPanel';
 import Tour from '@/components/Tour';
 import { useTour } from '@/hooks/useTour';
 import ExportDialog from '@/export/ExportDialog';
+import { midiInput } from '@/midi/inputController';
+import { midiOutput } from '@/midi/outputController';
 
 function fmtDuration(sec: number): string {
   const total = Math.max(0, Math.round(sec));
@@ -124,6 +126,16 @@ export default function App() {
     window.addEventListener('anneal-toast', handleToast);
     return () => window.removeEventListener('anneal-toast', handleToast);
   }, [showToast]);
+
+  // Start MIDI Input and Output controllers on app mount
+  useEffect(() => {
+    midiInput.start();
+    midiOutput.start();
+    return () => {
+      midiInput.stop();
+      midiOutput.stop();
+    };
+  }, []);
 
   const input = useInput(ensureOrchestrator, showToast);
   const loops = useLoops(ensureOrchestrator, showToast);
@@ -307,6 +319,22 @@ export default function App() {
               <InfoTip id="feature.export" label="Export stems" />
             </span>
 
+            {typeof navigator !== 'undefined' &&
+              typeof navigator.requestMIDIAccess === 'function' && (
+                <span className="flex items-center gap-1.5">
+                  <Link
+                    to="/midi"
+                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
+                    style={{ border: '1px solid #44403c', color: '#a8a29e' }}
+                  >
+                    <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                      MIDI
+                    </span>
+                  </Link>
+                  <InfoTip id="feature.midi" label="MIDI settings dashboard" />
+                </span>
+              )}
+
             {backendOn && (
               <>
                 <SavePatchButton
@@ -439,6 +467,15 @@ export default function App() {
           style={{ color: '#44403c' }}
         >
           <span>annealmusic · working title</span>
+          {typeof navigator !== 'undefined' &&
+            typeof navigator.requestMIDIAccess === 'function' && (
+              <Link
+                to="/midi"
+                className="hover:text-stone-300 transition-colors uppercase tracking-[0.18em]"
+              >
+                MIDI Control
+              </Link>
+            )}
           <span>kuramoto · ornstein–uhlenbeck</span>
         </footer>
       </div>

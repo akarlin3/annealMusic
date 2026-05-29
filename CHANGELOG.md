@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-05-29
+
+### Added
+
+- **MIDI CC Parameter Mapping.** Connects physical faders, dials, and sliders to automate global or engine-specific parameters with custom min/max bounds.
+- **Response Curves.** Provides Linear, Exponential, and Logarithmic curves for high-resolution tactile sweep control.
+- **Monophonic Pitch Keyboard Tracking.** Tracks incoming note-on MIDI keys monophonically using last-note-priority, preserving your starting pitch.
+- **Flexible Note-Off Release.** Configures notes to either Sustain the last struck key indefinitely (ambient style) or Return immediately back to the pre-MIDI manual UI slider value.
+- **Dynamic Strike Velocity.** Maps strike velocity dynamically to target properties (e.g., mallet strike force in Physical Modeling, brightness, or spatial balance).
+- **Master MIDI Sync Clock.** Streams high-precision 24 PPQN clock ticks and Start/Stop transport commands to physical output ports, synced automatically to session play/stop events.
+- **60Hz Throttled CC Streaming.** Outputs manual fader movements or drift-driven automated parameter sweeps, throttled to 60Hz to prevent MIDI congestion or driver locks.
+- **Interactive MIDI Dashboard.** Features a stunning glassmorphic interface at `/midi` with live "wiggler" input value wiggles, dynamic mapping table editors, import/export buttons for backup JSONs, and default maps for Push 2, Launch Control XL, Akai Mix, and nanoKONTROL2.
+- **Browser Compatibility Warnings.** Gracefully detects WKWebView (iOS) or Safari desktop environments and displays a beautiful fallback card prompting users to use Chrome/Firefox/Edge.
+
 ## [1.5.0] - 2026-05-29
 
 ### Added
