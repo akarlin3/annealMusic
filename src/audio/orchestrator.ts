@@ -98,6 +98,8 @@ export class Orchestrator {
   private driftState: DriftPartial[] = [];
   private driftTimer: ReturnType<typeof setInterval> | null = null;
   private running = false;
+  private tempoBpm: number | null = null;
+  private playStartAudioTime = 0;
 
   // Live input voice (mic / line-in), independent of the session lifecycle.
   private inputVoice: InputVoice | null = null;
@@ -138,6 +140,20 @@ export class Orchestrator {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  setTempoBpm(bpm: number | null): void {
+    this.tempoBpm = bpm;
+    if (this.ctx) {
+      (this.ctx as any)._tempoBpm = bpm;
+    }
+    midiOutput.setPieceTempo(bpm);
+    if (this.active?.engine && 'setTempo' in this.active.engine) {
+      (this.active.engine as any).setTempo(bpm);
+    }
+    if (this.outgoing?.engine && 'setTempo' in this.outgoing.engine) {
+      (this.outgoing.engine as any).setTempo(bpm);
+    }
   }
 
   /** Register a sink for engine errors (React wires this to a toast). */
@@ -404,9 +420,16 @@ export class Orchestrator {
     const { ctx, nodes } = this.ensureCore();
     const p = this.shared;
 
+    this.playStartAudioTime = ctx.currentTime;
+    (ctx as any)._tempoBpm = this.tempoBpm;
+    midiOutput.setPieceTempo(this.tempoBpm);
+
     // Build the first engine and fade its bus in over the long "bloom".
     const engine = this.makeEngineWithErrors(this.engineId);
     try {
+      if ('setTempo' in engine) {
+        (engine as any).setTempo(this.tempoBpm);
+      }
       engine.start(ctx, p, this.engineParams[this.engineId] ?? {});
     } catch (err) {
       // An engine that can't run on this device (e.g. physical with no
@@ -586,8 +609,24 @@ export class Orchestrator {
     if (partial.rootFreq !== undefined || partial.spread !== undefined) {
       // Forward to both engines so a mid-crossfade engine doesn't jump in pitch.
       const voiceUpdate = { rootFreq: p.rootFreq, spread: p.spread };
-      this.active?.engine.setSharedParams(voiceUpdate);
-      this.outgoing?.engine.setSharedParams(voiceUpdate);
+      
+      const gridLocked = this.tempoBpm !== null && this.tempoBpm > 0 && 
+        (this.engineParams[this.engineId]?.grid_lock === 1 || 
+         String(this.engineParams[this.engineId]?.grid_lock) === 'true');
+         
+      if (gridLocked) {
+        const elapsed = ctx.currentTime - this.playStartAudioTime;
+        const beatDuration = 60 / this.tempoBpm!;
+        let targetTime = this.playStartAudioTime + Math.ceil(elapsed / beatDuration) * beatDuration;
+        if (targetTime <= ctx.currentTime) {
+          targetTime += beatDuration;
+        }
+        this.active?.engine.setSharedParams(voiceUpdate, targetTime);
+        this.outgoing?.engine.setSharedParams(voiceUpdate, targetTime);
+      } else {
+        this.active?.engine.setSharedParams(voiceUpdate);
+        this.outgoing?.engine.setSharedParams(voiceUpdate);
+      }
     }
   }
 

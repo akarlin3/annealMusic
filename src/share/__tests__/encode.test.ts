@@ -450,3 +450,46 @@ describe('v8 schema and pieces', () => {
     }
   });
 });
+
+describe('v9 schema — piece tempo and grid_lock', () => {
+  it('round-trips piece tempoBpm correctly', () => {
+    const piece = {
+      title: 'Tempo Composition',
+      tempoBpm: 124,
+      defaultsState: {
+        params: DEFAULT_PARAMS,
+        engineId: 'sine' as const,
+        engineParams: {},
+        loops: makeDefaultLoopConfig(),
+      },
+      segments: [
+        { type: 'fixed' as const, durationMs: 2000, config: { tempoLocked: true } },
+      ],
+    };
+
+    const encoded = encodePiece(piece);
+    expect(encoded).toContain('kind=piece');
+    expect(encoded).toContain('tempo=124');
+    expect(encoded).toContain('seg0.tempoLocked=true');
+
+    const decoded = decodeState(9, encoded);
+    expect(decoded.kind).toBe('piece');
+    if (decoded.kind === 'piece') {
+      expect(decoded.piece.tempoBpm).toBe(124);
+      expect(decoded.piece.segments[0].config.tempoLocked).toBe(true);
+    }
+  });
+
+  it('round-trips grid_lock per engine in decodeState', () => {
+    const fm = { modRatio: 2.5, modIndex: 4, feedback: 0.3, grid_lock: 1 };
+    const payload = encodeState(DEFAULT_PARAMS, 'fm', fm);
+    expect(payload).toContain('fm.grid_lock=1');
+
+    const decoded = decodeState(9, payload);
+    expect(decoded.kind).toBe('patch');
+    if (decoded.kind === 'patch') {
+      expect(decoded.engineParams.fm?.grid_lock).toBe(1);
+    }
+  });
+});
+

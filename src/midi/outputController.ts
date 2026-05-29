@@ -135,12 +135,24 @@ class MidiOutputController {
     this.ccCache = {};
   }
 
+  private pieceTempoBpm: number | null = null;
+
+  setPieceTempo(bpm: number | null): void {
+    this.pieceTempoBpm = bpm;
+    const config = midiStorage.loadGlobalConfig();
+    if (this.isClockRunning && config.clockEnabled) {
+      const targetBpm = config.clockSyncToPieceTempo && bpm !== null ? bpm : config.clockBpm;
+      this.restartClock(targetBpm);
+    }
+  }
+
   // --- Clock Sync Methods ---
 
   syncClockState(): void {
     const config = midiStorage.loadGlobalConfig();
     if (config.clockEnabled && this.isClockRunning) {
-      this.restartClock(config.clockBpm);
+      const targetBpm = config.clockSyncToPieceTempo && this.pieceTempoBpm !== null ? this.pieceTempoBpm : config.clockBpm;
+      this.restartClock(targetBpm);
     } else if (config.clockEnabled && !this.isClockRunning) {
       // Don't auto-tick if synth is not running (aligned to session play state)
     } else {
@@ -155,7 +167,8 @@ class MidiOutputController {
     try {
       this.activePort.send(new Uint8Array([0xfa])); // MIDI Start
       this.isClockRunning = true;
-      this.restartClock(config.clockBpm);
+      const targetBpm = config.clockSyncToPieceTempo && this.pieceTempoBpm !== null ? this.pieceTempoBpm : config.clockBpm;
+      this.restartClock(targetBpm);
     } catch (e) {
       console.error('[MIDI Clock] Failed to send START', e);
     }
@@ -172,7 +185,7 @@ class MidiOutputController {
     }
   }
 
-  private restartClock(bpm: number) {
+  restartClock(bpm: number) {
     if (this.clockTimer) {
       clearInterval(this.clockTimer);
     }

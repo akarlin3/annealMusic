@@ -64,6 +64,7 @@ export class PiecePlayer {
     this.onEndedCallback = onEnded || null;
 
     this.lastTickTime = performance.now();
+    this.orchestrator.setTempoBpm(this.piece.tempoBpm);
     this.orchestrator.start();
 
     this.timer = setInterval(() => {
@@ -86,6 +87,14 @@ export class PiecePlayer {
     this.activeSegmentIdx = 0;
   }
 
+  private getSegmentDuration(seg: any): number {
+    const raw = seg.durationMs ?? 5000;
+    if (seg.config?.tempoLocked && this.piece.tempoBpm !== null && this.piece.tempoBpm > 0) {
+      return raw * 4 * (60 / this.piece.tempoBpm) * 1000;
+    }
+    return raw;
+  }
+
   private tick(): void {
     if (!this.isPlaying) return;
     const now = performance.now();
@@ -101,7 +110,7 @@ export class PiecePlayer {
     const isHoldOpen = currentSeg.type === 'open';
 
     if (!isHoldOpen) {
-      const duration = currentSeg.durationMs ?? 5000;
+      const duration = this.getSegmentDuration(currentSeg);
       this.playheadMs += dt;
       if (this.playheadMs >= duration) {
         this.playheadMs -= duration;
@@ -116,7 +125,7 @@ export class PiecePlayer {
     this.applyActiveState();
 
     if (this.onProgressCallback) {
-      const duration = currentSeg.durationMs || 1000;
+      const duration = this.getSegmentDuration(currentSeg) || 1000;
       const progress = isHoldOpen
         ? 1.0
         : Math.min(1.0, this.playheadMs / duration);
@@ -142,7 +151,7 @@ export class PiecePlayer {
           ? this.segmentResolvedStates[nextIdx]!
           : (this.piece.defaultsState as PieceState);
 
-      const duration = seg.durationMs ?? 5000;
+      const duration = this.getSegmentDuration(seg);
       const t = duration > 0 ? Math.min(1.0, this.playheadMs / duration) : 1.0;
       const easing = seg.config.easing || 'linear';
 

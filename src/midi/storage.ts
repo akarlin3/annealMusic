@@ -9,6 +9,7 @@ export interface GlobalMidiConfig {
   outputChannel: number; // 1..16, default 16
   clockEnabled: boolean;
   clockBpm: number;
+  clockSyncToPieceTempo: boolean; // <-- NEW
   ccOutputEnabled: boolean;
   notesEnabled: boolean; // note sets root
   notesReleaseBehavior: 'sustain' | 'return';
@@ -21,6 +22,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalMidiConfig = {
   outputChannel: 16,
   clockEnabled: false,
   clockBpm: 60,
+  clockSyncToPieceTempo: false, // <-- NEW
   ccOutputEnabled: false,
   notesEnabled: false,
   notesReleaseBehavior: 'sustain',
