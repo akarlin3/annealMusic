@@ -23,7 +23,7 @@ import {
   type LoopConfigMap,
   type SlotId,
 } from '@/loop/types';
-import type { NotationNote } from '@/piece/types';
+import type { NotationNote, SegmentType } from '@/piece/types';
 
 const SHARED_KEY_SET: ReadonlySet<string> = new Set(SHARED_KEYS);
 
@@ -62,7 +62,7 @@ export function encodeEngineParams(
           : String(value);
       return `${ns}.${def.key}=${serialized}`;
     });
-  if (params.grid_lock === 1 || String(params.grid_lock) === 'true' || (params.grid_lock as any) === true) {
+  if (params.grid_lock === 1 || String(params.grid_lock) === 'true' || (params.grid_lock as unknown) === true) {
     parts.push(`${ns}.grid_lock=1`);
   }
   return parts.join('&');
@@ -142,9 +142,9 @@ export function encodeState(
 }
 
 export interface DecodedPieceSegment {
-  type: 'fixed' | 'arc' | 'open' | 'transition';
+  type: 'fixed' | 'arc' | 'open' | 'transition' | 'meta-arc';
   durationMs: number | null;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 }
 
 export interface DecodedPiece {
@@ -433,7 +433,7 @@ export function decodePiecePayload(payload: string): DecodedPiece {
   const defPairs: string[] = [];
   const segMap: Record<
     number,
-    { type?: any; dur?: number | null; config: Record<string, any> }
+    { type?: SegmentType; dur?: number | null; config: Record<string, unknown> }
   > = {};
 
   for (const pair of payload.split('&')) {
@@ -476,12 +476,18 @@ export function decodePiecePayload(payload: string): DecodedPiece {
             segMap[idx] = { config: {} };
           }
           if (segKey === 'type') {
-            segMap[idx].type = raw as any;
+            segMap[idx].type = raw as SegmentType;
           } else if (segKey === 'dur') {
             segMap[idx].dur = raw === 'null' ? null : parseInt(raw, 10);
+          } else if (segKey === 'cfg') {
+            try {
+              segMap[idx].config = JSON.parse(decodeURIComponent(raw)) as Record<string, unknown>;
+            } catch (e) {
+              console.warn('Failed to parse meta-arc config JSON', e);
+            }
           } else {
             const num = Number(raw);
-            let parsedVal: any = isNaN(num) ? decodeURIComponent(raw) : num;
+            let parsedVal: unknown = isNaN(num) ? decodeURIComponent(raw) : num;
             if (parsedVal === 'true') parsedVal = true;
             if (parsedVal === 'false') parsedVal = false;
             segMap[idx].config[segKey] = parsedVal;
@@ -521,7 +527,7 @@ export function decodePiecePayload(payload: string): DecodedPiece {
   };
 }
 
-/** Encode a Piece into a version 9 URL payload string */
+/** Encode a Piece into a version 11 URL payload string */
 export function encodePiece(piece: {
   title?: string | null;
   description?: string | null;
@@ -533,9 +539,9 @@ export function encodePiece(piece: {
     loops?: LoopConfigMap;
   };
   segments: {
-    type: 'fixed' | 'arc' | 'open' | 'transition';
+    type: 'fixed' | 'arc' | 'open' | 'transition' | 'meta-arc';
     durationMs: number | null;
-    config: Record<string, any>;
+    config: Record<string, unknown>;
   }[];
   notation?: {
     onset_ms: number;
@@ -576,10 +582,14 @@ export function encodePiece(piece: {
     parts.push(
       `seg${idx}.dur=${seg.durationMs === null ? 'null' : seg.durationMs}`,
     );
-    for (const [k, v] of Object.entries(seg.config)) {
-      parts.push(
-        `seg${idx}.${k}=${typeof v === 'string' ? encodeURIComponent(v) : v}`,
-      );
+    if (seg.type === 'meta-arc') {
+      parts.push(`seg${idx}.cfg=${encodeURIComponent(JSON.stringify(seg.config))}`);
+    } else {
+      for (const [k, v] of Object.entries(seg.config)) {
+        parts.push(
+          `seg${idx}.${k}=${typeof v === 'string' ? encodeURIComponent(v) : v}`,
+        );
+      }
     }
   });
 

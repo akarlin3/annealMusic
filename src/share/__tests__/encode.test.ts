@@ -532,3 +532,55 @@ describe('v10 schema — piece notation track', () => {
   });
 });
 
+describe('v11 schema — piece meta-arc segments', () => {
+  it('round-trips piece meta-arc segments with nested configs correctly', () => {
+    const piece = {
+      title: 'Meta Arc Composition',
+      defaultsState: {
+        params: DEFAULT_PARAMS,
+        engineId: 'sine' as const,
+        engineParams: {},
+        loops: makeDefaultLoopConfig(),
+      },
+      segments: [
+        {
+          type: 'meta-arc' as const,
+          durationMs: 8000,
+          config: {
+            kind: 'random-walk',
+            seed: 42,
+            randomWalk: {
+              params: ['rootFreq', 'brightness'],
+              driftStrength: 0.15,
+              meanReversion: 0.1,
+              steps: 25,
+              bounds: {
+                rootFreq: { min: 0.5, max: 1.5 },
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    const encoded = encodePiece(piece);
+    expect(encoded).toContain('kind=piece');
+    expect(encoded).toContain('seg0.type=meta-arc');
+    expect(encoded).toContain('seg0.cfg=');
+
+    const decoded = decodeState(11, encoded);
+    expect(decoded.kind).toBe('piece');
+    if (decoded.kind === 'piece') {
+      expect(decoded.piece.segments).toHaveLength(1);
+      const seg = decoded.piece.segments[0];
+      expect(seg.type).toBe('meta-arc');
+      expect(seg.durationMs).toBe(8000);
+      expect(seg.config.kind).toBe('random-walk');
+      expect(seg.config.seed).toBe(42);
+      expect(seg.config.randomWalk.params).toEqual(['rootFreq', 'brightness']);
+      expect(seg.config.randomWalk.driftStrength).toBe(0.15);
+      expect(seg.config.randomWalk.bounds.rootFreq.min).toBe(0.5);
+    }
+  });
+});
+

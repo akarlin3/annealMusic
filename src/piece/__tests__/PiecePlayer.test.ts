@@ -116,7 +116,7 @@ describe('PiecePlayer timeline', () => {
 
     // Advance by 2.5 seconds (globalPlayheadMs = 2500), note-0 is active (C4 ~ 261.63 Hz)
     mockTime = 3500;
-    (player as any).tick();
+    (player as unknown as { tick: () => void }).tick();
 
     // At t = 2500ms, note-0 is active, frequency is overridden to C4 ~ 261.63
     expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
@@ -127,10 +127,75 @@ describe('PiecePlayer timeline', () => {
     // Advance by another 2 seconds (globalPlayheadMs = 4500), note-0 is released
     // Since segment does not override rootFreq, last notation pitch persists!
     mockTime = 5500;
-    (player as any).tick();
+    (player as unknown as { tick: () => void }).tick();
 
     expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
       expect.objectContaining({ rootFreq: expect.closeTo(261.63, 1) }),
+      false
+    );
+  });
+
+  it('modulates parameters during a meta-arc segment', () => {
+    const piece: Piece = {
+      schemaVer: 11,
+      tempoBpm: null,
+      title: 'Meta-Arc Test',
+      description: null,
+      visibility: 'unlisted',
+      totalDurationMs: 5000,
+      hasOpenSegment: false,
+      defaultsState: {
+        params: { ...DEFAULT_PARAMS, rootFreq: 150, brightness: 0.5 },
+        engineId: 'sine',
+        engineParams: {},
+      },
+      segments: [
+        {
+          position: 0,
+          type: 'meta-arc',
+          durationMs: 5000,
+          config: {
+            kind: 'random-walk',
+            seed: 12345,
+            randomWalk: {
+              params: ['rootFreq', 'brightness'],
+              driftStrength: 0.2,
+              meanReversion: 0.1,
+              steps: 10,
+              bounds: {
+                rootFreq: { min: 0.5, max: 2.0 },
+                brightness: { min: 0.1, max: 0.9 },
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    const mockOrch = {
+      start: vi.fn(),
+      setEngine: vi.fn(),
+      setSharedParams: vi.fn(),
+      setEngineParams: vi.fn(),
+      setTempoBpm: vi.fn(),
+    } as unknown as Orchestrator;
+
+    const player = new PiecePlayer(piece, mockOrch);
+    player.start(); // ticks at t=0
+
+    // Expect setSharedParams to be called at t=0
+    expect(mockOrch.setSharedParams).toHaveBeenCalled();
+
+    // Advance playhead and tick
+    vi.spyOn(performance, 'now').mockImplementation(() => 2000);
+    (player as unknown as { tick: () => void }).tick();
+
+    // Since it's a random-walk meta-arc, the value of rootFreq is modulated!
+    expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        rootFreq: expect.any(Number),
+        brightness: expect.any(Number),
+      }),
       false
     );
   });

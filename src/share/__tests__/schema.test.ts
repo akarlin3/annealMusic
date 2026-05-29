@@ -9,12 +9,12 @@ import {
 } from '@/share/schema';
 
 describe('schema', () => {
-  it('ships schema version 10', () => {
-    expect(SCHEMA_VERSION).toBe(10);
+  it('ships schema version 11', () => {
+    expect(SCHEMA_VERSION).toBe(11);
   });
 
-  it('still decodes legacy schema versions 1 through 9', () => {
-    expect(SUPPORTED_SCHEMA_VERSIONS).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  it('still decodes legacy schema versions 1 through 10', () => {
+    expect(SUPPORTED_SCHEMA_VERSIONS).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });
 
   it('excludes volume from shared keys', () => {

@@ -1,7 +1,7 @@
 import type { AnnealMusicParams } from '@/state/params';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
 
-export type SegmentType = 'fixed' | 'arc' | 'open' | 'transition';
+export type SegmentType = 'fixed' | 'arc' | 'open' | 'transition' | 'meta-arc';
 
 export interface PieceSegment {
   id?: string;

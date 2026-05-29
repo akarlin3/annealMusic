@@ -226,4 +226,70 @@ describe('StemRenderer', () => {
     expect(Object.keys(results)).toEqual(['master']);
     expect(results.master).toBeInstanceOf(ArrayBuffer);
   });
+
+  it('renders a Piece with meta-arc segments cleanly', async () => {
+    const piece = {
+      schemaVer: 11,
+      title: 'Meta-Arc Render',
+      description: null,
+      visibility: 'unlisted' as const,
+      totalDurationMs: 4000,
+      hasOpenSegment: false,
+      defaultsState: {
+        params: DEFAULT_PARAMS,
+        engineId: 'sine' as const,
+        engineParams: {},
+      },
+      segments: [
+        {
+          position: 0,
+          type: 'meta-arc' as const,
+          durationMs: 4000,
+          config: {
+            kind: 'random-walk',
+            seed: 42,
+            randomWalk: {
+              params: ['rootFreq', 'brightness'],
+              driftStrength: 0.15,
+              meanReversion: 0.1,
+              steps: 10,
+              bounds: {
+                rootFreq: { min: 0.5, max: 1.5 },
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    const config = {
+      params: DEFAULT_PARAMS,
+      engineId: 'sine' as const,
+      engineParams: {},
+      loopConfig: makeDefaultLoopConfig(),
+      loopBuffers: { A: null, B: null, C: null },
+      loopStates: { A: 'empty', B: 'empty', C: 'empty' },
+      mode: 'piece' as const,
+      piece,
+      durationSec: 4,
+      sampleRate: 48000,
+      bitDepth: 24 as const,
+      includeFx: true,
+      includePartials: false,
+      seed: 123,
+      patchTitle: 'Test Meta-Arc Piece',
+      patchHash: 'hpiece-meta',
+    } as any;
+
+    const cancelSignal = { aborted: false };
+    const results = await renderStemsOffline(
+      config,
+      () => {},
+      cancelSignal,
+      mockOfflineContext,
+    );
+
+    expect(Object.keys(results)).toEqual(['master']);
+    expect(results.master).toBeInstanceOf(ArrayBuffer);
+  });
 });

@@ -3,11 +3,7 @@ import { makeIR } from '@/audio/ir';
 import { cutoffFor } from '@/audio/orchestrator';
 import { ENGINES, engineCapabilities } from '@/audio/engines/index';
 import type { EngineFactory } from '@/audio/engines/index';
-import type {
-  EngineId,
-  EngineParams,
-  SharedParams,
-} from '@/audio/engines/types';
+import type { EngineId, EngineParams, SharedParams } from '@/audio/engines/types';
 import { driftStep } from '@/audio/drift';
 import { ArcRunner } from '@/session/ArcRunner';
 import { getArcById } from '@/session/arcs';
@@ -20,6 +16,7 @@ import { getActiveStems } from './StemTaps';
 import { encodeWav } from './WavEncoder';
 import type { Piece } from '@/piece/types';
 import { interpolateState } from '@/piece/transitions';
+import { generateMetaArc } from '@/piece/generators';
 
 const DRIFT_DT = 0.05;
 const DRIFT_INTERVAL_SEC = 0.05;
@@ -55,14 +52,9 @@ export interface RenderProgressEvent {
   totalStems: number;
 }
 
-export type OfflineContextFactory = (
-  channels: number,
-  frames: number,
-  sampleRate: number,
-) => OfflineAudioContext;
+export type OfflineContextFactory = (channels: number, frames: number, sampleRate: number) => OfflineAudioContext;
 
-const defaultOfflineFactory: OfflineContextFactory = (ch, frames, sr) =>
-  new OfflineAudioContext(ch, frames, sr);
+const defaultOfflineFactory: OfflineContextFactory = (ch, frames, sr) => new OfflineAudioContext(ch, frames, sr);
 
 export function isOfflineRenderSupported(): boolean {
   return typeof OfflineAudioContext !== 'undefined';
@@ -84,59 +76,120 @@ export function resolvePieceStateAtTime(piece: Piece, tSec: number): any {
   let elapsed = 0;
 
   const defaults = piece.defaultsState;
-  const resolvedStates = piece.segments.map((seg) => {
-    if (seg.type === 'fixed' || seg.type === 'open') {
-      const params = { ...defaults.params, ...seg.config.params };
-      const engineId = seg.config.engineId || defaults.engineId;
-      const engineParams = { ...defaults.engineParams } as any;
-      if (seg.config.engineParams) {
-        engineParams[engineId] = {
-          ...engineParams[engineId],
-          ...seg.config.engineParams[engineId],
-        };
-      }
-      return { params, engineId, engineParams };
-    } else {
-      return {
-        params: { ...defaults.params },
-        engineId: defaults.engineId,
-        engineParams: { ...defaults.engineParams },
-      };
-    }
-  });
+  const currentParams = { ...defaults.params };
 
   for (let idx = 0; idx < piece.segments.length; idx++) {
     const seg = piece.segments[idx]!;
-    const duration = seg.durationMs ?? 5000;
-    if (
-      seg.type === 'open' ||
-      tMs < elapsed + duration ||
-      idx === piece.segments.length - 1
-    ) {
-      if (seg.type === 'transition') {
-        const prevIdx = idx - 1;
+
+    let duration = seg.durationMs ?? 5000;
+    if (seg.config?.tempoLocked && piece.tempoBpm !== null && piece.tempoBpm > 0) {
+      duration = duration * 4 * (60 / piece.tempoBpm) * 1000;
+    }
+
+    const startMs = elapsed;
+    const endMs = elapsed + duration;
+
+    // Check if the target time falls within this segment (or it's the last one)
+    if (seg.type === 'open' || tMs < endMs || idx === piece.segments.length - 1) {
+      if (seg.type === 'fixed' || seg.type === 'open') {
+        const params = { ...currentParams, ...seg.config.params };
+        const engineId = seg.config.engineId || defaults.engineId;
+        const engineParams = { ...defaults.engineParams } as any;
+        if (seg.config.engineParams) {
+          engineParams[engineId] = {
+            ...engineParams[engineId],
+            ...seg.config.engineParams[engineId],
+          };
+        }
+        return { params, engineId, engineParams };
+      } else if (seg.type === 'arc' || seg.type === 'meta-arc') {
+        const arcDef = seg.config.generatedArc || getArcById(seg.config.arcId || 'bell');
+        if (arcDef) {
+          const localSec = Math.max(0, (tMs - startMs) / 1000);
+          const durationSec = duration / 1000;
+          const runner = new ArcRunner(
+            arcDef,
+            durationSec,
+            currentParams as any,
+            engineCapabilities(defaults.engineId),
+          );
+          const frame = runner.tick(localSec);
+          return {
+            params: { ...defaults.params, ...frame.params },
+            engineId: defaults.engineId,
+            engineParams: defaults.engineParams,
+          };
+        }
+        return {
+          params: { ...defaults.params, ...currentParams },
+          engineId: defaults.engineId,
+          engineParams: defaults.engineParams,
+        };
+      } else if (seg.type === 'transition') {
         const nextIdx = idx + 1;
-        const prevState =
-          prevIdx >= 0 ? resolvedStates[prevIdx]! : (defaults as any);
-        const nextState =
-          nextIdx < piece.segments.length
-            ? resolvedStates[nextIdx]!
-            : (defaults as any);
-        const progress = duration > 0 ? (tMs - elapsed) / duration : 1.0;
-        return interpolateState(
-          prevState,
-          nextState,
-          Math.min(1.0, progress),
-          seg.config.easing || 'linear',
-        );
-      } else {
-        return resolvedStates[idx]!;
+
+        // End state of previous segment is currentParams
+        const prevState = {
+          params: { ...currentParams },
+          engineId: defaults.engineId,
+          engineParams: { ...defaults.engineParams },
+        };
+
+        let nextState: any;
+        if (nextIdx < piece.segments.length) {
+          const nextSeg = piece.segments[nextIdx]!;
+          if (nextSeg.type === 'fixed' || nextSeg.type === 'open') {
+            nextState = {
+              params: { ...defaults.params, ...nextSeg.config.params },
+              engineId: nextSeg.config.engineId || defaults.engineId,
+              engineParams: { ...defaults.engineParams },
+            };
+          } else {
+            nextState = {
+              params: { ...defaults.params },
+              engineId: defaults.engineId,
+              engineParams: { ...defaults.engineParams },
+            };
+          }
+        } else {
+          nextState = {
+            params: { ...defaults.params },
+            engineId: defaults.engineId,
+            engineParams: { ...defaults.engineParams },
+          };
+        }
+
+        const progress = duration > 0 ? (tMs - startMs) / duration : 1.0;
+        return interpolateState(prevState, nextState, Math.min(1.0, progress), seg.config.easing || 'linear');
       }
     }
+
+    // Advance currentParams to end of segment
+    if (seg.type === 'fixed' || seg.type === 'open') {
+      Object.assign(currentParams, seg.config.params);
+    } else if (seg.type === 'arc' || seg.type === 'meta-arc') {
+      const arcDef = seg.config.generatedArc || getArcById(seg.config.arcId || 'bell');
+      if (arcDef) {
+        const durationSec = duration / 1000;
+        const runner = new ArcRunner(
+          arcDef,
+          durationSec,
+          currentParams as any,
+          engineCapabilities(defaults.engineId),
+        );
+        const frame = runner.tick(durationSec);
+        Object.assign(currentParams, frame.params);
+      }
+    }
+
     elapsed += duration;
   }
 
-  return resolvedStates[resolvedStates.length - 1]!;
+  return {
+    params: { ...defaults.params, ...currentParams },
+    engineId: defaults.engineId,
+    engineParams: defaults.engineParams,
+  };
 }
 
 /**
@@ -157,9 +210,7 @@ export async function renderStemsOffline(
       const make = engineFactories[config.engineId];
       if (!make) return 0;
       const eng = make();
-      return eng.capabilities.densityLockedWhilePlaying
-        ? config.params.density
-        : config.params.density;
+      return eng.capabilities.densityLockedWhilePlaying ? config.params.density : config.params.density;
     },
     getInputVoice: () => null, // Offline renders do not capture live input
     getLoopSlot: (id: SlotId) => {
@@ -177,6 +228,29 @@ export async function renderStemsOffline(
   }
 
   const totalStems = stems.length;
+
+  // Pre-resolve all meta-arc segments inside config.piece so resolvePieceStateAtTime remains completely stateless
+  let renderedPiece = config.piece;
+  if (renderedPiece && config.mode === 'piece') {
+    renderedPiece = {
+      ...renderedPiece,
+      segments: renderedPiece.segments.map((seg, idx) => {
+        if (seg.type === 'meta-arc') {
+          const seed = seg.config.seed ?? config.seed + idx;
+          const generatedArc = generateMetaArc(seg.config.kind || 'random-walk', seg.config, seed);
+          return {
+            ...seg,
+            type: 'arc',
+            config: {
+              ...seg.config,
+              generatedArc,
+            },
+          };
+        }
+        return seg;
+      }),
+    };
+  }
 
   for (let sIdx = 0; sIdx < totalStems; sIdx++) {
     if (cancelSignal.aborted) {
@@ -236,10 +310,7 @@ export async function renderStemsOffline(
       stemOutputNode = filter;
 
       // End fade-out on masterVol so tail doesn't clip
-      masterVol.gain.setValueAtTime(
-        config.params.volume,
-        Math.max(0, config.durationSec - FADE_OUT_SEC),
-      );
+      masterVol.gain.setValueAtTime(config.params.volume, Math.max(0, config.durationSec - FADE_OUT_SEC));
       masterVol.gain.linearRampToValueAtTime(0, config.durationSec);
 
       // Connect sources based on stem target
@@ -261,9 +332,7 @@ export async function renderStemsOffline(
       if (stem.type === 'master' || stem.type === 'loop') {
         // Build active loop players and route to filter
         const slotsToRender =
-          stem.type === 'master'
-            ? (Object.keys(config.loopBuffers) as SlotId[])
-            : [stem.slotId!];
+          stem.type === 'master' ? (Object.keys(config.loopBuffers) as SlotId[]) : [stem.slotId!];
 
         for (const slotId of slotsToRender) {
           const buffer = config.loopBuffers[slotId];
@@ -346,12 +415,7 @@ export async function renderStemsOffline(
     if (config.mode === 'arc' && config.arcId) {
       const def = getArcById(config.arcId);
       if (def) {
-        arc = new ArcRunner(
-          def,
-          config.durationSec,
-          config.params,
-          engineCapabilities(config.engineId),
-        );
+        arc = new ArcRunner(def, config.durationSec, config.params, engineCapabilities(config.engineId));
       }
     }
     const live: SharedParams = { ...config.params };
@@ -361,12 +425,7 @@ export async function renderStemsOffline(
       ctx.suspend(t).then(() => {
         // 1. Advance engine detune walk deterministically
         if (activeEngine && drift.length > 0) {
-          const next = driftStep(
-            drift,
-            { drift: live.drift, coupling: live.coupling },
-            DRIFT_DT,
-            rng,
-          );
+          const next = driftStep(drift, { drift: live.drift, coupling: live.coupling }, DRIFT_DT, rng);
           drift.forEach((p, i) => {
             const d = next[i];
             if (d === undefined) return;
@@ -386,8 +445,8 @@ export async function renderStemsOffline(
               filter.frequency.setValueAtTime(cutoffFor(live.brightness), t);
             }
           }
-        } else if (config.mode === 'piece' && config.piece) {
-          const resolved = resolvePieceStateAtTime(config.piece, t);
+        } else if (config.mode === 'piece' && renderedPiece) {
+          const resolved = resolvePieceStateAtTime(renderedPiece, t);
           Object.assign(live, resolved.params);
           activeEngine?.setSharedParams(resolved.params);
           if (stem.isFx && stemOutputNode) {

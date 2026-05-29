@@ -1,6 +1,12 @@
-import type { Piece } from '@/piece/types';
+import type { Piece, PieceSegment } from '@/piece/types';
 import type { Orchestrator } from '@/audio/orchestrator';
 import { interpolateState, type PieceState } from '@/piece/transitions';
+import { ArcRunner } from '@/session/ArcRunner';
+import { getArcById } from '@/session/arcs';
+import { engineCapabilities } from '@/audio/engines/index';
+import { generateMetaArc } from '@/piece/generators';
+import { doc, sessionConfigMap } from '@/jam/crdt';
+import { getAnonId } from '@/api/anon';
 
 export class PiecePlayer {
   private piece: Piece;
@@ -16,9 +22,9 @@ export class PiecePlayer {
   private lastNotationPitchHz: number | null = null;
   private smoothPitch = true;
 
-  private onProgressCallback:
-    | ((progress: number, segmentIdx: number) => void)
-    | null = null;
+  private activeArcRunner: ArcRunner | null = null;
+
+  private onProgressCallback: ((progress: number, segmentIdx: number) => void) | null = null;
   private onEndedCallback: (() => void) | null = null;
 
   constructor(piece: Piece, orchestrator: Orchestrator) {
@@ -33,7 +39,7 @@ export class PiecePlayer {
       if (seg.type === 'fixed' || seg.type === 'open') {
         const params = { ...defaults.params, ...seg.config.params };
         const engineId = seg.config.engineId || defaults.engineId;
-        const engineParams = { ...defaults.engineParams } as any;
+        const engineParams = { ...defaults.engineParams } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
         if (seg.config.engineParams) {
           engineParams[engineId] = {
             ...engineParams[engineId],
@@ -41,7 +47,7 @@ export class PiecePlayer {
           };
         }
         return { params, engineId, engineParams };
-      } else if (seg.type === 'arc') {
+      } else if (seg.type === 'arc' || seg.type === 'meta-arc') {
         const params = { ...defaults.params };
         const engineId = defaults.engineId;
         const engineParams = { ...defaults.engineParams };
@@ -56,10 +62,7 @@ export class PiecePlayer {
     });
   }
 
-  start(
-    onProgress?: (progress: number, segmentIdx: number) => void,
-    onEnded?: () => void,
-  ): void {
+  start(onProgress?: (progress: number, segmentIdx: number) => void, onEnded?: () => void): void {
     if (this.isPlaying) return;
     this.isPlaying = true;
     this.onProgressCallback = onProgress || null;
@@ -88,6 +91,7 @@ export class PiecePlayer {
     this.playheadMs = 0;
     this.activeSegmentIdx = 0;
     this.lastNotationPitchHz = null;
+    this.activeArcRunner = null;
   }
 
   setSmoothPitch(smooth: boolean): void {
@@ -98,7 +102,7 @@ export class PiecePlayer {
     return this.smoothPitch;
   }
 
-  private getSegmentDuration(seg: any): number {
+  private getSegmentDuration(seg: PieceSegment): number {
     const raw = seg.durationMs ?? 5000;
     if (seg.config?.tempoLocked && this.piece.tempoBpm !== null && this.piece.tempoBpm > 0) {
       return raw * 4 * (60 / this.piece.tempoBpm) * 1000;
@@ -126,6 +130,7 @@ export class PiecePlayer {
       if (this.playheadMs >= duration) {
         this.playheadMs -= duration;
         this.activeSegmentIdx++;
+        this.activeArcRunner = null;
         if (this.activeSegmentIdx >= this.piece.segments.length) {
           this.endPiece();
           return;
@@ -137,9 +142,7 @@ export class PiecePlayer {
 
     if (this.onProgressCallback) {
       const duration = this.getSegmentDuration(currentSeg) || 1000;
-      const progress = isHoldOpen
-        ? 1.0
-        : Math.min(1.0, this.playheadMs / duration);
+      const progress = isHoldOpen ? 1.0 : Math.min(1.0, this.playheadMs / duration);
       this.onProgressCallback(progress, this.activeSegmentIdx);
     }
   }
@@ -154,9 +157,7 @@ export class PiecePlayer {
       const prevIdx = this.activeSegmentIdx - 1;
       const nextIdx = this.activeSegmentIdx + 1;
       const prevState =
-        prevIdx >= 0
-          ? this.segmentResolvedStates[prevIdx]!
-          : (this.piece.defaultsState as PieceState);
+        prevIdx >= 0 ? this.segmentResolvedStates[prevIdx]! : (this.piece.defaultsState as PieceState);
       const nextState =
         nextIdx < this.piece.segments.length
           ? this.segmentResolvedStates[nextIdx]!
@@ -167,6 +168,68 @@ export class PiecePlayer {
       const easing = seg.config.easing || 'linear';
 
       targetState = interpolateState(prevState, nextState, t, easing);
+    } else if (seg.type === 'arc' || seg.type === 'meta-arc') {
+      if (!this.activeArcRunner) {
+        const durationSec = this.getSegmentDuration(seg) / 1000;
+        const defaults = this.piece.defaultsState;
+        const startParams = { ...defaults.params };
+
+        if (seg.type === 'arc') {
+          const def = getArcById(seg.config.arcId || 'bell');
+          if (def) {
+            this.activeArcRunner = new ArcRunner(
+              def,
+              durationSec,
+              startParams as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+              engineCapabilities(defaults.engineId),
+            );
+          }
+        } else {
+          // Resolve meta-arc seed
+          let seed = seg.config.seed;
+          if (seed === null || seed === undefined) {
+            const inJam = sessionConfigMap.size > 0;
+            if (inJam) {
+              const hostId = doc.getMap('metadata').get('hostId') as string | undefined;
+              const isLeader = hostId === getAnonId() || !hostId;
+
+              if (isLeader) {
+                const rolledSeed = Math.floor(Math.random() * 1000000);
+                sessionConfigMap.set(`meta_arc_seed_${this.activeSegmentIdx}`, rolledSeed);
+                seed = rolledSeed;
+              } else {
+                const remoteSeed = sessionConfigMap.get(`meta_arc_seed_${this.activeSegmentIdx}`) as number | undefined;
+                if (remoteSeed !== undefined && remoteSeed !== null) {
+                  seed = remoteSeed;
+                } else {
+                  seed = Math.floor(Math.random() * 1000000);
+                }
+              }
+            } else {
+              seed = Math.floor(Math.random() * 1000000);
+            }
+          }
+
+          const generatedArc = generateMetaArc(seg.config.kind || 'random-walk', seg.config, seed);
+          this.activeArcRunner = new ArcRunner(
+            generatedArc,
+            durationSec,
+            startParams as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+            engineCapabilities(defaults.engineId),
+          );
+        }
+      }
+
+      if (this.activeArcRunner) {
+        const frame = this.activeArcRunner.tick(this.playheadMs / 1000);
+        targetState = {
+          params: { ...this.piece.defaultsState.params, ...frame.params },
+          engineId: this.piece.defaultsState.engineId,
+          engineParams: this.piece.defaultsState.engineParams,
+        };
+      } else {
+        targetState = this.segmentResolvedStates[this.activeSegmentIdx]!;
+      }
     } else {
       targetState = this.segmentResolvedStates[this.activeSegmentIdx]!;
     }
@@ -174,14 +237,12 @@ export class PiecePlayer {
     // Notation Overlay Override Logic
     let playheadGlobalMs = 0;
     for (let i = 0; i < this.activeSegmentIdx; i++) {
-      playheadGlobalMs += this.getSegmentDuration(this.piece.segments[i]);
+      playheadGlobalMs += this.getSegmentDuration(this.piece.segments[i]!);
     }
     playheadGlobalMs += this.playheadMs;
 
     const activeNote = this.piece.notation?.find(
-      (note) =>
-        playheadGlobalMs >= note.onset_ms &&
-        playheadGlobalMs < note.onset_ms + note.duration_ms
+      (note) => playheadGlobalMs >= note.onset_ms && playheadGlobalMs < note.onset_ms + note.duration_ms,
     );
 
     let targetRootFreq = targetState.params.rootFreq;
@@ -193,9 +254,10 @@ export class PiecePlayer {
       this.lastNotationPitchHz = freq;
       isFromNotation = true;
     } else {
-      const hasSegmentRootOverride = 
-        seg.type === 'transition' || 
-        seg.type === 'arc' || 
+      const hasSegmentRootOverride =
+        seg.type === 'transition' ||
+        seg.type === 'arc' ||
+        seg.type === 'meta-arc' ||
         (seg.type === 'fixed' && seg.config?.params?.rootFreq !== undefined);
 
       if (hasSegmentRootOverride) {
@@ -206,14 +268,11 @@ export class PiecePlayer {
     }
 
     this.orchestrator.setEngine(targetState.engineId);
-    
+
     // Set smooth/instant pitch change parameter
     const isInstantChange = !this.smoothPitch && isFromNotation;
-    
-    this.orchestrator.setSharedParams(
-      { ...targetState.params, rootFreq: targetRootFreq },
-      isInstantChange
-    );
+
+    this.orchestrator.setSharedParams({ ...targetState.params, rootFreq: targetRootFreq }, isInstantChange);
 
     const ep = targetState.engineParams[targetState.engineId];
     if (ep) {
@@ -227,6 +286,7 @@ export class PiecePlayer {
 
     this.playheadMs = 0;
     this.activeSegmentIdx++;
+    this.activeArcRunner = null;
     if (this.activeSegmentIdx >= this.piece.segments.length) {
       this.endPiece();
     } else {

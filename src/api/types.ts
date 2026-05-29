@@ -291,7 +291,7 @@ export interface SaveSharedPatchBody {
 export interface APIPieceSegment {
   id?: string;
   position: number;
-  type: 'fixed' | 'arc' | 'open' | 'transition';
+  type: 'fixed' | 'arc' | 'open' | 'transition' | 'meta-arc';
   duration_ms: number | null;
   config: Record<string, any>;
 }
