@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { clearAnonId, getAnonId, setAnonId } from '@/api/anon';
+import { clearAnonId, getAnonId, setAnonId, initAnonId } from '@/api/anon';
 
 const UUID = '11111111-2222-4333-8444-555555555555';
 
@@ -23,9 +23,10 @@ describe('anon id', () => {
     expect(getAnonId()).toBeNull();
   });
 
-  it('recovers from a cookie when localStorage is cleared', () => {
+  it('recovers from a cookie when localStorage is cleared', async () => {
     document.cookie = `am_anon=${UUID}; path=/`;
     expect(localStorage.getItem('am_anon_id')).toBeNull();
+    await initAnonId();
     expect(getAnonId()).toBe(UUID);
     // Recovery rehydrates localStorage.
     expect(localStorage.getItem('am_anon_id')).toBe(UUID);

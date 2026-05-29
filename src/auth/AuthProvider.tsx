@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api, getErrorMessage } from '@/api/client';
-import { getAnonId } from '@/api/anon';
+import { getAnonId, initAnonId } from '@/api/anon';
 import type { Account } from '@/api/types';
 
 interface AuthContextType {
@@ -34,6 +34,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
 
   const refreshSession = async () => {
+    // Hydrate anonymous ID from platform storage before checking session
+    try {
+      await initAnonId();
+    } catch (e) {
+      console.error('Failed to initialize anonymous ID:', e);
+    }
+
     if (!api.isBackendConfigured()) {
       setLoading(false);
       return;
