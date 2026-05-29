@@ -9,6 +9,7 @@ import type { EngineId } from '@/audio/engines/types';
  * links) so the two can never drift in how they hydrate the store.
  */
 export function applyDecodedToStore(decoded: DecodedState): void {
+  if (decoded.kind !== 'patch') return;
   const store = useParamStore.getState();
 
   if (Object.keys(decoded.params).length > 0) store.setMany(decoded.params);

@@ -62,6 +62,7 @@ We support both manual local compiles and fully automated CD pipelines on Git Ta
    npx cap sync android
    ```
 3. **Build APK**:
+
    ```bash
    cd android
    ./gradlew assembleDebug

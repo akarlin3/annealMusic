@@ -190,7 +190,7 @@ export default function App() {
     const hasFragment = window.location.hash.startsWith('#s=');
     const hydrated = readStateFromHash();
 
-    if (hydrated) {
+    if (hydrated && hydrated.kind === 'patch') {
       const sharedCount = Object.keys(hydrated.params).length;
       const engineEntries = Object.entries(hydrated.engineParams);
 
@@ -325,6 +325,17 @@ export default function App() {
                 Gallery
               </Link>
               <InfoTip id="feature.gallery" label="Gallery" />
+            </span>
+
+            <span className="flex items-center gap-1.5">
+              <Link
+                to="/piece"
+                className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
+                style={{ color: '#a8a29e' }}
+              >
+                Timeline
+              </Link>
+              <InfoTip id="feature.timeline" label="Timeline" />
             </span>
 
             {backendOn && (

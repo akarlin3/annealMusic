@@ -2,13 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS, type AnnealMusicParams } from '@/state/params';
 import {
   decodeParams,
-  decodeState,
+  decodeState as decodeStateRaw,
   encodeLoops,
   encodeParams,
   encodeState,
+  encodePiece,
 } from '@/share/encode';
 import { KEY_BOUNDS, SHARED_KEYS } from '@/share/schema';
 import { makeDefaultLoopConfig } from '@/loop/types';
+
+function decodeState(version: number, payload: string): any {
+  return decodeStateRaw(version, payload);
+}
 
 /** Deterministic PRNG (mulberry32) so any failure reproduces. */
 function makeRng(seed: number): () => number {
@@ -155,13 +160,15 @@ describe('encodeState / decodeState (schema v3)', () => {
     const decoded = decodeState(3, 'm=arc&arc=spiral&dur=600&e=sine');
     expect(decoded.mode).toBe('open');
     expect(decoded.arcId).toBeUndefined();
-    expect(decoded.warnings.some((w) => w.includes('unknown arc'))).toBe(true);
+    expect(decoded.warnings.some((w: any) => w.includes('unknown arc'))).toBe(
+      true,
+    );
   });
 
   it('clamps an out-of-bounds duration and warns', () => {
     const tooLong = decodeState(3, 'm=arc&arc=bell&dur=99999&e=sine');
     expect(tooLong.durationSec).toBe(3600); // max
-    expect(tooLong.warnings.some((w) => w.includes('dur'))).toBe(true);
+    expect(tooLong.warnings.some((w: any) => w.includes('dur'))).toBe(true);
 
     const tooShort = decodeState(3, 'm=arc&arc=bell&dur=1&e=sine');
     expect(tooShort.durationSec).toBe(180); // min
@@ -172,7 +179,9 @@ describe('encodeState / decodeState (schema v3)', () => {
     expect(v2.mode).toBe('open');
     expect(v2.engineId).toBe('fm');
     expect(v2.params.coupling).toBe(0.5);
-    expect(v2.warnings.some((w) => w.includes('mode key ignored'))).toBe(true);
+    expect(v2.warnings.some((w: any) => w.includes('mode key ignored'))).toBe(
+      true,
+    );
   });
 
   it('writes the mode + engine selector first and omits params for engines with none', () => {
@@ -192,7 +201,7 @@ describe('encodeState / decodeState (schema v3)', () => {
     const decoded = decodeState(2, 'e=banana&coupling=0.5');
     expect(decoded.engineId).toBe('sine');
     expect(decoded.params.coupling).toBe(0.5);
-    expect(decoded.warnings.some((w) => w.includes('banana'))).toBe(true);
+    expect(decoded.warnings.some((w: any) => w.includes('banana'))).toBe(true);
   });
 
   it('treats a v1 payload as the sine engine and ignores engine keys', () => {
@@ -243,7 +252,9 @@ describe('granular engine + schema v5', () => {
     const decoded = decodeState(5, 'e=granular&gr.source=99');
     expect(decoded.engineId).toBe('granular');
     expect(decoded.engineParams.granular?.source).toBe(7);
-    expect(decoded.warnings.some((w) => w.includes('gr.source'))).toBe(true);
+    expect(decoded.warnings.some((w: any) => w.includes('gr.source'))).toBe(
+      true,
+    );
   });
 
   it('ignores gr.* params on a pre-v5 schema (back-compat is forward-safe)', () => {
@@ -294,7 +305,9 @@ describe('physical engine + schema v6', () => {
     // Schema v7 widened ph.model to 0..7 (the five new sub-models); 9 clamps to 7.
     const decoded = decodeState(7, 'e=physical&ph.model=9');
     expect(decoded.engineParams.physical?.model).toBe(7);
-    expect(decoded.warnings.some((w) => w.includes('ph.model'))).toBe(true);
+    expect(decoded.warnings.some((w: any) => w.includes('ph.model'))).toBe(
+      true,
+    );
   });
 
   it('round-trips a new sub-model id (bell = 7)', () => {
@@ -355,20 +368,85 @@ describe('loop config (schema v4)', () => {
     const decoded = decodeState(4, 'LA.f=1&LA.gd=999');
     expect(decoded.loops.A.frozen).toBe(true);
     expect(decoded.loops.A.grain.density).toBe(40); // clamped to max
-    expect(decoded.warnings.some((w) => w.includes('LA.gd'))).toBe(true);
+    expect(decoded.warnings.some((w: any) => w.includes('LA.gd'))).toBe(true);
   });
 
   it('ignores loop keys for pre-v4 schemas (back-compat)', () => {
     const decoded = decodeState(3, 'LA.f=1&coupling=0.5');
     expect(decoded.loops.A.frozen).toBe(false);
     expect(decoded.params.coupling).toBe(0.5);
-    expect(decoded.warnings.some((w) => w.includes('loop key ignored'))).toBe(
-      true,
-    );
+    expect(
+      decoded.warnings.some((w: any) => w.includes('loop key ignored')),
+    ).toBe(true);
   });
 
   it('defaults all slots to empty when no loop keys are present', () => {
     const decoded = decodeState(4, 'coupling=0.5');
     expect(decoded.loops).toEqual(makeDefaultLoopConfig());
+  });
+});
+
+describe('v8 schema and pieces', () => {
+  it('decodes pre-v8 schemas as patches', () => {
+    const decoded = decodeState(7, 'coupling=0.5&e=sine');
+    expect(decoded.kind).toBe('patch');
+    if (decoded.kind === 'patch') {
+      expect(decoded.params.coupling).toBe(0.5);
+      expect(decoded.engineId).toBe('sine');
+    }
+  });
+
+  it('decodes v8 kind=patch with backward-compat', () => {
+    const decoded = decodeState(8, 'kind=patch&coupling=0.5&e=sine');
+    expect(decoded.kind).toBe('patch');
+    if (decoded.kind === 'patch') {
+      expect(decoded.params.coupling).toBe(0.5);
+      expect(decoded.engineId).toBe('sine');
+    }
+  });
+
+  it('encodes and decodes a piece correctly', () => {
+    const piece = {
+      title: 'Vibrations',
+      description: 'Generative piece',
+      defaultsState: {
+        params: DEFAULT_PARAMS,
+        engineId: 'sine' as const,
+        engineParams: {},
+        loops: makeDefaultLoopConfig(),
+      },
+      segments: [
+        { type: 'fixed' as const, durationMs: 4000, config: { rootFreq: 150 } },
+        {
+          type: 'transition' as const,
+          durationMs: 3000,
+          config: { easing: 'linear' },
+        },
+        { type: 'open' as const, durationMs: null, config: {} },
+      ],
+    };
+
+    const encoded = encodePiece(piece);
+    expect(encoded).toContain('kind=piece');
+    expect(encoded).toContain('title=Vibrations');
+    expect(encoded).toContain('seg0.type=fixed');
+    expect(encoded).toContain('seg1.dur=3000');
+    expect(encoded).toContain('seg2.dur=null');
+
+    const decoded = decodeState(8, encoded);
+    expect(decoded.kind).toBe('piece');
+    if (decoded.kind === 'piece') {
+      expect(decoded.piece.title).toBe('Vibrations');
+      expect(decoded.piece.description).toBe('Generative piece');
+      expect(decoded.piece.segments).toHaveLength(3);
+      expect(decoded.piece.segments[0].type).toBe('fixed');
+      expect(decoded.piece.segments[0].durationMs).toBe(4000);
+      expect(decoded.piece.segments[0].config.rootFreq).toBe(150);
+      expect(decoded.piece.segments[1].type).toBe('transition');
+      expect(decoded.piece.segments[1].durationMs).toBe(3000);
+      expect(decoded.piece.segments[1].config.easing).toBe('linear');
+      expect(decoded.piece.segments[2].type).toBe('open');
+      expect(decoded.piece.segments[2].durationMs).toBeNull();
+    }
   });
 });

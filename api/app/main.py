@@ -30,7 +30,9 @@ from app.routers import (
     ai,
     jam,
     social,
+    pieces,
 )
+
 
 from app.sentry import init_sentry
 from app.storage import make_storage
@@ -98,6 +100,8 @@ def create_app() -> FastAPI:
     app.include_router(ai.router)
     app.include_router(jam.router)
     app.include_router(social.router)
+    app.include_router(pieces.router)
+
 
     return app
 

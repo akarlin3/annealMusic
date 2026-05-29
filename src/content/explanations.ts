@@ -90,6 +90,7 @@ export const FEATURE_IDS = [
   // Gallery & sharing
   'feature.gallery',
   'feature.share',
+  'feature.timeline',
   // Presets
   'presets',
 ] as const;
@@ -548,6 +549,15 @@ const ENTRIES: Explain[] = [
     tooltip:
       'A page of soundscapes people have shared. Preview any one, then load it in to keep tweaking.',
     help: 'A browsable collection of soundscapes people have chosen to share. Preview any of them, then load one into the app with a click and keep shaping it yourself. Search and sort to find something that fits your mood.',
+  },
+  {
+    id: 'feature.timeline',
+    label: 'Timeline',
+    group: 'gallery',
+    caption: 'Create multi-segment horizontal piece compositions.',
+    tooltip:
+      'A page where you can arrange fixed parameters, transitions, and loops on a timeline.',
+    help: 'An arrangement editor to structure a piece using segments. Chain together fixed sound segments and transitions to compose longer structural narratives.',
   },
   {
     id: 'feature.share',

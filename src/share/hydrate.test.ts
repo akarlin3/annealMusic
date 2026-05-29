@@ -17,7 +17,7 @@ describe('captureSlotsFromPayload', () => {
 
 describe('decodeState tolerates the cap flag', () => {
   it('does not warn on a recognized cap field', () => {
-    const decoded = decodeState(4, 'm=open&e=sine&LA.cap=1&LA.f=1');
+    const decoded = decodeState(4, 'm=open&e=sine&LA.cap=1&LA.f=1') as any;
     expect(decoded.warnings).toEqual([]);
     // cap is runtime-only — it is not part of the shareable SlotConfig.
     expect(decoded.loops.A.frozen).toBe(true);

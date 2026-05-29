@@ -72,10 +72,11 @@ export function useSession(): SessionApi {
 
   // Poll arc progress while an arc runs or settles out.
   useEffect(() => {
-    if (sessionState !== 'running-arc' && sessionState !== 'stopping') {
+    if (sessionState !== 'playing-patch' && sessionState !== 'stopping') {
       setArcProgress(null);
       return;
     }
+
     let raf = 0;
     const tick = () => {
       setArcProgress(engineRef.current?.getArcProgress() ?? null);
@@ -120,8 +121,9 @@ export function useSession(): SessionApi {
 
       if (event === 'begin') {
         const state = orch.getSessionState();
-        if (state === 'running-arc' || state === 'running-open') {
+        if (state === 'playing-patch' || state === 'playing-piece') {
           void tap.ctx.suspend();
+
           pausedBySystem = true;
         }
       } else if (event === 'end') {

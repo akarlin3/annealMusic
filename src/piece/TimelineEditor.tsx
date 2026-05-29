@@ -1,0 +1,609 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import type { Piece, PieceSegment } from '@/piece/types';
+import { PiecePlayer } from '@/piece/PiecePlayer';
+import { SegmentProperties } from '@/piece/SegmentProperties';
+import { api } from '@/api/client';
+import { useParamStore } from '@/state/params';
+import { SCHEMA_VERSION } from '@/share/schema';
+import {
+  Play,
+  Pause,
+  Square,
+  Plus,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  Share2,
+  FolderOpen,
+  Volume2,
+} from 'lucide-react';
+import type { Orchestrator } from '@/audio/orchestrator';
+
+interface TimelineEditorProps {
+  ensureOrchestrator: () => Orchestrator;
+  showToast: (msg: string) => void;
+}
+
+const PX_PER_SEC = 6; // comfortable scale: 1 minute = 360px
+const MIN_SEG_WIDTH = 60;
+
+export const TimelineEditor: React.FC<TimelineEditorProps> = ({
+  ensureOrchestrator,
+  showToast,
+}) => {
+  // Main piece state
+  const [piece, setPiece] = useState<Piece>({
+    schemaVer: SCHEMA_VERSION,
+    title: 'New Ambient Piece',
+    description: 'A custom timeline composition.',
+    visibility: 'unlisted',
+    defaultsState: {
+      params: useParamStore.getState().params,
+      engineId: useParamStore.getState().engineId,
+      engineParams: useParamStore.getState().engineParams,
+    },
+    totalDurationMs: 15000,
+    hasOpenSegment: false,
+    segments: [
+      { position: 0, type: 'fixed', durationMs: 5000, config: { params: {} } },
+      {
+        position: 1,
+        type: 'transition',
+        durationMs: 5000,
+        config: { easing: 'easeInOut' },
+      },
+      {
+        position: 2,
+        type: 'fixed',
+        durationMs: 5000,
+        config: { params: { rootFreq: 180 } },
+      },
+    ],
+  });
+
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playheadProgress, setPlayheadProgress] = useState(0); // 0 to 1 inside active segment
+  const [activeSegIdx, setActiveSegIdx] = useState(0);
+  const [savedPieces, setSavedPieces] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const playerRef = useRef<PiecePlayer | null>(null);
+  const { slug } = useParams<{ slug: string }>();
+
+  // Load user's saved pieces on mount, and fetch targeted piece by slug if present
+  useEffect(() => {
+    fetchSavedPieces();
+    if (slug) {
+      void api
+        .getPiece(slug)
+        .then((item) => {
+          handleLoadPiece(item);
+        })
+        .catch(() => {
+          showToast('Failed to load piece from URL');
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
+
+  const fetchSavedPieces = async () => {
+    if (!api.isBackendConfigured()) return;
+    try {
+      const res = await api.myPieces();
+      setSavedPieces(res.items);
+    } catch {
+      // Offline/unconfigured
+    }
+  };
+
+  // Clean up player on unmount
+  useEffect(() => {
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.stop();
+      }
+    };
+  }, []);
+
+  // Sync baseline piece defaults from the active param store state
+  const handleCaptureDefaults = () => {
+    const s = useParamStore.getState();
+    setPiece({
+      ...piece,
+      defaultsState: {
+        params: s.params,
+        engineId: s.engineId,
+        engineParams: s.engineParams,
+      },
+    });
+    showToast('Defaults captured from active patch');
+  };
+
+  // Segment Manipulation
+  const handleAddSegment = (type: PieceSegment['type']) => {
+    const nextPos = piece.segments.length;
+    const newSeg: PieceSegment = {
+      position: nextPos,
+      type,
+      durationMs: type === 'open' ? null : 5000,
+      config:
+        type === 'transition'
+          ? { easing: 'linear' }
+          : type === 'arc'
+            ? { arcId: 'bell' }
+            : { params: {} },
+    };
+    const updatedSegs = [...piece.segments, newSeg];
+    updatePieceSegments(updatedSegs);
+    setSelectedIdx(nextPos);
+  };
+
+  const handleDeleteSegment = (idx: number) => {
+    const updated = piece.segments
+      .filter((_, i) => i !== idx)
+      .map((seg, i) => ({ ...seg, position: i }));
+    updatePieceSegments(updated);
+    setSelectedIdx(updated.length > 0 ? 0 : null);
+  };
+
+  const handleMoveSegment = (idx: number, direction: 'left' | 'right') => {
+    const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= piece.segments.length) return;
+
+    const updated = [...piece.segments];
+    const temp = updated[idx]!;
+    updated[idx] = updated[targetIdx]!;
+    updated[targetIdx] = temp;
+
+    const finalized = updated.map((seg, i) => ({ ...seg, position: i }));
+    updatePieceSegments(finalized);
+    setSelectedIdx(targetIdx);
+  };
+
+  const handleSegmentChange = (updatedSeg: PieceSegment) => {
+    const updated = piece.segments.map((seg, i) =>
+      i === updatedSeg.position ? updatedSeg : seg,
+    );
+    updatePieceSegments(updated);
+  };
+
+  const updatePieceSegments = (segments: PieceSegment[]) => {
+    const hasOpen = segments.some((s) => s.type === 'open');
+    const totalDuration = hasOpen
+      ? null
+      : segments.reduce((sum, s) => sum + (s.durationMs || 0), 0);
+
+    setPiece({
+      ...piece,
+      segments,
+      hasOpenSegment: hasOpen,
+      totalDurationMs: totalDuration,
+    });
+  };
+
+  // Playback handlers
+  const handlePlayPause = () => {
+    const orch = ensureOrchestrator();
+    if (isPlaying) {
+      playerRef.current?.pause();
+      setIsPlaying(false);
+    } else {
+      if (!playerRef.current) {
+        playerRef.current = new PiecePlayer(piece, orch);
+      }
+      setIsPlaying(true);
+      playerRef.current.start(
+        (progress, idx) => {
+          setPlayheadProgress(progress);
+          setActiveSegIdx(idx);
+        },
+        () => {
+          setIsPlaying(false);
+          setPlayheadProgress(0);
+          setActiveSegIdx(0);
+          showToast('Playback completed');
+        },
+      );
+    }
+  };
+
+  const handleStop = () => {
+    playerRef.current?.stop();
+    setIsPlaying(false);
+    setPlayheadProgress(0);
+    setActiveSegIdx(0);
+  };
+
+  const handleAdvanceOpen = () => {
+    if (playerRef.current) {
+      playerRef.current.nextSegment();
+      showToast('Advancing segment');
+    }
+  };
+
+  // Horizontal Resize handler
+  const handleMouseDownResize = (e: React.MouseEvent, idx: number) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const seg = piece.segments[idx];
+    if (!seg || seg.type === 'open') return;
+
+    const startX = e.clientX;
+    const startDur = seg.durationMs || 5000;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaMs = Math.round((deltaX / PX_PER_SEC) * 1000);
+      const newDur = Math.max(1000, startDur + deltaMs); // minimum 1s
+
+      const updated = piece.segments.map((s, i) =>
+        i === idx ? { ...s, durationMs: newDur } : s,
+      );
+      updatePieceSegments(updated);
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // CRUD Persistence
+  const handleSavePiece = async () => {
+    if (!api.isBackendConfigured()) {
+      showToast('Persistence requires active backend');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        defaults_state: piece.defaultsState,
+        schema_ver: SCHEMA_VERSION,
+        title: piece.title,
+        description: piece.description,
+        visibility: piece.visibility,
+        segments: piece.segments.map((s) => ({
+          type: s.type,
+          duration_ms: s.durationMs,
+          config: s.config,
+        })),
+      };
+
+      if (piece.id) {
+        await api.updatePiece(piece.id, payload);
+        showToast('Piece updated');
+      } else {
+        const res = await api.createPiece(payload);
+        setPiece({
+          ...piece,
+          id: res.id,
+          shortSlug: res.short_slug,
+        });
+        showToast('Piece saved successfully');
+      }
+      fetchSavedPieces();
+    } catch {
+      showToast('Failed to save piece');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLoadPiece = (item: any) => {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
+    setPiece({
+      id: item.id,
+      schemaVer: item.schema_ver,
+      title: item.title,
+      description: item.description,
+      visibility: item.visibility,
+      defaultsState: item.defaults_state,
+      totalDurationMs: item.total_duration_ms,
+      hasOpenSegment: item.has_open_segment,
+      segments: item.segments.map((s: any) => ({
+        // eslint-disable-line @typescript-eslint/no-explicit-any
+        id: s.id,
+        position: s.position,
+        type: s.type,
+        durationMs: s.duration_ms,
+        config: s.config,
+      })),
+      shortSlug: item.short_slug,
+    });
+    setSelectedIdx(item.segments.length > 0 ? 0 : null);
+    setShowLoadModal(false);
+    showToast(`Loaded "${item.title || 'Untitled Piece'}"`);
+  };
+
+  const handleSharePiece = () => {
+    if (!piece.shortSlug) {
+      showToast('Save the piece first to generate a share link!');
+      return;
+    }
+    const url = `${window.location.origin}/piece/${piece.shortSlug}`;
+    navigator.clipboard.writeText(url);
+    showToast('Share link copied to clipboard!');
+  };
+
+  return (
+    <div className="space-y-6 w-full max-w-6xl mx-auto p-4 select-none">
+      {/* Top Header & Actions Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#18151f]/80 backdrop-blur-xl border border-white/5 p-6 rounded-3xl shadow-xl">
+        <div className="space-y-1">
+          <input
+            type="text"
+            value={piece.title || ''}
+            onChange={(e) => setPiece({ ...piece, title: e.target.value })}
+            className="bg-transparent text-xl font-extrabold text-white border-b border-transparent hover:border-white/20 focus:border-teal-500 focus:outline-none py-1 transition w-64 md:w-96"
+            placeholder="Piece Title..."
+          />
+          <p className="text-xs text-white/40">
+            v3.0 Pieces & Horizontal Arrangement Foundation
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowLoadModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold text-white hover:bg-white/10 transition"
+          >
+            <FolderOpen className="w-4 h-4 text-teal-400" />
+            Load
+          </button>
+          <button
+            onClick={handleSavePiece}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2.5 bg-teal-500/20 border border-teal-500/50 rounded-2xl text-xs font-bold text-teal-300 hover:bg-teal-500/30 transition disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" />
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          <button
+            onClick={handleSharePiece}
+            className="flex items-center gap-2 px-4 py-2.5 bg-violet-500/20 border border-violet-500/50 rounded-2xl text-xs font-bold text-violet-300 hover:bg-violet-500/30 transition"
+          >
+            <Share2 className="w-4 h-4" />
+            Share
+          </button>
+        </div>
+      </div>
+
+      {/* Main Timeline Arrangment Grid */}
+      <div className="bg-[#18151f]/80 border border-white/5 p-6 rounded-3xl shadow-xl space-y-6">
+        {/* Transport Controller */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handlePlayPause}
+              className={`p-3 rounded-2xl transition-all border ${
+                isPlaying
+                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
+                  : 'bg-teal-500/20 border-teal-500/50 text-teal-300 shadow-[0_0_15px_rgba(20,184,166,0.15)]'
+              }`}
+            >
+              {isPlaying ? (
+                <Pause className="w-5 h-5 fill-current" />
+              ) : (
+                <Play className="w-5 h-5 fill-current" />
+              )}
+            </button>
+            <button
+              onClick={handleStop}
+              className="p-3 bg-white/5 border border-white/10 rounded-2xl text-white/80 hover:bg-white/10 transition"
+            >
+              <Square className="w-5 h-5 fill-current" />
+            </button>
+
+            {/* Hold Open indicator / Advance open button */}
+            {isPlaying && piece.segments[activeSegIdx]?.type === 'open' && (
+              <button
+                onClick={handleAdvanceOpen}
+                className="flex items-center gap-2 px-4 py-2.5 bg-rose-500/20 border border-rose-500/50 rounded-2xl text-xs font-bold text-rose-300 hover:bg-rose-500/30 transition animate-pulse"
+              >
+                Advance Open Segment →
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={handleCaptureDefaults}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-semibold rounded-xl text-white/60 transition"
+          >
+            <Volume2 className="w-4 h-4 text-teal-400" />
+            Sync Piece Defaults
+          </button>
+        </div>
+
+        {/* Horizontal scrollable track area */}
+        <div className="w-full overflow-x-auto custom-scrollbar bg-[#110e14] border border-white/5 rounded-2xl p-6 min-h-[140px] relative flex items-center">
+          <div className="flex items-center gap-1 relative min-w-full">
+            {piece.segments.map((seg, idx) => {
+              const durationSec = seg.durationMs ? seg.durationMs / 1000 : 30; // open is mapped to constant width
+              const width =
+                seg.type === 'open'
+                  ? 180
+                  : Math.max(MIN_SEG_WIDTH, durationSec * PX_PER_SEC * 10);
+              const isSelected = selectedIdx === idx;
+              const isActive = isPlaying && activeSegIdx === idx;
+
+              // Color classes based on segment type
+              let colorClasses = 'border-teal-500 bg-teal-500/10 text-teal-300';
+              if (seg.type === 'arc')
+                colorClasses =
+                  'border-violet-500 bg-violet-500/10 text-violet-300';
+              if (seg.type === 'open')
+                colorClasses = 'border-rose-500 bg-rose-500/10 text-rose-300';
+              if (seg.type === 'transition')
+                colorClasses =
+                  'border-amber-500 bg-amber-500/10 text-amber-300';
+
+              return (
+                <div
+                  key={idx}
+                  onClick={() => setSelectedIdx(idx)}
+                  style={{ width: `${width}px` }}
+                  className={`h-24 rounded-2xl border transition-all flex flex-col justify-between p-4 cursor-pointer relative group ${colorClasses} ${
+                    isSelected
+                      ? 'ring-2 ring-teal-500/80 ring-offset-2 ring-offset-[#110e14]'
+                      : ''
+                  } ${isActive ? 'shadow-[0_0_20px_rgba(20,184,166,0.1)]' : ''}`}
+                >
+                  {/* Top info and reordering keys */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold uppercase tracking-wide">
+                      {idx + 1}. {seg.type}
+                    </span>
+
+                    {/* Quick controls shown on hover */}
+                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity bg-[#110e14]/90 p-1 rounded-lg border border-white/5 absolute -top-4 right-4 shadow-lg z-10">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveSegment(idx, 'left');
+                        }}
+                        disabled={idx === 0}
+                        className="p-1 hover:bg-white/10 rounded disabled:opacity-30"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveSegment(idx, 'right');
+                        }}
+                        disabled={idx === piece.segments.length - 1}
+                        className="p-1 hover:bg-white/10 rounded disabled:opacity-30"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSegment(idx);
+                        }}
+                        className="p-1 hover:bg-rose-500/20 text-rose-400 rounded"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Middle representation */}
+                  <span className="text-[10px] text-white/50 truncate">
+                    {seg.type === 'transition'
+                      ? `Easing: ${seg.config.easing || 'linear'}`
+                      : seg.type === 'arc'
+                        ? `Arc: ${seg.config.arcId || 'bell'}`
+                        : 'Overrides Active'}
+                  </span>
+
+                  {/* Bottom: Resize handles & durations */}
+                  <div className="flex items-center justify-between text-[10px] text-white/40 font-mono">
+                    <span>
+                      {seg.type === 'open' ? 'Hold Open' : `${durationSec}s`}
+                    </span>
+
+                    {/* Drag handle for duration resizing */}
+                    {seg.type !== 'open' && (
+                      <div
+                        onMouseDown={(e) => handleMouseDownResize(e, idx)}
+                        className="w-1.5 h-8 bg-white/20 group-hover:bg-white/40 hover:bg-teal-400 absolute right-1.5 top-8 rounded cursor-ew-resize transition-all"
+                      />
+                    )}
+                  </div>
+
+                  {/* Playhead progress overlay */}
+                  {isActive && seg.type !== 'open' && (
+                    <div
+                      style={{ width: `${playheadProgress * 100}%` }}
+                      className="absolute bottom-0 left-0 h-1 bg-teal-400 rounded-b-2xl transition-all duration-75"
+                    />
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Quick add affine box */}
+            <div className="flex items-center gap-2 pl-4">
+              <button
+                onClick={() => handleAddSegment('fixed')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
+              >
+                <Plus className="w-3.5 h-3.5 text-teal-400" />
+                Add Fixed
+              </button>
+              <button
+                onClick={() => handleAddSegment('transition')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
+              >
+                <Plus className="w-3.5 h-3.5 text-amber-400" />
+                Add Transition
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Selected Segment Properties Panel */}
+      {selectedIdx !== null && piece.segments[selectedIdx] && (
+        <SegmentProperties
+          segment={piece.segments[selectedIdx]!}
+          onChange={handleSegmentChange}
+        />
+      )}
+
+      {/* Simple load modal for pieces persistence */}
+      {showLoadModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-[#18151f] border border-white/10 w-full max-w-lg p-6 rounded-3xl shadow-2xl space-y-6 text-white">
+            <div className="flex items-center justify-between border-b border-white/5 pb-4">
+              <h3 className="text-lg font-bold">Load Saved Piece</h3>
+              <button
+                onClick={() => setShowLoadModal(false)}
+                className="text-white/40 hover:text-white/80 transition text-sm"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              {savedPieces.length === 0 ? (
+                <p className="text-sm text-white/40 text-center py-6">
+                  No pieces saved yet.
+                </p>
+              ) : (
+                savedPieces.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => handleLoadPiece(item)}
+                    className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl cursor-pointer hover:bg-white/10 hover:border-white/10 transition"
+                  >
+                    <div>
+                      <h4 className="text-sm font-bold text-white/95">
+                        {item.title || 'Untitled Piece'}
+                      </h4>
+                      <p className="text-xs text-white/40">
+                        {item.segments.length} segments •{' '}
+                        {item.total_duration_ms
+                          ? `${item.total_duration_ms / 1000}s`
+                          : 'Indefinite duration'}
+                      </p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-white/40" />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

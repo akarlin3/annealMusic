@@ -375,4 +375,63 @@ class FeaturedPickOut(BaseModel):
     patch: GalleryItemOut | None = None
 
 
+# --- v3.0 Pieces Schemas -----------------------------------------------------
+
+class PieceSegmentCreate(BaseModel):
+    type: Literal["fixed", "arc", "open", "transition"]
+    duration_ms: int | None = None
+    config: dict
+
+
+class PieceCreate(BaseModel):
+    schema_ver: int = 8
+    defaults_state: dict
+    title: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    visibility: Visibility = "unlisted"
+    segments: list[PieceSegmentCreate]
+
+
+class PieceUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    visibility: Visibility | None = None
+    defaults_state: dict | None = None
+    segments: list[PieceSegmentCreate] | None = None
+
+
+class PieceSegmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    position: int
+    type: str
+    duration_ms: int | None
+    config: dict
+
+
+class PieceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    schema_ver: int
+    defaults_state: dict
+    title: str | None
+    description: str | None
+    visibility: str
+    ai_description: str | None = None
+    total_duration_ms: int | None
+    has_open_segment: bool
+    created_at: datetime
+    updated_at: datetime
+    short_slug: str
+    segments: list[PieceSegmentOut]
+
+
+class PieceListOut(BaseModel):
+    items: list[PieceOut]
+    next_cursor: str | None = None
+
+
+
 

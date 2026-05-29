@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-05-29
+
+### Added
+
+- **First-Class Pieces Top-Level Artifact.** Introduces Pieces as a new horizontal arrangement composition timeline running parallel to legacy Patches.
+- **Ordered Timeline Segments.** Supports arranging and sequencing segment behaviors (`fixed`, `arc`, `open`, `transition`) to compose time-varying sonic arcs.
+- **Smooth Transition Interpolation.** Smoothly transitions sound variables and parameters between segments, offering Linear, EaseInOut, and Exponential easing curves.
+- **Indefinite Hold-Open Segments.** Enables active playback to sustain in place at custom 'open' timeline points, surfacing a transport next-advance key.
+- **Premium Arranger Timeline Editor.** Features a state-integrated visual horizontal sequencer at `/piece` with color-coded segment states, edge resizing, reordering, and properties inspector.
+- **URL Schema Version 8.** Serializes piece-level metadata, defaults, and multi-segment timeline parameters with root-level discrimination.
+- **Offline Pieces Render.** Expands offline stem rendering support to seamlessly sweep and render full multi-segment pieces.
+- **Full SQLAlchemy & Alembic Persistence.** Persists pieces and piece segments inside PostgreSQL (and SQLite test targets) via CRUD REST APIs.
+
 ## [1.8.0] - 2026-05-29
 
 ### Added

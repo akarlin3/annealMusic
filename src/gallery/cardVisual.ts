@@ -28,7 +28,7 @@ export function drawCardFrame(
   w: number,
   h: number,
 ): void {
-  const decoded = decodeState(SCHEMA_VERSION, payload);
+  const decoded = decodeState(SCHEMA_VERSION, payload) as any;
   const params = { ...DEFAULT_PARAMS, ...decoded.params };
   const count = Math.max(2, Math.round(params.density));
 

@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const pbxprojPath = path.join(__dirname, '../ios/App/App.xcodeproj/project.pbxproj');
+const pbxprojPath = path.join(
+  __dirname,
+  '../ios/App/App.xcodeproj/project.pbxproj',
+);
 if (!fs.existsSync(pbxprojPath)) {
   console.error(`Error: pbxproj file not found at ${pbxprojPath}`);
   process.exit(1);
@@ -11,7 +14,9 @@ let content = fs.readFileSync(pbxprojPath, 'utf8');
 
 // 1. Check if the block definition is already there
 if (content.includes('504EC3001FED79650016851A /* Run Script */ = {')) {
-  console.log('Version sync build phase block already exists in project.pbxproj.');
+  console.log(
+    'Version sync build phase block already exists in project.pbxproj.',
+  );
   process.exit(0);
 }
 
@@ -41,10 +46,12 @@ const shellScriptSection = `/* Begin PBXShellScriptBuildPhase section */
 if (content.includes('/* Begin PBXSourcesBuildPhase section */')) {
   content = content.replace(
     '/* Begin PBXSourcesBuildPhase section */',
-    shellScriptSection + '/* Begin PBXSourcesBuildPhase section */'
+    shellScriptSection + '/* Begin PBXSourcesBuildPhase section */',
   );
 } else {
-  console.error('Could not find PBXSourcesBuildPhase section to insert shell script.');
+  console.error(
+    'Could not find PBXSourcesBuildPhase section to insert shell script.',
+  );
   process.exit(1);
 }
 
@@ -60,7 +67,10 @@ if (targetIdx !== -1) {
     // Check if it already has the build phase ID
     const searchRange = content.substring(insertIdx, insertIdx + 300);
     if (!searchRange.includes('504EC3001FED79650016851A')) {
-      content = content.slice(0, insertIdx) + '\n\t\t\t\t504EC3001FED79650016851A /* Run Script */,' + content.slice(insertIdx);
+      content =
+        content.slice(0, insertIdx) +
+        '\n\t\t\t\t504EC3001FED79650016851A /* Run Script */,' +
+        content.slice(insertIdx);
     }
   }
 }

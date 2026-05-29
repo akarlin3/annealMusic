@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderStemsOffline, isOfflineRenderSupported } from './StemRenderer';
 import { MockAudioContext } from '@/test/audioMock';
 import { DEFAULT_PARAMS } from '@/state/params';
+import { makeDefaultLoopConfig } from '@/loop/types';
 
 // Helper to build a mock OfflineAudioContext
 function mockOfflineContext(
@@ -164,5 +165,65 @@ describe('StemRenderer', () => {
     await expect(
       renderStemsOffline(config, () => {}, cancelSignal, mockOfflineContext),
     ).rejects.toThrow('Render cancelled by user');
+  });
+
+  it('renders a Piece cleanly (mixdown only)', async () => {
+    const piece = {
+      schemaVer: 8,
+      title: 'Vibrations',
+      description: null,
+      visibility: 'unlisted' as const,
+      totalDurationMs: 4000,
+      hasOpenSegment: false,
+      defaultsState: {
+        params: DEFAULT_PARAMS,
+        engineId: 'sine' as const,
+        engineParams: {},
+      },
+      segments: [
+        {
+          position: 0,
+          type: 'fixed' as const,
+          durationMs: 2000,
+          config: { params: { rootFreq: 150 } },
+        },
+        {
+          position: 1,
+          type: 'fixed' as const,
+          durationMs: 2000,
+          config: { params: { rootFreq: 200 } },
+        },
+      ],
+    };
+
+    const config = {
+      params: DEFAULT_PARAMS,
+      engineId: 'sine' as const,
+      engineParams: {},
+      loopConfig: makeDefaultLoopConfig(),
+      loopBuffers: { A: null, B: null, C: null },
+      loopStates: { A: 'empty', B: 'empty', C: 'empty' },
+      mode: 'piece' as const,
+      piece,
+      durationSec: 4,
+      sampleRate: 48000,
+      bitDepth: 24 as const,
+      includeFx: true,
+      includePartials: false,
+      seed: 123,
+      patchTitle: 'Test Piece',
+      patchHash: 'hpiece',
+    } as any;
+
+    const cancelSignal = { aborted: false };
+    const results = await renderStemsOffline(
+      config,
+      () => {},
+      cancelSignal,
+      mockOfflineContext,
+    );
+
+    expect(Object.keys(results)).toEqual(['master']);
+    expect(results.master).toBeInstanceOf(ArrayBuffer);
   });
 });

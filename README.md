@@ -27,6 +27,7 @@ New here? Press the **Help (?)** button in the app for a plain-language guide to
 
 - **Four sound characters** — pure and glassy, metallic and bell-like, built from real recordings, or modeled real instruments (strings, pipes, plates). Switch any time.
 - **Sessions & journeys** — play freely forever, or pick a timed "journey" that shapes the sound from gentle open to deep middle to calm finish, all on its own.
+- **Timeline & Pieces (v3.0)** — compose horizontal timeline sequences of audio segments (fixed overrides, automated transition sweeps, and open holds) to create structured ambient pieces.
 - **Play along live** — bring a guitar, voice, or any mic into the soundscape as another layer (headphones recommended).
 - **Loop pedal** — record a phrase and let it repeat underneath; freeze it into an endless, breathing drone.
 - **Recording** — capture exactly what you hear to a file you can keep or share.

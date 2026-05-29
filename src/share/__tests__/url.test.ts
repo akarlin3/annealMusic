@@ -28,7 +28,7 @@ describe('readStateFromHash', () => {
 
   it('decodes a v2 fragment with engine + engine params', () => {
     setHash('/#s=2:e=fm&coupling=0.42&fm.modRatio=2.50&fm.modIndex=4.00');
-    const result = readStateFromHash();
+    const result = readStateFromHash() as any;
     expect(result).not.toBeNull();
     expect(result?.engineId).toBe('fm');
     expect(result?.params.coupling).toBe(0.42);
@@ -38,7 +38,7 @@ describe('readStateFromHash', () => {
 
   it('loads a v1 fragment as the sine engine', () => {
     setHash('/#s=1:coupling=0.42&drift=0.10');
-    const result = readStateFromHash();
+    const result = readStateFromHash() as any;
     expect(result).not.toBeNull();
     expect(result?.engineId).toBe('sine');
     expect(result?.params.coupling).toBe(0.42);
@@ -48,7 +48,7 @@ describe('readStateFromHash', () => {
 
   it('defaults to sine when the engine selector is missing', () => {
     setHash('/#s=2:coupling=0.42');
-    expect(readStateFromHash()?.engineId).toBe('sine');
+    expect((readStateFromHash() as any)?.engineId).toBe('sine');
   });
 
   it('returns null for unsupported schema versions (0 and 999)', () => {
@@ -79,7 +79,7 @@ describe('writeStateToHash', () => {
   it('round-trips shared + engine state through read (FM)', () => {
     const fmParams = { modRatio: 2.5, modIndex: 4, feedback: 0.3 };
     writeStateToHash(DEFAULT_PARAMS, 'fm', fmParams);
-    const result = readStateFromHash();
+    const result = readStateFromHash() as any;
     expect(result?.engineId).toBe('fm');
     expect(result?.params.coupling).toBe(DEFAULT_PARAMS.coupling);
     expect(result?.engineParams.fm?.modRatio).toBe(2.5);

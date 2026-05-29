@@ -26,6 +26,8 @@ import {
   type JamSessionDetail,
   type JamSessionJoin,
   type SaveSharedPatchBody,
+  type APIPiece,
+  type APIPieceList,
 } from '@/api/types';
 import type { GalleryList } from '@/gallery/types';
 
@@ -558,6 +560,57 @@ export const api = {
         method: 'DELETE',
       },
     );
+  },
+
+  // --- pieces (v3.0) -------------------------------------------------------
+  async createPiece(body: {
+    defaults_state: Record<string, any>;
+    schema_ver: number;
+    title?: string | null;
+    description?: string | null;
+    visibility: 'unlisted' | 'public';
+    segments: {
+      type: string;
+      duration_ms: number | null;
+      config: Record<string, any>;
+    }[];
+  }): Promise<APIPiece> {
+    return request<APIPiece>('/api/v1/pieces', { method: 'POST', body });
+  },
+
+  async getPiece(idOrSlug: string): Promise<APIPiece> {
+    return request<APIPiece>(`/api/v1/pieces/${encodeURIComponent(idOrSlug)}`);
+  },
+
+  async myPieces(cursor?: string): Promise<APIPieceList> {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    return request<APIPieceList>(`/api/v1/pieces/me${q}`);
+  },
+
+  async updatePiece(
+    id: string,
+    body: {
+      title?: string | null;
+      description?: string | null;
+      visibility?: 'unlisted' | 'public';
+      defaults_state?: Record<string, any>;
+      segments?: {
+        type: string;
+        duration_ms: number | null;
+        config: Record<string, any>;
+      }[];
+    },
+  ): Promise<APIPiece> {
+    return request<APIPiece>(`/api/v1/pieces/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body,
+    });
+  },
+
+  async deletePiece(id: string): Promise<void> {
+    await request<void>(`/api/v1/pieces/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   },
 };
 

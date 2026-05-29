@@ -287,3 +287,32 @@ export interface SaveSharedPatchBody {
   description?: string;
   visibility?: Visibility;
 }
+
+export interface APIPieceSegment {
+  id?: string;
+  position: number;
+  type: 'fixed' | 'arc' | 'open' | 'transition';
+  duration_ms: number | null;
+  config: Record<string, any>;
+}
+
+export interface APIPiece {
+  id: string;
+  schema_ver: number;
+  defaults_state: Record<string, any>;
+  title: string | null;
+  description: string | null;
+  visibility: Visibility;
+  ai_description: string | null;
+  total_duration_ms: number | null;
+  has_open_segment: boolean;
+  created_at: string;
+  updated_at: string;
+  short_slug: string;
+  segments: APIPieceSegment[];
+}
+
+export interface APIPieceList {
+  items: APIPiece[];
+  next_cursor: string | null;
+}

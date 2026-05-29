@@ -437,10 +437,63 @@ class FeaturedPick(Base):
     added_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+class Piece(Base):
+    __tablename__ = "pieces"
+    __table_args__ = (
+        CheckConstraint(
+            "visibility IN ('unlisted','public','flagged')",
+            name="ck_pieces_visibility",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    schema_ver: Mapped[int] = mapped_column(Integer, nullable=False)
+    defaults_state: Mapped[dict] = mapped_column(JSONType(), nullable=False)
+    title: Mapped[str | None] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    visibility: Mapped[str] = mapped_column(
+        String, nullable=False, default="unlisted"
+    )
+    ai_description: Mapped[str | None] = mapped_column(String, nullable=True)
+    total_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    has_open_segment: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    short_slug: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+
+
+class PieceSegment(Base):
+    __tablename__ = "piece_segments"
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('fixed','arc','open','transition')",
+            name="ck_piece_segments_type",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    piece_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("pieces.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    config: Mapped[dict] = mapped_column(JSONType(), nullable=False)
 
 
 # SQLite trigger events for tests/local development when using SQLite
 @event.listens_for(Base.metadata, "after_create")
+
 def create_sqlite_triggers(target, connection, **kw):
     if connection.dialect.name == "sqlite":
         connection.execute(text("""

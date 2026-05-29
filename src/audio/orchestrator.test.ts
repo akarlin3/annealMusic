@@ -117,14 +117,14 @@ describe('Orchestrator — drift fan-out', () => {
 });
 
 describe('Orchestrator — session state machine', () => {
-  it('open session: idle → starting → running-open → stopping → idle', async () => {
+  it('open session: idle → starting → playing-patch → stopping → idle', async () => {
     const orch = new Orchestrator(DEFAULT_PARAMS);
     const seen: SessionState[] = [];
     orch.subscribe((s) => seen.push(s));
 
     orch.startSession({ mode: 'open' });
-    expect(orch.getSessionState()).toBe('running-open');
-    expect(seen).toEqual(['starting', 'running-open']);
+    expect(orch.getSessionState()).toBe('playing-patch');
+    expect(seen).toEqual(['starting', 'playing-patch']);
     expect(orch.getArcProgress()).toBeNull();
 
     const stopped = orch.stopSession();
@@ -132,7 +132,7 @@ describe('Orchestrator — session state machine', () => {
     vi.advanceTimersByTime(2200);
     await stopped;
     expect(orch.getSessionState()).toBe('idle');
-    expect(seen).toEqual(['starting', 'running-open', 'stopping', 'idle']);
+    expect(seen).toEqual(['starting', 'playing-patch', 'stopping', 'idle']);
   });
 
   it('startSession is a no-op when not idle', () => {
@@ -141,7 +141,7 @@ describe('Orchestrator — session state machine', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     orch.startSession({ mode: 'arc', arcId: 'bell', durationSec: 600 });
-    expect(orch.getSessionState()).toBe('running-open'); // unchanged
+    expect(orch.getSessionState()).toBe('playing-patch'); // unchanged
     expect(warn).toHaveBeenCalled();
 
     warn.mockRestore();
@@ -153,7 +153,7 @@ describe('Orchestrator — session state machine', () => {
     const orch = new Orchestrator(DEFAULT_PARAMS);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     orch.startSession({ mode: 'arc', arcId: 'nope', durationSec: 600 });
-    expect(orch.getSessionState()).toBe('running-open');
+    expect(orch.getSessionState()).toBe('playing-patch');
     warn.mockRestore();
     orch.stop();
     vi.advanceTimersByTime(2200);
@@ -181,11 +181,11 @@ describe('Orchestrator — arc playback', () => {
       writes.push(p),
     );
     const ctx = MockAudioContext.instances.at(-1)!;
-    expect(orch.getSessionState()).toBe('running-arc');
+    expect(orch.getSessionState()).toBe('playing-patch');
 
     // Many interval fires while the audio clock is frozen → no progress, no end.
     vi.advanceTimersByTime(50 * 200);
-    expect(orch.getSessionState()).toBe('running-arc');
+    expect(orch.getSessionState()).toBe('playing-patch');
     expect(orch.getArcProgress()?.progress).toBe(0);
 
     // Advance the audio clock to the halfway point, then tick once.

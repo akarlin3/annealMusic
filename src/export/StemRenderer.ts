@@ -18,6 +18,8 @@ import type { SlotId, SlotState, LoopConfigMap } from '@/loop/types';
 import { createPRNG } from './prng';
 import { getActiveStems } from './StemTaps';
 import { encodeWav } from './WavEncoder';
+import type { Piece } from '@/piece/types';
+import { interpolateState } from '@/piece/transitions';
 
 const DRIFT_DT = 0.05;
 const DRIFT_INTERVAL_SEC = 0.05;
@@ -31,9 +33,11 @@ export interface StemRenderConfig {
   loopConfig: LoopConfigMap;
   loopBuffers: Record<SlotId, AudioBuffer | null>;
   loopStates: Record<SlotId, SlotState>;
-  mode: 'open' | 'arc';
+  mode: 'open' | 'arc' | 'piece';
+  piece?: Piece;
   arcId?: string;
   durationSec: number;
+
   sampleRate: number;
   bitDepth: 24 | 32;
   includeFx: boolean;
@@ -75,10 +79,68 @@ export function driftCheckpoints(durationSec: number): number[] {
   return out;
 }
 
+export function resolvePieceStateAtTime(piece: Piece, tSec: number): any {
+  const tMs = tSec * 1000;
+  let elapsed = 0;
+
+  const defaults = piece.defaultsState;
+  const resolvedStates = piece.segments.map((seg) => {
+    if (seg.type === 'fixed' || seg.type === 'open') {
+      const params = { ...defaults.params, ...seg.config.params };
+      const engineId = seg.config.engineId || defaults.engineId;
+      const engineParams = { ...defaults.engineParams } as any;
+      if (seg.config.engineParams) {
+        engineParams[engineId] = {
+          ...engineParams[engineId],
+          ...seg.config.engineParams[engineId],
+        };
+      }
+      return { params, engineId, engineParams };
+    } else {
+      return {
+        params: { ...defaults.params },
+        engineId: defaults.engineId,
+        engineParams: { ...defaults.engineParams },
+      };
+    }
+  });
+
+  for (let idx = 0; idx < piece.segments.length; idx++) {
+    const seg = piece.segments[idx]!;
+    const duration = seg.durationMs ?? 5000;
+    if (
+      seg.type === 'open' ||
+      tMs < elapsed + duration ||
+      idx === piece.segments.length - 1
+    ) {
+      if (seg.type === 'transition') {
+        const prevIdx = idx - 1;
+        const nextIdx = idx + 1;
+        const prevState =
+          prevIdx >= 0 ? resolvedStates[prevIdx]! : (defaults as any);
+        const nextState =
+          nextIdx < piece.segments.length
+            ? resolvedStates[nextIdx]!
+            : (defaults as any);
+        const progress = duration > 0 ? (tMs - elapsed) / duration : 1.0;
+        return interpolateState(
+          prevState,
+          nextState,
+          Math.min(1.0, progress),
+          seg.config.easing || 'linear',
+        );
+      } else {
+        return resolvedStates[idx]!;
+      }
+    }
+    elapsed += duration;
+  }
+
+  return resolvedStates[resolvedStates.length - 1]!;
+}
+
 /**
- * Sequential offline stem renderer. Renders each active stem in its own OAC,
- * using a duplicate of the audio graph, seeded PRNG for absolute determinism,
- * and aggressive resource cleanup between stems.
+ * Sequential offline stem renderer.
  */
 export async function renderStemsOffline(
   config: StemRenderConfig,
@@ -106,10 +168,13 @@ export async function renderStemsOffline(
     },
   } as any;
 
-  const stems = getActiveStems(mockOrchestrator, {
+  let stems = getActiveStems(mockOrchestrator, {
     includeFx: config.includeFx,
     includePartials: config.includePartials,
   });
+  if (config.mode === 'piece') {
+    stems = stems.filter((s) => s.id === 'master');
+  }
 
   const totalStems = stems.length;
 
@@ -310,7 +375,7 @@ export async function renderStemsOffline(
           });
         }
 
-        // 2. Advance arc runner
+        // 2. Advance arc runner or piece timeline
         if (arc) {
           const frame = arc.tick(t);
           if (Object.keys(frame.params).length > 0) {
@@ -320,6 +385,14 @@ export async function renderStemsOffline(
               const filter = stemOutputNode as BiquadFilterNode;
               filter.frequency.setValueAtTime(cutoffFor(live.brightness), t);
             }
+          }
+        } else if (config.mode === 'piece' && config.piece) {
+          const resolved = resolvePieceStateAtTime(config.piece, t);
+          Object.assign(live, resolved.params);
+          activeEngine?.setSharedParams(resolved.params);
+          if (stem.isFx && stemOutputNode) {
+            const filter = stemOutputNode as BiquadFilterNode;
+            filter.frequency.setValueAtTime(cutoffFor(live.brightness), t);
           }
         }
 

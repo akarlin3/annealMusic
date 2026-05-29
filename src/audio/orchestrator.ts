@@ -166,7 +166,7 @@ export class Orchestrator {
   /** Live arc progress, or null when no arc is running or ending. */
   getArcProgress(): ArcProgress | null {
     if (
-      this.sessionState !== 'running-arc' &&
+      this.sessionState !== 'playing-patch' &&
       this.sessionState !== 'stopping'
     ) {
       return null;
@@ -606,10 +606,11 @@ export class Orchestrator {
    * to the same engine is a no-op (no rebuild, no audible dip).
    */
   setEngine(id: EngineId): void {
-    if (this.sessionState === 'running-arc') {
+    if (this.sessionState === 'playing-patch' && this.arcRunner) {
       console.warn('engine change ignored during arc');
       return;
     }
+
     if (!this.running) {
       this.engineId = id;
       return;
@@ -709,14 +710,14 @@ export class Orchestrator {
     midiOutput.triggerStart();
 
     if (opts.mode === 'open') {
-      this.setState('running-open');
+      this.setState('playing-patch');
       return;
     }
 
     const arc = getArcById(opts.arcId);
     if (!arc) {
       console.warn(`unknown arc '${opts.arcId}', running open`);
-      this.setState('running-open');
+      this.setState('playing-patch');
       return;
     }
 
@@ -733,7 +734,7 @@ export class Orchestrator {
     this.arcDurationSec = opts.durationSec;
     this.arcT0 = this.ctx?.currentTime ?? 0;
     this.arcProgress = { progress: 0, segmentIndex: 0 };
-    this.setState('running-arc');
+    this.setState('playing-patch');
     this.startArcTick();
   }
 
@@ -860,7 +861,7 @@ export class Orchestrator {
 
   /** Arc reached its end: fade master to 0 over 4 s, then tear down to idle. */
   private completeArc(): void {
-    if (this.sessionState !== 'running-arc') return;
+    if (this.sessionState !== 'playing-patch' || !this.arcRunner) return;
     this.clearArcTick();
     this.setState('stopping');
 

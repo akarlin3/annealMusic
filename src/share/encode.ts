@@ -137,17 +137,41 @@ export function encodeState(
   return parts.join('&');
 }
 
-export interface DecodedState {
-  params: Partial<AnnealMusicParams>;
-  engineId: EngineId;
-  engineParams: Partial<Record<EngineId, EngineParams>>;
-  mode: SessionMode;
-  arcId?: string;
-  durationSec?: number;
-  /** Full loop config map (defaults for any slot not present in the URL). */
-  loops: LoopConfigMap;
-  warnings: string[];
+export interface DecodedPieceSegment {
+  type: 'fixed' | 'arc' | 'open' | 'transition';
+  durationMs: number | null;
+  config: Record<string, any>;
 }
+
+export interface DecodedPiece {
+  title?: string;
+  description?: string;
+  defaultsState: {
+    params: Partial<AnnealMusicParams>;
+    engineId: EngineId;
+    engineParams: Partial<Record<EngineId, EngineParams>>;
+    loops: LoopConfigMap;
+  };
+  segments: DecodedPieceSegment[];
+}
+
+export type DecodedState =
+  | {
+      kind: 'patch';
+      params: Partial<AnnealMusicParams>;
+      engineId: EngineId;
+      engineParams: Partial<Record<EngineId, EngineParams>>;
+      mode: SessionMode;
+      arcId?: string;
+      durationSec?: number;
+      loops: LoopConfigMap;
+      warnings: string[];
+    }
+  | {
+      kind: 'piece';
+      piece: DecodedPiece;
+      warnings: string[];
+    };
 
 const GRAIN_FIELD_BY_CODE = new Map(
   GRAIN_FIELDS.map((f) => [f.code, f] as const),
@@ -180,6 +204,7 @@ function decodeLoopPair(
   if (field === 'cap') {
     return;
   }
+
   const grainField = GRAIN_FIELD_BY_CODE.get(field);
   if (!grainField) {
     warnings.push(`unknown loop field ignored: L${id}.${field}`);
@@ -200,12 +225,21 @@ function decodeLoopPair(
 }
 
 /**
- * Decode a payload for the given schema version into shared params, the engine
- * selection, and engine-specific params. Never throws: unknown keys and
- * unparseable values are dropped, out-of-range values clamped, each adjustment
- * recorded as a warning. v1 payloads carry no engine state → `engine=sine`.
+ * Decode a patch payload. Internal helper for decodeState.
  */
-export function decodeState(version: number, payload: string): DecodedState {
+function decodePatchState(
+  version: number,
+  payload: string,
+): {
+  params: Partial<AnnealMusicParams>;
+  engineId: EngineId;
+  engineParams: Partial<Record<EngineId, EngineParams>>;
+  mode: SessionMode;
+  arcId?: string;
+  durationSec?: number;
+  loops: LoopConfigMap;
+  warnings: string[];
+} {
   const params: Partial<AnnealMusicParams> = {};
   const engineParams: Partial<Record<EngineId, EngineParams>> = {};
   const loops = makeDefaultLoopConfig();
@@ -378,6 +412,174 @@ export function decodeState(version: number, payload: string): DecodedState {
   };
 }
 
+/** Decode a v8 piece payload from URL */
+export function decodePiecePayload(payload: string): DecodedPiece {
+  let title: string | undefined;
+  let description: string | undefined;
+  const defPairs: string[] = [];
+  const segMap: Record<
+    number,
+    { type?: any; dur?: number | null; config: Record<string, any> }
+  > = {};
+
+  for (const pair of payload.split('&')) {
+    if (pair === '') continue;
+    const eq = pair.indexOf('=');
+    if (eq === -1) continue;
+    const key = pair.slice(0, eq);
+    const raw = pair.slice(eq + 1);
+
+    if (key === 'title') {
+      title = decodeURIComponent(raw);
+    } else if (key === 'desc') {
+      description = decodeURIComponent(raw);
+    } else if (key.startsWith('def.')) {
+      defPairs.push(pair.slice(4));
+    } else if (key.startsWith('seg')) {
+      const dot = key.indexOf('.');
+      if (dot !== -1) {
+        const prefix = key.slice(3, dot);
+        const idx = parseInt(prefix, 10);
+        if (!isNaN(idx)) {
+          const segKey = key.slice(dot + 1);
+          if (!segMap[idx]) {
+            segMap[idx] = { config: {} };
+          }
+          if (segKey === 'type') {
+            segMap[idx].type = raw as any;
+          } else if (segKey === 'dur') {
+            segMap[idx].dur = raw === 'null' ? null : parseInt(raw, 10);
+          } else {
+            const num = Number(raw);
+            segMap[idx].config[segKey] = isNaN(num)
+              ? decodeURIComponent(raw)
+              : num;
+          }
+        }
+      }
+    }
+  }
+
+  const defPayload = defPairs.join('&');
+  const decodedDef = decodePatchState(7, defPayload);
+
+  const sortedIndices = Object.keys(segMap)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const segments: DecodedPieceSegment[] = sortedIndices.map((idx) => {
+    const s = segMap[idx]!;
+    return {
+      type: s.type || 'fixed',
+      durationMs: s.dur !== undefined ? s.dur : 5000,
+      config: s.config,
+    };
+  });
+
+  return {
+    title,
+    description,
+    defaultsState: {
+      params: decodedDef.params,
+      engineId: decodedDef.engineId,
+      engineParams: decodedDef.engineParams,
+      loops: decodedDef.loops,
+    },
+    segments,
+  };
+}
+
+/** Encode a Piece into a version 8 URL payload string */
+export function encodePiece(piece: {
+  title?: string | null;
+  description?: string | null;
+  defaultsState: {
+    params: AnnealMusicParams;
+    engineId: EngineId;
+    engineParams: EngineParams;
+    loops?: LoopConfigMap;
+  };
+  segments: {
+    type: 'fixed' | 'arc' | 'open' | 'transition';
+    durationMs: number | null;
+    config: Record<string, any>;
+  }[];
+}): string {
+  const parts = ['kind=piece'];
+  if (piece.title) parts.push(`title=${encodeURIComponent(piece.title)}`);
+  if (piece.description) {
+    parts.push(`desc=${encodeURIComponent(piece.description)}`);
+  }
+
+  const defStateStr = encodeState(
+    piece.defaultsState.params,
+    piece.defaultsState.engineId,
+    piece.defaultsState.engineParams,
+    undefined,
+    piece.defaultsState.loops,
+  );
+  for (const pair of defStateStr.split('&')) {
+    if (pair !== '') {
+      parts.push(`def.${pair}`);
+    }
+  }
+
+  piece.segments.forEach((seg, idx) => {
+    parts.push(`seg${idx}.type=${seg.type}`);
+    parts.push(
+      `seg${idx}.dur=${seg.durationMs === null ? 'null' : seg.durationMs}`,
+    );
+    for (const [k, v] of Object.entries(seg.config)) {
+      parts.push(
+        `seg${idx}.${k}=${typeof v === 'string' ? encodeURIComponent(v) : v}`,
+      );
+    }
+  });
+
+  return parts.join('&');
+}
+
+/**
+ * Decode a payload for the given schema version into shared params, the engine
+ * selection, and engine-specific params. Never throws: unknown keys and
+ * unparseable values are dropped, out-of-range values clamped, each adjustment
+ * recorded as a warning. v1 payloads carry no engine state → `engine=sine`.
+ */
+export function decodeState(version: number, payload: string): DecodedState {
+  if (version < 8) {
+    const patchState = decodePatchState(version, payload);
+    return {
+      kind: 'patch',
+      ...patchState,
+    };
+  }
+
+  // Version 8+
+  const pairs = payload.split('&');
+  let kind: 'patch' | 'piece' = 'patch';
+  for (const pair of pairs) {
+    if (pair.startsWith('kind=')) {
+      const val = pair.slice(5);
+      if (val === 'piece') kind = 'piece';
+      break;
+    }
+  }
+
+  if (kind === 'piece') {
+    return {
+      kind: 'piece',
+      piece: decodePiecePayload(payload),
+      warnings: [],
+    };
+  } else {
+    const cleanPayload = pairs.filter((p) => !p.startsWith('kind=')).join('&');
+    const patchState = decodePatchState(version, cleanPayload);
+    return {
+      kind: 'patch',
+      ...patchState,
+    };
+  }
+}
+
 /**
  * Decode shared params only (v1 semantics). Retained for callers/tests that
  * deal purely with the sculptable shared params; delegates to `decodeState`.
@@ -386,6 +588,9 @@ export function decodeParams(payload: string): {
   params: Partial<AnnealMusicParams>;
   warnings: string[];
 } {
-  const { params, warnings } = decodeState(1, payload);
-  return { params, warnings };
+  const res = decodeState(1, payload);
+  if (res.kind === 'patch') {
+    return { params: res.params, warnings: res.warnings };
+  }
+  return { params: {}, warnings: [] };
 }

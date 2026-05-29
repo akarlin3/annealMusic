@@ -13,8 +13,8 @@ export const SESSION_MODES: readonly SessionMode[] = ['open', 'arc'];
 export type SessionState =
   | 'idle'
   | 'starting'
-  | 'running-open'
-  | 'running-arc'
+  | 'playing-patch'
+  | 'playing-piece'
   | 'stopping';
 
 /** Easing functions available to arc segments (defined in `curves.ts`). */
