@@ -35,10 +35,14 @@ router = APIRouter(prefix="/api/v1/pieces", tags=["pieces"])
 
 
 def to_out(piece: Piece, segments: list[PieceSegment]) -> PieceOut:
+    defaults = piece.defaults_state or {}
+    # Filter out hidden internal keys (prefixed by "_") from defaults_state response
+    clean_defaults = {k: v for k, v in defaults.items() if not k.startswith("_")}
+
     return PieceOut(
         id=piece.id,
         schema_ver=piece.schema_ver,
-        defaults_state=piece.defaults_state,
+        defaults_state=clean_defaults,
         title=piece.title,
         description=piece.description,
         visibility=piece.visibility,
@@ -54,10 +58,16 @@ def to_out(piece: Piece, segments: list[PieceSegment]) -> PieceOut:
                 position=seg.position,
                 type=seg.type,
                 duration_ms=seg.duration_ms,
-                config=seg.config,
+                config={k: v for k, v in (seg.config or {}).items() if k != "_variations"},
+                variations=seg.config.get("_variations") if isinstance(seg.config, dict) else None,
             )
             for seg in segments
         ],
+        movements=defaults.get("_movements"),
+        tempo_bpm=defaults.get("_tempo_bpm"),
+        notation=defaults.get("_notation"),
+        variation_seed=defaults.get("_variation_seed"),
+        variations=defaults.get("_variations"),
     )
 
 
@@ -101,10 +111,20 @@ async def create_piece(
     if not has_open:
         total_duration = sum((seg.duration_ms or 0) for seg in body.segments)
 
+    # Store movements, tempo, notation, and variations in defaults_state
+    defaults_state = {
+        **body.defaults_state,
+        "_movements": body.movements,
+        "_tempo_bpm": body.tempo_bpm,
+        "_notation": body.notation,
+        "_variation_seed": body.variation_seed,
+        "_variations": body.variations,
+    }
+
     piece = Piece(
         user_id=user.id,
         schema_ver=body.schema_ver,
-        defaults_state=body.defaults_state,
+        defaults_state=defaults_state,
         title=body.title,
         description=body.description,
         visibility=body.visibility,
@@ -117,12 +137,17 @@ async def create_piece(
 
     segments = []
     for pos, seg_in in enumerate(body.segments):
+        # Store segment-level variations inside config
+        config = {**(seg_in.config or {})}
+        if seg_in.variations is not None:
+            config["_variations"] = seg_in.variations
+
         seg = PieceSegment(
             piece_id=piece.id,
             position=pos,
             type=seg_in.type,
             duration_ms=seg_in.duration_ms,
-            config=seg_in.config,
+            config=config,
         )
         session.add(seg)
         segments.append(seg)
@@ -212,8 +237,25 @@ async def update_piece(
         piece.description = body.description
     if body.visibility is not None:
         piece.visibility = body.visibility
+    
+    # Update defaults_state keeping existing hidden attributes unless overwritten
+    defaults_state = piece.defaults_state or {}
     if body.defaults_state is not None:
-        piece.defaults_state = body.defaults_state
+        defaults_state = {**body.defaults_state}
+    
+    # Selectively update hidden attributes if provided in update body
+    if body.movements is not None:
+        defaults_state["_movements"] = body.movements
+    if body.tempo_bpm is not None:
+        defaults_state["_tempo_bpm"] = body.tempo_bpm
+    if body.notation is not None:
+        defaults_state["_notation"] = body.notation
+    if body.variation_seed is not None:
+        defaults_state["_variation_seed"] = body.variation_seed
+    if body.variations is not None:
+        defaults_state["_variations"] = body.variations
+
+    piece.defaults_state = defaults_state
 
     if body.segments is not None:
         # Delete old segments
@@ -232,12 +274,17 @@ async def update_piece(
 
         segments = []
         for pos, seg_in in enumerate(body.segments):
+            # Store segment-level variations inside config
+            config = {**(seg_in.config or {})}
+            if seg_in.variations is not None:
+                config["_variations"] = seg_in.variations
+
             seg = PieceSegment(
                 piece_id=piece.id,
                 position=pos,
                 type=seg_in.type,
                 duration_ms=seg_in.duration_ms,
-                config=seg_in.config,
+                config=config,
             )
             session.add(seg)
             segments.append(seg)

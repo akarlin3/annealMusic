@@ -24,7 +24,12 @@ import {
   type LoopConfigMap,
   type SlotId,
 } from '@/loop/types';
-import type { NotationNote, SegmentType, VariationPoint } from '@/piece/types';
+import type {
+  Movement,
+  NotationNote,
+  SegmentType,
+  VariationPoint,
+} from '@/piece/types';
 
 const SHARED_KEY_SET: ReadonlySet<string> = new Set(SHARED_KEYS);
 
@@ -166,6 +171,7 @@ export interface DecodedPiece {
   };
   segments: DecodedPieceSegment[];
   notation?: NotationNote[];
+  movements?: Movement[];
 }
 
 export type DecodedState =
@@ -493,6 +499,17 @@ export function decodePiecePayload(payload: string): DecodedPiece {
       variations?: VariationPoint[];
     }
   > = {};
+  const movMap: Record<
+    number,
+    {
+      name?: string;
+      desc?: string;
+      in?: number;
+      out?: number;
+      start?: number;
+      end?: number;
+    }
+  > = {};
 
   for (const pair of payload.split('&')) {
     if (pair === '') continue;
@@ -531,6 +548,31 @@ export function decodePiecePayload(payload: string): DecodedPiece {
       });
     } else if (key.startsWith('def.')) {
       defPairs.push(pair.slice(4));
+    } else if (key.startsWith('mov')) {
+      const dot = key.indexOf('.');
+      if (dot !== -1) {
+        const prefix = key.slice(3, dot);
+        const idx = parseInt(prefix, 10);
+        if (!isNaN(idx)) {
+          const movKey = key.slice(dot + 1);
+          if (!movMap[idx]) {
+            movMap[idx] = {};
+          }
+          if (movKey === 'name') {
+            movMap[idx].name = decodeURIComponent(raw);
+          } else if (movKey === 'desc') {
+            movMap[idx].desc = decodeURIComponent(raw);
+          } else if (movKey === 'in') {
+            movMap[idx].in = parseInt(raw, 10);
+          } else if (movKey === 'out') {
+            movMap[idx].out = parseInt(raw, 10);
+          } else if (movKey === 'start') {
+            movMap[idx].start = parseInt(raw, 10);
+          } else if (movKey === 'end') {
+            movMap[idx].end = parseInt(raw, 10);
+          }
+        }
+      }
     } else if (key.startsWith('seg')) {
       const dot = key.indexOf('.');
       if (dot !== -1) {
@@ -586,6 +628,31 @@ export function decodePiecePayload(payload: string): DecodedPiece {
     };
   });
 
+  const sortedMovIndices = Object.keys(movMap)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const movements: Movement[] = sortedMovIndices
+    .map((idx) => {
+      const m = movMap[idx]!;
+      if (
+        m.name === undefined ||
+        m.start === undefined ||
+        m.end === undefined
+      ) {
+        return null;
+      }
+      return {
+        name: m.name,
+        description: m.desc,
+        transition_in_ms: m.in !== undefined && !isNaN(m.in) ? m.in : undefined,
+        transition_out_ms:
+          m.out !== undefined && !isNaN(m.out) ? m.out : undefined,
+        startSegmentIndex: m.start,
+        endSegmentIndex: m.end,
+      };
+    })
+    .filter(Boolean) as Movement[];
+
   return {
     title,
     description,
@@ -600,10 +667,11 @@ export function decodePiecePayload(payload: string): DecodedPiece {
     },
     segments,
     notation,
+    movements: movements.length > 0 ? movements : undefined,
   };
 }
 
-/** Encode a Piece into a version 12 URL payload string */
+/** Encode a Piece into a version 13 URL payload string */
 export function encodePiece(piece: {
   title?: string | null;
   description?: string | null;
@@ -627,6 +695,14 @@ export function encodePiece(piece: {
     duration_ms: number;
     pitch_midi: number;
   }[];
+  movements?: {
+    name: string;
+    description?: string;
+    transition_in_ms?: number;
+    transition_out_ms?: number;
+    startSegmentIndex: number;
+    endSegmentIndex: number;
+  }[];
 }): string {
   const parts = ['kind=piece'];
   if (piece.title) parts.push(`title=${encodeURIComponent(piece.title)}`);
@@ -648,6 +724,25 @@ export function encodePiece(piece: {
       .map((n) => `${n.onset_ms},${n.duration_ms},${n.pitch_midi}`)
       .join(';');
     parts.push(`notation=${encodedNotes}`);
+  }
+  if (piece.movements && piece.movements.length > 0) {
+    piece.movements.forEach((mov, idx) => {
+      parts.push(`mov${idx}.name=${encodeURIComponent(mov.name)}`);
+      if (mov.description) {
+        parts.push(`mov${idx}.desc=${encodeURIComponent(mov.description)}`);
+      }
+      if (mov.transition_in_ms !== undefined && mov.transition_in_ms !== null) {
+        parts.push(`mov${idx}.in=${mov.transition_in_ms}`);
+      }
+      if (
+        mov.transition_out_ms !== undefined &&
+        mov.transition_out_ms !== null
+      ) {
+        parts.push(`mov${idx}.out=${mov.transition_out_ms}`);
+      }
+      parts.push(`mov${idx}.start=${mov.startSegmentIndex}`);
+      parts.push(`mov${idx}.end=${mov.endSegmentIndex}`);
+    });
   }
 
   const defStateStr = encodeState(

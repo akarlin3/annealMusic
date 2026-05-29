@@ -34,6 +34,15 @@ export interface NotationNote {
   pitch_midi: number;
 }
 
+export interface Movement {
+  name: string;
+  description?: string;
+  transition_in_ms?: number;
+  transition_out_ms?: number;
+  startSegmentIndex: number;
+  endSegmentIndex: number;
+}
+
 export interface Piece {
   id?: string;
   schemaVer: number;
@@ -53,4 +62,5 @@ export interface Piece {
   notation?: NotationNote[];
   variationSeed?: number | null;
   variations?: VariationPoint[];
+  movements?: Movement[];
 }

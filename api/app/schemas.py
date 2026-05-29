@@ -378,9 +378,10 @@ class FeaturedPickOut(BaseModel):
 # --- v3.0 Pieces Schemas -----------------------------------------------------
 
 class PieceSegmentCreate(BaseModel):
-    type: Literal["fixed", "arc", "open", "transition"]
+    type: Literal["fixed", "arc", "open", "transition", "meta-arc"]
     duration_ms: int | None = None
     config: dict
+    variations: list[dict] | None = None
 
 
 class PieceCreate(BaseModel):
@@ -390,6 +391,11 @@ class PieceCreate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     visibility: Visibility = "unlisted"
     segments: list[PieceSegmentCreate]
+    movements: list[dict] | None = None
+    tempo_bpm: int | None = None
+    notation: list[dict] | None = None
+    variation_seed: int | None = None
+    variations: list[dict] | None = None
 
 
 class PieceUpdate(BaseModel):
@@ -398,6 +404,11 @@ class PieceUpdate(BaseModel):
     visibility: Visibility | None = None
     defaults_state: dict | None = None
     segments: list[PieceSegmentCreate] | None = None
+    movements: list[dict] | None = None
+    tempo_bpm: int | None = None
+    notation: list[dict] | None = None
+    variation_seed: int | None = None
+    variations: list[dict] | None = None
 
 
 class PieceSegmentOut(BaseModel):
@@ -408,6 +419,7 @@ class PieceSegmentOut(BaseModel):
     type: str
     duration_ms: int | None
     config: dict
+    variations: list[dict] | None = None
 
 
 class PieceOut(BaseModel):
@@ -426,6 +438,12 @@ class PieceOut(BaseModel):
     updated_at: datetime
     short_slug: str
     segments: list[PieceSegmentOut]
+    movements: list[dict] | None = None
+    tempo_bpm: int | None = None
+    notation: list[dict] | None = None
+    variation_seed: int | None = None
+    variations: list[dict] | None = None
+
 
 
 class PieceListOut(BaseModel):

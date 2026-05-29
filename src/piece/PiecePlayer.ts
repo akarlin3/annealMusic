@@ -457,6 +457,43 @@ export class PiecePlayer {
     }
   }
 
+  skipToMovement(movementIdx: number): void {
+    if (!this.piece.movements || !this.piece.movements[movementIdx]) return;
+    const movement = this.piece.movements[movementIdx]!;
+
+    this.activeSegmentIdx = movement.startSegmentIndex;
+    this.playheadMs = 0;
+    this.activeArcRunner = null;
+    this.lastTickTime = performance.now();
+    this.applyActiveState();
+  }
+
+  replayCurrentMovement(): void {
+    if (!this.piece.movements || this.piece.movements.length === 0) {
+      this.activeSegmentIdx = 0;
+      this.playheadMs = 0;
+      this.activeArcRunner = null;
+      this.lastTickTime = performance.now();
+      this.applyActiveState();
+      return;
+    }
+
+    const currentIdx = this.activeSegmentIdx;
+    const movementIdx = this.piece.movements.findIndex(
+      (m) =>
+        currentIdx >= m.startSegmentIndex && currentIdx <= m.endSegmentIndex,
+    );
+
+    if (movementIdx !== -1) {
+      this.skipToMovement(movementIdx);
+    } else {
+      this.playheadMs = 0;
+      this.activeArcRunner = null;
+      this.lastTickTime = performance.now();
+      this.applyActiveState();
+    }
+  }
+
   getPlayheadMs(): number {
     return this.playheadMs;
   }

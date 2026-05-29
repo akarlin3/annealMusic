@@ -23,6 +23,14 @@ interface ExportDialogProps {
 
 type ExportState = 'idle' | 'rendering' | 'packaging' | 'complete';
 
+const getSegmentDurationSec = (seg: any, tempoBpm: number | null): number => {
+  let durationMs = seg.durationMs ?? 5000;
+  if (seg.config?.tempoLocked && tempoBpm !== null && tempoBpm > 0) {
+    durationMs = durationMs * 4 * (60 / tempoBpm) * 1000;
+  }
+  return durationMs / 1000;
+};
+
 export default function ExportDialog({
   orchestrator,
   patchTitle,
@@ -32,6 +40,12 @@ export default function ExportDialog({
 }: ExportDialogProps) {
   const store = useParamStore();
   const isMobile = Capacitor.isNativePlatform();
+
+  const activePiece = useMemo(() => {
+    return (window as any).activePiecePlayer?.piece || null;
+  }, []);
+
+  const [exportMode, setExportMode] = useState<'full' | 'movement'>('full');
 
   // 1. Dialog Configuration States
   const [renderMode, setRenderMode] = useState<'offline' | 'realtime'>(
@@ -114,13 +128,29 @@ export default function ExportDialog({
     let totalBytes = 0;
     const bytesPerSample = bitDepth === 24 ? 3 : 4;
 
+    let targetDuration = durationSec;
+    if (store.sessionMode === 'piece' && activePiece) {
+      let totalPieceSec = 0;
+      for (const seg of activePiece.segments) {
+        totalPieceSec += getSegmentDurationSec(seg, activePiece.tempoBpm);
+      }
+      targetDuration = totalPieceSec;
+    }
+
     for (const stem of activeStems) {
       const ch = stem.channels;
-      totalBytes += durationSec * sampleRate * bytesPerSample * ch;
+      totalBytes += targetDuration * sampleRate * bytesPerSample * ch;
     }
 
     return (totalBytes / (1024 * 1024)).toFixed(1);
-  }, [activeStems, durationSec, sampleRate, bitDepth]);
+  }, [
+    activeStems,
+    durationSec,
+    sampleRate,
+    bitDepth,
+    store.sessionMode,
+    activePiece,
+  ]);
 
   const deliverZip = async (zipBlob: Blob) => {
     if (isMobile) {
@@ -165,6 +195,71 @@ export default function ExportDialog({
       URL.revokeObjectURL(url);
       showToast('ZIP archive downloaded');
     }
+  };
+
+  const finalizeZipMovement = async (
+    movementsData: Array<{
+      name: string;
+      description?: string;
+      offsetSec: number;
+      durationSec: number;
+      results: Record<string, ArrayBuffer>;
+    }>,
+  ) => {
+    setExportState('packaging');
+
+    const zip = new ZipBuilder();
+
+    // Add WAV stems for each movement in sub-folders
+    for (let idx = 0; idx < movementsData.length; idx++) {
+      const item = movementsData[idx]!;
+      const folderName = `Movement ${idx + 1} - ${item.name}`;
+      for (const [stemId, arrayBuffer] of Object.entries(item.results)) {
+        zip.addFile(`${folderName}/${stemId}.wav`, arrayBuffer);
+      }
+    }
+
+    // Build per-movement manifest
+    const manifest = {
+      appName: 'AnnealMusic',
+      version: '3.5.0',
+      timestamp: new Date().toISOString(),
+      seed: Math.floor(Math.random() * 2000000),
+      renderConfig: {
+        mode: store.sessionMode,
+        exportTarget: 'movement',
+        sampleRate,
+        bitDepth,
+      },
+      movements: movementsData.map((item, idx) => ({
+        name: item.name,
+        description: item.description || null,
+        offsetSec: item.offsetSec,
+        durationSec: item.durationSec,
+        stems: activeStems.map((s) => ({
+          id: s.id,
+          label: s.label,
+          channels: s.channels === 1 ? 'mono' : 'stereo',
+          isFx: s.isFx,
+          type: s.type,
+          slotId: s.slotId || null,
+          partialIndex: s.partialIndex !== undefined ? s.partialIndex : null,
+          fileName: `Movement ${idx + 1} - ${item.name}/${s.id}.wav`,
+        })),
+      })),
+    };
+
+    zip.addFile('session.json', JSON.stringify(manifest, null, 2));
+
+    // Add README.txt
+    const readmeText = generateReadme(patchTitle, patchHash);
+    zip.addFile('README.txt', readmeText);
+
+    const zipBlob = zip.build();
+    await deliverZip(zipBlob);
+
+    setExportState('complete');
+    setTimeout(onClose, 800);
   };
 
   const finalizeZip = async (renderResults: Record<string, ArrayBuffer>) => {
@@ -287,15 +382,91 @@ export default function ExportDialog({
           patchHash,
         };
 
-        const renderResults = await renderStemsOffline(
-          renderConfig,
-          (progress) => {
-            setCurrentProgress(progress);
-          },
-          cancelSignalRef.current,
-        );
+        if (
+          store.sessionMode === 'piece' &&
+          exportMode === 'movement' &&
+          activePiece?.movements &&
+          activePiece.movements.length > 0
+        ) {
+          const movements = activePiece.movements;
+          const movementsData: any[] = [];
 
-        await finalizeZip(renderResults);
+          let currentOffsetSec = 0;
+          const totalMovStems = movements.length * activeStems.length;
+
+          for (let movIdx = 0; movIdx < movements.length; movIdx++) {
+            if (cancelSignalRef.current.aborted) {
+              throw new Error('Render cancelled by user');
+            }
+
+            const mov = movements[movIdx]!;
+
+            // Build temporary piece for this movement
+            const tempPiece = {
+              ...activePiece,
+              segments: activePiece.segments
+                .slice(mov.startSegmentIndex, mov.endSegmentIndex + 1)
+                .map((seg: any, idx: number) => ({
+                  ...seg,
+                  position: idx,
+                })),
+            };
+
+            // Calculate movement duration
+            let movDurationSec = 0;
+            for (const seg of tempPiece.segments) {
+              movDurationSec += getSegmentDurationSec(
+                seg,
+                activePiece.tempoBpm,
+              );
+            }
+
+            const movResults = await renderStemsOffline(
+              {
+                ...renderConfig,
+                piece: tempPiece,
+                durationSec: movDurationSec,
+              },
+              (progress) => {
+                setCurrentProgress({
+                  stemId: progress.stemId,
+                  stemLabel: `[Movement ${movIdx + 1}/${movements.length}: ${mov.name}] ${progress.stemLabel}`,
+                  progress: progress.progress,
+                  completedStems:
+                    movIdx * activeStems.length + progress.completedStems,
+                  totalStems: totalMovStems,
+                });
+              },
+              cancelSignalRef.current,
+            );
+
+            movementsData.push({
+              name: mov.name,
+              description: mov.description,
+              offsetSec: currentOffsetSec,
+              durationSec: movDurationSec,
+              results: movResults,
+            });
+
+            currentOffsetSec += movDurationSec;
+          }
+
+          await finalizeZipMovement(movementsData);
+        } else {
+          // Standard full piece offline render
+          const renderResults = await renderStemsOffline(
+            {
+              ...renderConfig,
+              piece: activePiece || undefined, // Use the active piece if available
+            },
+            (progress) => {
+              setCurrentProgress(progress);
+            },
+            cancelSignalRef.current,
+          );
+
+          await finalizeZip(renderResults);
+        }
       } catch (err: any) {
         if (err.message !== 'Render cancelled by user') {
           console.error('Offline stems render failed', err);
@@ -406,6 +577,52 @@ export default function ExportDialog({
                     : '🎤 Captures live jams, microphone inputs, and loop pedaling as they play.'}
                 </p>
               </div>
+
+              {/* Export Mode Toggle */}
+              {renderMode === 'offline' &&
+                store.sessionMode === 'piece' &&
+                activePiece?.movements &&
+                activePiece.movements.length > 0 && (
+                  <div>
+                    <label className="mb-1.5 block font-body text-xs text-[#a8a29e]">
+                      Export Target
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setExportMode('full')}
+                        className="rounded-lg py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] transition-all"
+                        style={{
+                          background:
+                            exportMode === 'full' ? '#f59e0b' : '#0c0a09',
+                          color: exportMode === 'full' ? '#0c0a09' : '#a8a29e',
+                          border: '1px solid #44403c',
+                        }}
+                      >
+                        Full Piece
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExportMode('movement')}
+                        className="rounded-lg py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] transition-all"
+                        style={{
+                          background:
+                            exportMode === 'movement' ? '#f59e0b' : '#0c0a09',
+                          color:
+                            exportMode === 'movement' ? '#0c0a09' : '#a8a29e',
+                          border: '1px solid #44403c',
+                        }}
+                      >
+                        Per Movement
+                      </button>
+                    </div>
+                    <p className="text-[9px] font-body text-[#78716c] mt-1.5">
+                      {exportMode === 'full'
+                        ? '📦 Exports the entire timeline as a single continuous session.'
+                        : '📂 Splits the timeline and exports separate stem folders for each movement.'}
+                    </p>
+                  </div>
+                )}
 
               {/* Duration Slider / Input */}
               {store.sessionMode === 'open' && (

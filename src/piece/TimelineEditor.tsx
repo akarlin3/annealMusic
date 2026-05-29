@@ -1,11 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import type { Piece, PieceSegment, VariationPoint } from '@/piece/types';
+import type {
+  Piece,
+  PieceSegment,
+  VariationPoint,
+  Movement,
+} from '@/piece/types';
 import { PiecePlayer } from '@/piece/PiecePlayer';
 import { SegmentProperties } from '@/piece/SegmentProperties';
 import { NotationEditor } from '@/piece/components/NotationEditor';
 import { api } from '@/api/client';
+import { doc, sessionConfigMap } from '@/jam/crdt';
+import { getAnonId } from '@/api/anon';
 import { useParamStore, CONTROL_DEFS } from '@/state/params';
 import { SCHEMA_VERSION } from '@/share/schema';
 import {
@@ -78,6 +85,263 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showNotation, setShowNotation] = useState(false);
+  const [editingMovementIdx, setEditingMovementIdx] = useState<number | null>(
+    null,
+  );
+
+  // Collaborative Jam Syncing: Broadcast changes as session leader
+  useEffect(() => {
+    const inJam = sessionConfigMap.size > 0;
+    if (!inJam) return;
+
+    const hostId = doc.getMap('metadata').get('hostId') as string | undefined;
+    const isLeader = hostId === getAnonId() || !hostId;
+    if (!isLeader) return;
+
+    doc.transact(() => {
+      if (piece.movements) {
+        sessionConfigMap.set(
+          'piece_movements',
+          JSON.stringify(piece.movements),
+        );
+      } else {
+        sessionConfigMap.delete('piece_movements');
+      }
+      if (piece.segments) {
+        sessionConfigMap.set('piece_segments', JSON.stringify(piece.segments));
+      }
+    });
+  }, [piece]);
+
+  // Collaborative Jam Syncing: Observe changes as session follower
+  useEffect(() => {
+    const handleCrdtUpdate = () => {
+      const inJam = sessionConfigMap.size > 0;
+      if (!inJam) return;
+
+      const hostId = doc.getMap('metadata').get('hostId') as string | undefined;
+      const isLeader = hostId === getAnonId() || !hostId;
+      if (isLeader) return; // Leader does not follow remote state
+
+      const remoteMovements = sessionConfigMap.get('piece_movements');
+      const remoteSegments = sessionConfigMap.get('piece_segments');
+
+      let changed = false;
+      const nextPiece = { ...piece };
+
+      if (remoteMovements !== undefined) {
+        try {
+          const parsedMovements =
+            typeof remoteMovements === 'string'
+              ? JSON.parse(remoteMovements)
+              : remoteMovements;
+          if (
+            JSON.stringify(piece.movements) !== JSON.stringify(parsedMovements)
+          ) {
+            nextPiece.movements = parsedMovements;
+            changed = true;
+          }
+        } catch (e) {
+          console.warn('[Jam] Error parsing remote movements:', e);
+        }
+      }
+
+      if (remoteSegments !== undefined) {
+        try {
+          const parsedSegments =
+            typeof remoteSegments === 'string'
+              ? JSON.parse(remoteSegments)
+              : remoteSegments;
+          if (
+            JSON.stringify(piece.segments) !== JSON.stringify(parsedSegments)
+          ) {
+            nextPiece.segments = parsedSegments;
+            changed = true;
+          }
+        } catch (e) {
+          console.warn('[Jam] Error parsing remote segments:', e);
+        }
+      }
+
+      if (changed) {
+        setPiece(nextPiece);
+        if (playerRef.current) {
+          playerRef.current.updatePiece(nextPiece);
+        }
+      }
+    };
+
+    sessionConfigMap.observe(handleCrdtUpdate);
+    return () => {
+      sessionConfigMap.unobserve(handleCrdtUpdate);
+    };
+  }, [piece]);
+
+  const getSegmentWidth = (seg: PieceSegment) => {
+    const durationSec = seg.durationMs ? seg.durationMs / 1000 : 30;
+    return seg.type === 'open'
+      ? 180
+      : Math.max(MIN_SEG_WIDTH, durationSec * PX_PER_SEC * 10);
+  };
+
+  const getRangeLayout = (startIdx: number, endIdx: number) => {
+    let left = 0;
+    for (let i = 0; i < startIdx; i++) {
+      if (piece.segments[i]) {
+        left += getSegmentWidth(piece.segments[i]!) + 4;
+      }
+    }
+
+    let width = 0;
+    for (let i = startIdx; i <= endIdx; i++) {
+      if (piece.segments[i]) {
+        width += getSegmentWidth(piece.segments[i]!);
+        if (i < endIdx) {
+          width += 4;
+        }
+      }
+    }
+
+    return { left, width };
+  };
+
+  const adjustMovementsOnDelete = (delIdx: number) => {
+    if (!piece.movements) return undefined;
+
+    return piece.movements
+      .map((mov) => {
+        let start = mov.startSegmentIndex;
+        let end = mov.endSegmentIndex;
+
+        if (delIdx >= start && delIdx <= end) {
+          if (start === end) return null;
+          end--;
+        } else {
+          if (start > delIdx) start--;
+          if (end > delIdx) end--;
+        }
+
+        return {
+          ...mov,
+          startSegmentIndex: start,
+          endSegmentIndex: end,
+        };
+      })
+      .filter(Boolean) as Movement[];
+  };
+
+  const handleAddMovement = () => {
+    const movements = piece.movements || [];
+    if (movements.length >= 10) {
+      showToast('Maximum of 10 movements reached');
+      return;
+    }
+
+    let targetStart = -1;
+    for (let i = 0; i < piece.segments.length; i++) {
+      const inside = movements.some(
+        (m) => i >= m.startSegmentIndex && i <= m.endSegmentIndex,
+      );
+      if (!inside) {
+        targetStart = i;
+        break;
+      }
+    }
+
+    if (targetStart === -1) {
+      showToast('All segments already belong to a movement');
+      return;
+    }
+
+    const newMovement = {
+      name: `Movement ${movements.length + 1}`,
+      description: '',
+      startSegmentIndex: targetStart,
+      endSegmentIndex: targetStart,
+    };
+
+    const updatedMovements = [...movements, newMovement].sort(
+      (a, b) => a.startSegmentIndex - b.startSegmentIndex,
+    );
+
+    const updated = { ...piece, movements: updatedMovements };
+    setPiece(updated);
+    if (playerRef.current) {
+      playerRef.current.updatePiece(updated);
+    }
+    showToast(`Added movement: "${newMovement.name}"`);
+  };
+
+  const handleStartDragMovement = (
+    e: React.MouseEvent,
+    movIdx: number,
+    edge: 'left' | 'right',
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const mov = piece.movements![movIdx]!;
+    const initialStart = mov.startSegmentIndex;
+    const initialEnd = mov.endSegmentIndex;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const timelineEl = e.currentTarget.parentElement?.parentElement;
+      if (!timelineEl) return;
+
+      const rect = timelineEl.getBoundingClientRect();
+      const relativeX = moveEvent.clientX - rect.left - 24; // subtract padding
+
+      let accumX = 0;
+      let targetIdx = 0;
+      for (let i = 0; i < piece.segments.length; i++) {
+        const w = getSegmentWidth(piece.segments[i]!);
+        if (relativeX < accumX + w / 2) {
+          targetIdx = i;
+          break;
+        }
+        accumX += w + 4;
+        targetIdx = i;
+      }
+
+      const movements = piece.movements || [];
+      if (edge === 'left') {
+        let minStart = 0;
+        if (movIdx > 0) {
+          minStart = movements[movIdx - 1]!.endSegmentIndex + 1;
+        }
+        const newStart = Math.max(minStart, Math.min(initialEnd, targetIdx));
+        if (newStart !== mov.startSegmentIndex) {
+          const updated = movements.map((m, i) =>
+            i === movIdx ? { ...m, startSegmentIndex: newStart } : m,
+          );
+          const updatedPiece = { ...piece, movements: updated };
+          setPiece(updatedPiece);
+          if (playerRef.current) playerRef.current.updatePiece(updatedPiece);
+        }
+      } else {
+        let maxEnd = piece.segments.length - 1;
+        if (movIdx < movements.length - 1) {
+          maxEnd = movements[movIdx + 1]!.startSegmentIndex - 1;
+        }
+        const newEnd = Math.max(initialStart, Math.min(maxEnd, targetIdx));
+        if (newEnd !== mov.endSegmentIndex) {
+          const updated = movements.map((m, i) =>
+            i === movIdx ? { ...m, endSegmentIndex: newEnd } : m,
+          );
+          const updatedPiece = { ...piece, movements: updated };
+          setPiece(updatedPiece);
+          if (playerRef.current) playerRef.current.updatePiece(updatedPiece);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
 
   const [activeVpEdit, setActiveVpEdit] = useState<{
     paramKey: string;
@@ -301,7 +565,26 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
     const updated = piece.segments
       .filter((_, i) => i !== idx)
       .map((seg, i) => ({ ...seg, position: i }));
-    updatePieceSegments(updated);
+
+    const adjustedMovements = adjustMovementsOnDelete(idx);
+
+    const hasOpen = updated.some((s) => s.type === 'open');
+    const totalDuration = hasOpen
+      ? null
+      : updated.reduce((sum, s) => sum + (s.durationMs || 0), 0);
+
+    const updatedPiece = {
+      ...piece,
+      segments: updated,
+      hasOpenSegment: hasOpen,
+      totalDurationMs: totalDuration,
+      movements: adjustedMovements,
+    };
+
+    setPiece(updatedPiece);
+    if (playerRef.current) {
+      playerRef.current.updatePiece(updatedPiece);
+    }
     setSelectedIdx(updated.length > 0 ? 0 : null);
   };
 
@@ -672,6 +955,15 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
               Notation Editor
             </button>
 
+            {/* Add Movement Button */}
+            <button
+              onClick={handleAddMovement}
+              className="flex items-center gap-2 px-4 py-2.5 bg-teal-500/20 border border-teal-500/50 hover:bg-teal-500/30 text-teal-300 rounded-2xl text-xs font-bold transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Add Movement
+            </button>
+
             {/* Hold Open indicator / Advance open button */}
             {isPlaying && piece.segments[activeSegIdx]?.type === 'open' && (
               <button
@@ -693,7 +985,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
         </div>
 
         {/* Horizontal scrollable track area */}
-        <div className="w-full overflow-x-auto custom-scrollbar bg-[#110e14] border border-white/5 rounded-2xl p-6 min-h-[140px] relative flex items-center">
+        <div className="w-full overflow-x-auto custom-scrollbar bg-[#110e14] border border-white/5 rounded-2xl p-6 min-h-[220px] relative">
           {/* Visual Grid Backdrop */}
           {piece.tempoBpm !== null && (
             <div className="absolute inset-y-0 left-6 right-6 pointer-events-none z-0">
@@ -723,157 +1015,216 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
             </div>
           )}
 
-          <div className="flex items-center gap-1 relative min-w-full z-10">
-            {piece.segments.map((seg, idx) => {
-              const durationSec = seg.durationMs ? seg.durationMs / 1000 : 30; // open is mapped to constant width
-              const width =
-                seg.type === 'open'
-                  ? 180
-                  : Math.max(MIN_SEG_WIDTH, durationSec * PX_PER_SEC * 10);
-              const isSelected = selectedIdx === idx;
-              const isActive = isPlaying && activeSegIdx === idx;
-
-              // Color classes based on segment type
-              let colorClasses = 'border-teal-500 bg-teal-500/10 text-teal-300';
-              if (seg.type === 'arc')
-                colorClasses =
-                  'border-violet-500 bg-violet-500/10 text-violet-300';
-              if (seg.type === 'meta-arc')
-                colorClasses =
-                  'border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300';
-              if (seg.type === 'open')
-                colorClasses = 'border-rose-500 bg-rose-500/10 text-rose-300';
-              if (seg.type === 'transition')
-                colorClasses =
-                  'border-amber-500 bg-amber-500/10 text-amber-300';
-
-              return (
-                <div
-                  key={idx}
-                  onClick={() => setSelectedIdx(idx)}
-                  style={{ width: `${width}px` }}
-                  className={`h-24 rounded-2xl border transition-all flex flex-col justify-between p-4 cursor-pointer relative group ${colorClasses} ${
-                    isSelected
-                      ? 'ring-2 ring-teal-500/80 ring-offset-2 ring-offset-[#110e14]'
-                      : ''
-                  } ${isActive ? 'shadow-[0_0_20px_rgba(20,184,166,0.1)]' : ''}`}
-                >
-                  {/* Top info and reordering keys */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold uppercase tracking-wide">
-                      {idx + 1}. {seg.type}
-                    </span>
-
-                    {/* Quick controls shown on hover */}
-                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity bg-[#110e14]/90 p-1 rounded-lg border border-white/5 absolute -top-4 right-4 shadow-lg z-10">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMoveSegment(idx, 'left');
-                        }}
-                        disabled={idx === 0}
-                        className="p-1 hover:bg-white/10 rounded disabled:opacity-30"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMoveSegment(idx, 'right');
-                        }}
-                        disabled={idx === piece.segments.length - 1}
-                        className="p-1 hover:bg-white/10 rounded disabled:opacity-30"
-                      >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteSegment(idx);
-                        }}
-                        className="p-1 hover:bg-rose-500/20 text-rose-400 rounded"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Middle representation */}
-                  <span className="text-[10px] text-white/50 truncate">
-                    {seg.type === 'transition'
-                      ? `Easing: ${seg.config.easing || 'linear'}`
-                      : seg.type === 'arc'
-                        ? `Arc: ${seg.config.arcId || 'bell'}`
-                        : seg.type === 'meta-arc'
-                          ? `Kind: ${seg.config.kind || 'random-walk'}`
-                          : 'Overrides Active'}
-                  </span>
-
-                  {/* Bottom: Resize handles & durations */}
-                  <div className="flex items-center justify-between text-[10px] text-white/40 font-mono">
-                    <span>
-                      {seg.type === 'open' ? 'Hold Open' : `${durationSec}s`}
-                    </span>
-
-                    {/* Drag handle for duration resizing */}
-                    {seg.type !== 'open' && (
+          <div className="relative min-w-full z-10 flex flex-col gap-4">
+            {/* Movements bracket row */}
+            {piece.movements && piece.movements.length > 0 && (
+              <div className="relative h-12 w-full mb-2">
+                {piece.movements.map((mov, movIdx) => {
+                  const { left, width } = getRangeLayout(
+                    mov.startSegmentIndex,
+                    mov.endSegmentIndex,
+                  );
+                  return (
+                    <div
+                      key={movIdx}
+                      className="absolute h-10 border-t-2 border-x-2 border-teal-500/80 rounded-t-lg bg-teal-500/10 flex items-center justify-between px-3 text-xs font-bold text-teal-300 select-none group animate-fadeIn"
+                      style={{
+                        left: `${left}px`,
+                        width: `${width}px`,
+                      }}
+                    >
+                      {/* Left Drag Handle */}
                       <div
-                        onMouseDown={(e) => handleMouseDownResize(e, idx)}
-                        className="w-1.5 h-8 bg-white/20 group-hover:bg-white/40 hover:bg-teal-400 absolute right-1.5 top-8 rounded cursor-ew-resize transition-all"
+                        onMouseDown={(e) =>
+                          handleStartDragMovement(e, movIdx, 'left')
+                        }
+                        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize bg-teal-400/0 hover:bg-teal-400/40 rounded-l transition-colors z-20"
+                      />
+
+                      {/* Movement Info & Click to Edit */}
+                      <span
+                        onClick={() => setEditingMovementIdx(movIdx)}
+                        className="truncate cursor-pointer hover:underline flex items-center gap-1.5 z-10 px-1"
+                      >
+                        {mov.name}
+                        {mov.transition_in_ms ? (
+                          <span className="text-[10px] text-teal-400/70">
+                            +{mov.transition_in_ms}ms
+                          </span>
+                        ) : null}
+                        {mov.transition_out_ms ? (
+                          <span className="text-[10px] text-teal-400/70">
+                            -{mov.transition_out_ms}ms
+                          </span>
+                        ) : null}
+                      </span>
+
+                      {/* Right Drag Handle */}
+                      <div
+                        onMouseDown={(e) =>
+                          handleStartDragMovement(e, movIdx, 'right')
+                        }
+                        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-teal-400/0 hover:bg-teal-400/40 rounded-r transition-colors z-20"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex items-center gap-1 relative w-full">
+              {piece.segments.map((seg, idx) => {
+                const durationSec = seg.durationMs ? seg.durationMs / 1000 : 30; // open is mapped to constant width
+                const width =
+                  seg.type === 'open'
+                    ? 180
+                    : Math.max(MIN_SEG_WIDTH, durationSec * PX_PER_SEC * 10);
+                const isSelected = selectedIdx === idx;
+                const isActive = isPlaying && activeSegIdx === idx;
+
+                // Color classes based on segment type
+                let colorClasses =
+                  'border-teal-500 bg-teal-500/10 text-teal-300';
+                if (seg.type === 'arc')
+                  colorClasses =
+                    'border-violet-500 bg-violet-500/10 text-violet-300';
+                if (seg.type === 'meta-arc')
+                  colorClasses =
+                    'border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-300';
+                if (seg.type === 'open')
+                  colorClasses = 'border-rose-500 bg-rose-500/10 text-rose-300';
+                if (seg.type === 'transition')
+                  colorClasses =
+                    'border-amber-500 bg-amber-500/10 text-amber-300';
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedIdx(idx)}
+                    style={{ width: `${width}px` }}
+                    className={`h-24 rounded-2xl border transition-all flex flex-col justify-between p-4 cursor-pointer relative group ${colorClasses} ${
+                      isSelected
+                        ? 'ring-2 ring-teal-500/80 ring-offset-2 ring-offset-[#110e14]'
+                        : ''
+                    } ${isActive ? 'shadow-[0_0_20px_rgba(20,184,166,0.1)]' : ''}`}
+                  >
+                    {/* Top info and reordering keys */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold uppercase tracking-wide">
+                        {idx + 1}. {seg.type}
+                      </span>
+
+                      {/* Quick controls shown on hover */}
+                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity bg-[#110e14]/90 p-1 rounded-lg border border-white/5 absolute -top-4 right-4 shadow-lg z-10">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveSegment(idx, 'left');
+                          }}
+                          disabled={idx === 0}
+                          className="p-1 hover:bg-white/10 rounded disabled:opacity-30"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveSegment(idx, 'right');
+                          }}
+                          disabled={idx === piece.segments.length - 1}
+                          className="p-1 hover:bg-white/10 rounded disabled:opacity-30"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSegment(idx);
+                          }}
+                          className="p-1 hover:bg-rose-500/20 text-rose-400 rounded"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Middle representation */}
+                    <span className="text-[10px] text-white/50 truncate">
+                      {seg.type === 'transition'
+                        ? `Easing: ${seg.config.easing || 'linear'}`
+                        : seg.type === 'arc'
+                          ? `Arc: ${seg.config.arcId || 'bell'}`
+                          : seg.type === 'meta-arc'
+                            ? `Kind: ${seg.config.kind || 'random-walk'}`
+                            : 'Overrides Active'}
+                    </span>
+
+                    {/* Bottom: Resize handles & durations */}
+                    <div className="flex items-center justify-between text-[10px] text-white/40 font-mono">
+                      <span>
+                        {seg.type === 'open' ? 'Hold Open' : `${durationSec}s`}
+                      </span>
+
+                      {/* Drag handle for duration resizing */}
+                      {seg.type !== 'open' && (
+                        <div
+                          onMouseDown={(e) => handleMouseDownResize(e, idx)}
+                          className="w-1.5 h-8 bg-white/20 group-hover:bg-white/40 hover:bg-teal-400 absolute right-1.5 top-8 rounded cursor-ew-resize transition-all"
+                        />
+                      )}
+                    </div>
+
+                    {/* Playhead progress overlay */}
+                    {isActive && seg.type !== 'open' && (
+                      <div
+                        style={{ width: `${playheadProgress * 100}%` }}
+                        className="absolute bottom-0 left-0 h-1 bg-teal-400 rounded-b-2xl transition-all duration-75"
                       />
                     )}
                   </div>
+                );
+              })}
 
-                  {/* Playhead progress overlay */}
-                  {isActive && seg.type !== 'open' && (
-                    <div
-                      style={{ width: `${playheadProgress * 100}%` }}
-                      className="absolute bottom-0 left-0 h-1 bg-teal-400 rounded-b-2xl transition-all duration-75"
-                    />
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Quick add affine box */}
-            <div className="flex flex-wrap items-center gap-2 pl-4">
-              <button
-                onClick={() => handleAddSegment('fixed')}
-                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
-              >
-                <Plus className="w-3.5 h-3.5 text-teal-400" />
-                Add Fixed
-              </button>
-              <button
-                onClick={() => handleAddSegment('arc')}
-                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
-              >
-                <Plus className="w-3.5 h-3.5 text-violet-400" />
-                Add Arc
-              </button>
-              <button
-                onClick={() => handleAddSegment('meta-arc')}
-                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
-              >
-                <Plus className="w-3.5 h-3.5 text-fuchsia-400" />
-                Add Meta-Arc
-              </button>
-              <button
-                onClick={() => handleAddSegment('transition')}
-                className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
-              >
-                <Plus className="w-3.5 h-3.5 text-amber-400" />
-                Add Transition
-              </button>
-              {!piece.hasOpenSegment && (
+              {/* Quick add affine box */}
+              <div className="flex flex-wrap items-center gap-2 pl-4">
                 <button
-                  onClick={() => handleAddSegment('open')}
+                  onClick={() => handleAddSegment('fixed')}
                   className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
                 >
-                  <Plus className="w-3.5 h-3.5 text-rose-400" />
-                  Add Open
+                  <Plus className="w-3.5 h-3.5 text-teal-400" />
+                  Add Fixed
                 </button>
-              )}
+                <button
+                  onClick={() => handleAddSegment('arc')}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
+                >
+                  <Plus className="w-3.5 h-3.5 text-violet-400" />
+                  Add Arc
+                </button>
+                <button
+                  onClick={() => handleAddSegment('meta-arc')}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
+                >
+                  <Plus className="w-3.5 h-3.5 text-fuchsia-400" />
+                  Add Meta-Arc
+                </button>
+                <button
+                  onClick={() => handleAddSegment('transition')}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
+                >
+                  <Plus className="w-3.5 h-3.5 text-amber-400" />
+                  Add Transition
+                </button>
+                {!piece.hasOpenSegment && (
+                  <button
+                    onClick={() => handleAddSegment('open')}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-bold uppercase tracking-wider rounded-xl text-white/70 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-rose-400" />
+                    Add Open
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -954,6 +1305,150 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
           </div>
         </div>
       )}
+
+      {editingMovementIdx !== null &&
+        piece.movements?.[editingMovementIdx] &&
+        (() => {
+          const mov = piece.movements[editingMovementIdx];
+          return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
+              <div className="bg-[#18151f] border border-white/10 w-full max-w-lg p-6 rounded-3xl shadow-2xl space-y-6 text-white">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <h3 className="text-lg font-bold">Edit Movement</h3>
+                  <button
+                    onClick={() => setEditingMovementIdx(null)}
+                    className="text-white/40 hover:text-white/80 transition text-sm"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-teal-400 mb-2">
+                      Movement Name
+                    </label>
+                    <input
+                      type="text"
+                      value={mov.name}
+                      onChange={(e) => {
+                        const updated = piece.movements!.map((m, i) =>
+                          i === editingMovementIdx
+                            ? { ...m, name: e.target.value }
+                            : m,
+                        );
+                        const updatedPiece = { ...piece, movements: updated };
+                        setPiece(updatedPiece);
+                        if (playerRef.current)
+                          playerRef.current.updatePiece(updatedPiece);
+                      }}
+                      className="w-full bg-white/5 border border-white/10 focus:border-teal-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition"
+                      placeholder="e.g. Intro / Phase I"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-teal-400 mb-2">
+                      Description
+                    </label>
+                    <textarea
+                      value={mov.description || ''}
+                      onChange={(e) => {
+                        const updated = piece.movements!.map((m, i) =>
+                          i === editingMovementIdx
+                            ? { ...m, description: e.target.value }
+                            : m,
+                        );
+                        const updatedPiece = { ...piece, movements: updated };
+                        setPiece(updatedPiece);
+                        if (playerRef.current)
+                          playerRef.current.updatePiece(updatedPiece);
+                      }}
+                      className="w-full bg-white/5 border border-white/10 focus:border-teal-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition min-h-[80px]"
+                      placeholder="Optional description of this movement..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-teal-400 mb-2">
+                        Transition In (ms)
+                      </label>
+                      <input
+                        type="number"
+                        value={mov.transition_in_ms || 0}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10) || 0;
+                          const updated = piece.movements!.map((m, i) =>
+                            i === editingMovementIdx
+                              ? { ...m, transition_in_ms: val }
+                              : m,
+                          );
+                          const updatedPiece = { ...piece, movements: updated };
+                          setPiece(updatedPiece);
+                          if (playerRef.current)
+                            playerRef.current.updatePiece(updatedPiece);
+                        }}
+                        className="w-full bg-white/5 border border-white/10 focus:border-teal-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition"
+                        min={0}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-teal-400 mb-2">
+                        Transition Out (ms)
+                      </label>
+                      <input
+                        type="number"
+                        value={mov.transition_out_ms || 0}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10) || 0;
+                          const updated = piece.movements!.map((m, i) =>
+                            i === editingMovementIdx
+                              ? { ...m, transition_out_ms: val }
+                              : m,
+                          );
+                          const updatedPiece = { ...piece, movements: updated };
+                          setPiece(updatedPiece);
+                          if (playerRef.current)
+                            playerRef.current.updatePiece(updatedPiece);
+                        }}
+                        className="w-full bg-white/5 border border-white/10 focus:border-teal-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none transition"
+                        min={0}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-white/5 pt-4">
+                  <button
+                    onClick={() => {
+                      const updated = piece.movements!.filter(
+                        (_, i) => i !== editingMovementIdx,
+                      );
+                      const updatedPiece = { ...piece, movements: updated };
+                      setPiece(updatedPiece);
+                      if (playerRef.current)
+                        playerRef.current.updatePiece(updatedPiece);
+                      setEditingMovementIdx(null);
+                      showToast('Movement deleted');
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/20 border border-rose-500/50 hover:bg-rose-500/30 text-rose-300 rounded-2xl text-xs font-bold transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Movement
+                  </button>
+                  <button
+                    onClick={() => setEditingMovementIdx(null)}
+                    className="px-6 py-2 bg-teal-500 border border-teal-600 text-white rounded-2xl text-xs font-bold hover:bg-teal-600 transition"
+                  >
+                    Save & Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {activeVpEdit && (
         <VariationDialog

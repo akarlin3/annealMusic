@@ -260,4 +260,87 @@ describe('PiecePlayer timeline', () => {
       expect(secondCallParams.brightness).toBeLessThanOrEqual(0.8);
     });
   });
+
+  describe('PiecePlayer movements navigation', () => {
+    it('skips to movement and replays current movement correctly', () => {
+      const piece: Piece = {
+        schemaVer: 13,
+        tempoBpm: null,
+        title: 'Movements Nav Test',
+        description: null,
+        visibility: 'unlisted',
+        totalDurationMs: 15000,
+        hasOpenSegment: false,
+        defaultsState: {
+          params: DEFAULT_PARAMS,
+          engineId: 'sine',
+          engineParams: {},
+        },
+        segments: [
+          {
+            position: 0,
+            type: 'fixed',
+            durationMs: 5000,
+            config: { params: { rootFreq: 100 } },
+          },
+          {
+            position: 1,
+            type: 'fixed',
+            durationMs: 5000,
+            config: { params: { rootFreq: 200 } },
+          },
+          {
+            position: 2,
+            type: 'fixed',
+            durationMs: 5000,
+            config: { params: { rootFreq: 300 } },
+          },
+        ],
+        movements: [
+          {
+            name: 'Movement I',
+            startSegmentIndex: 0,
+            endSegmentIndex: 1,
+          },
+          {
+            name: 'Movement II',
+            startSegmentIndex: 2,
+            endSegmentIndex: 2,
+          },
+        ],
+      };
+
+      const mockOrch = {
+        start: vi.fn(),
+        setEngine: vi.fn(),
+        setSharedParams: vi.fn(),
+        setEngineParams: vi.fn(),
+        setTempoBpm: vi.fn(),
+      } as unknown as Orchestrator;
+
+      const player = new PiecePlayer(piece, mockOrch);
+      player.start();
+
+      // Initially at segment 0
+      expect(player.getActiveSegmentIndex()).toBe(0);
+
+      // Skip to Movement II (segment 2)
+      player.skipToMovement(1);
+      expect(player.getActiveSegmentIndex()).toBe(2);
+      expect(player.getPlayheadMs()).toBe(0);
+
+      // Skip to Movement I (segment 0)
+      player.skipToMovement(0);
+      expect(player.getActiveSegmentIndex()).toBe(0);
+
+      // Manually set segment index to 1 (still inside Movement I)
+      (player as any).activeSegmentIdx = 1;
+      (player as any).playheadMs = 2500;
+
+      // Replay current movement should jump to start of Movement I (segment 0)
+      player.replayCurrentMovement();
+      expect(player.getActiveSegmentIndex()).toBe(0);
+      expect(player.getPlayheadMs()).toBe(0);
+    });
+  });
 });

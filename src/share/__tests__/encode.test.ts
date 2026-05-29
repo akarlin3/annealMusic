@@ -78,3 +78,64 @@ describe('Piece Variation Encoding/Decoding (Schema v12)', () => {
     expect(decoded.segments[0]?.variations?.[0]?.rule).toBe('per-segment');
   });
 });
+
+describe('Piece Movements Encoding/Decoding (Schema v13)', () => {
+  it('round-trips a piece with movements metadata', () => {
+    const piece = {
+      title: 'Movements Symphony',
+      description: 'A structural piece.',
+      defaultsState: {
+        params: DEFAULT_PARAMS,
+        engineId: 'sine' as const,
+        engineParams: {},
+      },
+      segments: [
+        { type: 'fixed' as const, durationMs: 5000, config: {} },
+        { type: 'transition' as const, durationMs: 3000, config: {} },
+        { type: 'open' as const, durationMs: null, config: {} },
+      ],
+      movements: [
+        {
+          name: 'Movement I - Prelude',
+          description: 'Calm introduction',
+          transition_in_ms: 1000,
+          transition_out_ms: 2000,
+          startSegmentIndex: 0,
+          endSegmentIndex: 1,
+        },
+        {
+          name: 'Movement II - Postlude',
+          startSegmentIndex: 2,
+          endSegmentIndex: 2,
+        },
+      ],
+    };
+
+    const encoded = encodePiece(piece);
+    expect(encoded).toContain('mov0.name=Movement%20I%20-%20Prelude');
+    expect(encoded).toContain('mov0.desc=Calm%20introduction');
+    expect(encoded).toContain('mov0.in=1000');
+    expect(encoded).toContain('mov0.out=2000');
+    expect(encoded).toContain('mov0.start=0');
+    expect(encoded).toContain('mov0.end=1');
+    expect(encoded).toContain('mov1.name=Movement%20II%20-%20Postlude');
+    expect(encoded).toContain('mov1.start=2');
+    expect(encoded).toContain('mov1.end=2');
+
+    const decoded = decodePiecePayload(encoded);
+    expect(decoded.movements).toBeDefined();
+    expect(decoded.movements?.length).toBe(2);
+    expect(decoded.movements?.[0]?.name).toBe('Movement I - Prelude');
+    expect(decoded.movements?.[0]?.description).toBe('Calm introduction');
+    expect(decoded.movements?.[0]?.transition_in_ms).toBe(1000);
+    expect(decoded.movements?.[0]?.transition_out_ms).toBe(2000);
+    expect(decoded.movements?.[0]?.startSegmentIndex).toBe(0);
+    expect(decoded.movements?.[0]?.endSegmentIndex).toBe(1);
+    expect(decoded.movements?.[1]?.name).toBe('Movement II - Postlude');
+    expect(decoded.movements?.[1]?.description).toBeUndefined();
+    expect(decoded.movements?.[1]?.transition_in_ms).toBeUndefined();
+    expect(decoded.movements?.[1]?.transition_out_ms).toBeUndefined();
+    expect(decoded.movements?.[1]?.startSegmentIndex).toBe(2);
+    expect(decoded.movements?.[1]?.endSegmentIndex).toBe(2);
+  });
+});

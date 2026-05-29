@@ -476,7 +476,7 @@ class PieceSegment(Base):
     __tablename__ = "piece_segments"
     __table_args__ = (
         CheckConstraint(
-            "type IN ('fixed','arc','open','transition')",
+            "type IN ('fixed','arc','open','transition','meta-arc')",
             name="ck_piece_segments_type",
         ),
     )
