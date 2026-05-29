@@ -22,16 +22,75 @@ def _uuid() -> uuid.UUID:
     return uuid.uuid4()
 
 
-class User(Base):
-    __tablename__ = "users"
+class Account(Base):
+    __tablename__ = "accounts"
 
     id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    display_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    avatar_seed: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AccountProvider(Base):
+    __tablename__ = "account_providers"
+
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    provider: Mapped[str] = mapped_column(String, primary_key=True)
+    subject: Mapped[str] = mapped_column(String, primary_key=True)
+
+
+class Session(Base):
+    __tablename__ = "sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    user_agent: Mapped[str | None] = mapped_column(String, nullable=True)
+    ip_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class MagicLink(Base):
+    __tablename__ = "magic_links"
+
+    token: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    intent: Mapped[str] = mapped_column(String, nullable=False)
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), nullable=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
     bytes_used: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     patch_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     capture_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

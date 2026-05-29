@@ -24,6 +24,9 @@ from app.routers import (
     reports,
     user_sources,
     users,
+    auth,
+    account,
+    profiles,
 )
 
 from app.sentry import init_sentry
@@ -82,6 +85,10 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(admin.router)
     app.include_router(embed.router)
+    app.include_router(auth.router)
+    app.include_router(account.router)
+    app.include_router(profiles.router)
+
 
 
     return app

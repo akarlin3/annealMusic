@@ -17,6 +17,7 @@ dependencies = [
   "python-json-logger>=2.0",
   "slowapi>=0.1.9",
   "playwright>=1.48",
+  "email-validator>=2.0",
 ]
 
 [project.optional-dependencies]
