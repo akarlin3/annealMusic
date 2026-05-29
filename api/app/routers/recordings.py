@@ -106,13 +106,29 @@ async def list_my_recordings(
     stmt = stmt.order_by(Recording.created_at.desc())
     rows = (await session.execute(stmt)).scalars().all()
     await session.commit()
-    return RecordingListOut(items=[RecordingOut.model_validate(r) for r in rows])
+
+    liked_rec_ids = set()
+    from app.models import Like
+    likes_stmt = select(Like.target_id).where(Like.user_id == user.id, Like.target_kind == "recording")
+    likes_res = await session.execute(likes_stmt)
+    liked_rec_ids = set(likes_res.scalars().all())
+
+    items = []
+    for r in rows:
+        out = RecordingOut.model_validate(r)
+        out.liked_by_me = r.id in liked_rec_ids
+        items.append(out)
+
+    return RecordingListOut(items=items)
 
 
 @router.get("/{id_or_slug}/meta", response_model=RecordingMetaOut,
             dependencies=[Depends(rate_limit("get"))])
 async def get_recording_meta(
-    id_or_slug: str, user: OptionalUser, session: SessionDep
+    id_or_slug: str,
+    user: OptionalUser,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
 ) -> RecordingMetaOut:
     """Metadata for the `/r/<slug>` player. Public recordings are visible to
     anyone; private recordings only to their owner."""
@@ -141,6 +157,19 @@ async def get_recording_meta(
     if rec.visibility != "public" and (user is None or rec.user_id != user.id):
         raise not_found("recording")
 
+    # Block filtering
+    from app.deps import get_blocked_user_ids
+    blocked_user_ids = await get_blocked_user_ids(session, identity.account_id)
+    if rec.user_id in blocked_user_ids:
+        raise not_found("recording")
+
+    liked_by_me = False
+    if user:
+        from app.models import Like
+        like_stmt = select(Like).where(Like.user_id == user.id, Like.target_kind == "recording", Like.target_id == rec.id)
+        like_res = await session.execute(like_stmt)
+        liked_by_me = like_res.scalar_one_or_none() is not None
+
     return RecordingMetaOut(
         id=rec.id,
         short_slug=rec.short_slug,
@@ -152,18 +181,31 @@ async def get_recording_meta(
         creator_name=display_name,
         creator_avatar_seed=avatar_seed,
         creator_id=account_id,
+        like_count=rec.like_count,
+        liked_by_me=liked_by_me,
     )
 
 
 @router.get("/{id_or_slug}", dependencies=[Depends(rate_limit("get"))])
 async def get_recording(
-    id_or_slug: str, user: OptionalUser, session: SessionDep, storage: StorageDep
+    id_or_slug: str,
+    user: OptionalUser,
+    session: SessionDep,
+    storage: StorageDep,
+    identity: Identity = Depends(get_identity),
 ):
     rec = await _resolve(session, id_or_slug)
     if rec is None:
         raise not_found("recording")
     if rec.visibility != "public" and (user is None or rec.user_id != user.id):
         raise not_found("recording")
+
+    # Block filtering
+    from app.deps import get_blocked_user_ids
+    blocked_user_ids = await get_blocked_user_ids(session, identity.account_id)
+    if rec.user_id in blocked_user_ids:
+        raise not_found("recording")
+
     url = await storage.presigned_get_url(rec.storage_key)
     return RedirectResponse(url=url, status_code=302)
 

@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
+    Date,
     ForeignKey,
     Integer,
     String,
     Numeric,
     func,
+    event,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,6 +38,13 @@ class Account(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    bio: Mapped[str | None] = mapped_column(String(280), nullable=True)
+    likes_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    follows_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    suspended: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    follower_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    following_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class AccountProvider(Base):
@@ -139,6 +149,7 @@ class Patch(Base):
 
     # Gallery / preview (v0.8).
     load_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    like_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     published_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -255,6 +266,7 @@ class Recording(Base):
     visibility: Mapped[str] = mapped_column(
         String, nullable=False, default="unlisted"
     )
+    like_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -355,5 +367,111 @@ class PatchCollaborator(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class Like(Base):
+    __tablename__ = "likes"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    target_kind: Mapped[str] = mapped_column(String, primary_key=True)
+    target_id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Follow(Base):
+    __tablename__ = "follows"
+
+    follower_account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True
+    )
+    followed_account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Block(Base):
+    __tablename__ = "blocks"
+
+    blocker_account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True
+    )
+    blocked_account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Mute(Base):
+    __tablename__ = "mutes"
+
+    muter_account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True
+    )
+    muted_account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class FeaturedPick(Base):
+    __tablename__ = "featured_picks"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    week_starting: Mapped[date] = mapped_column(Date, nullable=False)
+    patch_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("patches.id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    curator_note: Mapped[str | None] = mapped_column(String, nullable=True)
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+# SQLite trigger events for tests/local development when using SQLite
+@event.listens_for(Base.metadata, "after_create")
+def create_sqlite_triggers(target, connection, **kw):
+    if connection.dialect.name == "sqlite":
+        connection.execute(text("""
+            CREATE TRIGGER IF NOT EXISTS likes_insert_trigger AFTER INSERT ON likes
+            BEGIN
+                UPDATE patches SET like_count = like_count + 1 WHERE id = NEW.target_id AND NEW.target_kind = 'patch';
+                UPDATE recordings SET like_count = like_count + 1 WHERE id = NEW.target_id AND NEW.target_kind = 'recording';
+            END;
+        """))
+        connection.execute(text("""
+            CREATE TRIGGER IF NOT EXISTS likes_delete_trigger AFTER DELETE ON likes
+            BEGIN
+                UPDATE patches SET like_count = like_count - 1 WHERE id = OLD.target_id AND OLD.target_kind = 'patch';
+                UPDATE recordings SET like_count = like_count - 1 WHERE id = OLD.target_id AND OLD.target_kind = 'recording';
+            END;
+        """))
+        connection.execute(text("""
+            CREATE TRIGGER IF NOT EXISTS follows_insert_trigger AFTER INSERT ON follows
+            BEGIN
+                UPDATE accounts SET follower_count = follower_count + 1 WHERE id = NEW.followed_account_id;
+                UPDATE accounts SET following_count = following_count + 1 WHERE id = NEW.follower_account_id;
+            END;
+        """))
+        connection.execute(text("""
+            CREATE TRIGGER IF NOT EXISTS follows_delete_trigger AFTER DELETE ON follows
+            BEGIN
+                UPDATE accounts SET follower_count = follower_count - 1 WHERE id = OLD.followed_account_id;
+                UPDATE accounts SET following_count = following_count - 1 WHERE id = OLD.follower_account_id;
+            END;
+        """))
+
+
 
 

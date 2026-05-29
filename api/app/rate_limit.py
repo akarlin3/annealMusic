@@ -21,6 +21,9 @@ ANON_LIMITS: dict[str, int] = {
     "reports": 20,
     "jams": 5,
     "get": 600,
+    "likes": 100,
+    "follows": 60,
+    "blocks": 30,
 }
 
 # A given IP may increment a given patch's load_count at most this many times per

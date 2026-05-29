@@ -69,6 +69,8 @@ class PatchOut(BaseModel):
     updated_at: datetime
     ai_description: str | None = None
     ai_description_source: str | None = None
+    like_count: int = 0
+    liked_by_me: bool = False
 
 
 class PatchListOut(BaseModel):
@@ -123,6 +125,8 @@ class RecordingOut(BaseModel):
     title: str | None
     visibility: Visibility
     created_at: datetime
+    like_count: int = 0
+    liked_by_me: bool = False
 
 
 class RecordingListOut(BaseModel):
@@ -144,11 +148,13 @@ class RecordingMetaOut(BaseModel):
     creator_name: str | None = None
     creator_avatar_seed: str | None = None
     creator_id: uuid.UUID | None = None
+    like_count: int = 0
+    liked_by_me: bool = False
 
 
 # --- v0.8 gallery ------------------------------------------------------------
 
-GallerySort = Literal["newest", "oldest", "most_loaded"]
+GallerySort = Literal["newest", "oldest", "most_loaded", "most_liked"]
 PreviewStatus = Literal["none", "rendering", "ready", "failed"]
 AdminVisibility = Literal["unlisted", "public", "flagged"]
 ReportReason = Literal["spam", "inappropriate", "other", "source-content"]
@@ -174,6 +180,8 @@ class GalleryItemOut(BaseModel):
     creator_id: uuid.UUID | None = None
     ai_description: str | None = None
     ai_description_source: str | None = None
+    like_count: int = 0
+    liked_by_me: bool = False
 
 
 class GalleryListOut(BaseModel):
@@ -291,5 +299,80 @@ class JamSessionDetailOut(BaseModel):
 class JamSessionJoinOut(BaseModel):
     color: str
     ws_url: str
+
+
+# --- v2.0 Social Schemas -----------------------------------------------------
+
+class LikeCreate(BaseModel):
+    target_kind: Literal["patch", "recording"]
+    target_id: uuid.UUID
+
+
+class LikeStatusOut(BaseModel):
+    liked: bool
+
+
+class FollowStatusOut(BaseModel):
+    following: bool
+
+
+class AccountSettingsUpdate(BaseModel):
+    bio: str | None = Field(default=None, max_length=280)
+    likes_public: bool | None = None
+    follows_public: bool | None = None
+
+
+class RelationshipItem(BaseModel):
+    id: uuid.UUID
+    display_name: str | None
+    avatar_seed: str | None
+
+
+class RelationshipListOut(BaseModel):
+    items: list[RelationshipItem]
+
+
+class FeedItemOut(BaseModel):
+    kind: Literal["patch", "recording"]
+    id: uuid.UUID
+    short_slug: str
+    title: str | None
+    description: str | None
+    created_at: datetime
+    like_count: int
+    liked_by_me: bool
+    # Patch specific
+    state: str | None = None
+    engine: str | None = None
+    mode: str | None = None
+    has_captures: bool | None = None
+    # Recording specific
+    duration_ms: int | None = None
+    format: str | None = None
+    # Creator info
+    creator_name: str | None = None
+    creator_avatar_seed: str | None = None
+    creator_id: uuid.UUID | None = None
+
+
+class FeedListOut(BaseModel):
+    items: list[FeedItemOut]
+    next_cursor: str | None = None
+
+
+class FeaturedPickCreate(BaseModel):
+    patch_id: uuid.UUID
+    position: int
+    curator_note: str | None = None
+
+
+class FeaturedPickOut(BaseModel):
+    id: uuid.UUID
+    week_starting: str
+    patch_id: uuid.UUID
+    position: int
+    curator_note: str | None
+    patch: GalleryItemOut | None = None
+
 
 

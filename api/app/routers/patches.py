@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.deps import (
     CurrentUser,
     CurrentWriter,
+    OptionalUser,
     SessionDep,
     StorageDep,
     _client_ip,
@@ -70,7 +71,7 @@ def _publish(patch: Patch, request: Request) -> None:
 router = APIRouter(prefix="/api/v1/patches", tags=["patches"])
 
 
-def to_out(patch: Patch) -> PatchOut:
+def to_out(patch: Patch, liked_by_me: bool = False) -> PatchOut:
     state = patch.state or {}
     return PatchOut(
         id=patch.id,
@@ -85,6 +86,8 @@ def to_out(patch: Patch) -> PatchOut:
         updated_at=patch.updated_at,
         ai_description=patch.ai_description,
         ai_description_source=patch.ai_description_source,
+        like_count=patch.like_count,
+        liked_by_me=liked_by_me,
     )
 
 
@@ -219,25 +222,48 @@ async def list_my_patches(
     rows = (await session.execute(stmt)).scalars().all()
     await session.commit()
 
+    liked_patch_ids = set()
+    if user:
+        from app.models import Like
+        likes_stmt = select(Like.target_id).where(Like.user_id == user.id, Like.target_kind == "patch")
+        likes_res = await session.execute(likes_stmt)
+        liked_patch_ids = set(likes_res.scalars().all())
+
     next_cursor = None
     if len(rows) > limit:
         rows = rows[:limit]
         next_cursor = _encode_cursor(rows[-1].created_at)
-    return PatchListOut(items=[to_out(p) for p in rows], next_cursor=next_cursor)
+    return PatchListOut(items=[to_out(p, liked_by_me=p.id in liked_patch_ids) for p in rows], next_cursor=next_cursor)
 
 
 @router.get("/{id_or_slug}", response_model=PatchOut,
             dependencies=[Depends(rate_limit("get"))])
-async def get_patch(id_or_slug: str, session: SessionDep) -> PatchOut:
-    # Link-only read: no user minted. Both 'unlisted' and 'public' are readable
-    # by anyone holding the slug/id in v0.7; the gallery (v0.8) adds the listing
-    # surface that makes 'public' meaningfully different.
+async def get_patch(
+    id_or_slug: str,
+    session: SessionDep,
+    user: OptionalUser,
+    identity: Identity = Depends(get_identity),
+) -> PatchOut:
     patch = await _resolve(session, id_or_slug)
     if patch is None:
         raise not_found("patch")
     if patch.visibility == "flagged":
         raise under_review()
-    return to_out(patch)
+
+    # Block filtering
+    from app.deps import get_blocked_user_ids
+    blocked_user_ids = await get_blocked_user_ids(session, identity.account_id)
+    if patch.user_id in blocked_user_ids:
+        raise not_found("patch")
+
+    liked_by_me = False
+    if user:
+        from app.models import Like
+        stmt = select(Like).where(Like.user_id == user.id, Like.target_kind == "patch", Like.target_id == patch.id)
+        res = await session.execute(stmt)
+        liked_by_me = res.scalar_one_or_none() is not None
+
+    return to_out(patch, liked_by_me=liked_by_me)
 
 
 @router.post("/{id_or_slug}/load", response_model=LoadOut,
@@ -446,6 +472,8 @@ async def embed_patch_task(
 async def get_similar_patches(
     id: uuid.UUID,
     session: SessionDep,
+    user: OptionalUser,
+    identity: Identity = Depends(get_identity),
     limit: int = Query(default=8, ge=1, le=24),
 ) -> GalleryListOut:
     patch = await session.get(Patch, id)
@@ -454,6 +482,9 @@ async def get_similar_patches(
 
     dialect = session.bind.dialect.name if session.bind is not None else "sqlite"
     from app.models import User, Account
+
+    from app.deps import get_blocked_user_ids
+    blocked_user_ids = await get_blocked_user_ids(session, identity.account_id)
 
     # 1. Fetch public patches
     if dialect == "postgresql":
@@ -466,9 +497,10 @@ async def get_similar_patches(
                 Patch.id != patch.id,
                 Patch.ai_description_embedding.is_not(None),
             )
-            .order_by(Patch.ai_description_embedding.op("<=>")(patch.ai_description_embedding))
-            .limit(limit)
         )
+        if blocked_user_ids:
+            stmt = stmt.where(~Patch.user_id.in_(blocked_user_ids))
+        stmt = stmt.order_by(Patch.ai_description_embedding.op("<=>")(patch.ai_description_embedding)).limit(limit)
         res = await session.execute(stmt)
         rows = res.all()
     else:
@@ -481,6 +513,8 @@ async def get_similar_patches(
                 Patch.id != patch.id,
             )
         )
+        if blocked_user_ids:
+            stmt = stmt.where(~Patch.user_id.in_(blocked_user_ids))
         res = await session.execute(stmt)
         rows = res.all()
 
@@ -516,8 +550,15 @@ async def get_similar_patches(
     scored.sort(key=lambda x: x[0])
     top_rows = [r for _, r in scored[:limit]]
 
+    liked_patch_ids = set()
+    if user:
+        from app.models import Like
+        likes_stmt = select(Like.target_id).where(Like.user_id == user.id, Like.target_kind == "patch")
+        likes_res = await session.execute(likes_stmt)
+        liked_patch_ids = set(likes_res.scalars().all())
+
     from app.routers.gallery import _to_item
     return GalleryListOut(
-        items=[_to_item(row[0], row[1], row[2], row[3]) for row in top_rows]
+        items=[_to_item(row[0], row[1], row[2], row[3], row[0].id in liked_patch_ids) for row in top_rows]
     )
 

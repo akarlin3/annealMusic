@@ -13,9 +13,9 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import SessionDep, rate_limit
+from app.deps import SessionDep, rate_limit, OptionalUser, get_identity, Identity, get_blocked_user_ids
 from app.errors import bad_request
-from app.models import Patch
+from app.models import Patch, Like
 from app.schemas import GalleryItemOut, GalleryListOut, GallerySort
 
 router = APIRouter(prefix="/api/v1/gallery", tags=["gallery"])
@@ -29,6 +29,7 @@ def _to_item(
     creator_name: str | None,
     creator_avatar_seed: str | None,
     creator_id: uuid.UUID | None,
+    liked_by_me: bool = False,
 ) -> GalleryItemOut:
     return GalleryItemOut(
         id=p.id,
@@ -48,6 +49,8 @@ def _to_item(
         creator_id=creator_id,
         ai_description=p.ai_description,
         ai_description_source=p.ai_description_source,
+        like_count=p.like_count,
+        liked_by_me=liked_by_me,
     )
 
 
@@ -87,10 +90,13 @@ def _search_clause(q: str, dialect: str):
 async def list_gallery(
     session: SessionDep,
     response: Response,
+    user: OptionalUser,
+    identity: Identity = Depends(get_identity),
     sort: GallerySort = Query(default="newest"),
     engine: str | None = Query(default=None),
     mode: str | None = Query(default=None),
     has_captures: bool | None = Query(default=None),
+    followed_only: bool = Query(default=False),
     q: str | None = Query(default=None, max_length=128),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=PAGE_DEFAULT, ge=1, le=PAGE_MAX),
@@ -104,6 +110,21 @@ async def list_gallery(
         .outerjoin(Account, Account.id == User.account_id)
         .where(Patch.visibility == "public")
     )
+
+    # Block filtering
+    blocked_user_ids = await get_blocked_user_ids(session, identity.account_id)
+    if blocked_user_ids:
+        stmt = stmt.where(~Patch.user_id.in_(blocked_user_ids))
+
+    if followed_only:
+        if identity.account_id is None:
+            raise bad_request("You must be logged in to filter by followed accounts.")
+        from app.models import Follow
+        followed_subq = select(Follow.followed_account_id).where(
+            Follow.follower_account_id == identity.account_id
+        )
+        followed_users_subq = select(User.id).where(User.account_id.in_(followed_subq))
+        stmt = stmt.where(Patch.user_id.in_(followed_users_subq))
 
     if engine:
         stmt = stmt.where(Patch.engine == engine)
@@ -122,6 +143,16 @@ async def list_gallery(
             stmt = stmt.where(
                 _tuple_lt(
                     (Patch.load_count, Patch.published_at, cast(Patch.id, String)),
+                    (lc, _parse_pub(pub), pid),
+                )
+            )
+    elif sort == "most_liked":
+        order = (Patch.like_count.desc(), Patch.published_at.desc(), Patch.id.desc())
+        if cursor:
+            lc, pub, pid = _decode_cursor(cursor, sort)
+            stmt = stmt.where(
+                _tuple_lt(
+                    (Patch.like_count, Patch.published_at, cast(Patch.id, String)),
                     (lc, _parse_pub(pub), pid),
                 )
             )
@@ -156,13 +187,21 @@ async def list_gallery(
         pub_iso = last.published_at.isoformat() if last.published_at else None
         if sort == "most_loaded":
             keys: list[Any] = [last.load_count, pub_iso, str(last.id)]
+        elif sort == "most_liked":
+            keys = [last.like_count, pub_iso, str(last.id)]
         else:
             keys = [pub_iso, str(last.id)]
         next_cursor = _encode_cursor(sort, keys)
 
+    liked_patch_ids = set()
+    if user:
+        likes_stmt = select(Like.target_id).where(Like.user_id == user.id, Like.target_kind == "patch")
+        likes_res = await session.execute(likes_stmt)
+        liked_patch_ids = set(likes_res.scalars().all())
+
     response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=60"
     return GalleryListOut(
-        items=[_to_item(row[0], row[1], row[2], row[3]) for row in rows],
+        items=[_to_item(row[0], row[1], row[2], row[3], row[0].id in liked_patch_ids) for row in rows],
         next_cursor=next_cursor
     )
 

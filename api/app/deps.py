@@ -211,3 +211,39 @@ def rate_limit(action: str):
             raise rate_limited()
 
     return _dep
+
+
+async def get_blocked_account_ids(session: AsyncSession, account_id: uuid.UUID | None) -> set[uuid.UUID]:
+    """Get the set of account IDs that either blocked or are blocked by the given account_id."""
+    if not account_id:
+        return set()
+    from app.models import Block
+    from sqlalchemy import or_
+    stmt = select(Block.blocker_account_id, Block.blocked_account_id).where(
+        or_(
+            Block.blocker_account_id == account_id,
+            Block.blocked_account_id == account_id
+        )
+    )
+    res = await session.execute(stmt)
+    blocked = set()
+    for blocker, blocked_id in res.all():
+        if blocker == account_id:
+            blocked.add(blocked_id)
+        else:
+            blocked.add(blocker)
+    return blocked
+
+
+async def get_blocked_user_ids(session: AsyncSession, account_id: uuid.UUID | None) -> set[uuid.UUID]:
+    """Get all user IDs owned by accounts that either blocked or are blocked by the given account_id."""
+    if not account_id:
+        return set()
+    blocked_accounts = await get_blocked_account_ids(session, account_id)
+    if not blocked_accounts:
+        return set()
+    from app.models import User
+    stmt = select(User.id).where(User.account_id.in_(blocked_accounts))
+    res = await session.execute(stmt)
+    return set(res.scalars().all())
+
