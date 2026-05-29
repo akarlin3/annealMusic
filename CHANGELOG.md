@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-05-29
+
+### Added
+
+- **Real-Time Collaborative Sessions (Jam Mode).** Two users can sculpt a single sound field together in real time. State changes are synchronized synchronously while audio synthesis remains purely local.
+- **Dual Transport Protocol.** Attempts zero-latency WebRTC P2P direct connectivity using public STUN servers and automatically falls back to secure WebSocket relaying through FastAPI if NAT traversal fails.
+- **Yjs CRDT Synchronization.** Coordinates parameter, engine, session, and loop modifications dynamically with conflict-free replication and Zustand store integrations.
+- **Collaborative Loop Sharing.** Uploads loop captures seamlessly as WAV binaries to Captures storage and synchronizes references via Yjs to automatically load and decode buffers on remote partner devices.
+- **"Save as Shared Collab" Toggle.** Detects active jam sessions inside the Save Patch flow, attributing authorship co-creations dynamically to both users via a database junction table.
+- **Sleek Invite Dashboard.** Includes a beautiful glassmorphic invite drawer rendering high-contrast QR Codes and one-click copy links for quick guest joins.
+- **Interactive Remote Glow Cursors.** Projects subtle halo outlines and remote username flags on sliders and parameter controls when partners tweak them.
+
 ## [1.6.0] - 2026-05-29
 
 ### Added

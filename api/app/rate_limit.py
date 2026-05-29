@@ -19,6 +19,7 @@ ANON_LIMITS: dict[str, int] = {
     "captures": 20,
     "recordings": 5,
     "reports": 20,
+    "jams": 5,
     "get": 600,
 }
 

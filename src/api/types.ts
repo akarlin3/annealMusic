@@ -193,3 +193,41 @@ export interface AIModifyPatchOut {
 export interface AIDescribePatchOut {
   description: string;
 }
+
+// --- v1.8 Collaborative Jam types --------------------------------------------
+
+export interface JamSession {
+  id: string;
+  created_by: string;
+  created_at: string;
+  last_active_at: string;
+  ended_at: string | null;
+}
+
+export interface JamParticipant {
+  user_id: string;
+  joined_at: string;
+  left_at: string | null;
+  color: string;
+  display_name: string | null;
+  avatar_seed: string | null;
+}
+
+export interface JamSessionDetail {
+  session: JamSession;
+  participants: JamParticipant[];
+  ws_url: string;
+}
+
+export interface JamSessionJoin {
+  color: string;
+  ws_url: string;
+}
+
+export interface SaveSharedPatchBody {
+  state: string;
+  schema_ver: number;
+  title?: string;
+  description?: string;
+  visibility?: Visibility;
+}

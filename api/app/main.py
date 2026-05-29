@@ -28,6 +28,7 @@ from app.routers import (
     account,
     profiles,
     ai,
+    jam,
 )
 
 from app.sentry import init_sentry
@@ -94,6 +95,7 @@ def create_app() -> FastAPI:
     app.include_router(account.router)
     app.include_router(profiles.router)
     app.include_router(ai.router)
+    app.include_router(jam.router)
 
     return app
 

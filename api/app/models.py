@@ -309,3 +309,51 @@ class AIGeneration(Base):
     )
     cached: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+
+class JamSession(Base):
+    __tablename__ = "jam_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    created_by: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    audit_log: Mapped[dict] = mapped_column(JSONType(), nullable=False, default=list)
+
+
+class JamParticipant(Base):
+    __tablename__ = "jam_participants"
+
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("jam_sessions.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    joined_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), primary_key=True, server_default=func.now()
+    )
+    left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    color: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class PatchCollaborator(Base):
+    __tablename__ = "patch_collaborators"
+
+    patch_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("patches.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+

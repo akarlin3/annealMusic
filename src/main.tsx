@@ -17,6 +17,8 @@ const AdminPage = import.meta.env.VITE_MOBILE
   ? () => null
   : lazy(() => import('@/admin/AdminPage'));
 
+import { JamProvider } from '@/jam/JamProvider';
+
 const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('Root element #root not found');
 
@@ -25,25 +27,28 @@ createRoot(rootEl).render(
     <BrowserRouter>
       <DeepLinkHandler />
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="/p/:slug" element={<App />} />
-          <Route path="/gallery" element={<GalleryPage />} />
-          <Route path="/midi" element={<MidiSettingsPage />} />
-          <Route
-            path="/admin"
-            element={
-              <Suspense fallback={null}>
-                <AdminPage />
-              </Suspense>
-            }
-          />
-          <Route path="/r/:slug" element={<RecordingPage />} />
-          <Route path="/account" element={<AccountSettingsPage />} />
-          <Route path="/u/:account_id" element={<ProfilePage />} />
-          <Route path="/legal/terms" element={<TermsPage />} />
-          <Route path="/legal/privacy" element={<PrivacyPage />} />
-        </Routes>
+        <JamProvider>
+          <Routes>
+            <Route path="/" element={<App />} />
+            <Route path="/p/:slug" element={<App />} />
+            <Route path="/jam/:id" element={<App />} />
+            <Route path="/gallery" element={<GalleryPage />} />
+            <Route path="/midi" element={<MidiSettingsPage />} />
+            <Route
+              path="/admin"
+              element={
+                <Suspense fallback={null}>
+                  <AdminPage />
+                </Suspense>
+              }
+            />
+            <Route path="/r/:slug" element={<RecordingPage />} />
+            <Route path="/account" element={<AccountSettingsPage />} />
+            <Route path="/u/:account_id" element={<ProfilePage />} />
+            <Route path="/legal/terms" element={<TermsPage />} />
+            <Route path="/legal/privacy" element={<PrivacyPage />} />
+          </Routes>
+        </JamProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

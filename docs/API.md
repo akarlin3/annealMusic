@@ -149,3 +149,19 @@ Per anonId, hourly: 60 patches, 20 captures, 5 recordings, 20 reports, 600 GETs.
 Missing anonId falls back to a stricter per-IP ceiling. Load increments are capped
 per (IP, patch). Quotas per anonId: 100 patches, 50 captures, 10 recordings, 1 GB
 total bytes.
+
+## Collaborative Sessions (v1.8)
+
+Endpoints for real-time collaborative sculpting sessions.
+
+- `POST /api/v1/jam-sessions` — Creates a new collaboration session. Returns `201` with `session` metadata, initial `participants` array, and the signaling WebSocket URL `ws_url`.
+- `GET /api/v1/jam-sessions/:id` — Retrieves session details, current participants, and active transport configuration.
+- `POST /api/v1/jam-sessions/:id/join` — Registers the caller as a participant in an existing session. Assigns a unique UI color and returns `200` with the `color` and `ws_url` signaling endpoint.
+- `POST /api/v1/jam-sessions/:id/leave` — Unregisters the participant from the active session. If both users leave, a 60-second grace period triggers before cleanup.
+- `POST /api/v1/jam-sessions/:id/save-patch` — Saves the current active sculpt parameters as a collaborative patch. The patch is co-attributed to both participants in the `patch_collaborators` junction table.
+
+### WebSocket Signaling & Relay
+
+- `WS /api/v1/jam-sessions/ws/:sessionId?userId=` — The real-time messaging WebSocket gateway.
+  - Relays WebRTC signaling SDP handshake objects (offers, answers, ICE candidates) between peers.
+  - Acts as a reliable fallback relay for binary Yjs CRDT update frames if direct P2P NAT negotiation fails.

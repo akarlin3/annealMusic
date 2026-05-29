@@ -31,7 +31,11 @@ import { useAuth } from '@/auth/AuthProvider';
 import { LissajousAvatar } from '@/components/LissajousAvatar';
 import LoginDialog from '@/components/LoginDialog';
 import ClaimBanner from '@/components/ClaimBanner';
-import { Sparkles, User } from 'lucide-react';
+import { Sparkles, User, Users } from 'lucide-react';
+import { useJam } from '@/jam/JamProvider';
+import JamIndicator from '@/jam/JamIndicator';
+import ParticipantCursor from '@/jam/ParticipantCursor';
+import { startBufferSharing } from '@/jam/bufferSharing';
 import { useRecorder } from '@/record/useRecorder';
 import RecordControls from '@/record/RecordControls';
 import RecordingDialog from '@/record/RecordingDialog';
@@ -146,6 +150,34 @@ export default function App() {
 
   const patches = usePatches(ensureOrchestrator, loops, showToast);
   const recorder = useRecorder(ensureOrchestrator, showToast);
+
+  const jam = useJam();
+  const { session, joinJam, startJam } = jam || {
+    session: null,
+    joinJam: async () => {},
+    startJam: async () => {},
+  };
+  const { id: jamSessionId } = useParams();
+  const joinedRef = useRef(false);
+
+  // Auto-join collaborative session from /jam/:id link
+  useEffect(() => {
+    if (jamSessionId && !joinedRef.current && !session) {
+      joinedRef.current = true;
+      void joinJam(jamSessionId)
+        .then(() => showToast('Joined collaborative jam session'))
+        .catch(() => showToast('Failed to join collaborative session'));
+    }
+  }, [jamSessionId, joinJam, session, showToast]);
+
+  // Sync and share loops buffers across session
+  useEffect(() => {
+    if (session) {
+      const cleanup = startBufferSharing(ensureOrchestrator, showToast);
+      return () => cleanup();
+    }
+  }, [session, ensureOrchestrator, showToast]);
+
   const recordingsRef = useRef<MyRecordingsHandle>(null);
   const backendOn = api.isBackendConfigured();
   const { slug: routeSlug } = useParams();
@@ -360,6 +392,25 @@ export default function App() {
 
             {backendOn && (
               <>
+                {!session && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void startJam()
+                        .then(() => showToast('Started collaborative session'))
+                        .catch(() =>
+                          showToast('Failed to start collaborative session'),
+                        );
+                    }}
+                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
+                    style={{ border: '1px solid #44403c', color: '#a8a29e' }}
+                  >
+                    <Users size={12} strokeWidth={1.5} />
+                    <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                      Start Collab
+                    </span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setAiGenerateOpen(true)}
@@ -579,6 +630,8 @@ export default function App() {
       )}
 
       <Toast toast={toast} onDismiss={dismissToast} />
+      <JamIndicator />
+      <ParticipantCursor />
     </div>
   );
 }

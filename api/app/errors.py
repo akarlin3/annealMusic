@@ -26,7 +26,9 @@ def not_found(resource: str = "resource") -> ApiError:
     return ApiError(404, "not_found", resource=resource)
 
 
-def forbidden() -> ApiError:
+def forbidden(message: str | None = None) -> ApiError:
+    if message:
+        return ApiError(403, "forbidden", message=message)
     return ApiError(403, "forbidden")
 
 

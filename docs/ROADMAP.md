@@ -45,6 +45,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v1.4 ✅ | Mobile Shell (Capacitor packaging, iOS + Android) | Installable native store apps              |
 | v1.5 ✅ | DAW Export / Stems                                 | Export high-fidelity multitrack stem ZIPs |
 | v1.6 ✅ | MIDI Input + Output                                | Physical controller map, note-to-root, output CC & clock sync |
+| v1.8 ✅ | Collaborative Sessions                             | Real-time co-creation (Jam Mode), dual WebRTC + WebSocket fallback, loop capture sharing, co-author patch saves |
 
 ## Shipped notes
 
@@ -173,6 +174,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 - **v1.4** — **Mobile Shell (Capacitor)**. Packages the existing web application in a native wrapper targeting iOS and Android platforms via Capacitor 6.x. Introduces a global `DeepLinkHandler` supporting seamless magic-link and patch deep routing, native cookie sharing via `CapacitorCookies`, custom `AVAudioSession` and `AudioManager` native focus/interruption shims, and Vite mobile build route tree-shaking for compact release assets.
 - **v1.5** — **DAW Export / Stems**. Enables high-fidelity multitrack session stem rendering and ZIP file bundling. Captures raw engine outputs, live mic signals, and loop pedal buffers individually, BWF/iXML metadata injection for sample alignment inside DAWs, seeded determinism for offline rendering parity, memory-conscious sequential rendering contexts, and native mobile Capacitor sharing integrations.
 - **v1.6** — **MIDI Input + Output**. Brings native MIDI controller and keyboard integration into the generative ambient meditation sandbox. Exposes interactive settings page under `/midi` for standard fader/knob mappings (using Linear, Exponential, and Logarithmic response curves), monophonic keyboard notes to set root pitch (Sustain vs. Return note-off options), dynamic strike velocity maps, 24 PPQN sync output clock, throttled 60Hz CC outgoing telemetry streams, and elegant browser compatibility warnings for Safari/Capacitor environments.
+- **v1.8** — **Collaborative Sessions (Jam Mode)**. Ships real-time co-sculpting capabilities (Jam Mode). Synchronizes sculpt states dynamically using Yjs CRDTs while keeping audio synthesis purely local. Establishes ultra-low latency WebRTC P2P direct data streams and automatically fails over to secure WebSocket signaling relays through FastAPI if NAT traversal fails. Shares captured loops seamlessly as WAV uploads synchronized instantly via CRDT. Includes co-author patch saves, custom Lissajous avatars, interactive remote glow cursors, and robust mobile background-reconnect shims.
 
 ## Principles
 

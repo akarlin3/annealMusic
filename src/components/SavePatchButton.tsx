@@ -5,6 +5,7 @@ import type { Visibility } from '@/api/types';
 import { useParamStore } from '@/state/params';
 import { encodeState } from '@/share/encode';
 import { api, getErrorMessage } from '@/api/client';
+import { useJam } from '@/jam/JamProvider';
 
 interface SavePatchButtonProps {
   patches: PatchPersistence;
@@ -22,13 +23,45 @@ export default function SavePatchButton({
   hasCaptures,
   showToast,
 }: SavePatchButtonProps) {
+  const jam = useJam();
+  const isJamActive = !!(jam && jam.session);
+
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<Visibility>('unlisted');
   const [includeCaptures, setIncludeCaptures] = useState(false);
+  const [saveAsShared, setSaveAsShared] = useState(false);
+
+  const handleOpen = () => {
+    setSaveAsShared(isJamActive);
+    setOpen(true);
+  };
 
   const submit = useCallback(async () => {
+    if (isJamActive && saveAsShared && jam) {
+      try {
+        const result = await jam.saveJamPatch({
+          title: title.trim() || undefined,
+          description: description.trim() || undefined,
+          visibility,
+        });
+        if (result) {
+          const patchUrl = `${window.location.origin}/p/${result.short_slug}`;
+          try {
+            await navigator.clipboard?.writeText(patchUrl);
+            showToast('Saved shared collab — link copied');
+          } catch {
+            window.prompt('Your patch link', patchUrl);
+          }
+          setOpen(false);
+        }
+      } catch {
+        showToast('Failed to save shared patch. Make sure you are signed in.');
+      }
+      return;
+    }
+
     const opts: SaveOptions = {
       title: title.trim() || undefined,
       description: description.trim() || undefined,
@@ -53,6 +86,9 @@ export default function SavePatchButton({
     hasCaptures,
     patches,
     showToast,
+    isJamActive,
+    saveAsShared,
+    jam,
   ]);
 
   const [suggesting, setSuggesting] = useState(false);
@@ -82,7 +118,7 @@ export default function SavePatchButton({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
         aria-label="Save patch to your library"
         className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
         style={{
@@ -194,14 +230,30 @@ export default function SavePatchButton({
               </div>
             </div>
 
+            {isJamActive && (
+              <label className="mb-3 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={saveAsShared}
+                  onChange={(e) => setSaveAsShared(e.target.checked)}
+                />
+                <span
+                  className="font-mono text-[10px] uppercase tracking-[0.18em]"
+                  style={{ color: '#fbbf24' }}
+                >
+                  Save as shared collab
+                </span>
+              </label>
+            )}
+
             <label
               className="mb-5 flex items-center gap-2"
-              style={{ opacity: hasCaptures ? 1 : 0.4 }}
+              style={{ opacity: hasCaptures && !saveAsShared ? 1 : 0.4 }}
             >
               <input
                 type="checkbox"
-                disabled={!hasCaptures}
-                checked={includeCaptures && hasCaptures}
+                disabled={!hasCaptures || saveAsShared}
+                checked={includeCaptures && hasCaptures && !saveAsShared}
                 onChange={(e) => setIncludeCaptures(e.target.checked)}
               />
               <span

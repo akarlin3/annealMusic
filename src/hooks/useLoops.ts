@@ -8,6 +8,8 @@ import {
   type SlotId,
   type SlotState,
 } from '@/loop/types';
+import { useJam } from '@/jam/JamProvider';
+import { shareLocalCapture } from '@/jam/bufferSharing';
 
 export interface SlotView {
   state: SlotState;
@@ -45,6 +47,7 @@ export function useLoops(
 ): LoopsApi {
   const loopConfig = useParamStore((s) => s.loops);
   const setLoopConfig = useParamStore((s) => s.setLoopConfig);
+  const jam = useJam();
 
   const [slots, setSlots] = useState<Record<SlotId, SlotView>>({
     A: emptyView(loopConfig.A),
@@ -56,20 +59,36 @@ export function useLoops(
   const orchRef = useRef<Orchestrator | null>(null);
   const wired = useRef(false);
   const unsubs = useRef<(() => void)[]>([]);
+  const wasCapturing = useRef<Record<SlotId, boolean>>({
+    A: false,
+    B: false,
+    C: false,
+  });
 
   const syncSlot = useCallback(
     (id: SlotId) => {
       const slot = orchRef.current?.getLoopSlot(id);
       if (!slot) return;
       const config = slot.getConfig();
+      const state = slot.getState();
+
       setSlots((prev) => ({
         ...prev,
-        [id]: { state: slot.getState(), hasBuffer: slot.hasBuffer(), config },
+        [id]: { state, hasBuffer: slot.hasBuffer(), config },
       }));
       // Keep the shareable URL in sync with mute/freeze/grain changes.
       setLoopConfig(id, config);
+
+      // If we just finished capturing a loop in a jam session, upload and share it!
+      if (wasCapturing.current[id] && state === 'playing' && jam?.session) {
+        const buffer = slot.getBuffer();
+        if (buffer) {
+          void shareLocalCapture(id, buffer, onToast);
+        }
+      }
+      wasCapturing.current[id] = state === 'capturing';
     },
-    [setLoopConfig],
+    [setLoopConfig, jam?.session, onToast],
   );
 
   const wire = useCallback((): Orchestrator => {

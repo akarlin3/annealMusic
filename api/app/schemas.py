@@ -258,3 +258,38 @@ class AIQuotaOut(BaseModel):
     day_limit: int
     day_used: int
 
+
+# --- v1.8 Collaborative Jam schemas ------------------------------------------
+
+class JamSessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_by: uuid.UUID
+    created_at: datetime
+    last_active_at: datetime
+    ended_at: datetime | None
+
+
+class JamParticipantOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: uuid.UUID
+    joined_at: datetime
+    left_at: datetime | None
+    color: str
+    display_name: str | None = None
+    avatar_seed: str | None = None
+
+
+class JamSessionDetailOut(BaseModel):
+    session: JamSessionOut
+    participants: list[JamParticipantOut]
+    ws_url: str
+
+
+class JamSessionJoinOut(BaseModel):
+    color: str
+    ws_url: str
+
+

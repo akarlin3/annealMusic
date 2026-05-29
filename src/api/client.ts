@@ -20,6 +20,9 @@ import {
   type AIGeneratedPatchOut,
   type AIModifyPatchOut,
   type AIDescribePatchOut,
+  type JamSessionDetail,
+  type JamSessionJoin,
+  type SaveSharedPatchBody,
 } from '@/api/types';
 import type { GalleryList } from '@/gallery/types';
 
@@ -324,6 +327,39 @@ export const api = {
 
   async aiQuota(): Promise<AIQuota> {
     return request<AIQuota>('/api/v1/ai/quota');
+  },
+
+  async createJamSession(): Promise<JamSessionDetail> {
+    return request<JamSessionDetail>('/api/v1/jam-sessions', {
+      method: 'POST',
+    });
+  },
+
+  async joinJamSession(id: string): Promise<JamSessionJoin> {
+    return request<JamSessionJoin>(
+      `/api/v1/jam-sessions/${encodeURIComponent(id)}/join`,
+      { method: 'POST' },
+    );
+  },
+
+  async leaveJamSession(id: string): Promise<void> {
+    await request<void>(
+      `/api/v1/jam-sessions/${encodeURIComponent(id)}/leave`,
+      { method: 'POST' },
+    );
+  },
+
+  async getJamSession(id: string): Promise<JamSessionDetail> {
+    return request<JamSessionDetail>(
+      `/api/v1/jam-sessions/${encodeURIComponent(id)}`,
+    );
+  },
+
+  async saveSharedPatch(id: string, body: SaveSharedPatchBody): Promise<Patch> {
+    return request<Patch>(
+      `/api/v1/jam-sessions/${encodeURIComponent(id)}/save-patch`,
+      { method: 'POST', body },
+    );
   },
 };
 
