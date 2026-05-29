@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Orchestrator, type ArcProgress } from '@/audio/orchestrator';
 import { useParamStore } from '@/state/params';
 import type { SessionState } from '@/session/types';
+import { platform } from '@/platform';
 
 export interface SessionApi {
   sessionState: SessionState;
@@ -104,6 +105,36 @@ export function useSession(): SessionApi {
 
   const stopSession = useCallback(() => {
     void engineRef.current?.stopSession();
+  }, []);
+
+  // Listen for native platform audio interruptions
+  useEffect(() => {
+    let pausedBySystem = false;
+
+    const unsubscribe = platform.onAudioInterruption((event) => {
+      const orch = engineRef.current;
+      if (!orch) return;
+
+      const tap = orch.getRecordingTap();
+      if (!tap) return;
+
+      if (event === 'begin') {
+        const state = orch.getSessionState();
+        if (state === 'running-arc' || state === 'running-open') {
+          void tap.ctx.suspend();
+          pausedBySystem = true;
+        }
+      } else if (event === 'end') {
+        if (pausedBySystem) {
+          if (tap.ctx.state === 'suspended') {
+            void tap.ctx.resume();
+          }
+          pausedBySystem = false;
+        }
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Tear down on unmount (drops the input and closes the core).

@@ -2,6 +2,7 @@ import { Headphones, Mic, MicOff } from 'lucide-react';
 import LevelMeter from '@/components/LevelMeter';
 import InfoTip from '@/components/InfoTip';
 import type { InputApi } from '@/hooks/useInput';
+import { platform } from '@/platform';
 
 interface InputPanelProps {
   input: InputApi;
@@ -94,21 +95,39 @@ export default function InputPanel({ input }: InputPanelProps) {
         <div className="flex flex-col gap-3">
           <p className="max-w-md text-[13px]" style={{ color: '#fca5a5' }}>
             {state === 'denied'
-              ? 'Microphone access was blocked. Re-enable it in your browser, then retry — Chrome: site settings (lock icon); Safari: Settings ▸ Websites ▸ Microphone.'
+              ? platform.getPlatform() === 'web'
+                ? 'Microphone access was blocked. Re-enable it in your browser, then retry — Chrome: site settings (lock icon); Safari: Settings ▸ Websites ▸ Microphone.'
+                : 'Microphone access was blocked. Please enable microphone permission in your device settings to capture loop audio.'
               : errorMessage || 'Could not connect to the input device.'}
           </p>
-          <button
-            type="button"
-            onClick={() => connect()}
-            className="self-start rounded-full px-4 py-2 transition-all"
-            style={{
-              background: 'rgba(245, 158, 11, 0.08)',
-              border: '1px solid #44403c',
-              color: '#fef3c7',
-            }}
-          >
-            <span className={labelCaps}>Retry</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => connect()}
+              className="rounded-full px-4 py-2 transition-all"
+              style={{
+                background: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid #44403c',
+                color: '#fef3c7',
+              }}
+            >
+              <span className={labelCaps}>Retry</span>
+            </button>
+            {state === 'denied' && platform.getPlatform() !== 'web' && (
+              <button
+                type="button"
+                onClick={() => platform.openAppSettings()}
+                className="rounded-full px-4 py-2 transition-all"
+                style={{
+                  background: 'rgba(245, 158, 11, 0.04)',
+                  border: '1px solid #44403c',
+                  color: '#fbbf24',
+                }}
+              >
+                <span className={labelCaps}>Open Settings</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 

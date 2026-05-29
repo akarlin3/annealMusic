@@ -8,6 +8,7 @@ import AccountSettingsPage from '@/pages/AccountSettingsPage';
 import ProfilePage from '@/pages/ProfilePage';
 import { TermsPage, PrivacyPage } from '@/pages/LegalPages';
 import { AuthProvider } from '@/auth/AuthProvider';
+import DeepLinkHandler from '@/components/DeepLinkHandler';
 import '@/styles/index.css';
 
 // Lazy load the AdminPage conditionally to tree-shake it out of mobile builds
@@ -21,6 +22,7 @@ if (!rootEl) throw new Error('Root element #root not found');
 createRoot(rootEl).render(
   <StrictMode>
     <BrowserRouter>
+      <DeepLinkHandler />
       <AuthProvider>
         <Routes>
           <Route path="/" element={<App />} />

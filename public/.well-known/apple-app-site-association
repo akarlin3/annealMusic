@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "8K6V3Y82AA.org.averykarlin.anneal",
+        "paths": ["/p/*", "/r/*", "/u/*", "/auth/email/verify*"]
+      }
+    ]
+  }
+}

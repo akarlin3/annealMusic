@@ -1,0 +1,56 @@
+name: Android CD
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Get all commits to count git revisions
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Web Assets (Mobile Configuration)
+        run: npm run build:mobile
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build Signed Release APK
+        run: |
+          cd android
+          ./gradlew assembleRelease
+        env:
+          ANDROID_SIGNING_KEY_STORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-App-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SA_KEY }}
+          groups: internal-testers
+          file: android/app/build/outputs/apk/release/app-release.apk

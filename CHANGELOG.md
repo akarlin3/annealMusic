@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-05-29
+
+### Added
+
+- **Capacitor Mobile Packaging.** Packages the existing desktop-grade generative meditation sandbox into premium native iOS and Android shells using Capacitor 6.x.
+- **Unified PlatformBridge Architecture.** Decouples and abstracts all platform-dependent storage, app redirection, permissions, and audio session operations behind a statically typed, cross-platform bridge.
+- **Custom Native Audio Session Shims.** Implements highly lightweight native shims (Swift for iOS, Java for Android) that claim executive audio focus, configures the `.playback` background audio category to continue synthesis on screen lock, and captures native interruptions (calls, notifications) to transition the Web AudioContext state gracefully.
+- **Seamless Universal and App Links.** Serves Apple `apple-app-site-association` and Google `assetlinks.json` configurations dynamically from `.well-known` and implements global `DeepLinkHandler` interception to route short links (/p/_, /r/_, /u/\*) and email magic links natively.
+- **Cookie Sharing and Transparent Sessions.** Leverages native `CapacitorCookies` and `CapacitorHttp` fetch interception inside native WebView containers to share session storage cookies cross-origin.
+- **Vite Mobile Bundler & Route Tree-Shaking.** Adds `vite.config.mobile.ts` compiling assets with relative pathing and strips the `/admin` and `/embed` pages from the final native app packages using build-time tree-shaking flags.
+- **Dynamic Version Control.** Syncs Gradle and Xcode targets to automatically inherit the single source of truth version in `package.json` and generate increasing build numbers from Git commit depth.
+
 ## [1.3.0] - 2026-05-29
 
 ### Added
