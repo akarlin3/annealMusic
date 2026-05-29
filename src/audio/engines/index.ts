@@ -86,12 +86,12 @@ export function engineParamDefs(id: EngineId): readonly EngineParamDef[] {
   return engineCapabilities(id).params;
 }
 
-/** Clamp an engine param to its declared bounds (unknown keys pass through). */
 export function clampEngineParam(
   id: EngineId,
   key: string,
-  value: number,
-): number {
+  value: number | string,
+): number | string {
+  if (typeof value === 'string') return value;
   const def = engineParamDefs(id).find((d) => d.key === key);
   if (!def) return value;
   return Math.min(def.max, Math.max(def.min, value));

@@ -133,7 +133,20 @@ def validate_payload(payload: str, version: int) -> list[str]:
             elif param not in engines[ns]:
                 errors.append(f"unknown engine param: {key}")
             else:
-                _num_in_bounds(raw, engines[ns][param], key, errors)
+                if ns == "gr" and param == "source":
+                    if raw.startswith("b:"):
+                        if len(raw) <= 2:
+                            errors.append(f"{key}: invalid bundled source namespace")
+                    elif raw.startswith("u:"):
+                        try:
+                            import uuid
+                            uuid.UUID(raw[2:])
+                        except ValueError:
+                            errors.append(f"{key}: invalid user source UUID")
+                    else:
+                        _num_in_bounds(raw, engines[ns][param], key, errors)
+                else:
+                    _num_in_bounds(raw, engines[ns][param], key, errors)
             continue
 
         # Shared param.

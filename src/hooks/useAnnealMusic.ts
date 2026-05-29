@@ -13,7 +13,7 @@ export interface AnnealMusicApi {
   engineId: EngineId;
   engineParams: Partial<Record<EngineId, EngineParams>>;
   setEngine: (id: EngineId) => void;
-  setEngineParam: (id: EngineId, key: string, value: number) => void;
+  setEngineParam: (id: EngineId, key: string, value: number | string) => void;
   sessionMode: SessionMode;
   arcId: string;
   arcDurationSec: number;

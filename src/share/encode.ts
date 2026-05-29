@@ -55,7 +55,11 @@ export function encodeEngineParams(
   return engineParamDefs(engineId)
     .map((def) => {
       const value = params[def.key] ?? def.default;
-      return `${ns}.${def.key}=${value.toFixed(decimalsForStep(def.step))}`;
+      const serialized =
+        typeof value === 'number'
+          ? value.toFixed(decimalsForStep(def.step))
+          : String(value);
+      return `${ns}.${def.key}=${serialized}`;
     })
     .join('&');
 }
@@ -315,7 +319,7 @@ export function decodeState(version: number, payload: string): DecodedState {
         warnings.push(`non-numeric value dropped for ${key}: ${raw}`);
         continue;
       }
-      const clamped = clampEngineParam(engineNs, paramKey, num);
+      const clamped = clampEngineParam(engineNs, paramKey, num) as number;
       if (clamped !== num) {
         warnings.push(
           `value out of range for ${key}: ${num} clamped to ${clamped}`,

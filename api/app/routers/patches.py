@@ -18,6 +18,7 @@ from app.deps import (
     _client_ip,
     rate_limit,
 )
+import logging
 from app.errors import (
     content_rejected,
     forbidden,
@@ -25,8 +26,9 @@ from app.errors import (
     not_found,
     quota_exceeded,
     under_review,
+    requires_source_consent,
 )
-from app.models import Capture, Patch
+from app.models import Capture, Patch, UserSource
 from app.moderation import screen_publish
 from app.schemas import (
     LoadOut,
@@ -38,6 +40,21 @@ from app.schemas import (
 from app.share import parse_engine, parse_mode
 from app.slug import new_slug
 from app.validation import validate_payload
+
+logger = logging.getLogger("patches")
+
+
+def extract_user_sources_from_payload(payload: str) -> list[uuid.UUID]:
+    """Finds any gr.source=u:<uuid> in the payload."""
+    ids: list[uuid.UUID] = []
+    for pair in payload.split("&"):
+        if pair.startswith("gr.source=u:"):
+            raw_uuid = pair[len("gr.source=u:"):]
+            try:
+                ids.append(uuid.UUID(raw_uuid))
+            except ValueError:
+                pass
+    return ids
 
 
 def _publish(patch: Patch, request: Request) -> None:
@@ -114,6 +131,34 @@ async def create_patch(
         refs = list(owned_ids)
         for cap in owned:
             cap.ref_count += 1
+
+    # Bind and verify user sources referenced in the state payload.
+    referenced_source_ids = extract_user_sources_from_payload(body.state)
+    loaded_sources: list[UserSource] = []
+    if referenced_source_ids:
+        stmt = select(UserSource).where(UserSource.id.in_(referenced_source_ids))
+        loaded_sources = (await session.execute(stmt)).scalars().all()
+        loaded_ids = {s.id for s in loaded_sources}
+        for sid in referenced_source_ids:
+            if sid not in loaded_ids:
+                raise not_found("user_source")
+        for src in loaded_sources:
+            if src.user_id != user.id and src.visibility != "shared":
+                raise forbidden()
+
+    # Consent and transition check for public patches
+    if body.visibility == "public" and loaded_sources:
+        owned_unlisted = [s for s in loaded_sources if s.user_id == user.id and s.visibility == "unlisted"]
+        if owned_unlisted:
+            if not body.acknowledge_source_visibility:
+                raise requires_source_consent()
+            for src in owned_unlisted:
+                src.visibility = "shared"
+                logger.info("Transitioned user source %s visibility to shared due to patch publication", src.id)
+
+    # Bump ref counts of referenced user sources
+    for src in loaded_sources:
+        src.ref_count += 1
 
     patch = Patch(
         user_id=user.id,
@@ -248,6 +293,19 @@ async def update_patch(
     if body.visibility is not None:
         patch.visibility = body.visibility
     if going_public:
+        # Check referenced user sources and require consent
+        referenced_source_ids = extract_user_sources_from_payload(patch.state.get("payload", ""))
+        if referenced_source_ids:
+            stmt = select(UserSource).where(UserSource.id.in_(referenced_source_ids))
+            loaded_sources = (await session.execute(stmt)).scalars().all()
+            owned_unlisted = [s for s in loaded_sources if s.user_id == user.id and s.visibility == "unlisted"]
+            if owned_unlisted:
+                if not body.acknowledge_source_visibility:
+                    raise requires_source_consent()
+                for src in owned_unlisted:
+                    src.visibility = "shared"
+                    logger.info("Transitioned user source %s visibility to shared due to patch publication update", src.id)
+
         rejected = screen_publish(patch.title, patch.description)
         if rejected:
             raise content_rejected(rejected)
@@ -274,6 +332,14 @@ async def delete_patch(
             update(Capture)
             .where(Capture.id.in_(patch.capture_refs))
             .values(ref_count=Capture.ref_count - 1)
+        )
+    # Dereference user sources referenced in the state payload.
+    referenced_source_ids = extract_user_sources_from_payload(patch.state.get("payload", ""))
+    if referenced_source_ids:
+        await session.execute(
+            update(UserSource)
+            .where(UserSource.id.in_(referenced_source_ids))
+            .values(ref_count=UserSource.ref_count - 1)
         )
     await session.delete(patch)
     user.patch_count = max(0, user.patch_count - 1)

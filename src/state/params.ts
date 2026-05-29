@@ -227,7 +227,7 @@ export interface ParamStore {
   setParam: (key: ParamKey, value: number) => void;
   setMany: (partial: Partial<AnnealMusicParams>) => void;
   setEngine: (id: EngineId) => void;
-  setEngineParam: (id: EngineId, key: string, value: number) => void;
+  setEngineParam: (id: EngineId, key: string, value: number | string) => void;
   setSessionMode: (mode: SessionMode) => void;
   setArcId: (id: string) => void;
   setArcDurationSec: (sec: number) => void;

@@ -21,12 +21,14 @@ class UserOut(BaseModel):
     patch_count: int
     capture_count: int
     recording_count: int
+    source_count: int
 
 
 class QuotaOut(BaseModel):
     patches: int
     captures: int
     recordings: int
+    user_sources: int
     bytes: int
 
 
@@ -42,12 +44,14 @@ class PatchCreate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     visibility: Visibility = "unlisted"
     capture_refs: list[uuid.UUID] = Field(default_factory=list)
+    acknowledge_source_visibility: bool = False
 
 
 class PatchUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     visibility: Visibility | None = None
+    acknowledge_source_visibility: bool = False
 
 
 class PatchOut(BaseModel):
@@ -80,6 +84,29 @@ class CaptureOut(BaseModel):
     bytes: int
     format: str
     created_at: datetime
+
+
+class UserSourceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    duration_ms: int
+    sample_rate: int
+    channels: int
+    bytes: int
+    display_name: str | None
+    visibility: str
+    ref_count: int
+    created_at: datetime
+
+
+
+class UserSourceListOut(BaseModel):
+    items: list[UserSourceOut]
+
+
+class UserSourceUpdate(BaseModel):
+    display_name: str = Field(..., max_length=120)
 
 
 class RecordingOut(BaseModel):
@@ -119,8 +146,9 @@ class RecordingMetaOut(BaseModel):
 GallerySort = Literal["newest", "oldest", "most_loaded"]
 PreviewStatus = Literal["none", "rendering", "ready", "failed"]
 AdminVisibility = Literal["unlisted", "public", "flagged"]
-ReportReason = Literal["spam", "inappropriate", "other"]
+ReportReason = Literal["spam", "inappropriate", "other", "source-content"]
 ReportStatus = Literal["open", "dismissed", "upheld"]
+AdminSourceVisibility = Literal["unlisted", "shared", "flagged"]
 
 
 class GalleryItemOut(BaseModel):
@@ -151,6 +179,7 @@ class ReportCreate(BaseModel):
     patch_id: uuid.UUID
     reason: ReportReason
     detail: str | None = Field(default=None, max_length=2000)
+    source_id: uuid.UUID | None = None
 
 
 class ReportOut(BaseModel):
@@ -170,6 +199,7 @@ class AdminReportItem(BaseModel):
     reporter: str | None
     status: ReportStatus
     created_at: datetime
+    source_id: uuid.UUID | None = None
 
 
 class AdminReportListOut(BaseModel):
@@ -182,3 +212,7 @@ class AdminReportUpdate(BaseModel):
 
 class AdminVisibilityUpdate(BaseModel):
     visibility: AdminVisibility
+
+
+class AdminSourceVisibilityUpdate(BaseModel):
+    visibility: AdminSourceVisibility

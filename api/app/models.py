@@ -36,6 +36,7 @@ class User(Base):
     patch_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     capture_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     recording_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    source_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class Patch(Base):
@@ -126,6 +127,38 @@ class Capture(Base):
     )
 
 
+class UserSource(Base):
+    __tablename__ = "user_sources"
+    __table_args__ = (
+        CheckConstraint(
+            "visibility IN ('unlisted','shared','flagged')",
+            name="ck_user_sources_visibility",
+        ),
+        CheckConstraint(
+            "duration_ms > 0 AND duration_ms <= 60000",
+            name="ck_user_sources_duration",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    storage_key: Mapped[str] = mapped_column(String, nullable=False)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    sample_rate: Mapped[int] = mapped_column(Integer, nullable=False)
+    channels: Mapped[int] = mapped_column(Integer, nullable=False)
+    bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    visibility: Mapped[str] = mapped_column(
+        String, nullable=False, default="unlisted"
+    )
+    ref_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class Recording(Base):
     __tablename__ = "recordings"
     __table_args__ = (
@@ -164,7 +197,7 @@ class Report(Base):
     __tablename__ = "reports"
     __table_args__ = (
         CheckConstraint(
-            "reason IN ('spam','inappropriate','other')", name="ck_reports_reason"
+            "reason IN ('spam','inappropriate','other','source-content')", name="ck_reports_reason"
         ),
         CheckConstraint(
             "status IN ('open','dismissed','upheld')", name="ck_reports_status"
@@ -174,6 +207,9 @@ class Report(Base):
     id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
     patch_id: Mapped[uuid.UUID] = mapped_column(
         GUID(), ForeignKey("patches.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("user_sources.id", ondelete="SET NULL"), nullable=True, index=True
     )
     reporter_id: Mapped[uuid.UUID | None] = mapped_column(GUID(), nullable=True)
     reason: Mapped[str] = mapped_column(String, nullable=False)

@@ -6,6 +6,7 @@ export interface Quota {
   patches: number;
   captures: number;
   recordings: number;
+  user_sources: number;
   bytes: number;
 }
 
@@ -16,6 +17,7 @@ export interface UserInfo {
   patch_count: number;
   capture_count: number;
   recording_count: number;
+  source_count: number;
 }
 
 export interface UserMe {
@@ -115,4 +117,20 @@ export class NetworkError extends Error {
     super('network_error');
     this.name = 'NetworkError';
   }
+}
+
+export interface UserSource {
+  id: string;
+  duration_ms: number;
+  sample_rate: number;
+  channels: number;
+  bytes: number;
+  display_name: string | null;
+  visibility: 'unlisted' | 'shared' | 'flagged';
+  ref_count: number;
+  created_at: string;
+}
+
+export interface UserSourceList {
+  items: UserSource[];
 }

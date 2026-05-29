@@ -5,19 +5,22 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 
 from app.deps import SessionDep, require_admin
 from app.errors import not_found
-from app.models import Patch, Report
+from app.models import Patch, Report, UserSource
 from app.schemas import (
     AdminReportItem,
     AdminReportListOut,
     AdminReportUpdate,
     AdminVisibilityUpdate,
+    AdminSourceVisibilityUpdate,
     PatchOut,
+    UserSourceOut,
     ReportStatus,
 )
 
@@ -56,6 +59,7 @@ async def list_reports(
             reporter=_reporter_label(r.reporter_id),
             status=r.status,  # type: ignore[arg-type]
             created_at=r.created_at,
+            source_id=r.source_id,
         )
         for (r, p) in rows
     ]
@@ -76,6 +80,10 @@ async def update_report(
     report.status = body.status
     if body.status == "upheld":
         patch.visibility = "flagged"
+        if report.source_id is not None:
+            source = await session.get(UserSource, report.source_id)
+            if source is not None:
+                source.visibility = "flagged"
     await session.commit()
     await session.refresh(report)
 
@@ -91,6 +99,7 @@ async def update_report(
         reporter=_reporter_label(report.reporter_id),
         status=report.status,  # type: ignore[arg-type]
         created_at=report.created_at,
+        source_id=report.source_id,
     )
 
 
@@ -119,3 +128,20 @@ async def set_visibility(
     from app.routers.patches import to_out
 
     return to_out(patch)
+
+
+@router.patch("/user-sources/{source_id}/visibility", response_model=UserSourceOut)
+async def set_user_source_visibility(
+    source_id: uuid.UUID,
+    body: AdminSourceVisibilityUpdate,
+    session: SessionDep,
+) -> UserSourceOut:
+    source = await session.get(UserSource, source_id)
+    if source is None:
+        raise not_found("user_source")
+
+    source.visibility = body.visibility
+    await session.commit()
+    await session.refresh(source)
+
+    return UserSourceOut.model_validate(source)

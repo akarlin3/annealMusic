@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-29
+
+### Added
+
+- **User-Uploaded Granular Sources.** Enable users to upload their own audio files (WAV, MP3, FLAC, AAC, OGG, Opus) up to 25MB to use as custom granular engine sources. Features a client-side downsampling and HSL-styled bounds cropping Trim Dialog (up to 60 seconds) with interactive loop previewing before upload. Server-side ffmpeg decodes and transcodes the segment to mono Opus (96kbps) in S3 storage.
+- **My Sources Panel.** Premium drawers with account-level quota progress tracking ("X of 20 slots used"), loop-preview playback via a shared AudioContext, inline rename capability with banned-word validation, and confirmation warning modals if deleting sources actively referenced by other public patches.
+- **Double-Tabbed Source Picker.** Adds a dual-pane UI in the source picker ("Bundled" vs "Mine") with file upload triggering and trim dialog integration.
+- **Publish Consent Flow.** Strict consent gating when publishing public patches that reference unlisted user sources, transitioning them safely to `shared` with a 409 conflict requirement.
+- **Dedicated Preview Renderer Endpoints.** Allows headless Chromium rendering agents to resolve `shared` user sources anonymously without auth tokens via `/api/v1/render/user-sources/{id}`.
+- **Moderation and Direct Admin Flags.** Adds `"source-content"` reason in public report flow, auto-flagging of user sources when upholds occur, and direct admin toggle visibility endpoint (`PATCH /api/v1/admin/user-sources/{source_id}/visibility`).
+- **Dynamic Client Fallback.** Implements loader interception of 404/451 errors, falling back seamlessly to the ambient `glasspad` bundled source and firing custom `anneal-toast` warning messages in the application toast system.
+
 ## [1.0.0] - 2026-05-24
 
 The v1.0 release. Completes the roadmap (v0.1 → v1.0): a physics-driven ambient

@@ -10,7 +10,7 @@ export type EngineId = 'sine' | 'fm' | 'granular' | 'physical';
 export type SharedParams = AnnealMusicParams;
 
 /** Engine-specific params: a flat scalar bag, keyed by the engine's param defs. */
-export type EngineParams = Record<string, number>;
+export type EngineParams = Record<string, number | string>;
 
 /** Declaration of a single engine-specific param (bounds, default, formatting). */
 export interface EngineParamDef {

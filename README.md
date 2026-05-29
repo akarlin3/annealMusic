@@ -128,18 +128,15 @@ partial's frequency maps to a per-cloud `pitchOffset` in cents, so grains play
 the source faster/slower to voice the harmonic, and the drift loop's detune
 rides on top exactly as for sine/FM.
 
-The source is picked from a curated bank (the **source picker** card grid);
-sources load lazily on selection (Opus, ~96 kbps, fetched same-origin and
-decoded once per session). Grain params are shared across the bank: **Grain**
-size (30–300 ms), **Density** (4–40 grains/s _per partial_), **Jitter**
-(position spread 0–1), **Pitch Jit** (per-grain cents 0–100), and **Center**
-(0–1, where in the source grains cluster). `Center` also drifts on its own, so a
-static patch keeps moving. A soft ceiling on simultaneous grains degrades
-gracefully (sparser texture) rather than glitching under extreme settings.
+Granular sources come in two categories:
+
+- **Curated bundled bank**: 8 ambient same-origin sources (glass pad, bowed metal, tape organ, pine wind, deep drone, choir air, rain glass, warm tape), all original works released CC0, shipped as ~3 MB of Ogg/Opus (~96 kbps) in `public/sources/`.
+- **User-uploaded custom sources**: Users can upload their own audio files (WAV, MP3, FLAC, AAC, OGG, Opus) up to 25MB. The client-side Trim Dialog allows downsampling, visual boundary cropping (up to 60 seconds), and loop previewing. The server decodes and transcodes uploads to mono Opus (96kbps) stored in S3 object storage.
+
+Custom sources default to `unlisted` and can be managed in the **My Sources** panel (quota check, rename, loop play, force-delete confirmation). Sharing a public patch referencing a custom source triggers a publishing consent dialog, transitioning the referenced sources safely to `shared` visibility so they are playable anonymous-first, including compatibility for headless preview rendering. Flagged or deleted custom sources fall back safely to `glasspad` (the default ambient pitched source at index 0) with a toast notification to the loader.
 
 See [`docs/SOURCES.md`](docs/SOURCES.md) for the source bank and
-[`LICENSES.md`](LICENSES.md) for per-source licensing (all v0.9 sources are
-original, CC0).
+[`LICENSES.md`](LICENSES.md) for per-source licensing.
 
 ## Session modes
 

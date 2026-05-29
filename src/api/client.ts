@@ -11,6 +11,8 @@ import {
   type RecordingMeta,
   type UploadRecordingBody,
   type UserMe,
+  type UserSource,
+  type UserSourceList,
 } from '@/api/types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
@@ -163,5 +165,42 @@ export const api = {
   /** Direct (302-followed) audio URL for an `<audio>` element. */
   recordingAudioUrl(idOrSlug: string): string {
     return `${API_BASE}/api/v1/recordings/${encodeURIComponent(idOrSlug)}`;
+  },
+
+  // --- user sources (v1.2) -------------------------------------------------
+
+  async uploadUserSource(wav: Blob, displayName?: string): Promise<UserSource> {
+    const form = new FormData();
+    const filename = displayName ? `${displayName}.wav` : 'source.wav';
+    form.append('file', wav, filename);
+    return request<UserSource>('/api/v1/user-sources', {
+      method: 'POST',
+      form,
+    });
+  },
+
+  async myUserSources(): Promise<UserSourceList> {
+    return request<UserSourceList>('/api/v1/user-sources/me');
+  },
+
+  async deleteUserSource(id: string): Promise<void> {
+    await request<void>(`/api/v1/user-sources/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async updateUserSource(id: string, displayName: string): Promise<UserSource> {
+    return request<UserSource>(
+      `/api/v1/user-sources/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: { display_name: displayName },
+      },
+    );
+  },
+
+  /** Direct (302-followed) audio URL for fetching raw bytes */
+  userSourceAudioUrl(id: string): string {
+    return `${API_BASE}/api/v1/user-sources/${encodeURIComponent(id)}`;
   },
 };

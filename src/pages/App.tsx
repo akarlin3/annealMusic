@@ -101,6 +101,16 @@ export default function App() {
     setEngineErrorHandler((error) => showToast(error.message));
   }, [setEngineErrorHandler, showToast]);
 
+  // Listen for low-level toast events (such as custom source fallbacks).
+  useEffect(() => {
+    const handleToast = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message: string }>;
+      showToast(customEvent.detail.message);
+    };
+    window.addEventListener('anneal-toast', handleToast);
+    return () => window.removeEventListener('anneal-toast', handleToast);
+  }, [showToast]);
+
   const input = useInput(ensureOrchestrator, showToast);
   const loops = useLoops(ensureOrchestrator, showToast);
   const loopConfig = useParamStore((s) => s.loops);

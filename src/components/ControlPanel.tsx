@@ -25,7 +25,7 @@ interface ControlPanelProps {
   isPlaying: boolean;
   engineId: EngineId;
   engineParams: EngineParams;
-  setEngineParam: (key: string, value: number) => void;
+  setEngineParam: (key: string, value: number | string) => void;
   /** While an arc runs, all sculpt controls are read-only (live values shown). */
   arcLocked?: boolean;
   /**
@@ -366,7 +366,11 @@ export default function ControlPanel({
                 <InfoTip id="physical.model" label="Model" />
               </div>
               <ModelPicker
-                value={engineParams.model ?? 0}
+                value={
+                  typeof engineParams.model === 'string'
+                    ? parseFloat(engineParams.model)
+                    : (engineParams.model ?? 0)
+                }
                 disabled={arcLocked}
                 onChange={(idx) => setEngineParam('model', idx)}
               />
@@ -380,7 +384,13 @@ export default function ControlPanel({
                 <Slider
                   key={def.key}
                   def={def}
-                  value={engineParams[def.key] ?? def.default}
+                  value={
+                    typeof (engineParams[def.key] ?? def.default) === 'string'
+                      ? parseFloat(
+                          (engineParams[def.key] ?? def.default) as string,
+                        )
+                      : ((engineParams[def.key] ?? def.default) as number)
+                  }
                   disabled={arcLocked}
                   lockLabel="arc"
                   explainId={`${engineId}.${def.key}`}

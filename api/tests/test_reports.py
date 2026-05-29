@@ -52,3 +52,39 @@ async def test_report_invalid_reason_422(client):
         "/api/v1/reports", json={"patch_id": p["id"], "reason": "nonsense"}
     )
     assert r.status_code == 422
+
+
+async def test_report_source_content(client):
+    from tests.test_user_sources import make_tone_wav, _upload
+
+    h = _hdr()
+    src_res = await _upload(client, h)
+    assert src_res.status_code == 201
+    src_id = src_res.json()["id"]
+
+    p = await _make_patch(client)
+
+    # 1. Report with valid source_id and reason source-content
+    r = await client.post(
+        "/api/v1/reports",
+        json={
+            "patch_id": p["id"],
+            "reason": "source-content",
+            "source_id": src_id,
+            "detail": "copyright violation",
+        },
+    )
+    assert r.status_code == 201
+    assert r.json()["status"] == "open"
+
+    # 2. Report with non-existent source_id should fail with 404
+    r_bad = await client.post(
+        "/api/v1/reports",
+        json={
+            "patch_id": p["id"],
+            "reason": "source-content",
+            "source_id": str(uuid.uuid4()),
+            "detail": "not found",
+        },
+    )
+    assert r_bad.status_code == 404

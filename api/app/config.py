@@ -49,7 +49,9 @@ class Settings(BaseSettings):
     quota_patches: int = 100
     quota_captures: int = 50
     quota_recordings: int = 10
+    quota_user_sources: int = 20
     quota_bytes: int = 1024 * 1024 * 1024  # 1 GiB
+
 
     # Capture upload limits.
     max_capture_seconds: int = 60

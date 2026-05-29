@@ -22,8 +22,10 @@ from app.routers import (
     patches,
     recordings,
     reports,
+    user_sources,
     users,
 )
+
 from app.sentry import init_sentry
 from app.storage import make_storage
 
@@ -73,11 +75,14 @@ def create_app() -> FastAPI:
     app.include_router(users.router)
     app.include_router(patches.router)
     app.include_router(captures.router)
+    app.include_router(user_sources.router)
+    app.include_router(user_sources.render_router)
     app.include_router(recordings.router)
     app.include_router(gallery.router)
     app.include_router(reports.router)
     app.include_router(admin.router)
     app.include_router(embed.router)
+
 
     return app
 

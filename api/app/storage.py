@@ -155,3 +155,78 @@ async def encode_preview_opus(raw: bytes, bitrate_kbps: int) -> bytes:
          "-f", "ogg", "pipe:1"],
         raw,
     )
+
+
+async def decode_any_to_wav(data: bytes) -> bytes:
+    """Decode any ffmpeg-supported audio format to signed 16-bit PCM WAV."""
+    return await _ffmpeg(
+        ["-i", "pipe:0", "-acodec", "pcm_s16le", "-f", "wav", "pipe:1"],
+        data,
+    )
+
+
+async def transcode_to_mono_opus(wav_bytes: bytes, bitrate_kbps: int) -> bytes:
+    """Transcode a PCM WAV to mono Opus at a fixed bitrate (stdin->stdout)."""
+    return await _ffmpeg(
+        ["-i", "pipe:0", "-ac", "1", "-c:a", "libopus", "-b:a", f"{bitrate_kbps}k",
+         "-f", "ogg", "pipe:1"],
+        wav_bytes,
+    )
+
+
+def validate_audio_safety(wav_bytes: bytes) -> None:
+    """Analyze PCM samples for silence, DC offset, NaN/Infinity, or excessive noise."""
+    import wave
+    import struct
+
+    try:
+        with wave.open(io.BytesIO(wav_bytes), "rb") as w:
+            params = w.getparams()
+            sample_width = params.sampwidth
+            n_frames = params.nframes
+
+            if sample_width != 2:
+                raise ValueError("unsupported sample width: must be 16-bit PCM")
+
+            frames = w.readframes(n_frames)
+    except Exception as exc:
+        raise ValueError(f"failed to parse decoded audio: {str(exc)}")
+
+    num_samples = len(frames) // 2
+    if num_samples == 0:
+        raise ValueError("decoded audio contains zero samples")
+
+    try:
+        samples = struct.unpack(f"<{num_samples}h", frames)
+    except Exception:
+        raise ValueError("corrupt audio sample data")
+
+    # 1. Peak amplitude check (silence / near-silence)
+    # Peak amplitude in signed 16-bit is in range [0, 32768].
+    # Threshold: peak must be >= 327 (0.01 of 32768, -40dB).
+    peak = max(abs(s) for s in samples)
+    if peak < 327:
+        raise ValueError("upload is silent or near-silent (peak under -40dB)")
+
+    # 2. DC offset check
+    # Average sample value should be close to 0.
+    # Threshold: abs(mean) < 3276 (10% of full-scale).
+    mean_val = sum(samples) / num_samples
+    if abs(mean_val) > 3276:
+        raise ValueError("invalid DC offset (exceeds 10% of full-scale)")
+
+    # 3. Pure noise check (Zero Crossing Rate)
+    # ZCR = number of zero crossings divided by (num_samples - 1).
+    # White noise has ZCR close to 0.5. We reject if ZCR > 0.45.
+    crossings = 0
+    last_sign = samples[0] >= 0
+    for s in samples[1:]:
+        sign = s >= 0
+        if sign != last_sign:
+            crossings += 1
+            last_sign = sign
+
+    zcr = crossings / (num_samples - 1) if num_samples > 1 else 0
+    if zcr > 0.45:
+        raise ValueError("excessive high-frequency noise (ZCR > 45%)")
+

@@ -6,7 +6,7 @@ import {
   type MusicPreset,
 } from '@/content/presets';
 import { useParamStore, type AnnealMusicParams } from '@/state/params';
-import type { EngineId } from '@/audio/engines/types';
+import type { EngineId, EngineParams } from '@/audio/engines/types';
 import InfoTip from '@/components/InfoTip';
 
 interface PresetsPanelProps {
@@ -21,7 +21,7 @@ function isPresetActive(
   preset: MusicPreset,
   params: AnnealMusicParams,
   engineId: EngineId,
-  engineParams: Record<string, number>,
+  engineParams: EngineParams,
 ): boolean {
   if (engineId !== preset.engineId) return false;
 
