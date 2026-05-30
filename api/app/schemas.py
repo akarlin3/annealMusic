@@ -454,5 +454,69 @@ class PieceListOut(BaseModel):
     next_cursor: str | None = None
 
 
+# --- v4.0 Listening Sessions Schemas -----------------------------------------
+
+class ListeningSessionCreate(BaseModel):
+    piece_id: uuid.UUID
+    schema_ver: int = 16
+    title: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    intention: str | None = Field(default=None, max_length=120)
+    length_category: str | None = Field(default=None, max_length=50)
+    recommended_environment: str | None = Field(default=None, max_length=120)
+    settle_in_ms: int = Field(default=30000, ge=0)
+    integration_ms: int = Field(default=60000, ge=0)
+    opening_tone: bool = False
+    closing_tone: bool = False
+    visibility: Visibility = "unlisted"
+
+
+class ListeningSessionUpdate(BaseModel):
+    piece_id: uuid.UUID | None = None
+    title: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    intention: str | None = Field(default=None, max_length=120)
+    length_category: str | None = Field(default=None, max_length=50)
+    recommended_environment: str | None = Field(default=None, max_length=120)
+    settle_in_ms: int | None = Field(default=None, ge=0)
+    integration_ms: int | None = Field(default=None, ge=0)
+    opening_tone: bool | None = None
+    closing_tone: bool | None = None
+    visibility: Visibility | None = None
+
+
+class ListeningSessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    piece_id: uuid.UUID | None
+    schema_ver: int
+    title: str | None
+    description: str | None
+    intention: str | None
+    length_category: str | None
+    recommended_environment: str | None
+    settle_in_ms: int
+    integration_ms: int
+    opening_tone: bool
+    closing_tone: bool
+    total_duration_ms: int | None
+    visibility: str
+    short_slug: str
+    created_at: datetime
+    updated_at: datetime
+    
+    piece: PieceOut | None = None
+    creator_name: str | None = None
+    creator_avatar_seed: str | None = None
+    piece_creator_name: str | None = None
+
+
+class ListeningSessionListOut(BaseModel):
+    items: list[ListeningSessionOut]
+    next_cursor: str | None = None
+
+
 
 

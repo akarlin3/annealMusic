@@ -27,6 +27,7 @@ export interface VisualState {
   inputLevel?: number;
   /** Active loop slots, in slot order, contributing orbital rings. */
   loops?: LoopRing[];
+  isCalm?: boolean;
 }
 
 export interface VisualRenderer {

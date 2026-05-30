@@ -17,7 +17,6 @@ import EngineSelector from '@/components/EngineSelector';
 import ModeToggle from '@/components/ModeToggle';
 import ArcPanel from '@/components/ArcPanel';
 import PresetsPanel from '@/components/PresetsPanel';
-import ArchitectureDiagram from '@/components/ArchitectureDiagram';
 import CopyLinkButton from '@/components/CopyLinkButton';
 import SavePatchButton from '@/components/SavePatchButton';
 import GeneratePatchDialog from '@/components/GeneratePatchDialog';
@@ -582,8 +581,6 @@ export default function App() {
         )}
 
         <div className="am-hairline my-12" />
-
-        <ArchitectureDiagram />
 
         <footer
           className="mb-4 mt-16 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em]"

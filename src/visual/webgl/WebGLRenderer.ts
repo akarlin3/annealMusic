@@ -112,6 +112,7 @@ export class WebGLRenderer implements VisualRenderer {
           u_show_spectrum: { value: 1 },
           u_loop_levels: { value: [0.0, 0.0, 0.0] },
           u_loop_frozen: { value: [0.0, 0.0, 0.0] },
+          u_calm: { value: 0.0 },
         },
       });
 
@@ -242,8 +243,10 @@ export class WebGLRenderer implements VisualRenderer {
       if (i < count) {
         const freqHz = state.freqs[i] ?? 0;
         const visualRate = freqHz / 220; // visualRateRef = 220
+        const speedScale = state.isCalm ? 0.45 : 1.0;
         const phase =
-          ((state.phases[i] ?? 0) + visualRate * state.dt) % (Math.PI * 2);
+          ((state.phases[i] ?? 0) + visualRate * state.dt * speedScale) %
+          (Math.PI * 2);
         state.phases[i] = phase; // Mutate in place
 
         const orbit =
@@ -300,6 +303,7 @@ export class WebGLRenderer implements VisualRenderer {
     u.u_show_spectrum.value = state.spectrum ? 1 : 0;
     u.u_loop_levels.value = loopLevels;
     u.u_loop_frozen.value = loopFrozen;
+    u.u_calm.value = state.isCalm ? 1.0 : 0.0;
 
     // 5. Render Scene
     this.renderer.render({ scene: this.mesh });

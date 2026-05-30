@@ -31,6 +31,7 @@ from app.routers import (
     jam,
     social,
     pieces,
+    listening_sessions,
 )
 
 
@@ -101,6 +102,7 @@ def create_app() -> FastAPI:
     app.include_router(jam.router)
     app.include_router(social.router)
     app.include_router(pieces.router)
+    app.include_router(listening_sessions.router)
 
 
     return app

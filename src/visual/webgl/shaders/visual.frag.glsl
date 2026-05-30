@@ -16,6 +16,7 @@ uniform sampler2D u_spectrum;    // 1D spectrum trace texture (512x1)
 uniform int u_show_spectrum;
 uniform vec3 u_loop_levels;      // Loop slot levels (0..1)
 uniform vec3 u_loop_frozen;      // Loop slot frozen status (0.0 or 1.0)
+uniform float u_calm;
 
 // Constants matching canvas palettes
 const vec3 COLOR_BG    = vec3(12.0 / 255.0, 10.0 / 255.0, 9.0 / 255.0); // #0c0a09
@@ -43,11 +44,12 @@ void main() {
 
     // 1. Base Background Color
     vec3 color = COLOR_BG;
+    float calmScale = (u_calm > 0.5) ? 0.6 : 1.0;
 
     // 2. Central Halo
     float haloRadius = u_base_radius * 1.6;
     float haloT = smoothstep(haloRadius, 0.0, dist);
-    color += COLOR_AMBER * 0.04 * haloT;
+    color += COLOR_AMBER * (0.04 * calmScale) * haloT;
 
     // 3. Faint Input Ring (driven by live-input amplitude)
     if (u_input_level >= 0.0) {
@@ -57,7 +59,7 @@ void main() {
         float ringDist = abs(dist - ringR);
         // Antialiased 1.5px ring
         float ringEdge = smoothstep(1.5 * u_dpr, 0.5 * u_dpr, ringDist);
-        color += COLOR_MID * ringAlpha * ringEdge;
+        color += COLOR_MID * ringAlpha * ringEdge * calmScale;
     }
 
     // 4. Per-slot Loop Rings (amber, rose, cyan)
@@ -89,7 +91,7 @@ void main() {
             if (relAngle < 0.0) relAngle += 2.0 * PI;
 
             if (relAngle <= sweep) {
-                color += loopColors[slot] * ringAlpha * ringEdge;
+                color += loopColors[slot] * ringAlpha * ringEdge * calmScale;
             }
         }
     }
@@ -119,7 +121,7 @@ void main() {
                 pAlpha = mix(0.3 + amp * 0.25, 0.0, n);
             }
             
-            color += pColor * pAlpha;
+            color += pColor * pAlpha * calmScale;
         }
     }
 
@@ -153,7 +155,7 @@ void main() {
 
             // Antialiased 1.0px spectrum trace line
             float traceAlpha = smoothstep(1.0 * u_dpr, 0.0 * u_dpr, minD);
-            color += vec3(245.0 / 255.0, 245.0 / 255.0, 244.0 / 255.0) * 0.16 * traceAlpha;
+            color += vec3(245.0 / 255.0, 245.0 / 255.0, 244.0 / 255.0) * 0.16 * traceAlpha * calmScale;
         }
     }
 

@@ -178,6 +178,19 @@ export interface DecodedPiece {
   automationTracks?: AutomationTrack[];
 }
 
+export interface DecodedListeningSession {
+  pieceId: string;
+  title?: string;
+  description?: string;
+  intention?: string;
+  lengthCategory?: string;
+  recommendedEnvironment?: string;
+  settleInMs: number;
+  integrationMs: number;
+  openingTone: boolean;
+  closingTone: boolean;
+}
+
 export type DecodedState =
   | {
       kind: 'patch';
@@ -193,6 +206,11 @@ export type DecodedState =
   | {
       kind: 'piece';
       piece: DecodedPiece;
+      warnings: string[];
+    }
+  | {
+      kind: 'listening-session';
+      listeningSession: DecodedListeningSession;
       warnings: string[];
     };
 
@@ -912,11 +930,12 @@ export function decodeState(version: number, payload: string): DecodedState {
 
   // Version 8+
   const pairs = payload.split('&');
-  let kind: 'patch' | 'piece' = 'patch';
+  let kind: 'patch' | 'piece' | 'listening-session' = 'patch';
   for (const pair of pairs) {
     if (pair.startsWith('kind=')) {
       const val = pair.slice(5);
       if (val === 'piece') kind = 'piece';
+      else if (val === 'listening-session') kind = 'listening-session';
       break;
     }
   }
@@ -925,6 +944,12 @@ export function decodeState(version: number, payload: string): DecodedState {
     return {
       kind: 'piece',
       piece: decodePiecePayload(payload),
+      warnings: [],
+    };
+  } else if (kind === 'listening-session') {
+    return {
+      kind: 'listening-session',
+      listeningSession: decodeListeningSessionPayload(payload),
       warnings: [],
     };
   } else {
@@ -950,4 +975,83 @@ export function decodeParams(payload: string): {
     return { params: res.params, warnings: res.warnings };
   }
   return { params: {}, warnings: [] };
+}
+
+export function decodeListeningSessionPayload(
+  payload: string,
+): DecodedListeningSession {
+  let pieceId = '';
+  let title: string | undefined;
+  let description: string | undefined;
+  let intention: string | undefined;
+  let lengthCategory: string | undefined;
+  let recommendedEnvironment: string | undefined;
+  let settleInMs = 30000;
+  let integrationMs = 60000;
+  let openingTone = false;
+  let closingTone = false;
+
+  for (const pair of payload.split('&')) {
+    if (pair === '') continue;
+    const eq = pair.indexOf('=');
+    if (eq === -1) continue;
+    const key = pair.slice(0, eq);
+    const raw = pair.slice(eq + 1);
+
+    if (key === 'pieceId') {
+      pieceId = raw;
+    } else if (key === 'title') {
+      title = decodeURIComponent(raw);
+    } else if (key === 'desc') {
+      description = decodeURIComponent(raw);
+    } else if (key === 'intention') {
+      intention = decodeURIComponent(raw);
+    } else if (key === 'cat') {
+      lengthCategory = decodeURIComponent(raw);
+    } else if (key === 'env') {
+      recommendedEnvironment = decodeURIComponent(raw);
+    } else if (key === 'settle') {
+      settleInMs = parseInt(raw, 10) || 30000;
+    } else if (key === 'integrate') {
+      integrationMs = parseInt(raw, 10) || 60000;
+    } else if (key === 'openB') {
+      openingTone = raw === '1' || raw === 'true';
+    } else if (key === 'closeB') {
+      closingTone = raw === '1' || raw === 'true';
+    }
+  }
+
+  return {
+    pieceId,
+    title,
+    description,
+    intention,
+    lengthCategory,
+    recommendedEnvironment,
+    settleInMs,
+    integrationMs,
+    openingTone,
+    closingTone,
+  };
+}
+
+export function encodeListeningSession(
+  session: DecodedListeningSession,
+): string {
+  const parts = ['kind=listening-session'];
+  parts.push(`pieceId=${session.pieceId}`);
+  if (session.title) parts.push(`title=${encodeURIComponent(session.title)}`);
+  if (session.description)
+    parts.push(`desc=${encodeURIComponent(session.description)}`);
+  if (session.intention)
+    parts.push(`intention=${encodeURIComponent(session.intention)}`);
+  if (session.lengthCategory)
+    parts.push(`cat=${encodeURIComponent(session.lengthCategory)}`);
+  if (session.recommendedEnvironment)
+    parts.push(`env=${encodeURIComponent(session.recommendedEnvironment)}`);
+  parts.push(`settle=${session.settleInMs}`);
+  parts.push(`integrate=${session.integrationMs}`);
+  parts.push(`openB=${session.openingTone ? '1' : '0'}`);
+  parts.push(`closeB=${session.closingTone ? '1' : '0'}`);
+  return parts.join('&');
 }

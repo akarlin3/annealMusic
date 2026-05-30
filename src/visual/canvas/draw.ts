@@ -50,13 +50,18 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
 
   // Faint input ring around the halo — present only when input is connected,
   // swelling with the live signal so it reads as part of the field.
+  const calmAlphaScale = state.isCalm ? 0.6 : 1.0;
+  const speedScale = state.isCalm ? 0.45 : 1.0;
+
   if (inputLevel !== undefined) {
     const lvl = Math.max(0, Math.min(1, inputLevel));
     const ringR =
       baseR *
       VISUAL.inputRingRadiusMultiple *
       (1 + lvl * VISUAL.inputRingSwell);
-    const alpha = VISUAL.inputRingBaseAlpha + lvl * VISUAL.inputRingAlphaScale;
+    const alpha =
+      (VISUAL.inputRingBaseAlpha + lvl * VISUAL.inputRingAlphaScale) *
+      calmAlphaScale;
     ctx2d.strokeStyle = PALETTE.inputRing(alpha);
     ctx2d.lineWidth = VISUAL.inputRingLineWidth;
     ctx2d.beginPath();
@@ -75,9 +80,10 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
         (VISUAL.loopRingRadii[ring.slot] ?? 1.8) *
         (1 + lvl * VISUAL.loopRingSwell);
       const alpha =
-        VISUAL.loopRingBaseAlpha +
-        lvl * VISUAL.loopRingAlphaScale +
-        (ring.frozen ? 0.06 : 0);
+        (VISUAL.loopRingBaseAlpha +
+          lvl * VISUAL.loopRingAlphaScale +
+          (ring.frozen ? 0.06 : 0)) *
+        calmAlphaScale;
       const sweep = ring.frozen ? Math.PI * 2 : VISUAL.loopRingArc;
       const start = (ring.slot * (Math.PI * 2)) / 3;
       ctx2d.strokeStyle = PALETTE.loopRing(ring.slot, alpha);
@@ -97,7 +103,10 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
     cy,
     baseR * VISUAL.haloRadiusMultiple,
   );
-  halo.addColorStop(0, PALETTE.haloInner);
+  halo.addColorStop(
+    0,
+    state.isCalm ? 'rgba(245, 158, 11, 0.024)' : PALETTE.haloInner,
+  );
   halo.addColorStop(1, PALETTE.haloOuter);
   ctx2d.fillStyle = halo;
   ctx2d.fillRect(0, 0, w, h);
@@ -106,7 +115,8 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
     const freqHz = freqs[i] ?? 0;
 
     const visualRate = freqHz / VISUAL.visualRateRef;
-    const phase = ((phases[i] ?? 0) + visualRate * dt) % (Math.PI * 2);
+    const phase =
+      ((phases[i] ?? 0) + visualRate * dt * speedScale) % (Math.PI * 2);
     phases[i] = phase;
 
     const orbit = baseR * (0.45 + 0.55 * (i / Math.max(1, count - 1)));
@@ -119,8 +129,13 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
 
     const r = VISUAL.glowMinRadius + amp * VISUAL.glowAmpScale;
     const grad = ctx2d.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, PALETTE.glowCore(amp));
-    grad.addColorStop(0.4, PALETTE.glowMid(amp));
+    if (state.isCalm) {
+      grad.addColorStop(0, `rgba(254, 215, 170, ${(0.55 + amp * 0.35) * 0.6})`);
+      grad.addColorStop(0.4, `rgba(251, 191, 36, ${(0.3 + amp * 0.25) * 0.6})`);
+    } else {
+      grad.addColorStop(0, PALETTE.glowCore(amp));
+      grad.addColorStop(0.4, PALETTE.glowMid(amp));
+    }
     grad.addColorStop(1, PALETTE.glowEdge);
     ctx2d.fillStyle = grad;
     ctx2d.beginPath();
@@ -130,7 +145,9 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
 
   // subtle spectrum trace at the bottom
   if (spectrum) {
-    ctx2d.strokeStyle = PALETTE.spectrum;
+    ctx2d.strokeStyle = state.isCalm
+      ? 'rgba(245, 245, 244, 0.096)'
+      : PALETTE.spectrum;
     ctx2d.lineWidth = 1;
     ctx2d.beginPath();
     const bottom = h - VISUAL.spectrumBottomPad;

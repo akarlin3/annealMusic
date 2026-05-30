@@ -491,6 +491,48 @@ class PieceSegment(Base):
     config: Mapped[dict] = mapped_column(JSONType(), nullable=False)
 
 
+class ListeningSession(Base):
+    __tablename__ = "listening_sessions"
+    __table_args__ = (
+        CheckConstraint(
+            "visibility IN ('unlisted','public','flagged')",
+            name="ck_listening_sessions_visibility",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    piece_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("pieces.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    schema_ver: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str | None] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    intention: Mapped[str | None] = mapped_column(String, nullable=True)
+    length_category: Mapped[str | None] = mapped_column(String, nullable=True)
+    recommended_environment: Mapped[str | None] = mapped_column(String, nullable=True)
+    settle_in_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=30000)
+    integration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=60000)
+    opening_tone: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    closing_tone: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    total_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    visibility: Mapped[str] = mapped_column(
+        String, nullable=False, default="unlisted"
+    )
+    short_slug: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
 # SQLite trigger events for tests/local development when using SQLite
 @event.listens_for(Base.metadata, "after_create")
 
