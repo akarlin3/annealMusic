@@ -2,7 +2,7 @@
   "name": "annealmusic",
   "private": true,
   "license": "AGPL-3.0-or-later",
-  "version": "5.7.0",
+  "version": "6.0.0",
   "type": "module",
   "description": "A generative ambient meditation sandbox: physics-driven sound, session arc, and audio-reactive visuals.",
   "scripts": {
@@ -11,6 +11,7 @@
     "build": "npm run build:worklets && tsc -b && vite build",
     "build:mobile": "npm run build:worklets && tsc -b && vite build --config vite.config.mobile.ts",
     "build:research": "npm run build:worklets && vite build --config vite.config.research.ts",
+    "build:learn": "npm run build:worklets && vite build --config vite.config.learn.ts",
     "preview": "vite preview",
     "test": "vitest",
     "lint": "eslint .",

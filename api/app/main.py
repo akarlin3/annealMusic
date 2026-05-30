@@ -117,6 +117,7 @@ def create_app() -> FastAPI:
     app.include_router(user_scripts.router)
     app.include_router(experiments.router)
     app.include_router(learn.router)
+    app.include_router(learn.html_router)
 
     return app
 

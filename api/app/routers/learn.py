@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -304,3 +305,57 @@ async def update_lesson_step(id: uuid.UUID, body: LessonStepUpdate, session: Ses
     await session.commit()
     await session.refresh(step)
     return step_to_out(step)
+
+
+# --- HTML Router for serving /learn ------------------------------------------
+
+html_router = APIRouter(tags=["learn-html"])
+
+
+@html_router.get("/learn", response_class=HTMLResponse)
+async def serve_learn_shell() -> HTMLResponse:
+    import os
+
+    # 1. Try to read from dist-learn/learn.html (production build)
+    prod_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../dist-learn/learn.html")
+    )
+    if os.path.exists(prod_path):
+        with open(prod_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+
+    # 2. Try to read from learn.html in the root (development)
+    dev_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../learn.html")
+    )
+    if os.path.exists(dev_path):
+        with open(dev_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+
+    # 3. Dynamic fallback instructions
+    return HTMLResponse(
+        content="""
+        <!doctype html>
+        <html>
+        <head>
+            <title>AnnealMusic — Learn</title>
+            <style>
+                body {
+                    background: #0f1015;
+                    color: #f1f3f9;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    padding: 3rem;
+                    text-align: center;
+                }
+                a { color: #6366f1; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <h1>Learn Shell</h1>
+            <p>In development, please access <a href="http://localhost:5173/learn.html">http://localhost:5173/learn.html</a> directly via Vite Dev Server.</p>
+        </body>
+        </html>
+    """
+    )
+

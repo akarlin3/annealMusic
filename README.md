@@ -36,6 +36,7 @@ New here? Press the **Help (?)** button in the app for a plain-language guide to
 - **Listen** — a curated meditation library (`/listen`) of hand-picked sessions to browse by length, intention, and audio character.
 - **Your sessions** — a private history (`/me/sessions`) of what you've listened to, with optional reflections. Just for you.
 - **Share links** — copy a link that reopens your exact sound for anyone you send it to.
+- **Learn (v6.0)** — an interactive pedagogical surface (`/learn`) designed to teach ambient synthesis, phase-coupling, and tuning physics through structured lessons, sandboxed parameter constraints, and visual cues.
 - **Session Datalogging (v5.3)** — record high-resolution session observations (sculpt states, Kuramoto coupling order parameter, partial details, and audio features like RMS, ZCR, spectral centroid, and flux) to scientific formats (CSV, JSONL, Parquet, and HDF5) at configurable sample rates for ingestion into Python, MATLAB, Julia, or R.
 
 ---
@@ -62,6 +63,8 @@ npm install        # install dependencies
 npm run dev        # start the Vite dev server (http://localhost:5173)
 npm run build      # typecheck + production build to dist/
 npm run build:mobile # build mobile-optimized bundle to dist-mobile/
+npm run build:research # build research surface to dist-research/
+npm run build:learn    # build education surface bundle to dist-learn/
 npm run preview    # preview the production build
 npm run test       # run unit tests (Vitest)
 npm run lint       # ESLint

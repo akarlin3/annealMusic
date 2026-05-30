@@ -58,6 +58,8 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v5.5 ✅ | Scientific Python Integration                      | Curated Scientific Python package whitelist (`scipy`, `pandas`, `matplotlib`, `sklearn`), Magic AST-scan auto-import loader, Web Worker Agg-PNG plot rendering bridge, multi-figure tabbed plot UI, flat `session_log` / async `stream_log` / async `sweep` coroutines, and virtual file browser MEMFS panel. |
 | v5.6 ✅ | Perceptual Experiment Framework                    | Programmatically define stimulus sets and blocks in Python, deploy clinical-aesthetic runner, counterbalance with Williams Latin Square rows, collect 30Hz continuous parameters, and export IRB-compliant ZIP archives. |
 | v5.7 ✅ | Research Arc Closeout                              | Complete API reference docs-site (VitePress), Cookbook (16 persona recipes), dynamic academic citation prints (CLI + Pyodide), automated CI notebook cell-verifiers, SemVer stability matrices, and v5 retrospective |
+| v6.0 ✅ | Lesson Foundation                                  | Stand up the education surface: the `/learn` route with its own bundle, lesson + track + step data model, lesson player UI, same-origin iframe integration, postMessage transport, parameter sandbox constraints, temporary glows, and 3 pre-seeded lessons. |
+
 
 
 

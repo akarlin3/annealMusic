@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.0] - 2026-05-30
+
+### Added
+
+- **Pedagogical Tracks Surface (`/learn`).** Stands up a completely decoupled and optimized education bundle (`dist-learn/`) outputting a microscopic budget (under 51KB gzipped) and preventing synthesis engine bloat for reading users.
+- **Relational Tracks, Lessons, and Steps Data Models.** Creates SQLAlchemy database models and Pydantic validation schemas for Tracks, Lessons, and Steps, registered with FastAPI endpoints and seeded dynamically during Alembic migration (`0018_v6_0_lessons.py`) with 3 complete, interactive placeholder lessons.
+- **Same-Origin postMessage JSON-RPC 2.0 Bridge Transport.** Decouples communication across the education player and embedded app iframe using a secure, same-origin `postMessage` transport layer.
+- **Store-Level Parameter Sandboxing.** Introduces a reactive `constraints` array in the main Zustand parameters store. If active, standard parameter changing actions intercept and drop updates to any locked sliders, instantly disabling inputs in the ControlPanel and showing a `lesson` lock icon.
+- **Temporary Visual glows.** Shipped bridge method `anneal.lesson.highlight` which dispatches custom window events, causing target sliders on the synth panel to pulse with a beautiful amber glow for 3 seconds to guide focus.
+- **High-Fidelity Lesson Player UI.** Designed a premium split-pane workspace (40% lesson chrome, 60% live app iframe) on desktop, transitioning to a vertical collisional stack on mobile with an "Expand App" / "Minimize App" toggle.
+- **Calm by Design Progress Alignment.** Adheres strictly to anti-engagement tenets: no streaks, levels, XP, confetti, or celebratory chimes. Steps use low-contrast progress dots (`• • ◦ ◦ ◦`), and participant reflection textareas are open-ended, optional, and saved completely privately in local state for a clean session summary.
+
 ## [5.7.0] - 2026-05-30
 
 ### Added

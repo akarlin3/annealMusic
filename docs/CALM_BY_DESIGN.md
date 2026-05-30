@@ -80,3 +80,11 @@ A lexical test (`src/test/calm-by-design.test.ts`) scans the UI source for banne
 - [x] Complete WCAG 2.1 AA keyboard navigability and high-contrast outlines using the warm amber theme.
 - [x] Standard touch targets respect 44x44 CSS pixels/points.
 - [x] OS prefers-reduced-motion media query respect: pauses visual visualizer animations and halts breathing LFO pulses.
+
+### v6.0 — Education Surface & Iframe Player
+
+- [x] **No Gamification Elements:** No level gauges, streak indicators, daily quests, XP indicators, leaderboards, or score counters in the curriculum browser or lesson player.
+- [x] **Calm Progress Tracking:** Step progression is represented by simple, low-contrast visual dots (`• • ◦ ◦ ◦`). There are no flashy level-up animations, celebratory confetti, or congratulatory sound effects upon completion.
+- [x] **Non-Coercive Pathing (Unblocked Progress):** Lessons do not force high-stakes gates. Prompt challenges let users proceed at their own pace via a simple "I've Tried This" validation.
+- [x] **Voluntary & Calm Reflection:** Reflection inputs are open-ended, optional, and unblocked. Users can save notes for their own personal summary, or skip/proceed directly if they prefer silent presence.
+- [x] **Private & Local Summaries:** Handwritten reflections are summarized locally in the client-side session state for the user's review at the end of a lesson, remaining completely private and unshared.
