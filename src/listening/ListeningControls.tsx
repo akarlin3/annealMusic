@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
 import type { APIPiece, ListeningSession, Patch } from '@/api/types';
+import type { Movement } from '@/piece/types';
 import { SCHEMA_VERSION } from '@/share/schema';
 import { getErrorMessage } from '@/api/client';
 import type { BellEvent } from '@/audio/bells/scheduler';
 import BellScheduleEditor from '@/listening/BellScheduleEditor';
 import {
-  Bell,
   Clock,
   Compass,
   FileText,
@@ -370,7 +370,11 @@ export default function ListeningControls({
           <BellScheduleEditor
             schedule={bellSchedule}
             onChange={setBellSchedule}
-            movements={pieces.find((p) => p.id === selectedSourceId)?.movements as any[]}
+            movements={
+              pieces.find((p) => p.id === selectedSourceId)?.movements as
+                | Movement[]
+                | undefined
+            }
           />
         </div>
 

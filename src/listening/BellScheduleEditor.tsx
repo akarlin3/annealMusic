@@ -13,9 +13,15 @@ interface BellScheduleEditorProps {
 
 let tempAudioCtx: AudioContext | null = null;
 
+interface WindowWithWebkit extends Window {
+  webkitAudioContext?: typeof AudioContext;
+}
+
 function getPreviewContext(): AudioContext {
+  const win = window as WindowWithWebkit;
   if (!tempAudioCtx) {
-    tempAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const Ctx = win.AudioContext ?? win.webkitAudioContext ?? AudioContext;
+    tempAudioCtx = new Ctx();
   }
   if (tempAudioCtx.state === 'suspended') {
     void tempAudioCtx.resume();
@@ -27,7 +33,6 @@ export default function BellScheduleEditor({
   schedule = [],
   onChange,
   movements = [],
-  totalDurationMs,
 }: BellScheduleEditorProps) {
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
 
@@ -70,11 +75,14 @@ export default function BellScheduleEditor({
   };
 
   // Group bells by category
-  const categories = BELL_REGISTRY.reduce<Record<string, typeof BELL_REGISTRY>>((acc, bell) => {
-    if (!acc[bell.category]) acc[bell.category] = [];
-    acc[bell.category]!.push(bell);
-    return acc;
-  }, {});
+  const categories = BELL_REGISTRY.reduce<Record<string, typeof BELL_REGISTRY>>(
+    (acc, bell) => {
+      if (!acc[bell.category]) acc[bell.category] = [];
+      acc[bell.category]!.push(bell);
+      return acc;
+    },
+    {},
+  );
 
   return (
     <div className="w-full space-y-4 rounded-xl border border-stone-850 bg-stone-950/40 p-4 backdrop-blur-md">
@@ -101,7 +109,8 @@ export default function BellScheduleEditor({
             No scheduled bells.
           </p>
           <p className="text-[8px] uppercase tracking-wide text-stone-600 mt-1 max-w-xs mx-auto">
-            Bells can punctuate sessions at movement boundaries or regular intervals.
+            Bells can punctuate sessions at movement boundaries or regular
+            intervals.
           </p>
         </div>
       ) : (
@@ -141,7 +150,9 @@ export default function BellScheduleEditor({
                       onClick={() => handlePreview(event.bellId, event.volume)}
                       disabled={activePreviewId !== null}
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded border border-stone-800 bg-stone-900 hover:border-amber-500/40 text-stone-400 hover:text-amber-300 transition-colors ${
-                        activePreviewId === event.bellId ? 'animate-pulse bg-amber-500/10 border-amber-500/30' : ''
+                        activePreviewId === event.bellId
+                          ? 'animate-pulse bg-amber-500/10 border-amber-500/30'
+                          : ''
                       }`}
                       title="Preview Sound"
                     >
@@ -155,7 +166,7 @@ export default function BellScheduleEditor({
                       value={event.trigger}
                       onChange={(e) =>
                         handleUpdateEvent(index, {
-                          trigger: e.target.value as any,
+                          trigger: e.target.value as BellEvent['trigger'],
                           offsetMs: 0,
                           intervalMin: 5,
                         })
@@ -168,8 +179,12 @@ export default function BellScheduleEditor({
                       <option value="every">Every N Minutes</option>
                       {movements.length > 0 && (
                         <>
-                          <option value="at-movement-start">At Movement Start</option>
-                          <option value="at-movement-end">At Movement End</option>
+                          <option value="at-movement-start">
+                            At Movement Start
+                          </option>
+                          <option value="at-movement-end">
+                            At Movement End
+                          </option>
                         </>
                       )}
                     </select>
@@ -253,7 +268,9 @@ export default function BellScheduleEditor({
                   </div>
                 )}
 
-                {['at-movement-start', 'at-movement-end'].includes(event.trigger) && (
+                {['at-movement-start', 'at-movement-end'].includes(
+                  event.trigger,
+                ) && (
                   <div className="flex items-center gap-3 pl-1.5 border-l-2 border-stone-800 py-0.5">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-[9px] uppercase tracking-wider text-stone-500">
@@ -286,7 +303,8 @@ export default function BellScheduleEditor({
                         value={Math.round((event.offsetMs || 0) / 1000)}
                         onChange={(e) =>
                           handleUpdateEvent(index, {
-                            offsetMs: Math.max(0, Number(e.target.value)) * 1000,
+                            offsetMs:
+                              Math.max(0, Number(e.target.value)) * 1000,
                           })
                         }
                         className="w-14 rounded border border-stone-850 bg-stone-950 px-2 py-0.5 font-mono text-[10px] text-stone-200 focus:border-amber-500/30 focus:outline-none"
@@ -314,7 +332,8 @@ export default function BellScheduleEditor({
       <footer className="border-t border-stone-900 pt-2 flex items-center justify-between text-[8px] uppercase tracking-wider text-stone-600">
         <span className="flex items-center gap-1">
           <HelpCircle size={9} />
-          All bells licensed under Creative Commons Zero (CC0) Original synthesis.
+          All bells licensed under Creative Commons Zero (CC0) Original
+          synthesis.
         </span>
       </footer>
     </div>

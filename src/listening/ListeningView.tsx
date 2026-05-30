@@ -16,8 +16,9 @@ import {
 } from 'lucide-react';
 import { LissajousAvatar } from '@/components/LissajousAvatar';
 import type { ParamKey } from '@/state/params';
-import type { Piece, SegmentType } from '@/piece/types';
+import type { Piece, SegmentType, Movement } from '@/piece/types';
 import { resolveBellSchedule } from '@/audio/bells/scheduler';
+import type { BellEvent } from '@/audio/bells/scheduler';
 import { getBellById } from '@/audio/bells/registry';
 
 interface ListeningViewProps {
@@ -176,35 +177,38 @@ export default function ListeningView({
   };
 
   // Resolve scheduled bells for rendering markers
-  const segmentDurations = session.piece?.segments.map((s) => {
-    let dur = s.duration_ms ?? 5000;
-    if (s.config?.tempoLocked && session.piece?.tempo_bpm) {
-      dur = dur * 4 * (60 / session.piece.tempo_bpm) * 1000;
-    }
-    return dur;
-  }) || [];
+  const segmentDurations =
+    session.piece?.segments.map((s) => {
+      let dur = s.duration_ms ?? 5000;
+      if (s.config?.tempoLocked && session.piece?.tempo_bpm) {
+        dur = dur * 4 * (60 / session.piece.tempo_bpm) * 1000;
+      }
+      return dur;
+    }) || [];
 
   const resolvedPieceBells = resolveBellSchedule(
-    (session.piece?.bell_schedule as any) || [],
+    (session.piece?.bell_schedule as BellEvent[] | undefined) ?? [],
     session.piece?.total_duration_ms || 30000,
     segmentDurations,
-    (session.piece?.movements as any) || [],
+    (session.piece?.movements as Movement[] | undefined) ?? [],
   );
 
   const resolvedSessionBells = resolveBellSchedule(
-    (session.bell_schedule as any) || [],
+    (session.bell_schedule as BellEvent[] | undefined) ?? [],
     session.piece?.total_duration_ms || 30000,
     segmentDurations,
-    (session.piece?.movements as any) || [],
+    (session.piece?.movements as Movement[] | undefined) ?? [],
   );
 
   // Merge and sort
-  const allResolvedBells = [...resolvedPieceBells, ...resolvedSessionBells].sort(
-    (a, b) => a.offsetMs - b.offsetMs,
-  );
+  const allResolvedBells = [
+    ...resolvedPieceBells,
+    ...resolvedSessionBells,
+  ].sort((a, b) => a.offsetMs - b.offsetMs);
 
   const totalDurationMs = remainingMs + elapsedMs;
-  const progressPercent = totalDurationMs > 0 ? (elapsedMs / totalDurationMs) * 100 : 0;
+  const progressPercent =
+    totalDurationMs > 0 ? (elapsedMs / totalDurationMs) * 100 : 0;
 
   return (
     <div
@@ -288,7 +292,10 @@ export default function ListeningView({
                 <div
                   key={idx}
                   className="absolute -top-1.5 group/marker cursor-help flex flex-col items-center"
-                  style={{ left: `${bellPosPercent}%`, transform: 'translateX(-50%)' }}
+                  style={{
+                    left: `${bellPosPercent}%`,
+                    transform: 'translateX(-50%)',
+                  }}
                 >
                   <div
                     className={`h-4 w-4 rounded-full border transition-all duration-300 flex items-center justify-center ${
@@ -297,13 +304,19 @@ export default function ListeningView({
                         : 'border-stone-750 bg-stone-950 hover:border-amber-500/50 hover:scale-110'
                     }`}
                   >
-                    <div className={`h-1.5 w-1.5 rounded-full ${isSounded ? 'bg-stone-950' : 'bg-stone-500 group-hover/marker:bg-amber-400'}`} />
+                    <div
+                      className={`h-1.5 w-1.5 rounded-full ${isSounded ? 'bg-stone-950' : 'bg-stone-500 group-hover/marker:bg-amber-400'}`}
+                    />
                   </div>
 
                   {/* Hover Tooltip */}
                   <div className="absolute bottom-6 scale-95 opacity-0 pointer-events-none group-hover/marker:scale-100 group-hover/marker:opacity-100 transition-all duration-200 z-50 bg-stone-950 border border-stone-850 p-2 rounded-lg shadow-2xl font-mono text-[8px] uppercase tracking-wider text-amber-200 w-44 text-center leading-normal">
-                    <span className="font-bold text-stone-200 block mb-0.5">{bellDef?.name || 'Bell'}</span>
-                    <span className="text-stone-500 text-[7px] block">Trigger at {fmtTime(bell.offsetMs)}</span>
+                    <span className="font-bold text-stone-200 block mb-0.5">
+                      {bellDef?.name || 'Bell'}
+                    </span>
+                    <span className="text-stone-500 text-[7px] block">
+                      Trigger at {fmtTime(bell.offsetMs)}
+                    </span>
                   </div>
                 </div>
               );

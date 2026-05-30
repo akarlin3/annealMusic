@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, Pause, Square, Bell, HelpCircle } from 'lucide-react';
 import { BELL_REGISTRY, getBellById } from '@/audio/bells/registry';
-import { BellScheduler, resolveBellSchedule, type BellEvent } from '@/audio/bells/scheduler';
+import {
+  BellScheduler,
+  resolveBellSchedule,
+  type BellEvent,
+} from '@/audio/bells/scheduler';
 
 function fmtTime(seconds: number): string {
   const mm = Math.floor(seconds / 60);
@@ -12,19 +16,18 @@ function fmtTime(seconds: number): string {
 
 export default function MeditationTimerPage() {
   const navigate = useNavigate();
-  
+
   // Timer settings state
   const [selectedBellId, setSelectedBellId] = useState('zen_bell_rin');
   const [durationMin, setDurationMin] = useState(15);
   const [intervalMin, setIntervalMin] = useState(5); // 0 means None
-  
+
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [remainingSec, setRemainingSec] = useState(15 * 60);
-  
+
   // Breathing LFO state
-  const [breathingSec, setBreathingSec] = useState(0); // 0..16s cycle
   const [breathingLabel, setBreathingLabel] = useState('Inhale');
   const [breathingScale, setBreathingScale] = useState(1.0);
 
@@ -32,8 +35,11 @@ export default function MeditationTimerPage() {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const schedulerRef = useRef<BellScheduler | null>(null);
   const mainTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const breathTimerRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
+  const breathTimerRef = useRef<ReturnType<
+    typeof requestAnimationFrame
+  > | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
+  const breathCycleRef = useRef<number>(0); // tracks position in 16s cycle without triggering re-renders
 
   // Initialize total remaining seconds on setting change
   useEffect(() => {
@@ -48,7 +54,7 @@ export default function MeditationTimerPage() {
     if (!isPlaying) {
       setBreathingScale(1.0);
       setBreathingLabel('Prepare');
-      setBreathingSec(0);
+      breathCycleRef.current = 0;
       if (breathTimerRef.current) {
         cancelAnimationFrame(breathTimerRef.current);
         breathTimerRef.current = null;
@@ -62,28 +68,25 @@ export default function MeditationTimerPage() {
       const deltaSec = (time - lastFrameTimeRef.current) / 1000;
       lastFrameTimeRef.current = time;
 
-      setBreathingSec((prev) => {
-        const next = (prev + deltaSec) % 16; // 16s total cycle
+      breathCycleRef.current = (breathCycleRef.current + deltaSec) % 16;
+      const next = breathCycleRef.current;
 
-        // 4s Inhale, 4s Hold, 4s Exhale, 4s Hold
-        if (next < 4) {
-          setBreathingLabel('Inhale');
-          // Scale from 1.0 to 1.8
-          setBreathingScale(1.0 + (next / 4) * 0.8);
-        } else if (next < 8) {
-          setBreathingLabel('Hold');
-          setBreathingScale(1.8);
-        } else if (next < 12) {
-          setBreathingLabel('Exhale');
-          // Scale from 1.8 down to 1.0
-          setBreathingScale(1.8 - ((next - 8) / 4) * 0.8);
-        } else {
-          setBreathingLabel('Hold');
-          setBreathingScale(1.0);
-        }
-
-        return next;
-      });
+      // 4s Inhale, 4s Hold, 4s Exhale, 4s Hold
+      if (next < 4) {
+        setBreathingLabel('Inhale');
+        // Scale from 1.0 to 1.8
+        setBreathingScale(1.0 + (next / 4) * 0.8);
+      } else if (next < 8) {
+        setBreathingLabel('Hold');
+        setBreathingScale(1.8);
+      } else if (next < 12) {
+        setBreathingLabel('Exhale');
+        // Scale from 1.8 down to 1.0
+        setBreathingScale(1.8 - ((next - 8) / 4) * 0.8);
+      } else {
+        setBreathingLabel('Hold');
+        setBreathingScale(1.0);
+      }
 
       breathTimerRef.current = requestAnimationFrame(updateBreathing);
     };
@@ -100,10 +103,15 @@ export default function MeditationTimerPage() {
   const handleStart = () => {
     // 1. Initialize Web Audio Context and Scheduler
     if (!audioCtxRef.current) {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      interface WinWebkit extends Window {
+        webkitAudioContext?: typeof AudioContext;
+      }
+      const win = window as WinWebkit;
+      const AudioCtx =
+        win.AudioContext ?? win.webkitAudioContext ?? AudioContext;
       audioCtxRef.current = new AudioCtx();
     }
-    
+
     const ctx = audioCtxRef.current;
     if (ctx.state === 'suspended') {
       void ctx.resume();
@@ -115,7 +123,7 @@ export default function MeditationTimerPage() {
 
     // 2. Build and resolve bell schedule
     const schedule: BellEvent[] = [];
-    
+
     // Always play opening bell at start
     schedule.push({
       bellId: selectedBellId,
@@ -221,7 +229,6 @@ export default function MeditationTimerPage() {
         >
           <ArrowLeft size={14} />
         </button>
-
         <div className="text-center">
           <h1 className="font-mono text-xs uppercase tracking-[0.25em] text-amber-100/90 font-bold">
             Meditation Bell Timer
@@ -230,13 +237,11 @@ export default function MeditationTimerPage() {
             Silent focus space punctuated by curated, organic bell tones.
           </p>
         </div>
-
         <div className="w-8 h-8" /> {/* Spacer */}
       </header>
 
       {/* Main Breathing and Settings Field */}
       <main className="relative flex-1 w-full max-w-4xl flex flex-col sm:flex-row items-center justify-center gap-12 py-6">
-        
         {/* Left Field: Breathing Visualizer Circle */}
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="relative w-72 h-72 rounded-full border border-stone-900/60 bg-stone-950/10 flex items-center justify-center overflow-hidden">
@@ -267,7 +272,9 @@ export default function MeditationTimerPage() {
         <div className="w-full sm:w-80 rounded-xl border border-stone-850 p-6 font-mono text-[9px] uppercase tracking-wider backdrop-blur-xl bg-stone-950/70 shadow-2xl space-y-5">
           <div className="flex items-center gap-2 border-b border-stone-900 pb-2 mb-3">
             <Bell size={12} className="text-amber-500" />
-            <span className="font-semibold text-amber-200">Timer Configuration</span>
+            <span className="font-semibold text-amber-200">
+              Timer Configuration
+            </span>
           </div>
 
           {/* Select Bell Instrument */}
@@ -291,7 +298,9 @@ export default function MeditationTimerPage() {
           <div>
             <div className="flex justify-between mb-2">
               <label className="text-stone-500">Duration</label>
-              <span className="text-amber-400 font-semibold">{durationMin} Min</span>
+              <span className="text-amber-400 font-semibold">
+                {durationMin} Min
+              </span>
             </div>
             <input
               type="range"
@@ -307,7 +316,9 @@ export default function MeditationTimerPage() {
 
           {/* Chime Interval */}
           <div>
-            <label className="text-stone-500 mb-2 block">Interval Punctuation</label>
+            <label className="text-stone-500 mb-2 block">
+              Interval Punctuation
+            </label>
             <select
               value={intervalMin}
               disabled={isPlaying}
@@ -327,7 +338,9 @@ export default function MeditationTimerPage() {
           {/* Bell Description */}
           {currentBellDef && (
             <div className="border-t border-stone-900 pt-3 text-[7.5px] uppercase tracking-wide text-stone-500 leading-relaxed">
-              <span className="text-stone-400 block font-bold mb-0.5">{currentBellDef.name}</span>
+              <span className="text-stone-400 block font-bold mb-0.5">
+                {currentBellDef.name}
+              </span>
               {currentBellDef.description}
             </div>
           )}
@@ -336,7 +349,6 @@ export default function MeditationTimerPage() {
 
       {/* Footer controls & Clinical disclaimer */}
       <footer className="w-full max-w-4xl flex flex-col items-center gap-6 z-10">
-        
         {/* Playback Controls */}
         <div className="flex items-center gap-4">
           {isPlaying ? (
