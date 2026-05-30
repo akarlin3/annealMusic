@@ -352,6 +352,18 @@ export default function App() {
               </Link>
             </span>
 
+            {backendOn && account && (
+              <span className="flex items-center gap-1.5">
+                <Link
+                  to="/me/sessions"
+                  className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
+                  style={{ color: '#a8a29e' }}
+                >
+                  Sessions
+                </Link>
+              </span>
+            )}
+
             {backendOn && (
               <>
                 {account ? (
