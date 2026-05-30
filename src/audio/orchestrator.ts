@@ -100,6 +100,7 @@ export class Orchestrator {
   private pendingSwap: EngineId | null = null;
   private driftState: DriftPartial[] = [];
   private driftTimer: ReturnType<typeof setInterval> | null = null;
+  private currentR = 0;
   private running = false;
   private tempoBpm: number | null = null;
   private playStartAudioTime = 0;
@@ -234,6 +235,10 @@ export class Orchestrator {
 
   getPartialFrequencies(): number[] {
     return this.active?.engine.getPartialFrequencies() ?? [];
+  }
+
+  getOrderParameter(): number {
+    return this.currentR;
   }
 
   /** The live input voice, or null when input has never been connected. */
@@ -466,11 +471,18 @@ export class Orchestrator {
 
   /** Seed the orchestrator's pure drift state to match the engine's partials. */
   private seedDrift(count: number): void {
-    this.driftState = Array.from({ length: count }, (_, i) => ({
-      // `ratio` is carried for forward-compat; `driftStep` does not read it.
-      ratio: HARMONICS[i] ?? 1,
-      detune: 0,
-    }));
+    const spread = 0.5;
+    this.driftState = Array.from({ length: count }, (_, i) => {
+      const phase = Math.random() * Math.PI * 2;
+      const naturalFreq =
+        count <= 1 ? 0 : spread * (-1 + (2 * i) / (count - 1));
+      return {
+        ratio: HARMONICS[i] ?? 1,
+        detune: 0,
+        phase,
+        naturalFreq,
+      };
+    });
   }
 
   private startDrift(): void {
@@ -478,17 +490,19 @@ export class Orchestrator {
     this.driftTimer = setInterval(() => {
       if (this.driftState.length === 0) return;
       const engine = this.active?.engine;
-      const next = driftStep(
+      const { detunes, phases, r } = driftStep(
         this.driftState,
         { drift: this.shared.drift, coupling: this.shared.coupling },
         DRIFT_DT,
         Math.random,
       );
+      this.currentR = r;
       let sum = 0;
       this.driftState.forEach((part, i) => {
-        const detune = next[i];
+        const detune = detunes[i];
         if (detune === undefined) return;
         part.detune = detune;
+        part.phase = phases[i];
         // Fan out to the engine when a session is running; the same field also
         // modulates the input voice's filter (texture binding) even when not.
         engine?.setPartialDetune(i, detune);

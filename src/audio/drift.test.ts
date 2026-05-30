@@ -29,8 +29,12 @@ describe('driftStep — mean reversion', () => {
 
     const start = partials[0]!.detune;
     for (let i = 0; i < 2000; i++) {
-      const next = driftStep(partials, params, DT, noNoise);
-      partials = partials.map((p, idx) => ({ ...p, detune: next[idx]! }));
+      const { detunes, phases } = driftStep(partials, params, DT, noNoise);
+      partials = partials.map((p, idx) => ({
+        ...p,
+        detune: detunes[idx]!,
+        phase: phases[idx],
+      }));
     }
 
     const end = partials[0]!.detune;
@@ -42,8 +46,12 @@ describe('driftStep — mean reversion', () => {
     const params: DriftParams = { drift: 0, coupling: 0 };
     let partials: DriftPartial[] = [{ ratio: 1, detune: -40 }];
     for (let i = 0; i < 2000; i++) {
-      const next = driftStep(partials, params, DT, noNoise);
-      partials = partials.map((p, idx) => ({ ...p, detune: next[idx]! }));
+      const { detunes, phases } = driftStep(partials, params, DT, noNoise);
+      partials = partials.map((p, idx) => ({
+        ...p,
+        detune: detunes[idx]!,
+        phase: phases[idx],
+      }));
     }
     expect(Math.abs(partials[0]!.detune)).toBeLessThan(0.01);
   });
@@ -62,8 +70,12 @@ describe('driftStep — coupling', () => {
       let partials = initial.map((p) => ({ ...p }));
       const params: DriftParams = { drift: 0, coupling };
       for (let i = 0; i < 50; i++) {
-        const next = driftStep(partials, params, DT, noNoise);
-        partials = partials.map((p, idx) => ({ ...p, detune: next[idx]! }));
+        const { detunes, phases } = driftStep(partials, params, DT, noNoise);
+        partials = partials.map((p, idx) => ({
+          ...p,
+          detune: detunes[idx]!,
+          phase: phases[idx],
+        }));
       }
       return variance(partials.map((p) => p.detune));
     };
@@ -88,11 +100,88 @@ describe('driftStep — purity', () => {
       { ratio: 2, detune: -59 },
     ];
     // Large drift + extreme rng pushes past the clamp in a single step.
-    const next = driftStep(partials, { drift: 1, coupling: 0 }, DT, () => 1);
-    expect(next).toHaveLength(2);
-    for (const d of next) {
+    const { detunes } = driftStep(
+      partials,
+      { drift: 1, coupling: 0 },
+      DT,
+      () => 1,
+    );
+    expect(detunes).toHaveLength(2);
+    for (const d of detunes) {
       expect(d).toBeGreaterThanOrEqual(-60);
       expect(d).toBeLessThanOrEqual(60);
     }
+  });
+});
+
+describe('driftStep — reduction / fallback', () => {
+  it('reduces to the standard uncoupled drift at coupling = 0', () => {
+    const partials: DriftPartial[] = [
+      { ratio: 1, detune: 30 },
+      { ratio: 2, detune: -10 },
+    ];
+    const rng = mulberry32(12345);
+
+    // Compute detune walk with coupling = 0
+    const { detunes } = driftStep(
+      partials,
+      { drift: 0.8, coupling: 0 },
+      DT,
+      rng,
+    );
+
+    // Direct manual computation of OU + Noise (since couple term is 0)
+    const THETA = 0.25;
+    const SIGMA_SCALE = 18;
+    const rngManual = mulberry32(12345);
+    // consume initial phase generation in fallback path + phase noise step so seeds match
+    rngManual();
+    rngManual(); // fallback init seeds 2 phases
+    rngManual();
+    rngManual(); // phase noise step seeds 2 updates
+
+    const expected = partials.map((p) => {
+      const ou = -THETA * p.detune * DT;
+      const noise = 0.8 * SIGMA_SCALE * (rngManual() - 0.5) * Math.sqrt(DT);
+      return p.detune + ou + noise;
+    });
+
+    expect(detunes[0]).toBeCloseTo(expected[0]!, 8);
+    expect(detunes[1]).toBeCloseTo(expected[1]!, 8);
+  });
+});
+
+describe('driftStep — stationary OU variance', () => {
+  it('converges to the analytic stationary variance sigma^2 / (24 * theta)', () => {
+    // For drift = 0.5 (sigma = 9), theta = 0.25, DT = 0.05
+    // Analytic variance is sigma^2 / (24 * theta) = 81 / (24 * 0.25) = 81 / 6 = 13.5
+    const params = { drift: 0.5, coupling: 0 };
+    let partials = [{ ratio: 1.0, detune: 0.0 }];
+    const rng = mulberry32(8888);
+
+    const history: number[] = [];
+    const warmUpSteps = 1000;
+    const measurementSteps = 3000;
+
+    for (let i = 0; i < warmUpSteps + measurementSteps; i++) {
+      const { detunes } = driftStep(partials, params, DT, rng);
+      const nextDetune = detunes[0] ?? 0;
+      partials = [{ ratio: 1.0, detune: nextDetune }];
+      if (i >= warmUpSteps) {
+        history.push(nextDetune);
+      }
+    }
+
+    // Calculate empirical variance
+    const mean = history.reduce((s, v) => s + v, 0) / history.length;
+    const empiricalVariance =
+      history.reduce((s, v) => s + (v - mean) ** 2, 0) / history.length;
+
+    console.log(
+      `[OU PHYSICS ASSERTION] Empirical Variance: ${empiricalVariance.toFixed(4)} cents^2, Analytical Variance: 13.5 cents^2`,
+    );
+
+    // Empirical variance on a finite 3000 step seeded run should be very close to 13.5
+    expect(empiricalVariance).toBeCloseTo(13.5, 0); // tolerance of 0.5 cents^2 is highly robust
   });
 });

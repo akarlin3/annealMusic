@@ -151,16 +151,17 @@ export async function renderOffline(
   // Schedule the drift/arc steps at audio-time checkpoints.
   for (const t of driftCheckpoints(durationSec)) {
     ctx.suspend(t).then(() => {
-      const next = driftStep(
+      const { detunes, phases } = driftStep(
         drift,
         { drift: live.drift, coupling: live.coupling },
         DRIFT_DT,
         Math.random,
       );
       drift.forEach((p, i) => {
-        const d = next[i];
+        const d = detunes[i];
         if (d === undefined) return;
         p.detune = d;
+        p.phase = phases[i];
         engine.setPartialDetune(i, d);
       });
       if (arc) {

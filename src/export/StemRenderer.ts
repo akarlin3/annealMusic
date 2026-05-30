@@ -22,7 +22,8 @@ import type { Piece, VariationPoint } from '@/piece/types';
 import { interpolateState } from '@/piece/transitions';
 import { generateMetaArc } from '@/piece/generators';
 import { resolveVariations, hashStringToInt } from '@/piece/resolver';
-import { playBell } from '@/listening/punctuation';
+import { BellLoader } from '@/audio/bells/loader';
+import { resolveBellSchedule, type BellEvent } from '@/audio/bells/scheduler';
 
 function resolveNestedConfigVariations(
   config: Record<string, any>,
@@ -79,8 +80,7 @@ export interface StemRenderConfig {
   listeningSession?: {
     settleInMs: number;
     integrationMs: number;
-    openingTone: boolean;
-    closingTone: boolean;
+    bellSchedule: BellEvent[];
   };
   durationSec: number;
 
@@ -410,6 +410,60 @@ export async function renderStemsOffline(
     };
   }
 
+  // Pre-resolve segment durations of the piece for scheduling bells
+  const segmentDurations: number[] = [];
+  if (renderedPiece) {
+    for (const seg of renderedPiece.segments) {
+      let dur = seg.durationMs ?? 5000;
+      if (
+        seg.config?.tempoLocked &&
+        renderedPiece.tempoBpm !== null &&
+        renderedPiece.tempoBpm > 0
+      ) {
+        dur = dur * 4 * (60 / renderedPiece.tempoBpm) * 1000;
+      }
+      segmentDurations.push(dur);
+    }
+  }
+
+  // Pre-resolve and sort all scheduled bells
+  let resolvedBells: { offsetMs: number; bellId: string; volume: number }[] =
+    [];
+  if (renderedPiece) {
+    const pieceBells = resolveBellSchedule(
+      renderedPiece.bellSchedule || [],
+      config.durationSec * 1000,
+      segmentDurations,
+      renderedPiece.movements || [],
+    );
+    resolvedBells.push(...pieceBells);
+  }
+
+  if (config.mode === 'listening-session' && config.listeningSession) {
+    const ls = config.listeningSession;
+    const sessionBells = resolveBellSchedule(
+      ls.bellSchedule || [],
+      config.durationSec * 1000,
+      segmentDurations,
+      renderedPiece?.movements || [],
+    );
+    resolvedBells.push(...sessionBells);
+  }
+
+  // Deduplicate and sort
+  const seenBells = new Set<string>();
+  const dedupedBells: typeof resolvedBells = [];
+  for (const b of resolvedBells) {
+    const key = `${b.bellId}-${Math.round(b.offsetMs / 10) * 10}`;
+    if (!seenBells.has(key)) {
+      seenBells.add(key);
+      dedupedBells.push(b);
+    }
+  }
+  resolvedBells = dedupedBells.sort((a, b) => a.offsetMs - b.offsetMs);
+
+  const uniqueBellIds = Array.from(new Set(resolvedBells.map((b) => b.bellId)));
+
   for (let sIdx = 0; sIdx < totalStems; sIdx++) {
     if (cancelSignal.aborted) {
       throw new Error('Render cancelled by user');
@@ -428,6 +482,11 @@ export async function renderStemsOffline(
 
     const frames = Math.ceil(config.durationSec * config.sampleRate);
     const ctx = offlineFactory(stem.channels, frames, config.sampleRate);
+
+    // Preload bells for this offline context
+    if (uniqueBellIds.length > 0) {
+      await BellLoader.preloadBells(ctx, uniqueBellIds);
+    }
 
     // List of loop players and engines in this context to clean up later
     const activeLoopPlayers: any[] = [];
@@ -468,45 +527,22 @@ export async function renderStemsOffline(
 
       if (config.mode === 'listening-session' && config.listeningSession) {
         const ls = config.listeningSession;
-        const startOffset = ls.openingTone ? 4.0 : 0.0;
-        const pieceDuration =
-          config.durationSec -
-          (ls.openingTone ? 4.0 : 0.0) -
-          (ls.closingTone ? 4.0 : 0.0);
-
         // Start silent
         masterVol.gain.setValueAtTime(0, 0);
 
-        if (ls.openingTone) {
-          // Play opening chime at t=0
-          playBell(ctx as any, ctx.destination, 660, 0);
-          masterVol.gain.setValueAtTime(0, startOffset);
-        }
-
         // Settle-in fade-in ramp
         const settleInSec = ls.settleInMs / 1000;
-        masterVol.gain.setValueAtTime(0, startOffset);
+        masterVol.gain.setValueAtTime(0, 0);
         masterVol.gain.linearRampToValueAtTime(
           config.params.volume,
-          startOffset + settleInSec,
+          settleInSec,
         );
 
         // Integration fade-out ramp
         const integrationSec = ls.integrationMs / 1000;
-        const fadeOutStart = startOffset + pieceDuration - integrationSec;
+        const fadeOutStart = config.durationSec - integrationSec;
         masterVol.gain.setValueAtTime(config.params.volume, fadeOutStart);
-        masterVol.gain.linearRampToValueAtTime(0, startOffset + pieceDuration);
-
-        if (ls.closingTone) {
-          // Play closing chime at the end of the piece
-          playBell(
-            ctx as any,
-            ctx.destination,
-            660,
-            startOffset + pieceDuration,
-          );
-          masterVol.gain.setValueAtTime(0, startOffset + pieceDuration);
-        }
+        masterVol.gain.linearRampToValueAtTime(0, config.durationSec);
       } else {
         masterVol.gain.value = config.params.volume;
         // End fade-out on masterVol so tail doesn't clip
@@ -515,6 +551,24 @@ export async function renderStemsOffline(
           Math.max(0, config.durationSec - FADE_OUT_SEC),
         );
         masterVol.gain.linearRampToValueAtTime(0, config.durationSec);
+      }
+
+      // Schedule resolved bells on the master stem
+      if (stem.id === 'master' && resolvedBells.length > 0) {
+        for (const bell of resolvedBells) {
+          const targetTime = bell.offsetMs / 1000;
+          if (targetTime >= 0 && targetTime <= config.durationSec) {
+            const audioBuffer = await BellLoader.loadBell(ctx, bell.bellId);
+            const source = ctx.createBufferSource();
+            source.buffer = audioBuffer;
+
+            const gainNode = ctx.createGain();
+            gainNode.gain.setValueAtTime(bell.volume, targetTime);
+
+            source.connect(gainNode).connect(masterVol);
+            source.start(targetTime);
+          }
+        }
       }
 
       // Connect sources based on stem target
@@ -636,16 +690,17 @@ export async function renderStemsOffline(
       ctx.suspend(t).then(() => {
         // 1. Advance engine detune walk deterministically
         if (activeEngine && drift.length > 0) {
-          const next = driftStep(
+          const { detunes, phases } = driftStep(
             drift,
             { drift: live.drift, coupling: live.coupling },
             DRIFT_DT,
             rng,
           );
           drift.forEach((p, i) => {
-            const d = next[i];
+            const d = detunes[i];
             if (d === undefined) return;
             p.detune = d;
+            p.phase = phases[i];
             activeEngine.setPartialDetune(i, d);
           });
         }
@@ -670,9 +725,7 @@ export async function renderStemsOffline(
             filter.frequency.setValueAtTime(cutoffFor(live.brightness), t);
           }
         } else if (config.mode === 'listening-session' && renderedPiece) {
-          const ls = config.listeningSession;
-          const startOffset = ls?.openingTone ? 4.0 : 0.0;
-          const pieceTime = Math.max(0, t - startOffset);
+          const pieceTime = t;
           const resolved = resolvePieceStateAtTime(renderedPiece, pieceTime);
           Object.assign(live, resolved.params);
           activeEngine?.setSharedParams(resolved.params);

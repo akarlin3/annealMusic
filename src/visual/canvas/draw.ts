@@ -111,6 +111,8 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
   ctx2d.fillStyle = halo;
   ctx2d.fillRect(0, 0, w, h);
 
+  const rVal = state.r ?? 0;
+
   for (let i = 0; i < count; i++) {
     const freqHz = freqs[i] ?? 0;
 
@@ -119,7 +121,13 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
       ((phases[i] ?? 0) + visualRate * dt * speedScale) % (Math.PI * 2);
     phases[i] = phase;
 
-    const orbit = baseR * (0.45 + 0.55 * (i / Math.max(1, count - 1)));
+    // Converge orbit radii as synchronization increases (r -> 1)
+    const baseOrbitFactor = 0.45 + 0.55 * (i / Math.max(1, count - 1));
+    const targetOrbitFactor = 0.725; // center of orbital band
+    const orbitFactor =
+      baseOrbitFactor + (targetOrbitFactor - baseOrbitFactor) * rVal * 0.7;
+
+    const orbit = baseR * orbitFactor;
     const x = cx + Math.cos(phase) * orbit;
     const y = cy + Math.sin(phase) * orbit * VISUAL.orbitSquash;
 

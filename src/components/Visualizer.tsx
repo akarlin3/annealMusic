@@ -168,6 +168,8 @@ export default function Visualizer({
         freqs.push(engineFreqs[i] ?? params.rootFreq * ratio);
       }
 
+      const r = engine?.getOrderParameter() ?? 0;
+
       const state: VisualState = {
         w,
         h,
@@ -181,6 +183,7 @@ export default function Visualizer({
         inputLevel,
         loops,
         isCalm,
+        r,
       };
 
       renderer.drawFrame(state, now);

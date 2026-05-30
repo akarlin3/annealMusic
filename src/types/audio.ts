@@ -18,6 +18,8 @@ export interface PartialVoice {
 export interface DriftPartial {
   readonly ratio: number;
   detune: number;
+  phase?: number;
+  naturalFreq?: number;
 }
 
 /** The full set of master nodes in the audio graph. */

@@ -238,6 +238,8 @@ export class WebGLRenderer implements VisualRenderer {
     const count = Math.min(16, state.count);
     const partialsData = new Float32Array(16 * 4);
 
+    const rVal = state.r ?? 0;
+
     for (let i = 0; i < 16; i++) {
       const offset = i * 4;
       if (i < count) {
@@ -249,8 +251,14 @@ export class WebGLRenderer implements VisualRenderer {
           (Math.PI * 2);
         state.phases[i] = phase; // Mutate in place
 
-        const orbit =
-          baseR * (0.45 + 0.55 * (i / Math.max(1, state.count - 1)));
+        // Converge orbit radii as synchronization increases (r -> 1)
+        const baseOrbitFactor =
+          0.45 + 0.55 * (i / Math.max(1, state.count - 1));
+        const targetOrbitFactor = 0.725;
+        const orbitFactor =
+          baseOrbitFactor + (targetOrbitFactor - baseOrbitFactor) * rVal * 0.7;
+
+        const orbit = baseR * orbitFactor;
         const px = cx + Math.cos(phase) * orbit;
         const py = cy + Math.sin(phase) * orbit * 0.78; // orbitSquash = 0.78
 

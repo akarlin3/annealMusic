@@ -8,6 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **True Phase-Coupled Kuramoto Model.** Replaces the mean-field detune approximation with a physically accurate Kuramoto model. Tracks individual partial phases ($\theta_i$) and natural frequencies ($\omega_i$), computing the emergent order parameter $r(t) \in [0, 1]$ to drive a lockable **Detune Contraction** effect and visual orbital synchronization across both Canvas 2D and WebGL visualizers.
 - **First-Class Listening Sessions.** Introduces the third top-level ambient artifact: Listening Sessions, fully optimized for deep immersion on the listener side instead of creator sculpting.
 - **Synthesized Dual-Resonator Bell Chimes.** Implements high-quality opening and closing chime bells fully synthesized in real time in Web Audio using bandpass-filtered noise plucks with exponential decay.
 - **Immersive Fullscreen Listening View.** Creates a gorgeous fullscreen HUD featuring prominent elapsed/remaining timer dials, double attribution layers, and tucked-away "Escape Hatch" sculpting drawers for creators.

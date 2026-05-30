@@ -39,7 +39,7 @@ New here? Press the **Help (?)** button in the app for a plain-language guide to
 
 ## For developers
 
-Everything below is the engineering reference: stack, architecture, engine internals, and dev commands. Under the hood this is a generative ambient sandbox — coupled oscillators drifting over a harmonic lattice — with physics-driven sound and audio-reactive visuals.
+Everything below is the engineering reference: stack, architecture, engine internals, and dev commands. Under the hood this is a generative ambient sandbox — phase-coupled Kuramoto oscillators drifting over a harmonic lattice — with physics-driven sound and audio-reactive visuals.
 
 ## Tech stack
 
@@ -108,8 +108,8 @@ the orchestrator **crossfades** (equal-gain) without a page reload. Each engine
 can request its own crossfade window — granular asks for ~800ms (vs the ~600ms
 default) to mask grain start-up; sine/FM use the default.
 
-- **Sine** — the coupled sine bank: one sine oscillator per partial over the
-  harmonic lattice. No engine-specific params.
+- **Sine** — the phase-coupled sine bank: one sine oscillator per partial over the
+  harmonic lattice, synchronized via a real phase-coupled Kuramoto model. No engine-specific params.
 - **FM** — two-operator FM per partial: a sine carrier at the partial frequency,
   a modulator at `carrier × Ratio` with depth `Index × carrier` Hz, plus
   optional modulator self-**Feedback**. Params: **Ratio** (0.5–4), **Index**

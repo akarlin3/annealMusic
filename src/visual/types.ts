@@ -28,6 +28,8 @@ export interface VisualState {
   /** Active loop slots, in slot order, contributing orbital rings. */
   loops?: LoopRing[];
   isCalm?: boolean;
+  /** Kuramoto order parameter r (0..1) representing synchronization. */
+  r?: number;
 }
 
 export interface VisualRenderer {
