@@ -33,6 +33,8 @@ from app.routers import (
     pieces,
     listening_sessions,
     custom_tunings,
+    me_sessions,
+    library,
 )
 
 
@@ -105,6 +107,8 @@ def create_app() -> FastAPI:
     app.include_router(pieces.router)
     app.include_router(listening_sessions.router)
     app.include_router(custom_tunings.router)
+    app.include_router(me_sessions.router)
+    app.include_router(library.router)
 
 
     return app

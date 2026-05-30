@@ -12,8 +12,17 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select, delete
 
 from app.deps import SessionDep, require_admin
-from app.errors import not_found
-from app.models import Patch, Report, UserSource, Account, FeaturedPick
+from app.errors import not_found, bad_request
+from app.library_taxonomy import validate_taxonomy
+from app.models import (
+    Patch,
+    Report,
+    UserSource,
+    Account,
+    FeaturedPick,
+    LibraryListing,
+    ListeningSession,
+)
 from app.schemas import (
     AdminReportItem,
     AdminReportListOut,
@@ -24,6 +33,10 @@ from app.schemas import (
     UserSourceOut,
     ReportStatus,
     FeaturedPickCreate,
+    AdminLibraryCreate,
+    AdminLibraryUpdate,
+    LibraryListingOut,
+    LibraryListOut,
 )
 
 router = APIRouter(
@@ -231,4 +244,109 @@ async def unsuspend_account(
     account.suspended = False
     await session.commit()
     return {"success": True}
+
+
+# --- v4.5 Curated Library Curation ------------------------------------------
+
+
+@router.post("/library", response_model=LibraryListingOut, status_code=201)
+async def add_library_listing(
+    body: AdminLibraryCreate,
+    session: SessionDep,
+) -> LibraryListingOut:
+    err = validate_taxonomy(
+        body.intention, body.length_category, body.character_tags
+    )
+    if err:
+        raise bad_request(err)
+
+    ls = await session.get(ListeningSession, body.listening_session_id)
+    if ls is None:
+        raise not_found("listening_session")
+    # A listing must point at something previewable (piece or patch source).
+    if ls.piece_id is None and ls.patch_id is None:
+        raise bad_request("Listening session has no previewable source artifact")
+
+    listing = LibraryListing(
+        listening_session_id=body.listening_session_id,
+        intention=body.intention or ls.intention,
+        length_category=body.length_category or ls.length_category,
+        character_tags=body.character_tags,
+        curator_note=body.curator_note,
+    )
+    session.add(listing)
+    await session.commit()
+    await session.refresh(listing)
+
+    from app.routers.library import listing_to_out
+
+    return await listing_to_out(session, listing)
+
+
+@router.get("/library", response_model=LibraryListOut)
+async def list_library_admin(
+    session: SessionDep,
+    include_archived: bool = Query(default=False),
+) -> LibraryListOut:
+    stmt = select(LibraryListing)
+    if not include_archived:
+        stmt = stmt.where(LibraryListing.archived_at.is_(None))
+    stmt = stmt.order_by(LibraryListing.added_at.desc())
+    rows = (await session.execute(stmt)).scalars().all()
+
+    from app.routers.library import listing_to_out
+
+    items = [await listing_to_out(session, r) for r in rows]
+    return LibraryListOut(items=items)
+
+
+@router.patch("/library/{listing_id}", response_model=LibraryListingOut)
+async def update_library_listing(
+    listing_id: uuid.UUID,
+    body: AdminLibraryUpdate,
+    session: SessionDep,
+) -> LibraryListingOut:
+    listing = await session.get(LibraryListing, listing_id)
+    if listing is None:
+        raise not_found("library_listing")
+
+    err = validate_taxonomy(
+        body.intention, body.length_category, body.character_tags
+    )
+    if err:
+        raise bad_request(err)
+
+    if body.intention is not None:
+        listing.intention = body.intention
+    if body.length_category is not None:
+        listing.length_category = body.length_category
+    if body.character_tags is not None:
+        listing.character_tags = body.character_tags
+    if "curator_note" in body.model_fields_set:
+        listing.curator_note = body.curator_note
+    if body.editor_pick is not None:
+        listing.editor_pick = body.editor_pick
+        # Stamp the pick time when promoting; clear it when demoting.
+        listing.editor_pick_at = (
+            datetime.now(tz=timezone.utc) if body.editor_pick else None
+        )
+
+    await session.commit()
+    await session.refresh(listing)
+
+    from app.routers.library import listing_to_out
+
+    return await listing_to_out(session, listing)
+
+
+@router.delete("/library/{listing_id}", status_code=204)
+async def archive_library_listing(
+    listing_id: uuid.UUID,
+    session: SessionDep,
+) -> None:
+    listing = await session.get(LibraryListing, listing_id)
+    if listing is None:
+        raise not_found("library_listing")
+    listing.archived_at = datetime.now(tz=timezone.utc)
+    await session.commit()
 
