@@ -2,7 +2,7 @@
   "name": "annealmusic",
   "private": true,
   "license": "AGPL-3.0-or-later",
-  "version": "5.3.0",
+  "version": "5.4.0",
   "type": "module",
   "description": "A generative ambient meditation sandbox: physics-driven sound, session arc, and audio-reactive visuals.",
   "scripts": {
@@ -40,7 +40,9 @@
     "@capacitor/ios": "^8.3.4",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
+    "@codemirror/lang-python": "^6.2.1",
     "@tonejs/midi": "^2.0.28",
+    "@uiw/react-codemirror": "^4.25.10",
     "lucide-react": "^0.469.0",
     "ogl": "^1.0.11",
     "qrcode": "^1.5.4",
@@ -55,6 +57,7 @@
   "devDependencies": {
     "@capacitor/cli": "^8.3.4",
     "@eslint/js": "^8.57.1",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^20.17.10",

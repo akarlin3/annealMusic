@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.0] - 2026-05-30
+
+### Added
+
+- **Web Worker isolated Pyodide scripting foundation.** Shipped a background Web Worker execution environment (`src/research/python/pyodide-worker.js`) running Pyodide `0.26.4` and packaging CPython `3.12`. It lazily loads standard libraries and NumPy from a pinned CDN, maintaining a microscopic production bundle size.
+- **Strict Sandbox Boundary overrides.** Re-implements and overrides `pyfetch` and standard Python HTTP, Socket, and URL APIs (`urllib`, `requests`, `socket`) inside the worker thread to securely raise a `PermissionError` and block all arbitrary network egress.
+- **Synchronous Cross-Thread Caching Bridge.** Implements a real-time parameters sync cache (`src/research/python/bridge.ts`) inside the worker, synced continuously at 50Hz via a `BroadcastChannel` subscription to parameter store updates. Allows Python-side script calls (e.g., `state.get()`, `engine.get_spectrum()`) to run instantly and synchronously without blocking the browser UI.
+- **Custom `anneal` Python Library.** Exposes a full-fidelity custom Python module providing seamless observation and control bindings for the parameter store (`state.get`/`set`), active engines (`engine.get_spectrum`/`get_partials`), session lifecycle (`session.start`/`stop`), and the session datalogger (`datalog.start`/`snapshot`/`stop`).
+- **Premium Glassmorphic Coding Workspace UI.** Shipped a rich composite dashboard panel (`src/research/python/ScriptingPanel.tsx`) under `/research` containing a CodeMirror 6 Python editor with syntax highlighting, basic completions, an asynchronous print output stream console with tracebacks, a persistent interactive REPL console terminal, and prebuilt scripting examples (LFO Parameter Sweep, Coherence Audit, Organic Frequency Drifter).
+- **Backend user scripts CRUD endpoints.** Implements secure REST API endpoints under `/api/v1/scripts` (`models.py`, `schemas.py`, `routers/user_scripts.py`) to create, list (`/me`), fetch, edit, and cascade delete private user scripts, backed by an Alembic migration (`0016_v5_4_user_scripts.py`) that merges the database split heads and creates the `user_scripts` table.
+- **Robust test suites.** Shipped detailed Vitest unit tests (`worker.test.ts`) validating coordinates cache synchronization and 100% backend endpoint test coverage in Pytest (`test_user_scripts.py`) asserting script quotas and private visibility boundaries.
+
 ## [5.3.0] - 2026-05-30
 
 ### Added

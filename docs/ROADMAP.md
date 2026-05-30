@@ -54,6 +54,8 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v5.1 ✅ | Bidirectional Open Sound Control (OSC)             | Full OSC namespace state broadcasts & control actions, zero-dependency bridge helper tool, native Capacitor mobile plugins, and premium configurations/traffic monitoring panel inside /research |
 | v5.2 ✅ | Headless CLI + Batch Render                        | Standalone CLI (`annealmusic`), pure-Node offline audio context engine, Chromium Playwright rendering backend, linear and Cartesian parameter sweeps, stems export, piece & listening session offline rendering, concurrency & resume pools, and Slurm cluster support |
 | v5.3 ✅ | Session Datalogging                                | Record runtime states (sculpt parameters, drift variables, partial frequencies, amplitudes, and real-time audio features like RMS, centroid, flux, ZCR) to CSV, JSONL, HDF5, and Parquet at configurable rates, premium UI panel under `/research`, bidirectional OSC log capture, and Pyodide preview JSON-RPC bridge methods. |
+| v5.4 ✅ | Pyodide Foundation + Script Sandbox                 | Load Pyodide into `/research` Web Worker, custom `anneal` Python module API, CodeMirror 6 Python script editor + persistent REPL prompt, dynamic initial/live cache synchronization, and backend user scripts CRUD endpoints with Alembic migrations. |
+
 
 ## Shipped notes
 

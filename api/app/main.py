@@ -36,6 +36,7 @@ from app.routers import (
     me_sessions,
     library,
     research,
+    user_scripts,
 )
 
 
@@ -111,6 +112,7 @@ def create_app() -> FastAPI:
     app.include_router(custom_tunings.router)
     app.include_router(me_sessions.router)
     app.include_router(library.router)
+    app.include_router(user_scripts.router)
 
 
     return app

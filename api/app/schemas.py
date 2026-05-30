@@ -689,6 +689,40 @@ class AdminLibraryUpdate(BaseModel):
     curator_note: str | None = Field(default=None, max_length=1000)
 
 
+# --- v5.4 Python Scripting Schemas --------------------------------------------
+
+class UserScriptCreate(BaseModel):
+    name: str = Field(..., max_length=120)
+    source: str
+    language: str = "python"
+    visibility: Literal["private", "unlisted"] = "private"
+
+
+class UserScriptUpdate(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    source: str | None = None
+    language: str | None = None
+    visibility: Literal["private", "unlisted"] | None = None
+
+
+class UserScriptOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    source: str
+    language: str
+    visibility: Literal["private", "unlisted"]
+    created_at: datetime
+    updated_at: datetime
+
+
+class UserScriptListOut(BaseModel):
+    items: list[UserScriptOut]
+
+
+
 
 
 

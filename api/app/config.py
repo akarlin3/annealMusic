@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     quota_captures: int = 50
     quota_recordings: int = 10
     quota_user_sources: int = 20
+    quota_scripts: int = 50
     quota_bytes: int = 1024 * 1024 * 1024  # 1 GiB
 
 

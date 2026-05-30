@@ -87,14 +87,20 @@ npm run build
 node dist/index.js --help
 ```
 
-### Research Console & Datalogger
+### Research Console, Datalogger & Scripting
 
-AnnealMusic features a sandboxed `/research` console served as independent, zero-overhead bundle assets (`dist-research/`), offering programmatic JSON-RPC 2.0 Web Audio telemetry hooks, real-time Canvas FFT visualizers, bidirectional Open Sound Control (OSC) network packet captures, and high-frequency datalogging.
+AnnealMusic features a sandboxed `/research` console served as independent, zero-overhead bundle assets (`dist-research/`), offering:
 
-Session logs can be downloaded natively from the browser console (as CSV or JSONL to save bundle footprint) or converted directly during CLI offline rendering. For large-scale data science pipelines, the CLI features a built-in `convert` utility driving a Python bridge to translate JSONL logs into highly optimized scientific data formats (**CSV, HDF5, and Parquet**) for ingestion into Pandas, NumPy, MATLAB, Julia, R, and PyTorch.
+- **Programmatic telemetry JSON-RPC 2.0 hooks**: Observes and drives real-time canvas spectrum FFTs, phase-coupled partial lists, and core parameters.
+- **Asynchronous Web Worker Pyodide Sandbox**: Executes standard local Python scripts and a persistent interactive REPL console prompt on a separate background thread running Pyodide `0.26.4` (CPython `3.12`) with strict sandbox network blocks (`pyfetch`, `socket`, `urllib`, `requests` overrides).
+- **Synchronous parameters interop (`anneal` library)**: Synchronizes parameters store updates at 50Hz via `BroadcastChannel` so Python-side scripts can query `anneal.state.get()` and `anneal.engine.get_spectrum()` instantly and synchronously.
+- **Persistent user scripts persistence**: Create, list (`/me`), update, and cascade delete private scripts via secure backend CRUD endpoints, backed by database schemas and Alembic migrations.
+- **High-frequency datalogging**: Logs comprehensive observations (sculpt states, Kuramoto coupling order parameter, partial details, and audio features like RMS, ZCR, spectral centroid, and flux) to scientific formats (CSV, JSONL, Parquet, and HDF5) at configurable sample rates (up to 100Hz, default 50Hz).
 
 Refer to the complete guides in:
 
+- [docs/PYTHON_API.md](docs/PYTHON_API.md) — Custom `anneal` Python library API references.
+- [docs/SCRIPTING_GUIDE.md](docs/SCRIPTING_GUIDE.md) — Scripting recipes and sandboxing constraints.
 - [docs/DATALOG.md](docs/DATALOG.md) — Datalogger usage, ingest examples, and telemetry bridge references.
 - [docs/DATALOG_SCHEMA.md](docs/DATALOG_SCHEMA.md) — JSON Schema and data specifications.
 - [docs/OSC.md](docs/OSC.md) — Bidirectional OSC specifications.
