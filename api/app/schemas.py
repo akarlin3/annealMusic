@@ -848,6 +848,66 @@ class TrackListOut(BaseModel):
     items: list[TrackOut]
 
 
+# --- v6.1 Lesson generation --------------------------------------------------
+
+StepType = Literal["text", "demo", "prompt", "reflection"]
+
+
+class LessonSpecStep(BaseModel):
+    type: StepType
+    topic: str | None = Field(default=None, max_length=400)
+    patch_brief: str | None = Field(default=None, max_length=400)
+    task: str | None = Field(default=None, max_length=400)
+    diagram: Literal["svg", "mermaid"] | None = None
+
+
+class LessonSpec(BaseModel):
+    id: str = Field(..., max_length=200)  # "track_slug/lesson_slug"
+    track: str = Field(..., max_length=100)
+    title: str = Field(..., max_length=120)
+    objectives: list[str] = Field(..., min_length=1, max_length=8)
+    difficulty: Literal["intro", "intermediate", "advanced"] = "intro"
+    prerequisites: list[str] = Field(default_factory=list)
+    audience: str | None = Field(default=None, max_length=120)
+    step_outline: list[LessonSpecStep] = Field(..., min_length=1, max_length=30)
+    constraints_during_prompts: list[str] = Field(default_factory=list)
+    estimated_minutes: int = Field(default=10, ge=1)
+    position: int = 0
+    description: str | None = Field(default=None, max_length=2000)
+
+
+class LessonGenStepOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    position: int
+    type: str
+    config: dict
+    manual_override_content: dict | None = None
+    generation_id: uuid.UUID | None = None
+    prompt_version: str | None = None
+    model_id: str | None = None
+    generated_at: datetime | None = None
+
+
+class LessonGenStatusOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    track_id: uuid.UUID
+    slug: str
+    title: str
+    difficulty: str
+    generation_status: str
+    generation_error: str | None = None
+    spec: dict | None = None
+    steps: list[LessonGenStepOut] = Field(default_factory=list)
+
+
+class StepOverrideIn(BaseModel):
+    content: dict
+
+
 
 
 

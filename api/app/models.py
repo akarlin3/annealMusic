@@ -305,10 +305,13 @@ class AIGeneration(Base):
     __tablename__ = "ai_generations"
 
     id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    # Nullable since v6.1: lesson-generation rows are admin/system-initiated and
+    # have no end user. User-scoped queries (quota) always filter by a concrete
+    # user_id, so NULL rows are naturally excluded.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    kind: Mapped[str] = mapped_column(String, nullable=False) # 'text-to-patch' | 'mood-transfer' | 'description'
+    kind: Mapped[str] = mapped_column(String, nullable=False) # 'text-to-patch' | 'mood-transfer' | 'description' | 'lesson-*'
     prompt: Mapped[str] = mapped_column(String, nullable=False)
     input_patch_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(), ForeignKey("patches.id", ondelete="SET NULL"), nullable=True, index=True
@@ -322,6 +325,10 @@ class AIGeneration(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     cached: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # v6.1 lesson-generation cache. ``lesson_step_id`` is a plain backreference
+    # (no FK) to avoid a circular table dependency with ``lesson_steps``.
+    lesson_step_id: Mapped[uuid.UUID | None] = mapped_column(GUID(), nullable=True, index=True)
+    cache_key: Mapped[str | None] = mapped_column(String, nullable=True, unique=True, index=True)
 
 
 class JamSession(Base):
@@ -778,6 +785,12 @@ class Lesson(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    # v6.1 LLM generation. ``spec`` is the authored lesson spec; a NULL spec marks
+    # a legacy/hand-authored lesson (always publicly visible). ``generation_status``
+    # ∈ {'pending','generating','ready','generation_failed'}.
+    spec: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
+    generation_status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
+    generation_error: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class LessonStep(Base):
@@ -793,6 +806,15 @@ class LessonStep(Base):
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=False)  # 'text' | 'demo' | 'prompt' | 'reflection'
     config: Mapped[dict] = mapped_column(JSONType(), nullable=False)
+    # v6.1 LLM generation provenance. ``manual_override_content`` (if present)
+    # wins over ``config`` everywhere it is served.
+    generation_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("ai_generations.id", ondelete="SET NULL"), nullable=True
+    )
+    prompt_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    model_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    manual_override_content: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
 
 
 
