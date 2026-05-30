@@ -1224,6 +1224,164 @@
   color: #f59e0b;
 }
 
+/* --- v6.4 curriculum authoring tooling -------------------------------------- */
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  margin-bottom: 1rem;
+}
+.admin-tab {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.admin-tab:hover {
+  color: #cbd5e1;
+}
+.admin-tab-active {
+  color: #e2e8f0;
+  border-bottom-color: #818cf8;
+}
+
+.admin-field {
+  margin: 0.6rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.admin-field-grow {
+  flex: 1;
+}
+.admin-label {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+.admin-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.admin-code {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  max-height: 22rem;
+  overflow: auto;
+  white-space: pre;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  vertical-align: top;
+}
+.admin-table th {
+  color: #94a3b8;
+  font-weight: 500;
+}
+.admin-row-selected {
+  background: rgba(129, 140, 248, 0.1);
+}
+.admin-table tbody tr {
+  cursor: pointer;
+}
+.admin-cell-error {
+  color: #fca5a5;
+  font-size: 0.74rem;
+}
+
+.admin-badge-pass {
+  color: #34d399;
+}
+.admin-badge-warn {
+  color: #fbbf24;
+}
+.admin-badge-fail {
+  color: #f87171;
+}
+
+.admin-findings {
+  list-style: none;
+  padding: 0;
+  margin: 0.3rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.admin-finding {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+}
+.admin-finding-error {
+  border-left-color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+}
+.admin-finding-warn {
+  border-left-color: #fbbf24;
+  background: rgba(251, 191, 36, 0.07);
+}
+.admin-finding-rule {
+  color: #94a3b8;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  margin-right: 0.4rem;
+}
+
+.admin-graph-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.admin-graph-node {
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+.admin-graph-title {
+  font-size: 0.85rem;
+  color: #e2e8f0;
+}
+.admin-graph-edges {
+  list-style: none;
+  padding: 0;
+  margin: 0.3rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+.admin-edge-remove {
+  background: none;
+  border: none;
+  color: #f87171;
+  cursor: pointer;
+  margin-left: 0.4rem;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
 /* --- v6.2 audio-clip step --------------------------------------------------- */
 .audio-clip-step .audio-clip-error {
   color: #fca5a5;
