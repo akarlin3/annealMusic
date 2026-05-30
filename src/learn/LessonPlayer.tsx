@@ -3,16 +3,37 @@ import type { Track, Lesson } from './LearnApp';
 import { StepContainer } from './stepTypes/StepContainer';
 import { BridgeClient } from '../research/bridge/BridgeClient';
 import { PostMessageTransport } from '../research/bridge/transport/postmessage';
+import type { ProgressClient } from './progress/ProgressClient';
+import {
+  resumeLesson,
+  applyScrollRatio,
+  readScrollRatio,
+} from './progress/ResumeHandler';
 
 interface LessonPlayerProps {
   track: Track;
   lesson: Lesson;
   onClose: () => void;
+  progressClient: ProgressClient;
+  /** Called once when the lesson is completed (CP3 surfaces the next-lesson picker). */
+  onCompleted?: (lessonId: string) => void;
 }
 
-export function LessonPlayer({ track, lesson, onClose }: LessonPlayerProps) {
+export function LessonPlayer({
+  track,
+  lesson,
+  onClose,
+  progressClient,
+  onCompleted,
+}: LessonPlayerProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [reflections, setReflections] = useState<Record<string, string>>({});
+
+  // Progress / resume bookkeeping.
+  const stepBodyRef = useRef<HTMLElement>(null);
+  const stepEnteredAt = useRef<number>(Date.now());
+  const pendingScroll = useRef<number>(0);
+  const savedCompletion = useRef<boolean>(false);
 
   // Bridge client and iframe reference
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -25,6 +46,16 @@ export function LessonPlayer({ track, lesson, onClose }: LessonPlayerProps) {
   const isLastStep = currentStepIndex === stepsCount - 1;
   const isSummaryStep = currentStepIndex === stepsCount;
 
+  // Collect any reflection notes the user wrote, for their own private summary.
+  // This is the user's data; it is stored server-side but NEVER sent to the LLM.
+  const collectReflections = (): string | undefined => {
+    const parts = lesson.steps
+      .filter((s) => s.type === 'reflection')
+      .map((s) => reflections[s.id]?.trim())
+      .filter((t): t is string => !!t);
+    return parts.length ? parts.join('\n\n') : undefined;
+  };
+
   // Clean up constraints when the player is closed/unmounted
   useEffect(() => {
     return () => {
@@ -35,6 +66,66 @@ export function LessonPlayer({ track, lesson, onClose }: LessonPlayerProps) {
       }
     };
   }, [bridgeClient]);
+
+  // Resume: open at the saved step + scroll position, cross-device for accounts.
+  useEffect(() => {
+    let cancelled = false;
+    savedCompletion.current = false;
+    stepEnteredAt.current = Date.now();
+    (async () => {
+      const point = await resumeLesson(progressClient, lesson.id, stepsCount);
+      if (cancelled) return;
+      if (point) {
+        setCurrentStepIndex(point.stepIndex);
+        pendingScroll.current = point.scrollRatio;
+        stepEnteredAt.current = Date.now();
+      } else {
+        // Mark the lesson opened (not_started → in_progress) without nagging.
+        void progressClient.save(lesson.id, {
+          state: 'in_progress',
+          current_step_position: 0,
+          step_actions: [{ step_position: 0, action: 'started', ms: 0 }],
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson.id]);
+
+  // After a resume sets the step, restore the scroll position once it has rendered.
+  useEffect(() => {
+    if (pendingScroll.current > 0 && stepBodyRef.current) {
+      applyScrollRatio(stepBodyRef.current, pendingScroll.current);
+      pendingScroll.current = 0;
+    }
+  }, [currentStepIndex]);
+
+  // Pause on tab-hide / close: flush the current step + scroll with sendBeacon.
+  useEffect(() => {
+    const flush = () => {
+      if (savedCompletion.current || currentStepIndex >= stepsCount) return;
+      const ms = Date.now() - stepEnteredAt.current;
+      progressClient.saveBeacon(lesson.id, {
+        state: 'in_progress',
+        current_step_position: currentStepIndex,
+        scroll_ratio: readScrollRatio(stepBodyRef.current),
+        step_actions: [
+          { step_position: currentStepIndex, action: 'started', ms },
+        ],
+      });
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('beforeunload', flush);
+    };
+  }, [currentStepIndex, stepsCount, lesson.id, progressClient]);
 
   const handleIframeLoad = () => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
@@ -64,7 +155,32 @@ export function LessonPlayer({ track, lesson, onClose }: LessonPlayerProps) {
     }
 
     if (currentStepIndex < stepsCount) {
-      setCurrentStepIndex(currentStepIndex + 1);
+      const fromPos = currentStepIndex;
+      const ms = Date.now() - stepEnteredAt.current;
+      const next = currentStepIndex + 1;
+      setCurrentStepIndex(next);
+      stepEnteredAt.current = Date.now();
+
+      if (next >= stepsCount) {
+        // Reached the end + acknowledged → completed (idempotent).
+        if (!savedCompletion.current) {
+          savedCompletion.current = true;
+          void progressClient.save(lesson.id, {
+            state: 'completed',
+            current_step_position: Math.max(stepsCount - 1, 0),
+            step_actions: [{ step_position: fromPos, action: 'completed', ms }],
+            reflection_text: collectReflections() ?? null,
+          });
+          onCompleted?.(lesson.id);
+        }
+      } else {
+        void progressClient.save(lesson.id, {
+          state: 'in_progress',
+          current_step_position: next,
+          scroll_ratio: 0,
+          step_actions: [{ step_position: fromPos, action: 'completed', ms }],
+        });
+      }
     }
   };
 
@@ -78,7 +194,14 @@ export function LessonPlayer({ track, lesson, onClose }: LessonPlayerProps) {
     }
 
     if (currentStepIndex > 0) {
-      setCurrentStepIndex(currentStepIndex - 1);
+      const prev = currentStepIndex - 1;
+      stepEnteredAt.current = Date.now();
+      setCurrentStepIndex(prev);
+      void progressClient.save(lesson.id, {
+        state: 'in_progress',
+        current_step_position: prev,
+        scroll_ratio: 0,
+      });
     }
   };
 
@@ -135,7 +258,7 @@ export function LessonPlayer({ track, lesson, onClose }: LessonPlayerProps) {
           </div>
         )}
 
-        <main className="player-step-body">
+        <main className="player-step-body" ref={stepBodyRef}>
           {isSummaryStep ? (
             <div className="learn-step-content summary-step animate-fade-in">
               <h2 className="step-title">Lesson Completed</h2>

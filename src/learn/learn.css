@@ -1384,3 +1384,165 @@
   font-size: 0.9rem;
   color: #c7cad6;
 }
+
+/* ── v6.3 Progress + next-lesson picker ──────────────────────────────────── */
+/* Calm-by-design: descriptive, low-key affordances only. No bars, no %, no    */
+/* celebration — a quiet checkmark, a soft count, and an offered (not pushed)   */
+/* set of next-lesson cards with a permanent "browse freely" escape.           */
+
+.track-progress-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  color: #8a90a6;
+  letter-spacing: 0.02em;
+}
+
+.lesson-complete-check {
+  color: #7bdca4;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lesson-row.lesson-completed .lesson-title {
+  color: #cfe9da;
+}
+
+.resume-badge {
+  font-size: 0.7rem;
+  color: #c7a36b;
+  border: 1px solid rgba(199, 163, 107, 0.35);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  margin-left: 0.5rem;
+}
+
+.next-lesson-picker {
+  max-width: 1080px;
+  margin: 1.5rem auto 0;
+  padding: 0 1.5rem;
+}
+
+.sync-nudge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: #b8bccd;
+  margin-bottom: 1rem;
+}
+
+.sync-nudge-dismiss {
+  background: none;
+  border: none;
+  color: #8a90a6;
+  cursor: pointer;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.picker-inner {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 1.25rem;
+}
+
+.picker-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.picker-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #e6e8f0;
+  margin: 0;
+}
+
+.picker-dismiss {
+  background: none;
+  border: none;
+  color: #8a90a6;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.picker-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.picker-card {
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.picker-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.picker-card-title {
+  font-size: 0.95rem;
+  color: #e6e8f0;
+  margin: 0.5rem 0 0.35rem;
+}
+
+.picker-card-why {
+  font-size: 0.82rem;
+  color: #a6abbd;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.picker-tracks {
+  margin-top: 1rem;
+}
+
+.picker-tracks-label {
+  font-size: 0.8rem;
+  color: #8a90a6;
+  margin: 0 0 0.5rem;
+}
+
+.picker-track-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.picker-track-chip {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  color: #c7cad6;
+  cursor: pointer;
+}
+
+.picker-track-chip:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.picker-escape {
+  margin: 1rem 0 0;
+  font-size: 0.78rem;
+  color: #71768a;
+  text-align: center;
+}

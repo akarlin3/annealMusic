@@ -9,8 +9,11 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Date,
+    Float,
     ForeignKey,
+    Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     Numeric,
     func,
@@ -845,6 +848,57 @@ class AudioClip(Base):
         VectorType(1536), nullable=True
     )
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class LessonProgress(Base):
+    """v6.3 — per-user, cross-device lesson progress (one row per user+lesson).
+
+    Strictly private: never shown to other users, never used to nudge. The stored
+    ``state`` is the writable machine (``not_started`` / ``in_progress`` /
+    ``completed``); ``abandoned`` is *computed* by the picker (>30d inactivity) and
+    never written, so a user can always resume. Calm-by-design: progress is
+    descriptive only — there is deliberately no streak / score / level field here,
+    and ``reflection_text`` is private and is never sent to the LLM ranker. The
+    single place effective-state and per-track aggregates are derived is
+    ``app/services/progress_state.py`` (the ``compute_stats`` heuristic-drift rule).
+    """
+
+    __tablename__ = "lesson_progress"
+    __table_args__ = (
+        PrimaryKeyConstraint("user_id", "lesson_id", name="pk_lesson_progress"),
+        CheckConstraint(
+            "state IN ('not_started', 'in_progress', 'completed')",
+            name="ck_lesson_progress_state",
+        ),
+        CheckConstraint(
+            "scroll_ratio >= 0 AND scroll_ratio <= 1",
+            name="ck_lesson_progress_scroll",
+        ),
+        Index("idx_lesson_progress_user", "user_id", "last_active_at"),
+        Index("idx_lesson_progress_state", "user_id", "state", "last_active_at"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    lesson_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False
+    )
+    state: Mapped[str] = mapped_column(String, nullable=False, default="not_started")
+    current_step_position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # 0..1 ratio within the current step body, so resume survives layout/width changes.
+    scroll_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Bounded per-step log (capped in the service): {step_position, action, ms, at}.
+    # Metadata only — no free text, no PII. Feeds the next-lesson picker's signals.
+    step_actions: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
+    # Private; collected from `reflection` steps. Never published, never sent to the LLM.
+    reflection_text: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

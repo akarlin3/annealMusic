@@ -980,6 +980,99 @@ class ClipSearchResult(BaseModel):
     score: float
 
 
+# --- v6.3 Lesson progress + next-lesson recommendations ----------------------
+
+# The reader-facing state includes the *computed* 'abandoned'; only the first
+# three are ever stored (see app/models.py::LessonProgress).
+LessonProgressState = Literal["not_started", "in_progress", "completed", "abandoned"]
+
+
+class StepActionIn(BaseModel):
+    """A single per-step signal. Metadata only — no free text, no PII."""
+
+    step_position: int = Field(ge=0)
+    action: Literal["started", "completed", "skipped"]
+    ms: int = Field(default=0, ge=0)  # time-on-step in milliseconds
+    at: datetime | None = None  # defaults to server now() when absent
+
+
+class LessonProgressUpsert(BaseModel):
+    """Heartbeat / pause / complete. ``step_actions`` is a delta that is appended
+    to the bounded server-side log; ``state`` only ever advances (never downgrades
+    a completed lesson)."""
+
+    lesson_id: uuid.UUID
+    state: Literal["in_progress", "completed"] | None = None
+    current_step_position: int | None = Field(default=None, ge=0)
+    scroll_ratio: float | None = Field(default=None, ge=0, le=1)
+    step_actions: list[StepActionIn] = Field(default_factory=list)
+    reflection_text: str | None = Field(default=None, max_length=2000)
+
+
+class LessonProgressOut(BaseModel):
+    lesson_id: uuid.UUID
+    state: str  # may be the derived 'abandoned'
+    current_step_position: int
+    scroll_ratio: float
+    started_at: datetime | None = None
+    last_active_at: datetime | None = None
+    completed_at: datetime | None = None
+    reflection_text: str | None = None
+
+
+class LessonProgressListOut(BaseModel):
+    items: list[LessonProgressOut]
+
+
+class TrackProgressOut(BaseModel):
+    """Descriptive per-track counts only — no percentage-as-pressure, no streak."""
+
+    track_slug: str
+    track_title: str
+    total_lessons: int
+    completed_lessons: int
+    in_progress_lessons: int
+
+
+class ProgressImportItem(BaseModel):
+    """One localStorage progress record uploaded on first sign-in (anon→authed)."""
+
+    lesson_id: uuid.UUID
+    state: Literal["not_started", "in_progress", "completed"] = "in_progress"
+    current_step_position: int = Field(default=0, ge=0)
+    scroll_ratio: float = Field(default=0, ge=0, le=1)
+    started_at: datetime | None = None
+    last_active_at: datetime | None = None
+    completed_at: datetime | None = None
+    step_actions: list[StepActionIn] = Field(default_factory=list)
+    reflection_text: str | None = Field(default=None, max_length=2000)
+
+
+class ProgressImportIn(BaseModel):
+    items: list[ProgressImportItem] = Field(default_factory=list, max_length=500)
+
+
+class RecommendationRequest(BaseModel):
+    context: Literal["completion", "arrival"] = "arrival"
+    just_completed_lesson_id: uuid.UUID | None = None
+
+
+class RecommendationItem(BaseModel):
+    lesson_id: uuid.UUID
+    slug: str
+    title: str
+    difficulty: str
+    track_slug: str
+    rationale: str  # the LLM's one-sentence "why this next" (or a neutral fallback)
+
+
+class RecommendationsOut(BaseModel):
+    items: list[RecommendationItem]
+    # 'onboarding' = brand-new user; 'empty' = nothing reachable; 'deterministic'
+    # = LLM unavailable/invalid so Stage-1 order is used verbatim.
+    source: Literal["llm", "deterministic", "onboarding", "empty"]
+
+
 
 
 
