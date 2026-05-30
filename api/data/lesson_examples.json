@@ -20,23 +20,82 @@
   "demo": [
     {
       "patch_brief": "A bright Karplus pluck, drift 0, brightness high",
-      "patch": {"m": "open", "e": "physical", "rootFreq": 220, "spread": 1.0, "density": 1, "coupling": 0.2, "drift": 0.0, "brightness": 0.85, "space": 0.3, "ph.reed": 0.1, "ph.damping": 0.2}
+      "patch": {
+        "m": "open",
+        "e": "physical",
+        "rootFreq": 220,
+        "spread": 1.0,
+        "density": 1,
+        "coupling": 0.2,
+        "drift": 0.0,
+        "brightness": 0.85,
+        "space": 0.3,
+        "ph.reed": 0.1,
+        "ph.damping": 0.2
+      }
     },
     {
       "patch_brief": "Same patch with continuous, sustained excitation",
-      "patch": {"m": "open", "e": "physical", "rootFreq": 220, "spread": 1.0, "density": 1, "coupling": 0.2, "drift": 0.0, "brightness": 0.85, "space": 0.3, "ph.reed": 0.8, "ph.damping": 0.2}
+      "patch": {
+        "m": "open",
+        "e": "physical",
+        "rootFreq": 220,
+        "spread": 1.0,
+        "density": 1,
+        "coupling": 0.2,
+        "drift": 0.0,
+        "brightness": 0.85,
+        "space": 0.3,
+        "ph.reed": 0.8,
+        "ph.damping": 0.2
+      }
     },
     {
       "patch_brief": "A warm sine pad, gently detuned and spacious",
-      "patch": {"m": "open", "e": "sine", "rootFreq": 110, "spread": 1.2, "density": 6, "coupling": 0.4, "drift": 0.35, "brightness": 0.4, "space": 0.7}
+      "patch": {
+        "m": "open",
+        "e": "sine",
+        "rootFreq": 110,
+        "spread": 1.2,
+        "density": 6,
+        "coupling": 0.4,
+        "drift": 0.35,
+        "brightness": 0.4,
+        "space": 0.7
+      }
     },
     {
       "patch_brief": "A metallic FM bell, high mod ratio, short and bright",
-      "patch": {"m": "open", "e": "fm", "rootFreq": 330, "spread": 1.0, "density": 2, "coupling": 0.3, "drift": 0.1, "brightness": 0.7, "space": 0.5, "fm.modRatio": 3.5, "fm.modIndex": 4.0, "fm.feedback": 0.2}
+      "patch": {
+        "m": "open",
+        "e": "fm",
+        "rootFreq": 330,
+        "spread": 1.0,
+        "density": 2,
+        "coupling": 0.3,
+        "drift": 0.1,
+        "brightness": 0.7,
+        "space": 0.5,
+        "fm.modRatio": 3.5,
+        "fm.modIndex": 4.0,
+        "fm.feedback": 0.2
+      }
     },
     {
       "patch_brief": "A dense granular wash, slow and evolving",
-      "patch": {"m": "open", "e": "granular", "rootFreq": 165, "spread": 1.5, "density": 8, "coupling": 0.6, "drift": 0.5, "brightness": 0.5, "space": 0.8, "gr.size": 120, "gr.density": 0.7}
+      "patch": {
+        "m": "open",
+        "e": "granular",
+        "rootFreq": 165,
+        "spread": 1.5,
+        "density": 8,
+        "coupling": 0.6,
+        "drift": 0.5,
+        "brightness": 0.5,
+        "space": 0.8,
+        "gr.size": 120,
+        "gr.density": 0.7
+      }
     }
   ],
   "prompt": [
@@ -96,6 +155,26 @@
     {
       "topic": "How voices couple over time",
       "mermaid": "sequenceDiagram\n  participant A as Voice A\n  participant B as Voice B\n  A->>B: phase nudge\n  B->>A: phase nudge\n  A->>B: now in step"
+    }
+  ],
+  "audio-clip": [
+    {
+      "clip_topic": "what a real physical-model string pluck sounds like",
+      "clip_id": "karplus-archetype",
+      "intro_text": "Listen to a textbook Karplus pluck — bright, percussive, with a clean decay.",
+      "outro_text": "Notice the gentle high-frequency roll-off as the delay-line filter softens each repeat."
+    },
+    {
+      "clip_topic": "the difference between just intonation and equal temperament",
+      "clip_id": "just-vs-equal-triad",
+      "intro_text": "Here is the same major triad twice: first in just intonation, then in equal temperament.",
+      "outro_text": "The just version sits perfectly still; the tempered one shimmers with faint beating."
+    },
+    {
+      "clip_topic": "a deeply abstract idea with no obvious sonic example",
+      "clip_id": null,
+      "intro_text": "",
+      "outro_text": ""
     }
   ]
 }

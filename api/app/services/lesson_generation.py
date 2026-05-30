@@ -40,7 +40,7 @@ logger = logging.getLogger("learn.generation")
 
 # Bump to invalidate the cache for *new* generations. Old cached lessons keep
 # serving (their steps already point at the prior generation rows).
-LESSON_PROMPT_VERSION = "v6.1.0"
+LESSON_PROMPT_VERSION = "v6.2.0"
 
 MAX_RETRIES = 2  # initial attempt + 2 retries = 3 LLM calls max per step.
 
@@ -206,6 +206,62 @@ Objectives:
 - Respond with ONE raw JSON object: {{"prompt": "...?"}}.
 - The question must be open (not yes/no) and end with a question mark.
 {_examples_block('reflection', render)}"""
+
+
+def _audio_clip_system(spec: dict, candidates: list[dict]) -> str:
+    """Pick the best clip (or none) for an audio-clip step and write its framing.
+    ``candidates`` are the top retrieval matches: [{slug, title, description}]."""
+    listing = "\n".join(
+        f"- {c['slug']}: {c['title']} — {c['description']}" for c in candidates
+    )
+    render = lambda ex: (
+        f"- Topic: \"{ex.get('clip_topic','')}\"\n  Output: "
+        f"{json.dumps({'clip_id': ex.get('clip_id'), 'intro_text': ex.get('intro_text',''), 'outro_text': ex.get('outro_text','')})}"
+    )
+    return f"""{_PREAMBLE}
+
+### Task
+A lesson step wants to play ONE short audio example for the learner. Choose the
+most relevant clip from the candidates below, or decline if none materially helps.
+Lesson: {spec.get('title','')}.
+
+### Candidate clips
+{listing}
+
+### Output contract
+- Respond with ONE raw JSON object: {{"clip_id": "...", "intro_text": "...", "outro_text": "..."}}.
+- "clip_id" MUST be one of the candidate slugs above, or null if none fits well.
+- Prefer null over a weak match — not every step needs audio.
+- "intro_text": 1–2 sentences telling the learner what to listen for (<=280 chars).
+- "outro_text": 1 sentence on what they just heard, or "" (<=280 chars).
+{_examples_block('audio-clip', render)}"""
+
+
+def validate_audio_clip(allowed_slugs: list[str]):
+    """Build a validator closure: clip_id must be one of the candidate slugs,
+    intro_text is required, and the text fields are length-bounded."""
+
+    def _validate(out: str) -> tuple[bool, list[str], dict[str, Any]]:
+        try:
+            data = _parse_json_object(out)
+        except json.JSONDecodeError:
+            return False, ["output must be a single raw JSON object"], {}
+        clip_id = data.get("clip_id")
+        if clip_id in (None, "", "null"):
+            return False, ["no suitable clip chosen (clip_id was null)"], {}
+        if clip_id not in allowed_slugs:
+            return False, [f"clip_id '{clip_id}' is not one of the candidates"], {}
+        intro = (data.get("intro_text") or "").strip()
+        if not intro:
+            return False, ["'intro_text' is required"], {}
+        if len(intro) > 280:
+            return False, ["'intro_text' too long (<=280 chars)"], {}
+        outro = (data.get("outro_text") or "").strip()
+        if len(outro) > 280:
+            return False, ["'outro_text' too long (<=280 chars)"], {}
+        return True, [], {"clip_id": clip_id, "intro_text": intro, "outro_text": outro}
+
+    return _validate
 
 
 def _svg_example(ex: dict) -> str:
@@ -379,11 +435,42 @@ async def generate_step_config(
     index: int,
     neighbors: tuple[str | None, str | None],
     model_id: str,
+    *,
+    session: AsyncSession | None = None,
+    embeddings: Any | None = None,
 ) -> tuple[dict[str, Any], int, int]:
     """Generate (and validate) the config payload for one step. Raises
     GenerationError on terminal failure."""
     stype = outline["type"]
     p_tok = o_tok = 0
+
+    if stype == "audio-clip":
+        if session is None:
+            raise GenerationError(["audio-clip generation requires a db session"])
+        from app.services.clip_retrieval import search_clips
+
+        clip_topic = outline.get("clip_topic") or outline.get("topic") or spec.get("title", "")
+        matches = await search_clips(
+            session, embeddings=embeddings, query_text=clip_topic,
+            track=spec.get("track"), limit=3,
+        )
+        if not matches:
+            raise GenerationError([f"no clips in the library for '{clip_topic}'"])
+        candidates = [
+            {"slug": m.clip.slug, "title": m.clip.title, "description": m.clip.description}
+            for m in matches
+        ]
+        allowed = [c["slug"] for c in candidates]
+        value, p, o = await _generate_one(
+            llm, system=_audio_clip_system(spec, candidates),
+            user=f"Choose and frame a clip for: {clip_topic}",
+            validate=validate_audio_clip(allowed), model_id=model_id,
+        )
+        return (
+            {"clip_id": value["clip_id"], "intro_text": value["intro_text"],
+             "outro_text": value["outro_text"], "auto_advance": False, "loop": False},
+            p, o,
+        )
 
     if stype == "text":
         body, p, o = await _generate_one(
@@ -487,6 +574,7 @@ async def generate_lesson(
     llm: LLMClient,
     lesson: Lesson,
     settings: Settings | None = None,
+    embeddings: Any | None = None,
 ) -> Lesson:
     """Generate every step of ``lesson`` from its ``spec``. Cache hits short-circuit
     LLM calls; steps with a manual override are left untouched. On any terminal
@@ -549,7 +637,8 @@ async def generate_lesson(
 
         try:
             config, p_tok, o_tok = await generate_step_config(
-                llm, spec, item, step.position, neighbors, model_id
+                llm, spec, item, step.position, neighbors, model_id,
+                session=session, embeddings=embeddings,
             )
         except GenerationError as exc:
             lesson.generation_status = "generation_failed"

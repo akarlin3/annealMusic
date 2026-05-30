@@ -290,4 +290,14 @@ export const METHOD_SCHEMAS: Record<string, MethodDef> = {
     name: 'anneal.lesson.releaseConstraints',
     description: 'Removes active control restrictions.',
   },
+  'anneal.lesson.suspendEngine': {
+    name: 'anneal.lesson.suspendEngine',
+    description:
+      'Suspends the live engine audio context so a lesson audio clip can play (v6.2).',
+  },
+  'anneal.lesson.resumeEngine': {
+    name: 'anneal.lesson.resumeEngine',
+    description:
+      'Resumes an engine audio context this bridge previously suspended (v6.2).',
+  },
 };

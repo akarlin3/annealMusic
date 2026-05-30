@@ -1223,3 +1223,113 @@
 .admin-badge-override {
   color: #f59e0b;
 }
+
+/* --- v6.2 audio-clip step --------------------------------------------------- */
+.audio-clip-step .audio-clip-error {
+  color: #fca5a5;
+  font-size: 0.9rem;
+}
+
+.audio-clip-card {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(129, 140, 248, 0.25);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.audio-clip-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.6rem;
+}
+
+.audio-clip-title {
+  font-weight: 700;
+  color: #e6e7ee;
+}
+
+.audio-clip-duration {
+  font-size: 0.8rem;
+  color: #9aa0b4;
+}
+
+.audio-clip-waveform {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 56px;
+  margin: 0.4rem 0 0.8rem;
+}
+
+.audio-clip-waveform .wf-bar {
+  flex: 1 1 auto;
+  background: rgba(129, 140, 248, 0.3);
+  border-radius: 1px;
+  transition: background-color 0.15s;
+}
+
+.audio-clip-waveform .wf-bar.wf-played {
+  background: #818cf8;
+}
+
+.audio-clip-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.audio-clip-play {
+  background: #818cf8;
+  color: #0b0c10;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.audio-clip-play:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.audio-clip-loop {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #9aa0b4;
+  cursor: pointer;
+}
+
+/* License footer: subtle until hover/focus, then fully legible. */
+.audio-clip-license {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #6b7180;
+  opacity: 0.55;
+  transition: opacity 0.2s;
+  outline: none;
+}
+
+.audio-clip-license:hover,
+.audio-clip-license:focus {
+  opacity: 1;
+}
+
+.audio-clip-license-badge {
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0.05rem 0.4rem;
+  letter-spacing: 0.02em;
+}
+
+.audio-clip-attribution {
+  color: #9aa0b4;
+}

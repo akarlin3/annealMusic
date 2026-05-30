@@ -3,6 +3,7 @@ import { TextStep } from './TextStep';
 import { DemoStep } from './DemoStep';
 import { PromptStep } from './PromptStep';
 import { ReflectionStep } from './ReflectionStep';
+import { AudioClipStep } from './AudioClipStep';
 import type { BridgeClient } from '../../research/bridge/BridgeClient';
 
 interface StepContainerProps {
@@ -45,6 +46,14 @@ export function StepContainer({
           step={step}
           value={reflectionValue}
           onChange={onChangeReflection || (() => {})}
+          onComplete={onStepComplete}
+        />
+      );
+    case 'audio-clip':
+      return (
+        <AudioClipStep
+          step={step}
+          bridgeClient={bridgeClient}
           onComplete={onStepComplete}
         />
       );

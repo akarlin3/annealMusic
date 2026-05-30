@@ -159,6 +159,21 @@ export class BridgeClient {
     return this.call('anneal.lesson.releaseConstraints');
   }
 
+  /**
+   * v6.2: suspend the embedded engine's audio context so a lesson audio clip can
+   * play without the live engine fighting it. Resolves true only when this call
+   * actually suspended a running context — pass that back to {@link resumeEngine}
+   * so a context the user had already paused is not force-resumed.
+   */
+  async suspendEngine(): Promise<boolean> {
+    return this.call('anneal.lesson.suspendEngine');
+  }
+
+  /** Resume an engine audio context this client previously suspended. */
+  async resumeEngine(): Promise<boolean> {
+    return this.call('anneal.lesson.resumeEngine');
+  }
+
   close(): void {
     this.transport.close();
   }

@@ -127,4 +127,43 @@ describe('Bridge Lesson Extension & postMessage Transport', () => {
 
     expect(useParamStore.getState().constraints).toBeNull();
   });
+
+  it('suspendEngine/resumeEngine are no-ops without a running engine', async () => {
+    const clientTransport = new PostMessageTransport(window as any);
+    clientTransport.setTargetWindow(window as any);
+    const client = new BridgeClient(clientTransport);
+
+    const p = client.suspendEngine();
+    await vi.runAllTimersAsync();
+    // No orchestrator registered in this test env → false (nothing suspended).
+    expect(await p).toBe(false);
+
+    const r = client.resumeEngine();
+    await vi.runAllTimersAsync();
+    expect(await r).toBe(false);
+  });
+
+  it('suspendEngine delegates to the orchestrator when one is registered', async () => {
+    const suspendAudio = vi.fn().mockResolvedValue(true);
+    const resumeAudio = vi.fn().mockResolvedValue(true);
+    BridgeServer.registerOrchestrator(
+      () => ({ suspendAudio, resumeAudio }) as any,
+    );
+
+    const clientTransport = new PostMessageTransport(window as any);
+    clientTransport.setTargetWindow(window as any);
+    const client = new BridgeClient(clientTransport);
+
+    const p = client.suspendEngine();
+    await vi.runAllTimersAsync();
+    expect(await p).toBe(true);
+    expect(suspendAudio).toHaveBeenCalledOnce();
+
+    const r = client.resumeEngine();
+    await vi.runAllTimersAsync();
+    expect(await r).toBe(true);
+    expect(resumeAudio).toHaveBeenCalledOnce();
+
+    BridgeServer.registerOrchestrator(null as any);
+  });
 });
