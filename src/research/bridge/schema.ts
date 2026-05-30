@@ -135,6 +135,30 @@ export const METHOD_SCHEMAS: Record<string, MethodDef> = {
     description:
       'Returns the current session state, elapsed and remaining time.',
   },
+  'anneal.session.render': {
+    name: 'anneal.session.render',
+    description:
+      'Triggers a client-side offline audio render for downstream script ingestion.',
+    validate: (params) => {
+      if (params && params.duration !== undefined) {
+        if (typeof params.duration !== 'number' || params.duration <= 0) {
+          throw new BridgeError(
+            -32602,
+            'Invalid params: duration must be a positive number',
+          );
+        }
+      }
+      if (params && params.format !== undefined) {
+        const allowed = ['numpy', 'wav'];
+        if (!allowed.includes(params.format)) {
+          throw new BridgeError(
+            -32602,
+            `Invalid params: format must be one of ${allowed.join(', ')}`,
+          );
+        }
+      }
+    },
+  },
   'anneal.session.loadPatch': {
     name: 'anneal.session.loadPatch',
     description: 'Hydrates active param state with a complete pre-saved patch.',

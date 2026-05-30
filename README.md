@@ -96,9 +96,11 @@ AnnealMusic features a sandboxed `/research` console served as independent, zero
 - **Synchronous parameters interop (`anneal` library)**: Synchronizes parameters store updates at 50Hz via `BroadcastChannel` so Python-side scripts can query `anneal.state.get()` and `anneal.engine.get_spectrum()` instantly and synchronously.
 - **Persistent user scripts persistence**: Create, list (`/me`), update, and cascade delete private scripts via secure backend CRUD endpoints, backed by database schemas and Alembic migrations.
 - **High-frequency datalogging**: Logs comprehensive observations (sculpt states, Kuramoto coupling order parameter, partial details, and audio features like RMS, ZCR, spectral centroid, and flux) to scientific formats (CSV, JSONL, Parquet, and HDF5) at configurable sample rates (up to 100Hz, default 50Hz).
+- **Scientific Python Integration (v5.5)**: Deep analytical environment featuring in-sandbox **SciPy** (signal, optimize, stats), **pandas** (tabular normalization of datalogger observations), and custom Web Worker **matplotlib** backend that renders interactive multi-figure plots directly to glassmorphic UI canvases. Features a Virtual Filesystem (VFS) Panel for listing, managing, and downloading offline WAV stem renders and CSV tables directly from Pyodide's virtual storage.
 
 Refer to the complete guides in:
 
+- [docs/SCIENTIFIC_PYTHON.md](docs/SCIENTIFIC_PYTHON.md) — Scientific Python cookbook & recipes.
 - [docs/PYTHON_API.md](docs/PYTHON_API.md) — Custom `anneal` Python library API references.
 - [docs/SCRIPTING_GUIDE.md](docs/SCRIPTING_GUIDE.md) — Scripting recipes and sandboxing constraints.
 - [docs/DATALOG.md](docs/DATALOG.md) — Datalogger usage, ingest examples, and telemetry bridge references.

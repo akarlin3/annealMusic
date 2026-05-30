@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { JSBridgeSync } from '../bridge';
 import { PyodideWorker } from '../PyodideWorker';
@@ -53,7 +54,7 @@ describe('JSBridgeSync coordinate layer', () => {
     sync.start();
 
     // Verify it called syncCache with parameter store state
-    const syncCacheMock = worker.syncCache as vi.Mock;
+    const syncCacheMock = worker.syncCache as any;
     expect(syncCacheMock).toHaveBeenCalled();
     const calls = syncCacheMock.mock.calls;
     const cacheUpdate = calls[0][0];

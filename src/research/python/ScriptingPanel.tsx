@@ -4,7 +4,8 @@ import { REPL } from './REPL';
 import { PyodideWorker, WorkerInitStatus } from './PyodideWorker';
 import { JSBridgeSync } from './bridge';
 import { BridgeClient } from '../bridge/BridgeClient';
-import { FileText, Code2, CloudLightning, Save } from 'lucide-react';
+import { FileText, Code2, CloudLightning, Save, FileImage } from 'lucide-react';
+import { VFSPanel } from './vfsPanel';
 
 const DEFAULT_SCRIPT = `import anneal
 import time
@@ -109,6 +110,28 @@ export const ScriptingPanel: React.FC = () => {
 
   const [savedScripts, setSavedScripts] = useState<UserScript[]>([]);
 
+  const [preloadScientific, setPreloadScientific] = useState<boolean>(() => {
+    return localStorage.getItem('am_scientific_env_preload') === 'true';
+  });
+
+  const [plots, setPlots] = useState<string[]>([]);
+  const [activePlotTab, setActivePlotTab] = useState<number>(-1);
+  const [runTrigger, setRunTrigger] = useState<number>(0);
+
+  const handlePlotRender = (bytes: number[]) => {
+    const uint8 = new Uint8Array(bytes);
+    const blob = new Blob([uint8], { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+    setPlots((prev) => [...prev, url]);
+    setActivePlotTab((prev) => prev + 1);
+  };
+
+  const handleClearPlots = () => {
+    plots.forEach((url) => URL.revokeObjectURL(url));
+    setPlots([]);
+    setActivePlotTab(-1);
+  };
+
   const workerRef = useRef<PyodideWorker | null>(null);
   const syncRef = useRef<JSBridgeSync | null>(null);
   const clientRef = useRef<BridgeClient | null>(null);
@@ -125,6 +148,13 @@ export const ScriptingPanel: React.FC = () => {
       if (clientRef.current) clientRef.current.close();
     };
   }, []);
+
+  // Cleanup plots on unmount
+  useEffect(() => {
+    return () => {
+      plots.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [plots]);
 
   const fetchSavedScripts = async () => {
     try {
@@ -163,10 +193,13 @@ export const ScriptingPanel: React.FC = () => {
           syncRef.current = sync;
           sync.start();
         }
+
+        // Register interactive matplotlib plot callback
+        worker.onPlotRender(handlePlotRender);
       } else if (status.stage === 'error') {
         setIsInitializing(false);
       }
-    });
+    }, preloadScientific);
   };
 
   const handleRunScript = async () => {
@@ -176,6 +209,9 @@ export const ScriptingPanel: React.FC = () => {
       // Block run until initialization completes
       return;
     }
+
+    // Clear old plots on fresh run
+    handleClearPlots();
 
     setIsRunning(true);
     setStdout('');
@@ -187,6 +223,7 @@ export const ScriptingPanel: React.FC = () => {
     );
 
     setIsRunning(false);
+    setRunTrigger((prev) => prev + 1);
   };
 
   const handleStopScript = () => {
@@ -294,6 +331,28 @@ export const ScriptingPanel: React.FC = () => {
               <CloudLightning size={14} />
               Initialize Python
             </button>
+            <div className="flex items-center gap-2 mt-4 select-none">
+              <input
+                id="preload-scientific-toggle"
+                type="checkbox"
+                checked={preloadScientific}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setPreloadScientific(val);
+                  localStorage.setItem(
+                    'am_scientific_env_preload',
+                    String(val),
+                  );
+                }}
+                className="w-4 h-4 rounded border-stone-850 bg-stone-950 text-amber-500 focus:ring-amber-500/20 focus:ring-2 focus:ring-offset-0 cursor-pointer"
+              />
+              <label
+                htmlFor="preload-scientific-toggle"
+                className="text-[10px] text-stone-400 font-mono tracking-wider cursor-pointer hover:text-stone-300 transition-colors uppercase"
+              >
+                Preload Scientific Environment (SciPy, Matplotlib, Pandas)
+              </label>
+            </div>
           </div>
         ) : isInitializing ? (
           <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 text-center backdrop-blur-md">
@@ -314,7 +373,11 @@ export const ScriptingPanel: React.FC = () => {
               />
             </div>
             <p className="text-[10px] text-stone-500 font-mono mt-2 uppercase tracking-widest">
-              loading wasm runtime + numpy from CDN...
+              {initStatus.progress &&
+              initStatus.progress > 0.5 &&
+              preloadScientific
+                ? 'loading scipy + pandas + matplotlib + sklearn from CDN...'
+                : 'loading wasm runtime + numpy from CDN...'}
             </p>
           </div>
         ) : (
@@ -357,8 +420,59 @@ export const ScriptingPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Sidebars Controls (REPL + Examples Library) */}
-      <div className="w-full md:w-80 flex flex-col gap-6 overflow-hidden max-h-[85vh]">
+      {/* Sidebars Controls (REPL + Plots + VFS + Examples Library) */}
+      <div className="w-full md:w-80 flex flex-col gap-6 overflow-y-auto max-h-[85vh] scrollbar-thin pb-4">
+        {/* Plots Display Card */}
+        {plots.length > 0 && (
+          <div className="border border-stone-900 bg-stone-900/10 rounded-xl p-4 flex flex-col gap-3 shadow-lg select-none">
+            <div className="flex justify-between items-center border-b border-stone-900 pb-2">
+              <span className="text-xs font-mono uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
+                <FileImage size={14} className="text-amber-500" />
+                Matplotlib Plots ({plots.length})
+              </span>
+              <button
+                onClick={handleClearPlots}
+                className="text-[9px] uppercase tracking-widest font-mono text-stone-600 hover:text-stone-400 transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+
+            {/* Tabs header */}
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-thin pb-1">
+              {plots.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActivePlotTab(idx)}
+                  className={`px-2 py-1 text-[9px] font-mono rounded transition-all border ${
+                    activePlotTab === idx
+                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-500 font-semibold'
+                      : 'bg-stone-950/30 border-stone-900/50 text-stone-500 hover:text-stone-400 hover:border-stone-800'
+                  }`}
+                >
+                  Fig {idx + 1}
+                </button>
+              ))}
+            </div>
+
+            {/* Active plot canvas image */}
+            <div className="flex items-center justify-center border border-stone-900/50 bg-stone-950/40 rounded-lg overflow-hidden p-2">
+              <img
+                src={plots[activePlotTab]}
+                alt={`Matplotlib plot figure ${activePlotTab + 1}`}
+                className="max-w-full max-h-[220px] object-contain rounded"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* VFS Panel component */}
+        <VFSPanel
+          worker={workerRef.current}
+          isWorkerReady={isWorkerReady}
+          runTrigger={runTrigger}
+        />
+
         <REPL
           onExecute={handleExecuteRepl}
           onClearOutput={() => setStdout('')}

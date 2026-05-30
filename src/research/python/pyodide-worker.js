@@ -5,6 +5,67 @@ importScripts('https://cdn.jsdelivr.net/pyodide/v0.26.4/pyodide.js');
 
 let pyodide = null;
 let _py_initialized = false;
+let _scientific_env_loaded = false;
+
+// Curated Scientific Python Whitelist Guard
+const ALLOWED_MODULES = new Set([
+  // Whitelisted Scientific Packages
+  'numpy',
+  'scipy',
+  'matplotlib',
+  'pandas',
+  'sklearn',
+  'pyarrow',
+  // Standard built-in modules & system utilities
+  'anneal',
+  'sys',
+  'types',
+  'uuid',
+  'math',
+  'time',
+  'io',
+  'json',
+  'asyncio',
+  'itertools',
+  'builtins',
+  'os',
+  'collections',
+  'functools',
+  're',
+  'warnings',
+  'datetime',
+  'random',
+  'copy',
+  'abc',
+  'traceback',
+  'weakref',
+  'operator',
+  'inspect',
+  'typing',
+]);
+
+function detectImports(code) {
+  const imports = new Set();
+  const lines = code.split('\n');
+  for (let line of lines) {
+    line = line.trim();
+    if (line.startsWith('import ')) {
+      const content = line.substring(7);
+      const parts = content.split(',');
+      for (const p of parts) {
+        const word = p.trim().split(/\s+/)[0];
+        const root = word.split('.')[0];
+        if (root) imports.add(root);
+      }
+    } else if (line.startsWith('from ')) {
+      const match = line.match(/^from\s+([a-zA-Z0-9_]+)/);
+      if (match && match[1]) {
+        imports.add(match[1]);
+      }
+    }
+  }
+  return Array.from(imports);
+}
 
 // Worker Local Cache
 let cachedState = {
@@ -77,8 +138,15 @@ self._anneal_bridge = {
   datalogStop: () => {
     callBridge('anneal.datalog.stop');
   },
+  renderPlot: (imgBytes) => {
+    const bytes = imgBytes.to_py ? imgBytes.to_py() : imgBytes;
+    postMessage({ type: 'plot-render', bytes });
+  },
+  render: async (duration, format) => {
+    return await callBridge('anneal.session.render', { duration, format });
+  },
   version: () => {
-    return '5.4.0';
+    return '5.5.0';
   },
 };
 
@@ -131,9 +199,55 @@ bridgeChannel.onmessage = (event) => {
   }
 };
 
+async function enforceWhitelistAndAutoLoad(code) {
+  const imports = detectImports(code);
+
+  // 1. Guard against non-whitelisted packages
+  for (const imp of imports) {
+    if (!ALLOWED_MODULES.has(imp)) {
+      throw new Error(
+        `ImportError: Package '${imp}' is not in the approved Scientific Python Whitelist.`,
+      );
+    }
+  }
+
+  // 2. Identify scientific packages to load
+  const scientificImports = imports.filter((imp) =>
+    ['scipy', 'pandas', 'matplotlib', 'sklearn'].includes(imp),
+  );
+  if (scientificImports.length > 0 && !_scientific_env_loaded) {
+    postMessage({ type: 'status', stage: 'loading', progress: 0.2 });
+    postMessage({
+      type: 'stdout',
+      text: `\n[Auto-loading whitelisted packages: ${scientificImports.join(', ')} from CDN...] ⏳\n`,
+    });
+
+    // Lazy load micropip first
+    await pyodide.loadPackage('micropip');
+    const micropip = pyodide.pyimport('micropip');
+
+    const packageMap = {
+      scipy: 'scipy',
+      pandas: 'pandas',
+      matplotlib: 'matplotlib',
+      sklearn: 'scikit-learn',
+    };
+
+    const toLoad = scientificImports.map((imp) => packageMap[imp]);
+    await micropip.install(toLoad);
+
+    _scientific_env_loaded = true;
+    postMessage({
+      type: 'stdout',
+      text: `[Scientific environment loaded successfully!] ✅\n\n`,
+    });
+    postMessage({ type: 'status', stage: 'ready' });
+  }
+}
+
 // Web Worker postMessage handler (interface from UI thread)
 self.onmessage = async (event) => {
-  const { type, code, moduleCode } = event.data;
+  const { type, code, moduleCode, preloadScientific } = event.data;
 
   if (type === 'init') {
     try {
@@ -143,10 +257,25 @@ self.onmessage = async (event) => {
       pyodide = await loadPyodide({
         indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/',
       });
-      postMessage({ type: 'status', stage: 'loading', progress: 0.5 });
+      postMessage({ type: 'status', stage: 'loading', progress: 0.4 });
 
-      // Load bundled packages
+      // Load bundled packages (NumPy by default)
       await pyodide.loadPackage('numpy');
+
+      // Preload full scientific suite if requested
+      if (preloadScientific) {
+        postMessage({ type: 'status', stage: 'loading', progress: 0.6 });
+        await pyodide.loadPackage('micropip');
+        const micropip = pyodide.pyimport('micropip');
+        await micropip.install([
+          'scipy',
+          'pandas',
+          'matplotlib',
+          'scikit-learn',
+        ]);
+        _scientific_env_loaded = true;
+      }
+
       postMessage({ type: 'status', stage: 'loading', progress: 0.8 });
 
       // Build custom `anneal` module
@@ -222,6 +351,33 @@ except Exception:
         },
       });
 
+      // Whitelist check & dynamic loader pre-run
+      await enforceWhitelistAndAutoLoad(code);
+
+      if (_scientific_env_loaded) {
+        await pyodide.runPythonAsync(`
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    
+    def _custom_show(*args, **kwargs):
+        import io
+        from js import _anneal_bridge
+        fig = plt.gcf()
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+        buf.seek(0)
+        img_bytes = list(buf.read())
+        _anneal_bridge.renderPlot(img_bytes)
+        plt.close(fig)
+        
+    plt.show = _custom_show
+except Exception:
+    pass
+        `);
+      }
+
       await pyodide.runPythonAsync(code);
       postMessage({ type: 'run-complete', success: true });
     } catch (err) {
@@ -249,6 +405,33 @@ except Exception:
           postMessage({ type: 'stderr', text: str + '\n' });
         },
       });
+
+      // Whitelist check & dynamic loader pre-run
+      await enforceWhitelistAndAutoLoad(code);
+
+      if (_scientific_env_loaded) {
+        await pyodide.runPythonAsync(`
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    
+    def _custom_show(*args, **kwargs):
+        import io
+        from js import _anneal_bridge
+        fig = plt.gcf()
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+        buf.seek(0)
+        img_bytes = list(buf.read())
+        _anneal_bridge.renderPlot(img_bytes)
+        plt.close(fig)
+        
+    plt.show = _custom_show
+except Exception:
+    pass
+        `);
+      }
 
       const result = await pyodide.runPythonAsync(code);
       let resText = '';
@@ -278,5 +461,61 @@ except Exception:
     const { spectrum, partials } = event.data;
     if (spectrum) cachedSpectrum = spectrum;
     if (partials) cachedPartials = partials;
+  } else if (type === 'vfs-list') {
+    try {
+      try {
+        pyodide.FS.mkdir('/tmp');
+      } catch (e) {
+        // Ignored if directory already exists
+      }
+      const files = pyodide.FS.readdir('/tmp');
+      const list = [];
+      for (const name of files) {
+        if (name === '.' || name === '..') continue;
+        const path = `/tmp/${name}`;
+        const stat = pyodide.FS.stat(path);
+        list.push({
+          name,
+          path,
+          sizeBytes: stat.size,
+          mtime: stat.mtime,
+        });
+      }
+      postMessage({ type: 'vfs-list-response', success: true, files: list });
+    } catch (err) {
+      postMessage({
+        type: 'vfs-list-response',
+        success: false,
+        error: err.message,
+      });
+    }
+  } else if (type === 'vfs-read') {
+    try {
+      const { path } = event.data;
+      const bytes = pyodide.FS.readFile(path, { encoding: 'binary' });
+      postMessage({ type: 'vfs-read-response', success: true, path, bytes }, [
+        bytes.buffer,
+      ]);
+    } catch (err) {
+      postMessage({
+        type: 'vfs-read-response',
+        success: false,
+        path: event.data.path,
+        error: err.message,
+      });
+    }
+  } else if (type === 'vfs-delete') {
+    try {
+      const { path } = event.data;
+      pyodide.FS.unlink(path);
+      postMessage({ type: 'vfs-delete-response', success: true, path });
+    } catch (err) {
+      postMessage({
+        type: 'vfs-delete-response',
+        success: false,
+        path: event.data.path,
+        error: err.message,
+      });
+    }
   }
 };

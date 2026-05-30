@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ANNEAL_PY_MODULE } from './annealPyModule';
 
 export interface WorkerInitStatus {
@@ -15,6 +16,12 @@ export class PyodideWorker {
     | null = null;
   private onStdoutCallback: ((text: string) => void) | null = null;
   private onStderrCallback: ((text: string) => void) | null = null;
+
+  // Scientific additions: VFS and plot hooks
+  private vfsListResolver: ((files: any[]) => void) | null = null;
+  private vfsReadResolver: ((bytes: Uint8Array) => void) | null = null;
+  private vfsDeleteResolver: ((success: boolean) => void) | null = null;
+  private onPlotRenderCallback: ((bytes: number[]) => void) | null = null;
 
   constructor() {
     this.createWorker();
@@ -52,16 +59,39 @@ export class PyodideWorker {
           this.replResolver({ success, result, error });
           this.replResolver = null;
         }
+      } else if (type === 'plot-render') {
+        if (this.onPlotRenderCallback) {
+          this.onPlotRenderCallback(event.data.bytes);
+        }
+      } else if (type === 'vfs-list-response') {
+        if (this.vfsListResolver) {
+          this.vfsListResolver(event.data.files || []);
+          this.vfsListResolver = null;
+        }
+      } else if (type === 'vfs-read-response') {
+        if (this.vfsReadResolver) {
+          this.vfsReadResolver(event.data.bytes || new Uint8Array());
+          this.vfsReadResolver = null;
+        }
+      } else if (type === 'vfs-delete-response') {
+        if (this.vfsDeleteResolver) {
+          this.vfsDeleteResolver(success);
+          this.vfsDeleteResolver = null;
+        }
       }
     };
   }
 
-  init(onStatus: (status: WorkerInitStatus) => void): void {
+  init(
+    onStatus: (status: WorkerInitStatus) => void,
+    preloadScientific = false,
+  ): void {
     this.onStatusCallback = onStatus;
     if (this.worker) {
       this.worker.postMessage({
         type: 'init',
         moduleCode: ANNEAL_PY_MODULE,
+        preloadScientific,
       });
     }
   }
@@ -123,10 +153,10 @@ export class PyodideWorker {
   }
 
   syncCache(payload: {
-    params: Record<string, number>;
+    params: any;
     engineId: string;
-    engineParams: Record<string, number>;
-    tuning: Record<string, unknown>;
+    engineParams: any;
+    tuning: any;
     mode: string;
   }): void {
     if (this.worker) {
@@ -137,6 +167,43 @@ export class PyodideWorker {
     }
   }
 
+  vfsList(): Promise<any[]> {
+    return new Promise((resolve) => {
+      this.vfsListResolver = resolve;
+      if (this.worker) {
+        this.worker.postMessage({ type: 'vfs-list' });
+      } else {
+        resolve([]);
+      }
+    });
+  }
+
+  vfsRead(path: string): Promise<Uint8Array> {
+    return new Promise((resolve) => {
+      this.vfsReadResolver = resolve;
+      if (this.worker) {
+        this.worker.postMessage({ type: 'vfs-read', path });
+      } else {
+        resolve(new Uint8Array());
+      }
+    });
+  }
+
+  vfsDelete(path: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.vfsDeleteResolver = resolve;
+      if (this.worker) {
+        this.worker.postMessage({ type: 'vfs-delete', path });
+      } else {
+        resolve(false);
+      }
+    });
+  }
+
+  onPlotRender(callback: (bytes: number[]) => void): void {
+    this.onPlotRenderCallback = callback;
+  }
+
   terminate(): void {
     if (this.worker) {
       this.worker.terminate();
@@ -144,6 +211,9 @@ export class PyodideWorker {
     }
     this.runResolver = null;
     this.replResolver = null;
+    this.vfsListResolver = null;
+    this.vfsReadResolver = null;
+    this.vfsDeleteResolver = null;
     this.createWorker(); // RESTORE with clean instance
   }
 }

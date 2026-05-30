@@ -5,6 +5,8 @@ import { METHOD_SCHEMAS, BRIDGE_VERSION, SCHEMA_VERSION } from './schema';
 import type { Orchestrator } from '../../audio/orchestrator';
 import { DataLogger } from '@/datalog/DataLogger';
 import { BridgeError } from './types';
+import { renderOffline } from '@/record/OfflineRenderer';
+import { encodeWavBuffer } from '@/api/wav';
 import type {
   JsonRpcRequest,
   JsonRpcResponse,
@@ -198,6 +200,43 @@ export class BridgeServer {
       case 'anneal.state.setTuning': {
         useParamStore.getState().setTuning(params.tuning);
         return true;
+      }
+
+      case 'anneal.session.render': {
+        const duration = params?.duration ?? 30;
+        const format = params?.format ?? 'numpy';
+        const store = useParamStore.getState();
+        const activeEngineParams = store.engineParams[store.engineId];
+        if (!activeEngineParams) {
+          throw new BridgeError(
+            -32602,
+            `Missing engine parameters for active engine ${store.engineId}`,
+          );
+        }
+        const config = {
+          params: store.params,
+          engineId: store.engineId,
+          engineParams: activeEngineParams,
+          mode: 'open' as const,
+          durationSec: duration,
+          sampleRate: 44100,
+        };
+        const buffer = await renderOffline(config);
+        if (format === 'numpy') {
+          const left = buffer.getChannelData(0);
+          const right =
+            buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : left;
+          return {
+            sampleRate: buffer.sampleRate,
+            channels: [Array.from(left), Array.from(right)],
+          };
+        } else if (format === 'wav') {
+          const wavArrBuf = encodeWavBuffer(buffer);
+          return {
+            bytes: Array.from(new Uint8Array(wavArrBuf)),
+          };
+        }
+        throw new BridgeError(-32602, `Unsupported render format: ${format}`);
       }
 
       case 'anneal.session.start': {

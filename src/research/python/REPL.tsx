@@ -106,10 +106,11 @@ export const REPL: React.FC<REPLProps> = ({ onExecute, onClearOutput }) => {
     // Append outputs
     const resId = Math.random().toString(36).substring(2, 9);
     if (res.success) {
-      if (res.result) {
+      const outputText = res.result;
+      if (outputText) {
         setHistory((prev) => [
           ...prev,
-          { id: resId, type: 'output', text: res.result },
+          { id: resId, type: 'output', text: outputText },
         ]);
       }
     } else if (res.error) {

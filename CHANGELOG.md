@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.5.0] - 2026-05-30
+
+### Added
+
+- **Scientific Python Environment Integration.** Introduced a curated, high-performance Scientific Python whitelist in the background Web Worker (`scipy`, `matplotlib`, `pandas`, `scikit-learn`). Preloads standard packages from the CDN in 1-5 seconds using a dynamic preloader.
+- **Magic AST-Scan Auto-Import Interceptor.** Shipped an AST-based parser that scans user Python scripts on execution. If a whitelisted package (e.g. `pandas` or `scipy`) is imported but not yet loaded, it halts execution, displays a dynamic console message, auto-loads the package dynamically from the CDN, and seamlessly executes the script.
+- **Curated Whitelist Guard.** Implemented an ironclad JS-level import guard inside `pyodide-worker.js` that checks all import statements against our curated whitelist before execution, raising a clear and secure error for arbitrary third-party packages.
+- **matplotlib Virtual Web Worker WebAgg-Style Backend.** Created a virtual image-render bridge that allows headless matplotlib execution inside a background Web Worker. Overrides `plt.show()` to render active figures into high-density PNG bytes (using the stable `Agg` backend), sends the bytes to the UI thread, and draws them on an in-page canvas.
+- **Multi-Figure Tabbed Plot Canvas UI.** Designed a premium glassmorphic, tabbed Matplotlib Plot display widget in the scripting panel, showing sequential figures with a clean header switch, a toolbar, and clear actions.
+- **Extended `anneal` Python Library.** Added five new high-value scientific methods to the custom module:
+  - `anneal.session_log()`: Ingests active ticks and flattens them using `pandas.json_normalize` into a clean tabular DataFrame.
+  - `anneal.stream_log()`: Implemented as an async generator that yields pandas DataFrames in real time without blocking.
+  - `anneal.sweep()`: Asynchronously drives multi-dimensional parameter grids and returns consolidated summary matrices.
+  - `anneal.features()`: Extracts real-time audio features (`rms`, `spectralCentroid`, `spectralFlux`, `zcr`) over target intervals.
+  - `anneal.render()`: Asynchronously runs offline audio rendering, returning a 2D NumPy array of samples or encoding a 16-bit PCM WAV written directly to MEMFS.
+- **Pyodide Virtual Filesystem (VFS) Panel.** Created a beautiful VFS explorer panel in the workspace displaying all files saved inside Pyodide's virtual `/tmp` MEMFS directory. Connects actions to download virtual files directly to the host filesystem via Object URLs or unlink/delete them to free browser memory.
+- **Robust VFS and Whitelist Test Suite.** Shipped Vitest unit test suites (`whitelist.test.ts` and `vfs.test.ts`) achieving 100% coverage on import detection, whitelisting validation, VFS actions, and plot rendering callback bridges.
+
 ## [5.4.0] - 2026-05-30
 
 ### Added
