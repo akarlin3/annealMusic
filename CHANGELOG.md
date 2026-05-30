@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.0] - 2026-05-30
+
+### Added
+
+- **Standalone Headless CLI (`annealmusic`).** Shipped a powerful standalone Node command-line interface (`tools/cli/`) that compiles to native binary executables. Reuses the production offline audio engines and ensures sample-level rendering parity.
+- **Node Audio Synthesis Engine.** Implements a pure-Node rendering pipeline wrapping `node-web-audio-api` and shimming browser-like Web Audio contexts and AudioWorklets.
+- **Chromium Playwright Rendering Backend.** Shipped an absolute parity fallback engine using headless Chromium via Playwright, programmatically driving a local static micro-server loading `dist/render.html` and returning base64 PCM frames.
+- **Multi-Dimensional Cartesian Sweeps.** Implements batch parameter sweeps, computing linear expansions (`range`) and Cartesian products across any number of varies parameters and seeds.
+- **Automatic Pieces & Sessions Rendering.** Auto-calculates durations from piece segment lists and structures listening session settle-in, integration, and Zen mindfulness bell schedule triggers.
+- **High-Performance Job Concurrency Pools.** Implements parallel queueing worker scheduler (`--jobs N`) for high-throughput sweeps.
+- **Intelligent Skip-Resume Mechanics.** Adds `--resume` resume capabilities that verify previously computed renders in `manifest.json` and skips redundant work.
+- **Reproducibility Manifest & SHA-256 Checksums.** Writes `manifest.json` detailing execution metadata and exact cryptographically secure SHA-256 checksums on all outputs.
+- **Sample-Level Parity Auditing.** Shipped `verify-parity` command that loads WAV files, decodes PCM float frames, and computes frame-by-frame Mean Squared Error (MSE), Root Mean Squared Error (RMSE), and maximum difference.
+- **High-Throughput Cluster Scheduling.** Exposes `sweep-get-payload` and `sweep-get-filename` commands allowing stateless Slurm job arrays to run large-scale sweeps.
+
 ## [5.1.0] - 2026-05-30
 
 ### Added

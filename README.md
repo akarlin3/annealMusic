@@ -71,6 +71,21 @@ npx cap run ios    # run the native iOS app
 npx cap run android # run the native Android app
 ```
 
+### Standalone Headless CLI (`annealmusic`)
+
+AnnealMusic features a powerful standalone CLI (`tools/cli/`) that compiles to native binary executables. It lets you render patches, pieces, and listening sessions directly to high-fidelity Broadcast Wave Format (BWF) WAV files at scale. It supports parallel multi-dimensional Cartesian parameter sweeps, resume skipping, and cluster task queue arrays.
+
+See the complete guides in [docs/CLI.md](docs/CLI.md) and [docs/CLUSTER.md](docs/CLUSTER.md).
+
+To build and run:
+
+```bash
+cd tools/cli
+npm install
+npm run build
+node dist/index.js --help
+```
+
 ## Project structure
 
 ```

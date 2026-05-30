@@ -6,6 +6,8 @@ import { runRender } from './commands/render.js';
 import { validateFile } from './commands/validate.js';
 import { printFileInfo } from './commands/info.js';
 import { runVerifyParity } from './commands/verifyParity.js';
+import * as fs from 'node:fs';
+import { generateSweepCombinations } from './output/sweep.js';
 
 const program = new Command();
 
@@ -126,6 +128,49 @@ program
   .description('Compare two WAV files to check for sample parity')
   .action(async (fileA, fileB) => {
     await runVerifyParity(fileA, fileB);
+  });
+
+// 9. Sweep helper commands for Slurm job arrays
+program
+  .command('sweep-get-payload <file> <index>')
+  .description('Print the payload for a specific sweep combination index')
+  .action((file, indexStr) => {
+    try {
+      const sweep = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const combinations = generateSweepCombinations(sweep);
+      const index = parseInt(indexStr, 10);
+      if (index < 0 || index >= combinations.length) {
+        console.error(
+          `Index ${index} is out of bounds [0, ${combinations.length - 1}]`,
+        );
+        process.exit(1);
+      }
+      process.stdout.write(combinations[index]!.payload);
+    } catch (err: any) {
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('sweep-get-filename <file> <index>')
+  .description('Print the filename for a specific sweep combination index')
+  .action((file, indexStr) => {
+    try {
+      const sweep = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const combinations = generateSweepCombinations(sweep);
+      const index = parseInt(indexStr, 10);
+      if (index < 0 || index >= combinations.length) {
+        console.error(
+          `Index ${index} is out of bounds [0, ${combinations.length - 1}]`,
+        );
+        process.exit(1);
+      }
+      process.stdout.write(combinations[index]!.filename);
+    } catch (err: any) {
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    }
   });
 
 // Run parser
