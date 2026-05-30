@@ -166,6 +166,24 @@ the `AudioContext` clock, so long sessions stay accurate. (Both current engines
 lock density while playing, so Dawn/Dusk's density move is held — they sweep
 brightness and spread instead.)
 
+## Breath pacing
+
+Listening Sessions, Drone Mode, and the Standalone Timer (`/timer`) can show an
+optional, silent, **visual** breath-pacing cue: a slow-pulsing amber circle that
+expands on the inhale, holds at the peak/trough, and contracts on the exhale,
+ringed by a cycle-progress indicator. It composes over the existing visualizer
+(which dims slightly so the cue reads) and shows **no numerals** — just motion.
+
+Four built-in patterns ship — **Box** (4-4-4-4), **4-7-8**, **Coherent**
+(5.5/min), and **Resonance** (4.5/min) — each with honest evidence framing, plus
+a bounded **custom** pattern. It's off by default and opt-in (per session for
+Listening Sessions; per device for Drone and the Timer). The cycle is driven by
+the `AudioContext` clock, so backgrounded tabs and long sessions never drift.
+`prefers-reduced-motion` is honored (a colour fade replaces the size pulse), and
+native mobile builds can add an optional gentle haptic at phase transitions
+(off by default). It's strictly visual — no breath sounds or chimes; the music
+stays the only audio surface. See [docs/BREATH.md](docs/BREATH.md).
+
 ## Live input
 
 Bring a live instrument — bass, guitar, voice, anything mic'd — into the texture

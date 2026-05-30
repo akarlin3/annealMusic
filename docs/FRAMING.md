@@ -56,3 +56,33 @@ When these systems are active in the control panel or patch builder, the followi
 - **Solfeggio:** _"These nine frequencies are a modern reconstruction often associated with healing claims. AnnealMusic supports them because they produce a distinct non-octave-equivalent texture. The peer-reviewed evidence for specific clinical effects of these frequencies is absent."_
 - **432 Hz Reference:** _"The claim that 432 Hz possesses unique natural healing or acoustic properties is unsupported by scientific literature. AnnealMusic includes this option because the slight downward pitch shift produces a subtly warmer and different timbre."_
 - **Historical Western / Pythagorean:** _"Historical Western temperaments give different keys unique 'colors' due to unevenly distributed intervals. They produce beautiful acoustic textures but do not offer targeted physiological or medical benefits."_
+
+---
+
+## 4. Breath Pacing (v4.4)
+
+The optional visual breath-pacing overlay is a paced-breathing **wellness aid**,
+not a clinical intervention. Paced slow breathing is broadly calming for many
+people; AnnealMusic offers it because a gentle visual rhythm can help some
+listeners settle. We do not claim specific physiological or medical outcomes.
+
+### 4.1 Per-Pattern Framing
+
+Each built-in pattern displays its origin **and** the state of the evidence. The
+copy lives once in `src/breath/patterns.ts` so the UI and docs cannot drift:
+
+- **Box (4-4-4-4):** _"A simple, symmetric pattern — equal inhale, hold, exhale, and hold. Widely used for focus and steadying; calming for many. No specific clinical outcome is claimed."_
+- **4-7-8:** _"Popularized by Andrew Weil. Calming for many practitioners. Specific physiological mechanism claims (e.g. immediate vagal activation) are not well-established."_
+- **Coherent (5.5/min):** _"Slow, even breathing at about 5.5 breaths per minute. May improve heart rate variability in controlled studies; long-term clinical claims are less settled."_
+- **Resonance (4.5/min):** _"A slightly slower paced breath (~4.5/min) used in HeartMath-style approaches. Associated with HRV biofeedback work; evidence for durable clinical benefit is mixed."_
+
+### 4.2 Custom Patterns Carry No Framing
+
+Custom patterns are the user's own choice and carry **no** evidence framing. The
+UI simply notes: _"Any breath pattern that feels comfortable is good."_
+
+### 4.3 No Overstated Mechanisms
+
+Avoid language implying guaranteed vagal activation, nervous-system "resets",
+HRV "training", or clinical anxiety treatment. Heart-rate-variability research is
+cited only with its uncertainty intact (see the coherent/resonance copy above).
