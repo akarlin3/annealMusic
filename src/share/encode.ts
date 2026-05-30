@@ -190,6 +190,16 @@ export interface DecodedPiece {
   notation?: NotationNote[];
   movements?: Movement[];
   automationTracks?: AutomationTrack[];
+  bellSchedule?: BellEvent[];
+}
+
+export interface BellEvent {
+  bellId: string;
+  trigger: 'at-start' | 'at-end' | 'at-time' | 'every' | 'at-movement-start' | 'at-movement-end';
+  offsetMs?: number; // Used for 'at-start', 'at-end', 'at-time'
+  intervalMin?: number; // Used for 'every'
+  movementIndex?: number; // Used for 'at-movement-start', 'at-movement-end'
+  volume: number; // 0..1, default 0.7
 }
 
 export interface DecodedListeningSession {
@@ -201,8 +211,7 @@ export interface DecodedListeningSession {
   recommendedEnvironment?: string;
   settleInMs: number;
   integrationMs: number;
-  openingTone: boolean;
-  closingTone: boolean;
+  bellSchedule: BellEvent[];
 }
 
 export type DecodedState =
@@ -565,6 +574,7 @@ export function decodePiecePayload(
   let variationSeed: number | null = null;
   let variations: VariationPoint[] = [];
   let notation: NotationNote[] = [];
+  let bellSchedule: BellEvent[] = [];
   const defPairs: string[] = [];
   const automationTracksMap = new Map<string, AutomationPoint[]>();
   const segMap: Record<
@@ -623,6 +633,12 @@ export function decodePiecePayload(
           pitch_midi: pitch,
         };
       });
+    } else if (key === 'b.sched') {
+      try {
+        bellSchedule = JSON.parse(decodeURIComponent(raw));
+      } catch (e) {
+        console.warn('Failed to parse piece bell schedule from URL', e);
+      }
     } else if (key.startsWith('auto.')) {
       const paramKey = key.slice(5);
       if (raw !== '') {
@@ -794,6 +810,7 @@ export function decodePiecePayload(
     movements: movements.length > 0 ? movements : undefined,
     automationTracks:
       automationTracks.length > 0 ? automationTracks : undefined,
+    bellSchedule: bellSchedule.length > 0 ? bellSchedule : undefined,
   };
 }
 
@@ -902,6 +919,9 @@ export function encodePiece(piece: {
   if (piece.variations && piece.variations.length > 0) {
     const val = piece.variations.map(encodeVariationPoint).join(';');
     parts.push(`v.p=${encodeURIComponent(val)}`);
+  }
+  if (piece.bellSchedule && piece.bellSchedule.length > 0) {
+    parts.push(`b.sched=${encodeURIComponent(JSON.stringify(piece.bellSchedule))}`);
   }
   if (piece.notation && piece.notation.length > 0) {
     const encodedNotes = piece.notation
@@ -1069,6 +1089,7 @@ export function decodeListeningSessionPayload(
   let integrationMs = 60000;
   let openingTone = false;
   let closingTone = false;
+  let bellSchedule: BellEvent[] = [];
 
   for (const pair of payload.split('&')) {
     if (pair === '') continue;
@@ -1097,6 +1118,22 @@ export function decodeListeningSessionPayload(
       openingTone = raw === '1' || raw === 'true';
     } else if (key === 'closeB') {
       closingTone = raw === '1' || raw === 'true';
+    } else if (key === 'b.sched') {
+      try {
+        bellSchedule = JSON.parse(decodeURIComponent(raw));
+      } catch (e) {
+        console.warn('Failed to parse bell schedule from URL:', e);
+      }
+    }
+  }
+
+  // Auto-migrate legacy boolean fields to single-bell at-start / at-end schedule events
+  if (bellSchedule.length === 0) {
+    if (openingTone) {
+      bellSchedule.push({ bellId: 'zen_bell_rin', trigger: 'at-start', volume: 0.7 });
+    }
+    if (closingTone) {
+      bellSchedule.push({ bellId: 'zen_bell_rin', trigger: 'at-end', volume: 0.7 });
     }
   }
 
@@ -1109,8 +1146,7 @@ export function decodeListeningSessionPayload(
     recommendedEnvironment,
     settleInMs,
     integrationMs,
-    openingTone,
-    closingTone,
+    bellSchedule,
   };
 }
 
@@ -1130,7 +1166,8 @@ export function encodeListeningSession(
     parts.push(`env=${encodeURIComponent(session.recommendedEnvironment)}`);
   parts.push(`settle=${session.settleInMs}`);
   parts.push(`integrate=${session.integrationMs}`);
-  parts.push(`openB=${session.openingTone ? '1' : '0'}`);
-  parts.push(`closeB=${session.closingTone ? '1' : '0'}`);
+  if (session.bellSchedule && session.bellSchedule.length > 0) {
+    parts.push(`b.sched=${encodeURIComponent(JSON.stringify(session.bellSchedule))}`);
+  }
   return parts.join('&');
 }

@@ -1,5 +1,6 @@
 import type { AnnealMusicParams } from '@/state/params';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
+import type { BellEvent } from '@/audio/bells/scheduler';
 
 export type SegmentType = 'fixed' | 'arc' | 'open' | 'transition' | 'meta-arc';
 
@@ -79,4 +80,5 @@ export interface Piece {
   variations?: VariationPoint[];
   movements?: Movement[];
   automationTracks?: AutomationTrack[];
+  bellSchedule?: BellEvent[];
 }

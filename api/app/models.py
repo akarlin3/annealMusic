@@ -465,6 +465,7 @@ class Piece(Base):
     ai_description: Mapped[str | None] = mapped_column(String, nullable=True)
     total_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     has_open_segment: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    bell_schedule: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -549,9 +550,9 @@ class ListeningSession(Base):
     recommended_environment: Mapped[str | None] = mapped_column(String, nullable=True)
     settle_in_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=30000)
     integration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=60000)
-    opening_tone: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    closing_tone: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    bell_schedule: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
     total_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     visibility: Mapped[str] = mapped_column(
         String, nullable=False, default="unlisted"
     )

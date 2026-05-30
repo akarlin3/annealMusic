@@ -1,9 +1,9 @@
 /**
- * Karplus-Strong plucked string, extended for *continuous* excitation.
+ * Digital waveguide string, extended for *continuous* excitation.
  *
- * A delay line of length `sampleRate / f0` with a one-pole low-pass in the
- * feedback path. The classic algorithm seeds the line with a burst of noise once
- * (a pluck); the ambient extension instead injects filtered noise every sample,
+ * A delay line w/ 3rd-order Lagrange fractional-delay loop and exact loop low-pass
+ * phase-delay compensation. The classic algorithm seeds the line with a burst of noise
+ * once (a pluck); the ambient extension instead injects filtered noise every sample,
  * so the string sustains like a bowed/aeolian tone. `damping` sets the feedback
  * gain (string Q / decay); `brightness` sets the loop low-pass cutoff.
  *
@@ -39,16 +39,23 @@ export class KarplusStrong {
     this.baseFreq = f0;
     // Max delay sized for the lowest supported fundamental (~20 Hz).
     this.buf = new Float32Array(Math.ceil(sampleRate / 20) + 4);
-    this.delay = this.computeDelay();
     this.fb = dampingToFeedback(damping);
     this.loopCoef = brightnessToLoopCoef(brightness);
+    this.delay = this.computeDelay();
     this.exciter = new NoiseExciter(sampleRate, excitation, brightness, rng);
   }
 
   private computeDelay(): number {
     const freq = this.baseFreq * Math.pow(2, this.detuneCents / 1200);
-    const d = this.sampleRate / Math.max(20, freq);
-    return Math.max(2, Math.min(this.buf.length - 1, d));
+    const dTarget = this.sampleRate / Math.max(20, freq);
+    // Exact phase delay of one-pole low-pass: theta / w
+    const w = (2.0 * Math.PI * freq) / this.sampleRate;
+    const c = this.loopCoef;
+    const theta = Math.atan2((1.0 - c) * Math.sin(w), 1.0 - (1.0 - c) * Math.cos(w));
+    const dLp = w > 0.0 ? theta / w : (1.0 - c) / c;
+    const dCompensated = dTarget - dLp;
+    // Clamp to ensure stable and safe Lagrange buffer reads (min 2.0, max buf.length - 3)
+    return Math.max(2.0, Math.min(this.buf.length - 3.0, dCompensated));
   }
 
   setFrequency(f0: number): void {
@@ -68,6 +75,7 @@ export class KarplusStrong {
   setBrightness(brightness: number): void {
     this.loopCoef = brightnessToLoopCoef(brightness);
     this.exciter.setBrightness(brightness);
+    this.delay = this.computeDelay();
   }
 
   setExcitation(level: number): void {
@@ -79,10 +87,21 @@ export class KarplusStrong {
     const len = this.buf.length;
     const readPos = (this.idx - this.delay + len) % len;
     const i0 = Math.floor(readPos);
-    const frac = readPos - i0;
-    const a = this.buf[i0] ?? 0;
-    const b = this.buf[(i0 + 1) % len] ?? 0;
-    const sample = a + frac * (b - a);
+    const d = readPos - i0; // fractional part [0, 1)
+
+    // Four closest sample points for 3rd-order Lagrange interpolation
+    const y_neg1 = this.buf[(i0 - 1 + len) % len] ?? 0;
+    const y_0 = this.buf[i0] ?? 0;
+    const y_1 = this.buf[(i0 + 1) % len] ?? 0;
+    const y_2 = this.buf[(i0 + 2) % len] ?? 0;
+
+    // Lagrange polynomial coefficients
+    const c_neg1 = -d * (d - 1) * (d - 2) / 6;
+    const c_0 = (d + 1) * (d - 1) * (d - 2) / 2;
+    const c_1 = -(d + 1) * d * (d - 2) / 2;
+    const c_2 = (d + 1) * d * (d - 1) / 6;
+
+    const sample = c_neg1 * y_neg1 + c_0 * y_0 + c_1 * y_1 + c_2 * y_2;
 
     // One-pole low-pass in the feedback path (string losses → brightness).
     this.lp += this.loopCoef * (sample - this.lp);

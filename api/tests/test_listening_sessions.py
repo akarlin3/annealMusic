@@ -57,7 +57,7 @@ async def test_create_and_get_listening_session(client):
         headers=h,
         json={
             "piece_id": piece["id"],
-            "schema_ver": 16,
+            "schema_ver": 19,
             "title": "Evening Meditation",
             "description": "Slow down and breathe.",
             "intention": "Evening Release",
@@ -65,8 +65,10 @@ async def test_create_and_get_listening_session(client):
             "recommended_environment": "Quiet room",
             "settle_in_ms": 15000,
             "integration_ms": 30000,
-            "opening_tone": True,
-            "closing_tone": True,
+            "bell_schedule": [
+                {"bellId": "zen_bell_rin", "trigger": "at-start", "volume": 0.7},
+                {"bellId": "zen_bell_rin", "trigger": "at-end", "volume": 0.7},
+            ],
             "visibility": "unlisted",
         },
     )
@@ -74,10 +76,10 @@ async def test_create_and_get_listening_session(client):
     ls = ls_res.json()
     assert ls["title"] == "Evening Meditation"
     assert ls["piece_id"] == piece["id"]
-    assert ls["opening_tone"] is True
-    assert ls["closing_tone"] is True
-    # 10s piece + 4s opening bell + 4s closing bell = 18s total
-    assert ls["total_duration_ms"] == 18000
+    assert len(ls["bell_schedule"]) == 2
+    assert ls["bell_schedule"][0]["bellId"] == "zen_bell_rin"
+    # Layered concurrently, total duration is exactly the piece's duration
+    assert ls["total_duration_ms"] == 10000
     assert ls["piece"]["title"] == "My Composition"
     assert ls["short_slug"]
 
@@ -168,9 +170,9 @@ async def test_update_and_delete_listening_session(client):
         headers=h,
         json={
             "piece_id": piece["id"],
-            "schema_ver": 16,
+            "schema_ver": 19,
             "title": "Calm Sitting",
-            "opening_tone": False,
+            "bell_schedule": [],
         },
     )
     ls = ls_res.json()
@@ -182,15 +184,16 @@ async def test_update_and_delete_listening_session(client):
         headers=h,
         json={
             "title": "Deep Settle",
-            "opening_tone": True,
+            "bell_schedule": [{"bellId": "zen_bell_rin", "trigger": "at-start", "volume": 0.7}],
         },
     )
     assert patch_res.status_code == 200
     updated = patch_res.json()
     assert updated["title"] == "Deep Settle"
-    assert updated["opening_tone"] is True
-    # 1000ms piece + 4000ms opening bell = 5000ms total
-    assert updated["total_duration_ms"] == 5000
+    assert len(updated["bell_schedule"]) == 1
+    assert updated["bell_schedule"][0]["trigger"] == "at-start"
+    # Layered concurrently, total duration is exactly the piece's duration
+    assert updated["total_duration_ms"] == 1000
 
     # Delete
     del_res = await client.delete(f"/api/v1/listening-sessions/{ls['id']}", headers=h)

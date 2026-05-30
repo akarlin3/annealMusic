@@ -392,7 +392,7 @@ class PieceSegmentCreate(BaseModel):
 
 
 class PieceCreate(BaseModel):
-    schema_ver: int = 8
+    schema_ver: int = 19
     defaults_state: dict
     title: str | None = Field(default=None, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
@@ -404,6 +404,7 @@ class PieceCreate(BaseModel):
     variation_seed: int | None = None
     variations: list[dict] | None = None
     automation_tracks: list[dict] | None = None
+    bell_schedule: list[dict] = Field(default_factory=list)
     acknowledge_source_visibility: bool = False
 
 
@@ -419,6 +420,7 @@ class PieceUpdate(BaseModel):
     variation_seed: int | None = None
     variations: list[dict] | None = None
     automation_tracks: list[dict] | None = None
+    bell_schedule: list[dict] | None = None
     acknowledge_source_visibility: bool = False
 
 
@@ -456,6 +458,7 @@ class PieceOut(BaseModel):
     variation_seed: int | None = None
     variations: list[dict] | None = None
     automation_tracks: list[dict] | None = None
+    bell_schedule: list[dict] = Field(default_factory=list)
     # derived/social columns
     like_count: int = 0
     liked_by_me: bool = False
@@ -477,7 +480,7 @@ class PieceListOut(BaseModel):
 class ListeningSessionCreate(BaseModel):
     piece_id: uuid.UUID | None = None
     patch_id: uuid.UUID | None = None
-    schema_ver: int = 18
+    schema_ver: int = 19
     title: str | None = Field(default=None, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     intention: str | None = Field(default=None, max_length=120)
@@ -485,8 +488,7 @@ class ListeningSessionCreate(BaseModel):
     recommended_environment: str | None = Field(default=None, max_length=120)
     settle_in_ms: int = Field(default=30000, ge=0)
     integration_ms: int = Field(default=60000, ge=0)
-    opening_tone: bool = False
-    closing_tone: bool = False
+    bell_schedule: list[dict] = Field(default_factory=list)
     visibility: Visibility = "unlisted"
 
 
@@ -500,8 +502,7 @@ class ListeningSessionUpdate(BaseModel):
     recommended_environment: str | None = Field(default=None, max_length=120)
     settle_in_ms: int | None = Field(default=None, ge=0)
     integration_ms: int | None = Field(default=None, ge=0)
-    opening_tone: bool | None = None
-    closing_tone: bool | None = None
+    bell_schedule: list[dict] | None = None
     visibility: Visibility | None = None
 
 
@@ -520,13 +521,13 @@ class ListeningSessionOut(BaseModel):
     recommended_environment: str | None
     settle_in_ms: int
     integration_ms: int
-    opening_tone: bool
-    closing_tone: bool
+    bell_schedule: list[dict] = Field(default_factory=list)
     total_duration_ms: int | None
     visibility: str
     short_slug: str
     created_at: datetime
     updated_at: datetime
+
     
     piece: PieceOut | None = None
     patch: PatchOut | None = None

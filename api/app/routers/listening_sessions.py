@@ -90,8 +90,7 @@ async def to_out(
         recommended_environment=ls.recommended_environment,
         settle_in_ms=ls.settle_in_ms,
         integration_ms=ls.integration_ms,
-        opening_tone=ls.opening_tone,
-        closing_tone=ls.closing_tone,
+        bell_schedule=ls.bell_schedule,
         total_duration_ms=ls.total_duration_ms,
         visibility=ls.visibility,
         short_slug=ls.short_slug,
@@ -131,16 +130,10 @@ def _decode_cursor(cursor: str) -> datetime | None:
         return None
 
 
-def _calc_total_duration(piece: Piece | None, opening_tone: bool, closing_tone: bool) -> int | None:
+def _calc_total_duration(piece: Piece | None) -> int | None:
     if piece is None or piece.total_duration_ms is None:
         return None
-    bell_ms = 4000
-    duration = piece.total_duration_ms
-    if opening_tone:
-        duration += bell_ms
-    if closing_tone:
-        duration += bell_ms
-    return duration
+    return piece.total_duration_ms
 
 
 @router.post(
@@ -163,7 +156,7 @@ async def create_listening_session(
             raise not_found("piece")
         if piece.user_id != user.id and piece.visibility != "public":
             raise forbidden("Referenced piece must be public or owned by you")
-        total_duration = _calc_total_duration(piece, body.opening_tone, body.closing_tone)
+        total_duration = _calc_total_duration(piece)
     else:
         from app.models import Patch
         patch = await session.get(Patch, body.patch_id)
@@ -186,10 +179,6 @@ async def create_listening_session(
             drone_duration = 60 * 60 * 1000
         
         total_duration = drone_duration
-        if body.opening_tone:
-            total_duration += 4000
-        if body.closing_tone:
-            total_duration += 4000
 
     ls = ListeningSession(
         user_id=user.id,
@@ -203,8 +192,7 @@ async def create_listening_session(
         recommended_environment=body.recommended_environment,
         settle_in_ms=body.settle_in_ms,
         integration_ms=body.integration_ms,
-        opening_tone=body.opening_tone,
-        closing_tone=body.closing_tone,
+        bell_schedule=body.bell_schedule,
         total_duration_ms=total_duration,
         visibility=body.visibility,
         short_slug=new_slug(),
@@ -282,17 +270,15 @@ async def update_listening_session(
         ls.settle_in_ms = body.settle_in_ms
     if body.integration_ms is not None:
         ls.integration_ms = body.integration_ms
-    if body.opening_tone is not None:
-        ls.opening_tone = body.opening_tone
-    if body.closing_tone is not None:
-        ls.closing_tone = body.closing_tone
+    if body.bell_schedule is not None:
+        ls.bell_schedule = body.bell_schedule
     if body.visibility is not None:
         ls.visibility = body.visibility
 
     # Recalculate total duration
     if ls.piece_id is not None:
         piece = await session.get(Piece, ls.piece_id)
-        ls.total_duration_ms = _calc_total_duration(piece, ls.opening_tone, ls.closing_tone)
+        ls.total_duration_ms = _calc_total_duration(piece)
     elif ls.patch_id is not None:
         # Calculate drone duration based on length category
         drone_duration = 30 * 60 * 1000 # default to 30 mins
@@ -305,12 +291,7 @@ async def update_listening_session(
         elif ls.length_category == "extended":
             drone_duration = 60 * 60 * 1000
         
-        total_duration = drone_duration
-        if ls.opening_tone:
-            total_duration += 4000
-        if ls.closing_tone:
-            total_duration += 4000
-        ls.total_duration_ms = total_duration
+        ls.total_duration_ms = drone_duration
     else:
         ls.total_duration_ms = None
 

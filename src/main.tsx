@@ -13,6 +13,7 @@ import DeepLinkHandler from '@/components/DeepLinkHandler';
 import MidiSettingsPage from '@/midi/components/MidiSettingsPage';
 import PiecePage from '@/pages/PiecePage';
 import ListeningSessionPage from '@/pages/ListeningSessionPage';
+import MeditationTimerPage from '@/pages/MeditationTimerPage';
 import '@/styles/index.css';
 
 // Lazy load the AdminPage conditionally to tree-shake it out of mobile builds
@@ -54,6 +55,7 @@ createRoot(rootEl).render(
             <Route path="/u/:account_id" element={<ProfilePage />} />
             <Route path="/legal/terms" element={<TermsPage />} />
             <Route path="/legal/privacy" element={<PrivacyPage />} />
+            <Route path="/timer" element={<MeditationTimerPage />} />
           </Routes>
         </JamProvider>
       </AuthProvider>

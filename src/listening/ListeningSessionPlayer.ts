@@ -1,22 +1,20 @@
 import type { Piece, PieceSegment } from '@/piece/types';
 import { PiecePlayer } from '@/piece/PiecePlayer';
 import type { Orchestrator } from '@/audio/orchestrator';
-import { playBell } from './punctuation';
+import {
+  BellEvent,
+  BellScheduler,
+  resolveBellSchedule,
+} from '@/audio/bells/scheduler';
 
 export interface ListeningSessionConfig {
   piece: Piece;
   settleInMs: number;
   integrationMs: number;
-  openingTone: boolean;
-  closingTone: boolean;
+  bellSchedule: BellEvent[];
 }
 
-export type ListeningSessionState =
-  | 'idle'
-  | 'opening_bell'
-  | 'sounding'
-  | 'closing_bell'
-  | 'ended';
+export type ListeningSessionState = 'idle' | 'sounding' | 'ended';
 
 export class ListeningSessionPlayer {
   private config: ListeningSessionConfig;
@@ -32,7 +30,7 @@ export class ListeningSessionPlayer {
 
   private lastTickTime = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
-  private closingBellStartMs = 0;
+  private bellScheduler: BellScheduler | null = null;
 
   private onProgressCallback:
     | ((progress: number, remainingMs: number) => void)
@@ -68,10 +66,8 @@ export class ListeningSessionPlayer {
   }
 
   private calculateTotalDuration(): number {
-    let total = this.pieceDurationMs;
-    if (this.config.openingTone) total += 4000;
-    if (this.config.closingTone) total += 4000;
-    return total;
+    // Bells layer concurrently on top of playback, so total session duration is exactly the piece's duration
+    return this.pieceDurationMs;
   }
 
   start(
@@ -88,18 +84,45 @@ export class ListeningSessionPlayer {
     // Start orchestrator so Web Audio context exists for chimes / engine
     this.orchestrator.start();
 
-    if (this.config.openingTone) {
-      this.sessionState = 'opening_bell';
-      this.elapsedMs = 0;
-      this.triggerBell();
-    } else {
-      this.sessionState = 'sounding';
-      this.elapsedMs = 0;
-      this.piecePlayer.start(
-        undefined, // Piece progress is tracked internally in tick
-        () => this.handlePieceEnded(),
+    // Resolve & initialize BellScheduler
+    const tap = this.orchestrator.getRecordingTap();
+    if (tap) {
+      this.bellScheduler = new BellScheduler(tap.ctx, tap.node);
+      const segmentDurations = this.config.piece.segments.map((seg) =>
+        this.getPieceSegmentDuration(seg),
       );
+      
+      // Resolve piece schedule
+      const resolvedPieceSched = resolveBellSchedule(
+        this.config.piece.bellSchedule || [],
+        this.pieceDurationMs,
+        segmentDurations,
+        this.config.piece.movements,
+      );
+
+      // Resolve listening session schedule
+      const resolvedSessionSched = resolveBellSchedule(
+        this.config.bellSchedule || [],
+        this.totalDurationMs,
+        segmentDurations,
+        this.config.piece.movements,
+      );
+
+      // Merge and sort all bell events
+      const merged = [...resolvedPieceSched, ...resolvedSessionSched].sort(
+        (a, b) => a.offsetMs - b.offsetMs,
+      );
+
+      this.bellScheduler.setTriggers(merged);
+      this.bellScheduler.start(0);
     }
+
+    this.sessionState = 'sounding';
+    this.elapsedMs = 0;
+    this.piecePlayer.start(
+      undefined, // Piece progress is tracked internally in tick
+      () => this.handlePieceEnded(),
+    );
 
     this.timer = setInterval(() => {
       this.tick();
@@ -116,6 +139,7 @@ export class ListeningSessionPlayer {
     if (this.sessionState === 'sounding') {
       this.piecePlayer.pause();
     }
+    this.bellScheduler?.stop();
   }
 
   resume(): void {
@@ -126,6 +150,7 @@ export class ListeningSessionPlayer {
     if (this.sessionState === 'sounding') {
       this.piecePlayer.start(undefined, () => this.handlePieceEnded());
     }
+    this.bellScheduler?.start(this.elapsedMs);
 
     this.timer = setInterval(() => {
       this.tick();
@@ -140,30 +165,17 @@ export class ListeningSessionPlayer {
       this.timer = null;
     }
     this.piecePlayer.stop();
+    this.bellScheduler?.stop();
+    this.bellScheduler = null;
     this.orchestrator.stop();
     this.elapsedMs = 0;
   }
 
-  private triggerBell(): void {
-    const tap = this.orchestrator.getRecordingTap();
-    const dest =
-      this.orchestrator.getAnalyser() || this.orchestrator.getNodes()?.master;
-    if (tap?.ctx && dest) {
-      playBell(tap.ctx, dest, 660);
-    }
-  }
-
   private handlePieceEnded(): void {
-    if (this.config.closingTone) {
-      this.sessionState = 'closing_bell';
-      this.closingBellStartMs = this.elapsedMs;
-      this.triggerBell();
-    } else {
-      this.sessionState = 'ended';
-      this.stop();
-      if (this.onEndedCallback) {
-        this.onEndedCallback();
-      }
+    this.sessionState = 'ended';
+    this.stop();
+    if (this.onEndedCallback) {
+      this.onEndedCallback();
     }
   }
 
@@ -179,17 +191,7 @@ export class ListeningSessionPlayer {
     const nodes = this.orchestrator.getNodes();
     const ctx = this.orchestrator.getRecordingTap()?.ctx;
 
-    if (this.sessionState === 'opening_bell') {
-      // Keep master gain completely silent during opening chime decay
-      if (nodes?.masterVol && ctx) {
-        nodes.masterVol.gain.setValueAtTime(0, ctx.currentTime);
-      }
-
-      if (this.elapsedMs >= 4000) {
-        this.sessionState = 'sounding';
-        this.piecePlayer.start(undefined, () => this.handlePieceEnded());
-      }
-    } else if (this.sessionState === 'sounding') {
+    if (this.sessionState === 'sounding') {
       // Calculate active piece playhead
       const segIdx = this.piecePlayer.getActiveSegmentIndex();
       let piecePlayhead = 0;
@@ -217,19 +219,6 @@ export class ListeningSessionPlayer {
 
       if (nodes?.masterVol && ctx) {
         nodes.masterVol.gain.setValueAtTime(fadeFactor, ctx.currentTime);
-      }
-    } else if (this.sessionState === 'closing_bell') {
-      // Keep master gain silent during closing chime decay
-      if (nodes?.masterVol && ctx) {
-        nodes.masterVol.gain.setValueAtTime(0, ctx.currentTime);
-      }
-
-      if (this.elapsedMs - this.closingBellStartMs >= 4000) {
-        this.sessionState = 'ended';
-        this.stop();
-        if (this.onEndedCallback) {
-          this.onEndedCallback();
-        }
       }
     }
 

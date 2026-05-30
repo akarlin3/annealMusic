@@ -17,6 +17,8 @@ import {
 import { LissajousAvatar } from '@/components/LissajousAvatar';
 import type { ParamKey } from '@/state/params';
 import type { Piece, SegmentType } from '@/piece/types';
+import { resolveBellSchedule } from '@/audio/bells/scheduler';
+import { getBellById } from '@/audio/bells/registry';
 
 interface ListeningViewProps {
   session: ListeningSession;
@@ -91,11 +93,11 @@ export default function ListeningView({
         variationSeed: session.piece?.variation_seed || null,
         visibility: session.piece?.visibility || 'unlisted',
         hasOpenSegment: session.piece?.has_open_segment ?? false,
+        bellSchedule: session.piece?.bell_schedule || [],
       },
       settleInMs: session.settle_in_ms,
       integrationMs: session.integration_ms,
-      openingTone: session.opening_tone,
-      closingTone: session.closing_tone,
+      bellSchedule: session.bell_schedule || [],
     };
 
     const player = new ListeningSessionPlayer(config, orchestrator);
@@ -173,6 +175,37 @@ export default function ListeningView({
     }
   };
 
+  // Resolve scheduled bells for rendering markers
+  const segmentDurations = session.piece?.segments.map((s) => {
+    let dur = s.duration_ms ?? 5000;
+    if (s.config?.tempoLocked && session.piece?.tempo_bpm) {
+      dur = dur * 4 * (60 / session.piece.tempo_bpm) * 1000;
+    }
+    return dur;
+  }) || [];
+
+  const resolvedPieceBells = resolveBellSchedule(
+    (session.piece?.bell_schedule as any) || [],
+    session.piece?.total_duration_ms || 30000,
+    segmentDurations,
+    (session.piece?.movements as any) || [],
+  );
+
+  const resolvedSessionBells = resolveBellSchedule(
+    (session.bell_schedule as any) || [],
+    session.piece?.total_duration_ms || 30000,
+    segmentDurations,
+    (session.piece?.movements as any) || [],
+  );
+
+  // Merge and sort
+  const allResolvedBells = [...resolvedPieceBells, ...resolvedSessionBells].sort(
+    (a, b) => a.offsetMs - b.offsetMs,
+  );
+
+  const totalDurationMs = remainingMs + elapsedMs;
+  const progressPercent = totalDurationMs > 0 ? (elapsedMs / totalDurationMs) * 100 : 0;
+
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-stone-950 text-stone-200 transition-opacity duration-700 ease-in-out px-8 py-10"
@@ -226,12 +259,56 @@ export default function ListeningView({
       {/* Main Fullscreen Visual Field */}
       <main className="relative flex-1 w-full max-w-4xl flex flex-col items-center justify-center py-6">
         {/* Fullscreen visualizer wrap (passes isCalm = true) */}
-        <div className="relative w-full h-[400px] rounded-2xl overflow-hidden shadow-2xl border border-stone-900/60 bg-stone-950/20">
+        <div className="relative w-full h-[360px] rounded-2xl overflow-hidden shadow-2xl border border-stone-900/60 bg-stone-950/20">
           <Visualizer
             engineRef={orchestratorRef}
             isPlaying={isPlaying}
             isCalm={true}
           />
+        </div>
+
+        {/* Dynamic Progress Timeline with Bell Schedule Markers */}
+        <div className="w-full mt-6 relative px-1">
+          <div className="relative w-full h-1 bg-stone-900 rounded-full">
+            {/* Progress fill */}
+            <div
+              className="absolute left-0 top-0 h-full bg-amber-500 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.6)] transition-all duration-100 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+
+            {/* Bell Schedule Markers */}
+            {allResolvedBells.map((bell, idx) => {
+              const totalMs = remainingMs + elapsedMs;
+              if (totalMs <= 0) return null;
+              const bellPosPercent = (bell.offsetMs / totalMs) * 100;
+              const isSounded = elapsedMs >= bell.offsetMs;
+              const bellDef = getBellById(bell.bellId);
+
+              return (
+                <div
+                  key={idx}
+                  className="absolute -top-1.5 group/marker cursor-help flex flex-col items-center"
+                  style={{ left: `${bellPosPercent}%`, transform: 'translateX(-50%)' }}
+                >
+                  <div
+                    className={`h-4 w-4 rounded-full border transition-all duration-300 flex items-center justify-center ${
+                      isSounded
+                        ? 'border-amber-400 bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.5)] scale-110'
+                        : 'border-stone-750 bg-stone-950 hover:border-amber-500/50 hover:scale-110'
+                    }`}
+                  >
+                    <div className={`h-1.5 w-1.5 rounded-full ${isSounded ? 'bg-stone-950' : 'bg-stone-500 group-hover/marker:bg-amber-400'}`} />
+                  </div>
+
+                  {/* Hover Tooltip */}
+                  <div className="absolute bottom-6 scale-95 opacity-0 pointer-events-none group-hover/marker:scale-100 group-hover/marker:opacity-100 transition-all duration-200 z-50 bg-stone-950 border border-stone-850 p-2 rounded-lg shadow-2xl font-mono text-[8px] uppercase tracking-wider text-amber-200 w-44 text-center leading-normal">
+                    <span className="font-bold text-stone-200 block mb-0.5">{bellDef?.name || 'Bell'}</span>
+                    <span className="text-stone-500 text-[7px] block">Trigger at {fmtTime(bell.offsetMs)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Minimal Timer Dials HUD */}

@@ -342,6 +342,16 @@ export default function App() {
               <InfoTip id="feature.timeline" label="Timeline" />
             </span>
 
+            <span className="flex items-center gap-1.5">
+              <Link
+                to="/timer"
+                className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
+                style={{ color: '#a8a29e' }}
+              >
+                Timer
+              </Link>
+            </span>
+
             {backendOn && (
               <>
                 {account ? (

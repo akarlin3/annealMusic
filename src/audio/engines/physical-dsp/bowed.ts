@@ -1,10 +1,10 @@
 /**
- * Bowed string: a Karplus-Strong delay line driven by a continuous **bow
- * friction** (stick-slip) junction rather than additive noise. A steady bow
- * (pressure + velocity) self-sustains the oscillation — sustain is native, which
- * is exactly what the ambient aesthetic wants; it complements the plucked/aeolian
- * `string` sub-model. The delay-line loss filter reuses the shared `string`
- * coefficient mappings (no copy of those heuristics).
+ * Bowed string: a digital waveguide with a 3rd-order Lagrange fractional-delay loop
+ * and exact loop phase-delay compensation, driven by a continuous **bow friction**
+ * (stick-slip) junction rather than additive noise. A steady bow (pressure + velocity)
+ * self-sustains the oscillation — sustain is native, which is exactly what the ambient
+ * aesthetic wants; it complements the plucked/aeolian `string` sub-model. The delay-line
+ * loss filter reuses the shared `string` coefficient mappings (no copy of those heuristics).
  *
  * The friction characteristic is the Coulomb form: force is highest when the bow
  * and string move together (stick) and falls off as the slip speed grows. Its
@@ -52,9 +52,9 @@ export class BowedString {
     this.sampleRate = sampleRate;
     this.baseFreq = f0;
     this.buf = new Float32Array(Math.ceil(sampleRate / 20) + 4);
-    this.delay = this.computeDelay();
     this.fb = dampingToFeedback(damping);
     this.loopCoef = brightnessToLoopCoef(brightness);
+    this.delay = this.computeDelay();
     this.level = Math.max(0, excitation);
     this.knee = bowKnee(pressure);
     this.vb = bowVel(velocity);
@@ -62,8 +62,15 @@ export class BowedString {
 
   private computeDelay(): number {
     const freq = this.baseFreq * Math.pow(2, this.detuneCents / 1200);
-    const d = this.sampleRate / Math.max(20, freq);
-    return Math.max(2, Math.min(this.buf.length - 1, d));
+    const dTarget = this.sampleRate / Math.max(20, freq);
+    // Exact phase delay of one-pole low-pass: theta / w
+    const w = (2.0 * Math.PI * freq) / this.sampleRate;
+    const c = this.loopCoef;
+    const theta = Math.atan2((1.0 - c) * Math.sin(w), 1.0 - (1.0 - c) * Math.cos(w));
+    const dLp = w > 0.0 ? theta / w : (1.0 - c) / c;
+    const dCompensated = dTarget - dLp;
+    // Clamp to ensure stable and safe Lagrange buffer reads (min 2.0, max buf.length - 3)
+    return Math.max(2.0, Math.min(this.buf.length - 3.0, dCompensated));
   }
 
   setFrequency(f0: number): void {
@@ -82,6 +89,7 @@ export class BowedString {
 
   setBrightness(brightness: number): void {
     this.loopCoef = brightnessToLoopCoef(brightness);
+    this.delay = this.computeDelay();
   }
 
   setExcitation(level: number): void {
@@ -100,10 +108,21 @@ export class BowedString {
     const len = this.buf.length;
     const readPos = (this.idx - this.delay + len) % len;
     const i0 = Math.floor(readPos);
-    const frac = readPos - i0;
-    const a = this.buf[i0] ?? 0;
-    const b = this.buf[(i0 + 1) % len] ?? 0;
-    const vs = a + frac * (b - a); // delayed string velocity at the bow point
+    const d = readPos - i0; // fractional part [0, 1)
+
+    // Four closest sample points for 3rd-order Lagrange interpolation
+    const y_neg1 = this.buf[(i0 - 1 + len) % len] ?? 0;
+    const y_0 = this.buf[i0] ?? 0;
+    const y_1 = this.buf[(i0 + 1) % len] ?? 0;
+    const y_2 = this.buf[(i0 + 2) % len] ?? 0;
+
+    // Lagrange polynomial coefficients
+    const c_neg1 = -d * (d - 1) * (d - 2) / 6;
+    const c_0 = (d + 1) * (d - 1) * (d - 2) / 2;
+    const c_1 = -(d + 1) * d * (d - 2) / 2;
+    const c_2 = (d + 1) * d * (d - 1) / 6;
+
+    const vs = c_neg1 * y_neg1 + c_0 * y_0 + c_1 * y_1 + c_2 * y_2;
 
     // Bow-string differential velocity → Coulomb friction (force falls off as the
     // slip speed grows; the negative slope is the self-oscillation drive).

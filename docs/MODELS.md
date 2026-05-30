@@ -26,11 +26,8 @@ reason physical modeling fits Anneal Ambiance.
 
 ### String — `KarplusStrong`
 
-A delay line of length `sampleRate / f0` with a one-pole low-pass in the
-feedback path. Continuous filtered-noise injection replaces the classic single
-pluck, giving a bowed/aeolian sustain. `damping` → feedback gain (decay/Q);
-`brightness` → loop low-pass cutoff + excitation color.
-Refs: Karplus & Strong (1983); Jaffe & Smith (1983, extensions).
+A proper digital waveguide w/ 3rd-order Lagrange fractional-delay loop and exact loop phase-delay compensation. Continuous filtered-noise injection replaces the classic single pluck, giving a bowed/aeolian sustain. `damping` → feedback gain (decay/Q); `brightness` → loop low-pass cutoff + excitation color. Yields sub-cent tuning accuracy across the entire frequency range.
+Refs: Karplus & Strong (1983); Jaffe & Smith (1983, extensions); Smith (fractional delay).
 
 ### Tube — `Waveguide`
 

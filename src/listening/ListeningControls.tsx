@@ -3,6 +3,8 @@ import { api } from '@/api/client';
 import type { APIPiece, ListeningSession, Patch } from '@/api/types';
 import { SCHEMA_VERSION } from '@/share/schema';
 import { getErrorMessage } from '@/api/client';
+import type { BellEvent } from '@/audio/bells/scheduler';
+import BellScheduleEditor from '@/listening/BellScheduleEditor';
 import {
   Bell,
   Clock,
@@ -43,8 +45,9 @@ export default function ListeningControls({
   );
   const [settleInSec, setSettleInSec] = useState(30); // in seconds
   const [integrationSec, setIntegrationSec] = useState(60); // in seconds
-  const [openingTone, setOpeningTone] = useState(true);
-  const [closingTone, setClosingTone] = useState(true);
+  const [bellSchedule, setBellSchedule] = useState<BellEvent[]>([
+    { bellId: 'zen_bell_rin', trigger: 'at-start', volume: 0.7 },
+  ]);
   const [visibility, setVisibility] = useState<'unlisted' | 'public'>(
     'unlisted',
   );
@@ -138,8 +141,7 @@ export default function ListeningControls({
         recommended_environment: recommendedEnvironment || null,
         settle_in_ms: settleInSec * 1000,
         integration_ms: integrationSec * 1000,
-        opening_tone: openingTone,
-        closing_tone: closingTone,
+        bell_schedule: bellSchedule,
         visibility,
       };
 
@@ -363,52 +365,13 @@ export default function ListeningControls({
           </div>
         </div>
 
-        {/* Opening and Closing Chime Tones */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-stone-900 pt-5">
-          <div className="flex items-start gap-3">
-            <button
-              type="button"
-              onClick={() => setOpeningTone(!openingTone)}
-              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-                openingTone
-                  ? 'border-amber-500 bg-amber-500/10 text-amber-500'
-                  : 'border-stone-800 bg-stone-950'
-              }`}
-            >
-              {openingTone && <Bell size={8} />}
-            </button>
-            <div>
-              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-stone-400 block mb-1">
-                Opening Chime
-              </span>
-              <span className="text-[8px] uppercase tracking-wider text-stone-500">
-                Triggers a dual-resonator bell chime at t = 0 before settle
-                fade.
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <button
-              type="button"
-              onClick={() => setClosingTone(!closingTone)}
-              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-                closingTone
-                  ? 'border-amber-500 bg-amber-500/10 text-amber-500'
-                  : 'border-stone-800 bg-stone-950'
-              }`}
-            >
-              {closingTone && <Bell size={8} />}
-            </button>
-            <div>
-              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-stone-400 block mb-1">
-                Closing Chime
-              </span>
-              <span className="text-[8px] uppercase tracking-wider text-stone-500">
-                Triggers a calming closing chime at absolute session end.
-              </span>
-            </div>
-          </div>
+        {/* Bells and Punctuation Schedule Editor */}
+        <div className="border-t border-stone-900 pt-5">
+          <BellScheduleEditor
+            schedule={bellSchedule}
+            onChange={setBellSchedule}
+            movements={pieces.find((p) => p.id === selectedSourceId)?.movements as any[]}
+          />
         </div>
 
         {/* Footer controls */}

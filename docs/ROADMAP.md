@@ -46,6 +46,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v1.5 ✅ | DAW Export / Stems                                 | Export high-fidelity multitrack stem ZIPs |
 | v1.6 ✅ | MIDI Input + Output                                | Physical controller map, note-to-root, output CC & clock sync |
 | v1.8 ✅ | Collaborative Sessions                             | Real-time co-creation (Jam Mode), dual WebRTC + WebSocket fallback, loop capture sharing, co-author patch saves |
+| v4.3 ✅ | Bells & Punctuation                                | Curated high-fidelity bell assets, concurrent scheduler, interactive schedule editor panel, progress timeline markers, standalone breathing meditation timer, schema v19 JSONB migration |
 
 ## Shipped notes
 

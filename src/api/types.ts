@@ -317,6 +317,7 @@ export interface APIPiece {
   variation_seed?: number | null;
   variations?: any[];
   notation?: any[];
+  bell_schedule?: any[];
 }
 
 export interface APIPieceList {
@@ -336,8 +337,7 @@ export interface ListeningSession {
   recommended_environment: string | null;
   settle_in_ms: number;
   integration_ms: number;
-  opening_tone: boolean;
-  closing_tone: boolean;
+  bell_schedule: any[];
   total_duration_ms: number | null;
   visibility: Visibility;
   short_slug: string;
@@ -367,8 +367,7 @@ export interface CreateListeningSessionBody {
   recommended_environment?: string | null;
   settle_in_ms?: number;
   integration_ms?: number;
-  opening_tone?: boolean;
-  closing_tone?: boolean;
+  bell_schedule?: any[];
   visibility?: Visibility;
 }
 
@@ -382,7 +381,6 @@ export interface UpdateListeningSessionBody {
   recommended_environment?: string | null;
   settle_in_ms?: number;
   integration_ms?: number;
-  opening_tone?: boolean;
-  closing_tone?: boolean;
+  bell_schedule?: any[];
   visibility?: Visibility;
 }
