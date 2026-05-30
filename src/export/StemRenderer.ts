@@ -24,6 +24,15 @@ import { generateMetaArc } from '@/piece/generators';
 import { resolveVariations, hashStringToInt } from '@/piece/resolver';
 import { BellLoader } from '@/audio/bells/loader';
 import { resolveBellSchedule, type BellEvent } from '@/audio/bells/scheduler';
+import {
+  applyHannWindow,
+  computeFFTSpectrum,
+  getMagnitudeSpectrum,
+  spectralCentroid,
+} from '@/audio/analysis/spectrum';
+import { writeJSONL } from '@/datalog/writers/jsonl';
+import { writeCSV } from '@/datalog/writers/csv';
+import * as path from 'node:path';
 
 function resolveNestedConfigVariations(
   config: Record<string, any>,
@@ -91,6 +100,11 @@ export interface StemRenderConfig {
   seed: number;
   patchTitle: string;
   patchHash: string;
+
+  logFormat?: string;
+  logOut?: string;
+  logRate?: number;
+  logMode?: string;
 }
 
 export interface RenderProgressEvent {
@@ -495,6 +509,11 @@ export async function renderStemsOffline(
     // A seeded PRNG instance for this specific stem render
     const rng = createPRNG(config.seed);
 
+    const collectedRecords: any[] = [];
+    const startTimeStr = new Date().toISOString();
+    const startTimeMs = new Date(startTimeStr).getTime();
+    let currentR = 0;
+
     // Setup duplicate audio graph based on stem type
     let stemOutputNode: AudioNode;
 
@@ -690,12 +709,13 @@ export async function renderStemsOffline(
       ctx.suspend(t).then(() => {
         // 1. Advance engine detune walk deterministically
         if (activeEngine && drift.length > 0) {
-          const { detunes, phases } = driftStep(
+          const { detunes, phases, r } = driftStep(
             drift,
             { drift: live.drift, coupling: live.coupling },
             DRIFT_DT,
             rng,
           );
+          currentR = r ?? 0;
           drift.forEach((p, i) => {
             const d = detunes[i];
             if (d === undefined) return;
@@ -758,12 +778,231 @@ export async function renderStemsOffline(
           s.pump();
         }
 
+        if (sIdx === 0 && config.logOut) {
+          const frequencies = activeEngine
+            ? activeEngine.getPartialFrequencies()
+            : [];
+          const amplitudes = frequencies.map(
+            (_freq: number, i: number) => 0.32 / (i + 1),
+          );
+          const driftPartials = drift.map((d) => d.detune);
+
+          collectedRecords.push({
+            timestamp: t,
+            wallTime: new Date(startTimeMs + t * 1000).toISOString(),
+            params: {
+              rootFreq: live.rootFreq,
+              spread: live.spread,
+              density: live.density,
+              coupling: live.coupling,
+              drift: live.drift,
+              brightness: live.brightness,
+              space: live.space,
+              volume: live.volume,
+            },
+            metadata: {
+              mode:
+                config.mode === 'open' || config.mode === 'arc'
+                  ? config.mode
+                  : 'piece',
+              engineId: config.engineId,
+              engineParams: config.engineParams,
+              tuning: {
+                system: live.tuning?.system ?? 'equal',
+                referenceA4Hz: live.tuning?.referenceA4Hz ?? 440,
+                sclId: live.tuning?.sclId,
+              },
+              schemaVersion: 'v20',
+              logSchemaVersion: '1.0',
+            },
+            drift: {
+              meanDetune:
+                driftPartials.length > 0
+                  ? driftPartials.reduce((a, b) => a + b, 0) /
+                    driftPartials.length
+                  : 0,
+              orderParameter: currentR,
+              partials: driftPartials,
+            },
+            partials: {
+              frequencies,
+              amplitudes,
+            },
+            features: {
+              rms: 0,
+              spectralCentroid: 0,
+              spectralFlux: 0,
+              zcr: 0,
+            },
+            event: collectedRecords.length === 0 ? 'session-start' : null,
+          });
+        }
+
         void ctx.resume();
       });
     }
 
     // Run OAC render pass
     const rendered = await ctx.startRendering();
+
+    if (sIdx === 0 && config.logOut) {
+      let prevMags: Float32Array | null = null;
+
+      for (const r of collectedRecords) {
+        const t = r.timestamp;
+        const startSample = Math.floor(t * config.sampleRate);
+        const blockSize = 1024;
+        const timeData = new Float32Array(blockSize);
+        const channelData = rendered.getChannelData(0); // Mono channel for feature extraction
+
+        for (let s = 0; s < blockSize; s++) {
+          const idx = startSample + s;
+          timeData[s] = idx < channelData.length ? channelData[idx]! : 0;
+        }
+
+        // RMS
+        let sumSq = 0;
+        for (let s = 0; s < timeData.length; s++) {
+          sumSq += timeData[s]! * timeData[s]!;
+        }
+        const rms = Math.sqrt(sumSq / timeData.length);
+
+        // ZCR
+        let crossings = 0;
+        for (let s = 1; s < timeData.length; s++) {
+          const prev = timeData[s - 1]!;
+          const curr = timeData[s]!;
+          if ((prev < 0 && curr >= 0) || (prev >= 0 && curr < 0)) {
+            crossings++;
+          }
+        }
+        const zcr = crossings / (timeData.length - 1);
+
+        // Centroid & Flux
+        const windowed = applyHannWindow(timeData);
+        const { real, imag } = computeFFTSpectrum(windowed, 1);
+        const magnitudes = getMagnitudeSpectrum(real, imag);
+        const centroid = spectralCentroid(
+          magnitudes,
+          config.sampleRate,
+          blockSize,
+        );
+
+        let flux = 0;
+        if (prevMags && prevMags.length === magnitudes.length) {
+          let diffSum = 0;
+          for (let s = 0; s < magnitudes.length; s++) {
+            const diff = magnitudes[s]! - prevMags[s]!;
+            diffSum += diff * diff;
+          }
+          flux = Math.sqrt(diffSum) / magnitudes.length;
+        }
+        prevMags = magnitudes;
+
+        r.features = {
+          rms,
+          spectralCentroid: centroid,
+          spectralFlux: flux,
+          zcr,
+        };
+
+        const logMode = config.logMode || 'standard';
+        if (logMode === 'full' || logMode === 'research-extreme') {
+          r.features.spectrum = Array.from(magnitudes).map(
+            (val) => 20 * Math.log10(val + 1e-9),
+          );
+        }
+        if (logMode === 'research-extreme') {
+          r.audioChunk = Array.from(timeData);
+        }
+      }
+
+      // Add stop record
+      const lastT = config.durationSec;
+      const lastRecord = {
+        ...collectedRecords[collectedRecords.length - 1],
+        timestamp: lastT,
+        wallTime: new Date(startTimeMs + lastT * 1000).toISOString(),
+        event: 'session-stop',
+      };
+
+      // Recompute features for lastRecord
+      const startSample = Math.floor(lastT * config.sampleRate);
+      const timeData = new Float32Array(1024);
+      const channelData = rendered.getChannelData(0);
+      for (let s = 0; s < 1024; s++) {
+        const idx = startSample + s;
+        timeData[s] = idx < channelData.length ? channelData[idx]! : 0;
+      }
+      let sumSq = 0;
+      for (let s = 0; s < 1024; s++) sumSq += timeData[s]! * timeData[s]!;
+      const rms = Math.sqrt(sumSq / 1024);
+      let crossings = 0;
+      for (let s = 1; s < 1024; s++) {
+        const prev = timeData[s - 1]!;
+        const curr = timeData[s]!;
+        if ((prev < 0 && curr >= 0) || (prev >= 0 && curr < 0)) crossings++;
+      }
+      const zcr = crossings / 1023;
+      const windowed = applyHannWindow(timeData);
+      const { real, imag } = computeFFTSpectrum(windowed, 1);
+      const magnitudes = getMagnitudeSpectrum(real, imag);
+      const centroid = spectralCentroid(magnitudes, config.sampleRate, 1024);
+      let flux = 0;
+      if (prevMags && prevMags.length === magnitudes.length) {
+        let diffSum = 0;
+        for (let s = 0; s < magnitudes.length; s++) {
+          const diff = magnitudes[s]! - prevMags[s]!;
+          diffSum += diff * diff;
+        }
+        flux = Math.sqrt(diffSum) / magnitudes.length;
+      }
+
+      lastRecord.features = {
+        rms,
+        spectralCentroid: centroid,
+        spectralFlux: flux,
+        zcr,
+      };
+      if (config.logMode === 'full' || config.logMode === 'research-extreme') {
+        lastRecord.features.spectrum = Array.from(magnitudes).map(
+          (val) => 20 * Math.log10(val + 1e-9),
+        );
+      }
+      if (config.logMode === 'research-extreme') {
+        lastRecord.audioChunk = Array.from(timeData);
+      }
+      collectedRecords.push(lastRecord);
+
+      // Format and write the datalog to file!
+      const opts = {
+        mode: (config.logMode || 'standard') as any,
+        rateHz: config.logRate || 50,
+        startTime: startTimeStr,
+        endTime: new Date(startTimeMs + lastT * 1000).toISOString(),
+        appVersion: '5.3.0',
+        bridgeVersion: '1.0',
+      };
+
+      let logContent = '';
+      if (config.logFormat === 'csv') {
+        logContent = writeCSV(collectedRecords, opts);
+      } else {
+        logContent = writeJSONL(collectedRecords, opts);
+      }
+
+      if (typeof process !== 'undefined') {
+        const fs = await import('node:fs');
+        const dir = path.dirname(config.logOut);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(config.logOut, logContent);
+        console.log(
+          `[datalog] Deterministic session log saved successfully to: ${config.logOut}`,
+        );
+      }
+    }
 
     // 5. Clean up nodes and stop players immediately to free up memory (GC sweep)
     if (activeEngine) {

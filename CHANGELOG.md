@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.0] - 2026-05-30
+
+### Added
+
+- **High-Performance Observability & Session Datalogger.** Shipped a high-resolution session datalogger (`src/datalog/DataLogger.ts`) recording full runtime state at configurable rates (up to 100Hz, default 50Hz) directly into a pre-allocated, memory-capped 100MB ring buffer to protect performance and prevent memory exhaustion.
+- **Native In-Browser CSV and JSONL Serializers.** Implements lossless JSONL and dot-flattened tabular CSV writers natively in-browser, adding a microscopic bundle footprint (~5KB gzipped) and ensuring zero WebAssembly/npm bloat for standard users.
+- **Glassmorphic Datalogging Dashboard UI.** Shipped a gorgeous, glowing dark-mode UI panel (`src/datalog/DataloggerPanel.tsx`) integrated directly under `/research`. Includes a live observed tick counter, real-time memory usage estimation, configuration selectors (sample rate, datalog detail mode), and native file downloads.
+- **Deterministic Offline Rendering Datalogging.** Integrated the datalogger seamlessly into `renderStemsOffline` offline stem export, matching live browser analysis metrics sample-for-sample.
+- **Scientific Formats CLI Converter Utility.** Shipped command-line `convert` utility and Python converter bridge (`tools/cli/src/output/converter.py` / `converter.ts`) wrapping Pandas and PyArrow to translate JSONL logs into highly optimized scientific data formats (**CSV, HDF5, and Parquet**) for downstream analysis in pandas, NumPy, MATLAB, Julia, R, and PyTorch.
+- **Format Cross-Equivalence Test Harness.** Created a Python test harness (`tools/cli/src/output/verify_equivalence.py`) verifying that the native TS CSV flattener and Python Pandas/PyArrow converters produce 100% equivalent tabular columns, rows, and datatypes.
+- **Bidirectional OSC Packet Recording.** Added `--log-out` flags to the standalone OSC-over-WebSocket bridge helper console (`tools/osc-bridge/src/index.ts`) to log bidirectional processed OSC packet captures to standard JSONL format.
+- **Python Programmatic JSON-RPC Bridge APIs.** Shipped four new JSON-RPC 2.0 preview methods (`anneal.datalog.start`, `stop`, `snapshot`, `stream`) in `BridgeServer.ts` enabling programmatic session controls and real-time datalog tick streaming via Pyodide.
+- **Rich Documentation & Ingestion Examples.** Created formal JSON Schema definitions (`docs/DATALOG_SCHEMA.md`), comprehensive developer guides (`docs/DATALOG.md`), and complete starter Python recipes (`examples/session_analysis.py`) demonstrating Pandas loading, filtering, and plotting with Matplotlib.
+
 ## [5.2.0] - 2026-05-30
 
 ### Added

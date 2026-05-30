@@ -2,6 +2,7 @@
 /* eslint-disable */
 import { WebSocketServer, WebSocket } from 'ws';
 import * as dgram from 'dgram';
+import * as fs from 'fs';
 
 // Options parsing
 const args = process.argv.slice(2);
@@ -11,6 +12,7 @@ let udpOutPort = 9000;
 let udpHost = '127.0.0.1';
 let host = '127.0.0.1';
 let logLevel = 'info';
+let logOut: string | null = null;
 
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
@@ -26,6 +28,28 @@ for (let i = 0; i < args.length; i++) {
     host = args[++i];
   } else if (arg === '--log-level' && args[i + 1]) {
     logLevel = args[++i];
+  } else if (arg === '--log-out' && args[i + 1]) {
+    logOut = args[++i];
+  }
+}
+
+// OSC Packet Datalogger helper
+function logOscPacket(
+  direction: 'in' | 'out',
+  address: string,
+  oscArgs: any[],
+) {
+  if (!logOut) return;
+  try {
+    const record = {
+      timestamp: Date.now(),
+      direction,
+      address,
+      args: oscArgs,
+    };
+    fs.appendFileSync(logOut, JSON.stringify(record) + '\n', 'utf-8');
+  } catch (err) {
+    log('error', `Failed to write OSC datalog to ${logOut}:`, err);
   }
 }
 
@@ -250,6 +274,7 @@ if (process.env.NODE_ENV !== 'test') {
       }
 
       // Broadcast incoming UDP OSC packet as JSON to all connected WS clients
+      logOscPacket('in', decoded.address, decoded.args);
       const frame = JSON.stringify({
         address: decoded.address,
         args: decoded.args,
@@ -278,6 +303,7 @@ if (process.env.NODE_ENV !== 'test') {
         const data = JSON.parse(message.toString());
         if (data.address && Array.isArray(data.args)) {
           // Forward outgoing WS JSON messages as UDP OSC packets
+          logOscPacket('out', data.address, data.args);
           const encoded = encodeOsc(data.address, data.args);
           udpSocket!.send(encoded, udpOutPort, udpHost, (err) => {
             if (err) {

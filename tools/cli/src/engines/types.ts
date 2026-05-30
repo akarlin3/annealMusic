@@ -9,6 +9,12 @@ export interface RenderEngineOptions {
   perPartial?: boolean;
   withFx?: boolean;
 
+  // Datalog options
+  logFormat?: string;
+  logOut?: string;
+  logRate?: number;
+  logMode?: string;
+
   // Listening Session / Piece specific
   pieceMode?: 'piece' | 'listening-session';
 }

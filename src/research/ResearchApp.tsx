@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BridgeClient } from './bridge/BridgeClient';
 import { OSCPanel } from './osc/OSCPanel';
+import { DataloggerPanel } from '@/datalog/DataloggerPanel';
 import {
   Activity,
   Terminal,
@@ -570,20 +571,28 @@ export function ResearchApp() {
             <OSCPanel client={clientRef.current} />
           )}
 
-          {activeTab !== 'telemetry' && activeTab !== 'osc' && (
-            <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 shadow-xl text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4">
-                <Terminal size={24} />
-              </div>
-              <h2 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-300">
-                {activeTab.toUpperCase()} Panel Available in later slices
-              </h2>
-              <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm">
-                Infrastructure foundation is ready. This panel is scheduled for
-                implementation in a later v5 milestone sweep.
-              </p>
+          {activeTab === 'datalogger' && (
+            <div className="max-w-2xl mx-auto w-full mt-4">
+              <DataloggerPanel />
             </div>
           )}
+
+          {activeTab !== 'telemetry' &&
+            activeTab !== 'osc' &&
+            activeTab !== 'datalogger' && (
+              <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 shadow-xl text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4">
+                  <Terminal size={24} />
+                </div>
+                <h2 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-300">
+                  {activeTab.toUpperCase()} Panel Available in later slices
+                </h2>
+                <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm">
+                  Infrastructure foundation is ready. This panel is scheduled
+                  for implementation in a later v5 milestone sweep.
+                </p>
+              </div>
+            )}
         </main>
       </div>
     </div>

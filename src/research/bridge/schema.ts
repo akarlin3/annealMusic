@@ -167,4 +167,51 @@ export const METHOD_SCHEMAS: Record<string, MethodDef> = {
     name: 'anneal.health',
     description: 'Liveness check.',
   },
+  'anneal.datalog.start': {
+    name: 'anneal.datalog.start',
+    description: 'Starts the session datalogger.',
+    validate: (params) => {
+      if (params && params.mode !== undefined) {
+        const allowed = ['lightweight', 'standard', 'full', 'research-extreme'];
+        if (!allowed.includes(params.mode)) {
+          throw new BridgeError(
+            -32602,
+            `Invalid params: mode must be one of ${allowed.join(', ')}`,
+          );
+        }
+      }
+      if (params && params.rateHz !== undefined) {
+        if (typeof params.rateHz !== 'number' || params.rateHz <= 0) {
+          throw new BridgeError(
+            -32602,
+            'Invalid params: rateHz must be a positive number',
+          );
+        }
+      }
+    },
+  },
+  'anneal.datalog.stop': {
+    name: 'anneal.datalog.stop',
+    description: 'Stops the session datalogger.',
+  },
+  'anneal.datalog.snapshot': {
+    name: 'anneal.datalog.snapshot',
+    description:
+      'Retrieves a snapshot of the latest N ticks from the ring buffer.',
+    validate: (params) => {
+      if (params && params.limit !== undefined) {
+        if (typeof params.limit !== 'number' || params.limit <= 0) {
+          throw new BridgeError(
+            -32602,
+            'Invalid params: limit must be a positive integer',
+          );
+        }
+      }
+    },
+  },
+  'anneal.datalog.stream': {
+    name: 'anneal.datalog.stream',
+    description:
+      'Subscribes to real-time session datalogger tick notifications.',
+  },
 };

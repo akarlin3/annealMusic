@@ -267,6 +267,18 @@ export class Orchestrator {
     return this.nodes;
   }
 
+  getSharedParams(): SharedParams {
+    return { ...this.shared };
+  }
+
+  getEngineParams(): Record<string, any> {
+    return this.engineParams[this.engineId] ?? {};
+  }
+
+  getPartialDetunes(): number[] {
+    return this.driftState.map((d) => d.detune);
+  }
+
   /**
    * Connect (or switch device on) the live input. Builds the audio core if
    * needed, routes the input voice into the shared post-fx, and ensures the

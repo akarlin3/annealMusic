@@ -7,14 +7,16 @@ import { validateFile } from './commands/validate.js';
 import { printFileInfo } from './commands/info.js';
 import { runVerifyParity } from './commands/verifyParity.js';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { generateSweepCombinations } from './output/sweep.js';
+import { runPythonConverter } from './output/converter.js';
 
 const program = new Command();
 
 program
   .name('annealmusic')
   .description('Standalone CLI + Batch Renderer for AnnealMusic')
-  .version('5.2.0');
+  .version('5.3.0');
 
 // 1. Single Render Command
 program
@@ -29,6 +31,18 @@ program
   .option('--engine <engine>', 'Render engine (node|browser)', 'node')
   .option('--per-partial', 'Export stems per-partial', false)
   .option('--with-fx', 'Include master post-fx tail in output', true)
+  .option(
+    '--log-format <logFormat>',
+    'Session log output format (jsonl|csv|hdf5|parquet)',
+    'jsonl',
+  )
+  .option('--log-out <logOut>', 'Session log output file path')
+  .option('--log-rate <logRate>', 'Session log sample rate in Hz', '50')
+  .option(
+    '--log-mode <logMode>',
+    'Session log details mode (lightweight|standard|full|research-extreme)',
+    'standard',
+  )
   .action(async (file, options) => {
     await runRender(file, options);
   });
@@ -167,6 +181,35 @@ program
         process.exit(1);
       }
       process.stdout.write(combinations[index]!.filename);
+    } catch (err: any) {
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+// 10. Datalog Conversion Command
+program
+  .command('convert <file>')
+  .description('Convert a JSONL session log to CSV, HDF5, or Parquet')
+  .requiredOption(
+    '-f, --format <format>',
+    'Output scientific format (csv|hdf5|parquet)',
+  )
+  .option('-o, --output <output>', 'Output file path')
+  .action((file, options) => {
+    try {
+      const format = options.format.toLowerCase() as 'csv' | 'hdf5' | 'parquet';
+      const output =
+        options.output ||
+        `${path.basename(file, path.extname(file))}.${format}`;
+      console.log(`Converting datalog ${file}...`);
+      console.log(`- Format: ${format.toUpperCase()}`);
+      console.log(`- Output: ${output}`);
+      runPythonConverter({
+        inputJsonl: file,
+        outputFile: output,
+        format,
+      });
     } catch (err: any) {
       console.error(`Error: ${err.message}`);
       process.exit(1);

@@ -36,6 +36,7 @@ New here? Press the **Help (?)** button in the app for a plain-language guide to
 - **Listen** — a curated meditation library (`/listen`) of hand-picked sessions to browse by length, intention, and audio character.
 - **Your sessions** — a private history (`/me/sessions`) of what you've listened to, with optional reflections. Just for you.
 - **Share links** — copy a link that reopens your exact sound for anyone you send it to.
+- **Session Datalogging (v5.3)** — record high-resolution session observations (sculpt states, Kuramoto coupling order parameter, partial details, and audio features like RMS, ZCR, spectral centroid, and flux) to scientific formats (CSV, JSONL, Parquet, and HDF5) at configurable sample rates for ingestion into Python, MATLAB, Julia, or R.
 
 ---
 
@@ -85,6 +86,18 @@ npm install
 npm run build
 node dist/index.js --help
 ```
+
+### Research Console & Datalogger
+
+AnnealMusic features a sandboxed `/research` console served as independent, zero-overhead bundle assets (`dist-research/`), offering programmatic JSON-RPC 2.0 Web Audio telemetry hooks, real-time Canvas FFT visualizers, bidirectional Open Sound Control (OSC) network packet captures, and high-frequency datalogging.
+
+Session logs can be downloaded natively from the browser console (as CSV or JSONL to save bundle footprint) or converted directly during CLI offline rendering. For large-scale data science pipelines, the CLI features a built-in `convert` utility driving a Python bridge to translate JSONL logs into highly optimized scientific data formats (**CSV, HDF5, and Parquet**) for ingestion into Pandas, NumPy, MATLAB, Julia, R, and PyTorch.
+
+Refer to the complete guides in:
+
+- [docs/DATALOG.md](docs/DATALOG.md) — Datalogger usage, ingest examples, and telemetry bridge references.
+- [docs/DATALOG_SCHEMA.md](docs/DATALOG_SCHEMA.md) — JSON Schema and data specifications.
+- [docs/OSC.md](docs/OSC.md) — Bidirectional OSC specifications.
 
 ## Project structure
 

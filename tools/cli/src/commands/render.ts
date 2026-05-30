@@ -17,6 +17,10 @@ export interface RenderArgs {
   engine?: string;
   perPartial?: boolean;
   withFx?: boolean;
+  logFormat?: string;
+  logOut?: string;
+  logRate?: string;
+  logMode?: string;
 }
 
 export async function runRender(
@@ -80,6 +84,10 @@ export async function runRender(
         seed,
         perPartial: args.perPartial,
         withFx: args.withFx,
+        logFormat: args.logFormat,
+        logOut: args.logOut,
+        logRate: args.logRate ? parseInt(args.logRate, 10) : undefined,
+        logMode: args.logMode,
       });
 
       // Save output(s)
@@ -124,6 +132,10 @@ export async function runRender(
         seed,
         perPartial: args.perPartial,
         withFx: args.withFx,
+        logFormat: args.logFormat,
+        logOut: args.logOut,
+        logRate: args.logRate ? parseInt(args.logRate, 10) : undefined,
+        logMode: args.logMode,
       });
       for (const [stemId, wavBuffer] of Object.entries(result.outputs)) {
         fs.writeFileSync(args.output, Buffer.from(wavBuffer));

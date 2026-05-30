@@ -1,6 +1,6 @@
 {
   "name": "annealmusic-cli",
-  "version": "5.2.0",
+  "version": "5.3.0",
   "description": "Standalone Headless CLI and Batch Renderer for AnnealMusic",
   "type": "module",
   "main": "./dist/index.js",

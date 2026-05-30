@@ -79,6 +79,14 @@ export class NodeRenderEngine implements RenderEngine {
           : 'playing',
     };
 
+    const isScientificFormat =
+      options.logOut &&
+      (options.logFormat === 'hdf5' || options.logFormat === 'parquet');
+    const actualLogOut = isScientificFormat
+      ? options.logOut + '.tmp.jsonl'
+      : options.logOut;
+    const actualLogFormat = isScientificFormat ? 'jsonl' : options.logFormat;
+
     const config: StemRenderConfig = {
       params: params as any,
       engineId: decoded.engineId,
@@ -96,6 +104,10 @@ export class NodeRenderEngine implements RenderEngine {
       seed: options.seed,
       patchTitle: 'CLI Render',
       patchHash: 'headless',
+      logFormat: actualLogFormat,
+      logOut: actualLogOut,
+      logRate: options.logRate,
+      logMode: options.logMode,
     };
 
     const outputs = await renderStemsOffline(
@@ -110,6 +122,19 @@ export class NodeRenderEngine implements RenderEngine {
           options.durationSec,
         ) as any,
     );
+
+    if (isScientificFormat && options.logOut) {
+      const { runPythonConverter } = await import('../output/converter.js');
+      runPythonConverter({
+        inputJsonl: actualLogOut!,
+        outputFile: options.logOut,
+        format: options.logFormat as any,
+      });
+      const fs = await import('node:fs');
+      if (fs.existsSync(actualLogOut!)) {
+        fs.unlinkSync(actualLogOut!);
+      }
+    }
 
     return { outputs };
   }
@@ -155,6 +180,14 @@ export class NodeRenderEngine implements RenderEngine {
           : 'playing',
     };
 
+    const isScientificFormat =
+      options.logOut &&
+      (options.logFormat === 'hdf5' || options.logFormat === 'parquet');
+    const actualLogOut = isScientificFormat
+      ? options.logOut + '.tmp.jsonl'
+      : options.logOut;
+    const actualLogFormat = isScientificFormat ? 'jsonl' : options.logFormat;
+
     const config: StemRenderConfig = {
       params: params as any,
       engineId: defaults.engineId,
@@ -172,6 +205,10 @@ export class NodeRenderEngine implements RenderEngine {
       seed: options.seed,
       patchTitle: decoded.piece.title ?? 'Piece Render',
       patchHash: 'headless',
+      logFormat: actualLogFormat,
+      logOut: actualLogOut,
+      logRate: options.logRate,
+      logMode: options.logMode,
     };
 
     const outputs = await renderStemsOffline(
@@ -186,6 +223,19 @@ export class NodeRenderEngine implements RenderEngine {
           options.durationSec,
         ) as any,
     );
+
+    if (isScientificFormat && options.logOut) {
+      const { runPythonConverter } = await import('../output/converter.js');
+      runPythonConverter({
+        inputJsonl: actualLogOut!,
+        outputFile: options.logOut,
+        format: options.logFormat as any,
+      });
+      const fs = await import('node:fs');
+      if (fs.existsSync(actualLogOut!)) {
+        fs.unlinkSync(actualLogOut!);
+      }
+    }
 
     return { outputs };
   }
@@ -266,6 +316,14 @@ export class NodeRenderEngine implements RenderEngine {
           : 'playing',
     };
 
+    const isScientificFormat =
+      options.logOut &&
+      (options.logFormat === 'hdf5' || options.logFormat === 'parquet');
+    const actualLogOut = isScientificFormat
+      ? options.logOut + '.tmp.jsonl'
+      : options.logOut;
+    const actualLogFormat = isScientificFormat ? 'jsonl' : options.logFormat;
+
     const config: StemRenderConfig = {
       params: params as any,
       engineId: defaults.engineId,
@@ -288,6 +346,10 @@ export class NodeRenderEngine implements RenderEngine {
       seed: options.seed,
       patchTitle: ls.title ?? 'Listening Session',
       patchHash: 'headless',
+      logFormat: actualLogFormat,
+      logOut: actualLogOut,
+      logRate: options.logRate,
+      logMode: options.logMode,
     };
 
     const outputs = await renderStemsOffline(
@@ -302,6 +364,19 @@ export class NodeRenderEngine implements RenderEngine {
           options.durationSec,
         ) as any,
     );
+
+    if (isScientificFormat && options.logOut) {
+      const { runPythonConverter } = await import('../output/converter.js');
+      runPythonConverter({
+        inputJsonl: actualLogOut!,
+        outputFile: options.logOut,
+        format: options.logFormat as any,
+      });
+      const fs = await import('node:fs');
+      if (fs.existsSync(actualLogOut!)) {
+        fs.unlinkSync(actualLogOut!);
+      }
+    }
 
     return { outputs };
   }

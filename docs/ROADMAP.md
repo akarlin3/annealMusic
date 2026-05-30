@@ -53,6 +53,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v5.0 ✅ | Research Surface Foundation                        | Standalone `/research` route, decoupled assets bundle (`dist-research/`), BroadcastChannel-backed transport, transport-agnostic JSON-RPC 2.0 bridge server & client, and real-time console with Telemetry RPC logs + FFT Canvas visualizer |
 | v5.1 ✅ | Bidirectional Open Sound Control (OSC)             | Full OSC namespace state broadcasts & control actions, zero-dependency bridge helper tool, native Capacitor mobile plugins, and premium configurations/traffic monitoring panel inside /research |
 | v5.2 ✅ | Headless CLI + Batch Render                        | Standalone CLI (`annealmusic`), pure-Node offline audio context engine, Chromium Playwright rendering backend, linear and Cartesian parameter sweeps, stems export, piece & listening session offline rendering, concurrency & resume pools, and Slurm cluster support |
+| v5.3 ✅ | Session Datalogging                                | Record runtime states (sculpt parameters, drift variables, partial frequencies, amplitudes, and real-time audio features like RMS, centroid, flux, ZCR) to CSV, JSONL, HDF5, and Parquet at configurable rates, premium UI panel under `/research`, bidirectional OSC log capture, and Pyodide preview JSON-RPC bridge methods. |
 
 ## Shipped notes
 
@@ -189,6 +190,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 - **v5.0** — **Research Console Route**. Sandboxed `/research` workspace served as decoupled assets, coordinating telemetry observations and slider parameter updates using JSON-RPC 2.0 BroadcastChannel shims.
 - **v5.1** — **Bidirectional Open Sound Control (OSC)**. Standalone npm bridge (`tools/osc-bridge/`), native iOS Apple Network UDP sockets, datagram Android channels, throttled bandwidth rules, and glassmorphic telemetry OSC configurations panel.
 - **v5.2** — **Headless CLI & Batch Render**. Standalone `annealmusic` tool supporting high-performance pure Node and headless Chromium Playwright engines, multi-parameter sweeps (linear ranges & Cartesian expansions), piecewise and session duration calculators, jobs worker queues (`--jobs N`), resume capability, SHA-256 manifest outputs, MSE sample-level parity check, and Slurm job array scripts.
+- **v5.3** — **Session Datalogging**. High-performance observability suite recording every state change, partial detail, and audio-analysis feature (RMS, ZCR, spectral centroid, spectral flux, magnitude spectrum) at configurable rates (up to 100Hz, default 50Hz) to scientific formats. Employs a pre-allocated 100MB client-side ring buffer to protect memory. Zero browser bundle bloat is maintained by generating lightweight CSV/JSONL natively in-browser and offloading complex HDF5/Parquet generation to the CLI and a robust Pandas/PyArrow Python converter. Synthesizes deterministic offline rendering datalogs synchronized sample-for-sample. Logs bidirectional OSC network packets, and introduces four Python-programmable JSON-RPC control and real-time streaming bridge methods.
 
 ## Principles
 

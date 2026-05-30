@@ -3,6 +3,7 @@ import { BroadcastTransport } from './transport/broadcast';
 import { useParamStore } from '../../state/params';
 import { METHOD_SCHEMAS, BRIDGE_VERSION, SCHEMA_VERSION } from './schema';
 import type { Orchestrator } from '../../audio/orchestrator';
+import { DataLogger } from '@/datalog/DataLogger';
 import { BridgeError } from './types';
 import type {
   JsonRpcRequest,
@@ -22,6 +23,7 @@ export class BridgeServer {
   private transport: BroadcastTransport;
   private subscriptions: Map<string, Subscription> = new Map();
   private storeUnsubscribe: (() => void) | null = null;
+  private datalogSubscriptions: Map<string, () => void> = new Map();
 
   static registerOrchestrator(getter: () => Orchestrator): void {
     orchestratorGetter = getter;
@@ -283,6 +285,44 @@ export class BridgeServer {
           timestamp: new Date().toISOString(),
         };
 
+      case 'anneal.datalog.start': {
+        const logger = DataLogger.getInstance();
+        if (orch) {
+          logger.setOrchestrator(orch);
+        }
+        logger.start(params?.mode ?? 'standard', params?.rateHz ?? 50);
+        return true;
+      }
+
+      case 'anneal.datalog.stop': {
+        const logger = DataLogger.getInstance();
+        logger.stop();
+        return true;
+      }
+
+      case 'anneal.datalog.snapshot': {
+        const logger = DataLogger.getInstance();
+        return { records: logger.snapshot(params?.limit) };
+      }
+
+      case 'anneal.datalog.stream': {
+        const subId = Math.random().toString(36).substring(2, 15);
+        const logger = DataLogger.getInstance();
+        const unsub = logger.subscribeTick((tick) => {
+          const notification: JsonRpcNotification = {
+            jsonrpc: '2.0',
+            method: 'anneal.datalog.onTick',
+            params: {
+              subscriptionId: subId,
+              tick,
+            },
+          };
+          this.transport.send(notification);
+        });
+        this.datalogSubscriptions.set(subId, unsub);
+        return { subscriptionId: subId };
+      }
+
       default:
         throw new BridgeError(-32601, `Method not found: ${method}`);
     }
@@ -293,6 +333,10 @@ export class BridgeServer {
       this.storeUnsubscribe();
       this.storeUnsubscribe = null;
     }
+    for (const unsub of this.datalogSubscriptions.values()) {
+      unsub();
+    }
+    this.datalogSubscriptions.clear();
     this.transport.close();
   }
 }
