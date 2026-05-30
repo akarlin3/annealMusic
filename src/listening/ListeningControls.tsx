@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
-import type { APIPiece, ListeningSession } from '@/api/types';
+import type { APIPiece, ListeningSession, Patch } from '@/api/types';
 import { SCHEMA_VERSION } from '@/share/schema';
 import { getErrorMessage } from '@/api/client';
 import {
@@ -16,17 +16,23 @@ import {
 
 interface ListeningControlsProps {
   initialPiece?: APIPiece | null;
+  initialPatch?: Patch | null;
   onSessionCreated: (session: ListeningSession) => void;
   onCancel?: () => void;
 }
 
 export default function ListeningControls({
   initialPiece = null,
+  initialPatch = null,
   onSessionCreated,
   onCancel,
 }: ListeningControlsProps) {
   const [pieces, setPieces] = useState<APIPiece[]>([]);
-  const [selectedPieceId, setSelectedPieceId] = useState<string>('');
+  const [drones, setDrones] = useState<Patch[]>([]);
+  const [selectedSourceType, setSelectedSourceType] = useState<
+    'piece' | 'drone'
+  >('piece');
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [intention, setIntention] = useState('Deep Calm');
   const [lengthCategory, setLengthCategory] = useState<
@@ -49,43 +55,71 @@ export default function ListeningControls({
 
   useEffect(() => {
     if (initialPiece) {
-      setSelectedPieceId(initialPiece.id);
+      setSelectedSourceType('piece');
+      setSelectedSourceId(initialPiece.id);
       setTitle(`${initialPiece.title || 'Untitled Piece'} Session`);
+    } else if (initialPatch) {
+      setSelectedSourceType('drone');
+      setSelectedSourceId(initialPatch.id);
+      setTitle(`${initialPatch.title || 'Untitled Drone'} Session`);
     } else {
-      loadPieces();
+      loadSources();
     }
-  }, [initialPiece]);
+  }, [initialPiece, initialPatch]);
 
-  const loadPieces = async () => {
+  const loadSources = async () => {
     if (!api.isBackendConfigured()) return;
     setLoadingPieces(true);
     try {
-      const res = await api.myPieces();
-      setPieces(res.items);
-      const firstPiece = res.items[0];
-      if (firstPiece) {
-        setSelectedPieceId(firstPiece.id);
+      const [piecesRes, patchesRes] = await Promise.all([
+        api.myPieces(),
+        api.myPatches(),
+      ]);
+      setPieces(piecesRes.items);
+      const dronePatches = patchesRes.items.filter((p) => p.mode === 'drone');
+      setDrones(dronePatches);
+
+      if (piecesRes.items.length > 0 && piecesRes.items[0]) {
+        const firstPiece = piecesRes.items[0];
+        setSelectedSourceType('piece');
+        setSelectedSourceId(firstPiece.id);
         setTitle(`${firstPiece.title || 'Untitled Piece'} Session`);
+      } else if (dronePatches.length > 0 && dronePatches[0]) {
+        const firstDrone = dronePatches[0];
+        setSelectedSourceType('drone');
+        setSelectedSourceId(firstDrone.id);
+        setTitle(`${firstDrone.title || 'Untitled Drone'} Session`);
       }
     } catch (err) {
-      setError('Could not load pieces: ' + getErrorMessage(err));
+      setError('Could not load sources: ' + getErrorMessage(err));
     } finally {
       setLoadingPieces(false);
     }
   };
 
-  const handlePieceChange = (pieceId: string) => {
-    setSelectedPieceId(pieceId);
-    const piece = pieces.find((p) => p.id === pieceId);
-    if (piece) {
-      setTitle(`${piece.title || 'Untitled Piece'} Session`);
+  const handleSourceChange = (value: string) => {
+    const [type, id] = value.split(':');
+    if (!type || !id) return;
+    setSelectedSourceType(type as 'piece' | 'drone');
+    setSelectedSourceId(id);
+
+    if (type === 'piece') {
+      const piece = pieces.find((p) => p.id === id);
+      if (piece) {
+        setTitle(`${piece.title || 'Untitled Piece'} Session`);
+      }
+    } else {
+      const drone = drones.find((d) => d.id === id);
+      if (drone) {
+        setTitle(`${drone.title || 'Untitled Drone'} Session`);
+      }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPieceId) {
-      setError('Please select or create a composed Piece first.');
+    if (!selectedSourceId) {
+      setError('Please select or create a composed Piece or Drone first.');
       return;
     }
 
@@ -94,7 +128,8 @@ export default function ListeningControls({
 
     try {
       const body = {
-        piece_id: selectedPieceId,
+        piece_id: selectedSourceType === 'piece' ? selectedSourceId : undefined,
+        patch_id: selectedSourceType === 'drone' ? selectedSourceId : undefined,
         schema_ver: SCHEMA_VERSION,
         title: title || 'Meditation Session',
         description: null,
@@ -136,32 +171,46 @@ export default function ListeningControls({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Piece Selection */}
-        {!initialPiece && (
+        {/* Source Selection */}
+        {!initialPiece && !initialPatch && (
           <div>
             <label className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-stone-400 mb-2">
               <Layout size={10} className="text-stone-500" />
-              Source Composed Piece
+              Source Piece or Drone
             </label>
             {loadingPieces ? (
               <div className="font-mono text-[9px] uppercase text-stone-600 animate-pulse">
-                Retrieving your compositions...
+                Retrieving your compositions and drones...
               </div>
-            ) : pieces.length === 0 ? (
+            ) : pieces.length === 0 && drones.length === 0 ? (
               <div className="font-mono text-[9px] uppercase text-stone-500 border border-stone-900 rounded p-3 text-center bg-stone-950/30">
-                No pieces found. Save a composition in the timeline view first.
+                No pieces or drones found. Save a composition or a drone patch
+                first.
               </div>
             ) : (
               <select
-                value={selectedPieceId}
-                onChange={(e) => handlePieceChange(e.target.value)}
+                value={`${selectedSourceType}:${selectedSourceId}`}
+                onChange={(e) => handleSourceChange(e.target.value)}
                 className="w-full rounded border border-stone-850 bg-stone-950 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-stone-200 focus:border-amber-500/50 focus:outline-none"
               >
-                {pieces.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.title || 'Untitled Piece'}
-                  </option>
-                ))}
+                {pieces.length > 0 && (
+                  <optgroup label="Pieces">
+                    {pieces.map((p) => (
+                      <option key={p.id} value={`piece:${p.id}`}>
+                        {p.title || 'Untitled Piece'}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {drones.length > 0 && (
+                  <optgroup label="Drones">
+                    {drones.map((d) => (
+                      <option key={d.id} value={`drone:${d.id}`}>
+                        {d.title || 'Untitled Drone'}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             )}
           </div>
@@ -375,7 +424,13 @@ export default function ListeningControls({
           )}
           <button
             type="submit"
-            disabled={submitting || (!initialPiece && pieces.length === 0)}
+            disabled={
+              submitting ||
+              (!initialPiece &&
+                !initialPatch &&
+                pieces.length === 0 &&
+                drones.length === 0)
+            }
             className="flex items-center gap-2 rounded-full bg-amber-500 px-5 py-2.5 text-stone-950 hover:bg-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg shadow-amber-500/10"
           >
             <Save size={12} />

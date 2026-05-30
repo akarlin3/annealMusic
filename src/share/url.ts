@@ -9,6 +9,7 @@ import { SCHEMA_VERSION, SUPPORTED_SCHEMA_VERSIONS } from '@/share/schema';
 import type { AnnealMusicParams, ParamStore } from '@/state/params';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
 import type { LoopConfigMap } from '@/loop/types';
+import type { TuningRef } from '@/audio/tuning/types';
 
 const PREFIX = 's=';
 
@@ -46,10 +47,12 @@ export function writeStateToHash(
   engineParams: EngineParams = {},
   session?: SessionConfig,
   loops?: LoopConfigMap,
+  tuning?: TuningRef,
+  uiMode?: 'sketch' | 'drone',
 ): void {
   if (typeof window === 'undefined') return;
 
-  const hash = `#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams, session, loops)}`;
+  const hash = `#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams, session, loops, tuning, uiMode)}`;
   const { pathname, search } = window.location;
   window.history.replaceState(
     window.history.state,
@@ -68,12 +71,14 @@ export function buildShareUrl(
   engineParams: EngineParams = {},
   session?: SessionConfig,
   loops?: LoopConfigMap,
+  tuning?: TuningRef,
+  uiMode?: 'sketch' | 'drone',
 ): string {
   const base =
     typeof window === 'undefined'
       ? ''
       : window.location.origin + window.location.pathname;
-  return `${base}#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams, session, loops)}`;
+  return `${base}#${PREFIX}${SCHEMA_VERSION}:${encodeState(params, engineId, engineParams, session, loops, tuning, uiMode)}`;
 }
 
 /**
@@ -102,6 +107,8 @@ export function subscribeStoreToHash(
           durationSec: state.arcDurationSec,
         },
         state.loops,
+        state.tuning,
+        state.mode,
       );
     }, debounceMs);
   });

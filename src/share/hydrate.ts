@@ -26,6 +26,9 @@ export function applyDecodedToStore(decoded: DecodedState): void {
   }
 
   store.setSessionMode(decoded.mode);
+  if (decoded.uiMode) {
+    store.setMode(decoded.uiMode);
+  }
   if (decoded.arcId) store.setArcId(decoded.arcId);
   if (decoded.durationSec !== undefined) {
     store.setArcDurationSec(decoded.durationSec);

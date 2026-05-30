@@ -61,11 +61,23 @@ async def test_sort_newest_oldest(client):
 
 async def test_filter_engine_and_mode(client):
     await _publish(client, title="sine-open", payload="e=sine&m=open")
-    await _publish(client, title="fm-arc", payload="e=fm&m=arc&arc=bell&dur=600")
+    await client.post(
+        "/api/v1/patches",
+        headers=_hdr(),
+        json={
+            "state": "e=fm&m=arc&arc=bell&dur=600",
+            "schema_ver": 4,
+            "title": "fm-drone",
+            "visibility": "public",
+            "mode": "drone",
+        },
+    )
     r = await client.get("/api/v1/gallery?engine=fm")
-    assert [i["title"] for i in r.json()["items"]] == ["fm-arc"]
-    r2 = await client.get("/api/v1/gallery?mode=open")
-    assert [i["title"] for i in r2.json()["items"]] == ["sine-open"]
+    assert [i["title"] for i in r.json()["items"]] == ["fm-drone"]
+    r2 = await client.get("/api/v1/gallery?mode=drone")
+    assert [i["title"] for i in r2.json()["items"]] == ["fm-drone"]
+    r3 = await client.get("/api/v1/gallery?mode=sketch")
+    assert [i["title"] for i in r3.json()["items"]] == ["sine-open"]
 
 
 async def test_search(client):

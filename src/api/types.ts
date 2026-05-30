@@ -38,6 +38,7 @@ export interface Patch {
   short_slug: string;
   created_at: string;
   updated_at: string;
+  mode: 'sketch' | 'drone';
 }
 
 export interface PatchList {
@@ -343,6 +344,8 @@ export interface ListeningSession {
   created_at: string;
   updated_at: string;
   piece?: APIPiece | null;
+  patch?: Patch | null;
+  patch_id: string | null;
   creator_name: string | null;
   creator_avatar_seed: string | null;
   piece_creator_name: string | null;
@@ -354,7 +357,8 @@ export interface ListeningSessionList {
 }
 
 export interface CreateListeningSessionBody {
-  piece_id: string;
+  piece_id?: string;
+  patch_id?: string;
   schema_ver: number;
   title: string;
   description?: string | null;
@@ -370,6 +374,7 @@ export interface CreateListeningSessionBody {
 
 export interface UpdateListeningSessionBody {
   piece_id?: string;
+  patch_id?: string;
   title?: string;
   description?: string | null;
   intention?: string | null;

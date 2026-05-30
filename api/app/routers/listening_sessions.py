@@ -55,6 +55,7 @@ async def to_out(
 ) -> ListeningSessionOut:
     piece_out = None
     piece_creator_name = None
+    patch_out = None
     
     if ls.piece_id is not None:
         piece = await session.get(Piece, ls.piece_id)
@@ -68,12 +69,19 @@ async def to_out(
             p_creator_name, _ = await _get_creator_info(session, piece.user_id)
             piece_creator_name = p_creator_name
 
+    if ls.patch_id is not None:
+        patch = await session.get(Patch, ls.patch_id)
+        if patch is not None and patch.visibility != "flagged":
+            from app.routers.patches import to_out as patch_to_out
+            patch_out = patch_to_out(patch)
+
     creator_name, creator_avatar_seed = await _get_creator_info(session, ls.user_id)
 
     return ListeningSessionOut(
         id=ls.id,
         user_id=ls.user_id,
         piece_id=ls.piece_id,
+        patch_id=ls.patch_id,
         schema_ver=ls.schema_ver,
         title=ls.title,
         description=ls.description,
@@ -90,6 +98,7 @@ async def to_out(
         created_at=ls.created_at,
         updated_at=ls.updated_at,
         piece=piece_out,
+        patch=patch_out,
         creator_name=creator_name,
         creator_avatar_seed=creator_avatar_seed,
         piece_creator_name=piece_creator_name,
@@ -143,19 +152,49 @@ async def create_listening_session(
     user: CurrentWriter,
     session: SessionDep,
 ) -> ListeningSessionOut:
-    piece = await session.get(Piece, body.piece_id)
-    if piece is None:
-        raise not_found("piece")
-    if piece.visibility == "flagged":
-        raise not_found("piece")
-    if piece.user_id != user.id and piece.visibility != "public":
-        raise forbidden("Referenced piece must be public or owned by you")
+    if (body.piece_id is not None) == (body.patch_id is not None):
+        raise bad_request("Exactly one of piece_id or patch_id must be provided")
 
-    total_duration = _calc_total_duration(piece, body.opening_tone, body.closing_tone)
+    total_duration = None
+
+    if body.piece_id is not None:
+        piece = await session.get(Piece, body.piece_id)
+        if piece is None or piece.visibility == "flagged":
+            raise not_found("piece")
+        if piece.user_id != user.id and piece.visibility != "public":
+            raise forbidden("Referenced piece must be public or owned by you")
+        total_duration = _calc_total_duration(piece, body.opening_tone, body.closing_tone)
+    else:
+        from app.models import Patch
+        patch = await session.get(Patch, body.patch_id)
+        if patch is None or patch.visibility == "flagged":
+            raise not_found("patch")
+        if patch.user_id != user.id and patch.visibility != "public":
+            raise forbidden("Referenced patch must be public or owned by you")
+        if patch.mode != "drone":
+            raise bad_request("Referenced patch must be a drone patch")
+        
+        # Calculate drone duration based on length category
+        drone_duration = 30 * 60 * 1000 # default to 30 mins
+        if body.length_category == "short":
+            drone_duration = 10 * 60 * 1000
+        elif body.length_category == "medium":
+            drone_duration = 20 * 60 * 1000
+        elif body.length_category == "long":
+            drone_duration = 30 * 60 * 1000
+        elif body.length_category == "extended":
+            drone_duration = 60 * 60 * 1000
+        
+        total_duration = drone_duration
+        if body.opening_tone:
+            total_duration += 4000
+        if body.closing_tone:
+            total_duration += 4000
 
     ls = ListeningSession(
         user_id=user.id,
         piece_id=body.piece_id,
+        patch_id=body.patch_id,
         schema_ver=body.schema_ver,
         title=body.title,
         description=body.description,
@@ -206,15 +245,28 @@ async def update_listening_session(
     if ls.user_id != user.id:
         raise forbidden()
 
+    if body.piece_id is not None and body.patch_id is not None:
+        raise bad_request("Exactly one of piece_id or patch_id must be provided")
+
     if body.piece_id is not None:
         piece = await session.get(Piece, body.piece_id)
-        if piece is None:
-            raise not_found("piece")
-        if piece.visibility == "flagged":
+        if piece is None or piece.visibility == "flagged":
             raise not_found("piece")
         if piece.user_id != user.id and piece.visibility != "public":
             raise forbidden("Referenced piece must be public or owned by you")
         ls.piece_id = body.piece_id
+        ls.patch_id = None
+    elif body.patch_id is not None:
+        from app.models import Patch
+        patch = await session.get(Patch, body.patch_id)
+        if patch is None or patch.visibility == "flagged":
+            raise not_found("patch")
+        if patch.user_id != user.id and patch.visibility != "public":
+            raise forbidden("Referenced patch must be public or owned by you")
+        if patch.mode != "drone":
+            raise bad_request("Referenced patch must be a drone patch")
+        ls.patch_id = body.patch_id
+        ls.piece_id = None
 
     if body.title is not None:
         ls.title = body.title
@@ -238,10 +290,29 @@ async def update_listening_session(
         ls.visibility = body.visibility
 
     # Recalculate total duration
-    piece = None
     if ls.piece_id is not None:
         piece = await session.get(Piece, ls.piece_id)
-    ls.total_duration_ms = _calc_total_duration(piece, ls.opening_tone, ls.closing_tone)
+        ls.total_duration_ms = _calc_total_duration(piece, ls.opening_tone, ls.closing_tone)
+    elif ls.patch_id is not None:
+        # Calculate drone duration based on length category
+        drone_duration = 30 * 60 * 1000 # default to 30 mins
+        if ls.length_category == "short":
+            drone_duration = 10 * 60 * 1000
+        elif ls.length_category == "medium":
+            drone_duration = 20 * 60 * 1000
+        elif ls.length_category == "long":
+            drone_duration = 30 * 60 * 1000
+        elif ls.length_category == "extended":
+            drone_duration = 60 * 60 * 1000
+        
+        total_duration = drone_duration
+        if ls.opening_tone:
+            total_duration += 4000
+        if ls.closing_tone:
+            total_duration += 4000
+        ls.total_duration_ms = total_duration
+    else:
+        ls.total_duration_ms = None
 
     await session.commit()
     await session.refresh(ls)

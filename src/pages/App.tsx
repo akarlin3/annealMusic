@@ -15,6 +15,8 @@ import InputPanel from '@/components/InputPanel';
 import LoopPedal from '@/components/LoopPedal';
 import EngineSelector from '@/components/EngineSelector';
 import ModeToggle from '@/components/ModeToggle';
+import SessionModeToggle from '@/components/SessionModeToggle';
+import DroneView from '@/drone/DroneView';
 import ArcPanel from '@/components/ArcPanel';
 import PresetsPanel from '@/components/PresetsPanel';
 import CopyLinkButton from '@/components/CopyLinkButton';
@@ -77,6 +79,8 @@ export default function App() {
     ensureOrchestrator,
     setEngineErrorHandler,
   } = useAnnealMusic();
+
+  const mode = useParamStore((s) => s.mode);
 
   const arcLocked = arcProgress !== null;
   const returning = sessionState === 'stopping' && arcProgress !== null;
@@ -292,6 +296,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            <ModeToggle />
             <button
               type="button"
               aria-label="What is AnnealMusic? Open help"
@@ -498,85 +503,99 @@ export default function App() {
           </div>
         </header>
 
-        <div className="mb-6 flex flex-wrap items-center gap-x-8 gap-y-3">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              <span
-                className="font-mono text-[10px] uppercase tracking-[0.22em]"
-                style={{ color: '#57534e' }}
-              >
-                Mode
-              </span>
-              <InfoTip id="mode" label="Mode" />
-            </span>
-            <ModeToggle
-              mode={sessionMode}
-              setMode={setSessionMode}
-              disabled={isPlaying}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              <span
-                className="font-mono text-[10px] uppercase tracking-[0.22em]"
-                style={{ color: '#57534e' }}
-              >
-                Sound
-              </span>
-              <InfoTip id="engine" label="Sound" />
-            </span>
-            <div data-tour="engine">
-              <EngineSelector
+        {mode === 'drone' ? (
+          <DroneView engineRef={engineRef} isPlaying={isPlaying} />
+        ) : (
+          <>
+            <div className="mb-6 flex flex-wrap items-center gap-x-8 gap-y-3">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-[0.22em]"
+                    style={{ color: '#57534e' }}
+                  >
+                    Mode
+                  </span>
+                  <InfoTip id="mode" label="Mode" />
+                </span>
+                <SessionModeToggle
+                  mode={sessionMode}
+                  setMode={setSessionMode}
+                  disabled={isPlaying}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-[0.22em]"
+                    style={{ color: '#57534e' }}
+                  >
+                    Sound
+                  </span>
+                  <InfoTip id="engine" label="Sound" />
+                </span>
+                <div data-tour="engine">
+                  <EngineSelector
+                    engineId={engineId}
+                    setEngine={setEngine}
+                    disabled={arcLocked}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <PresetsPanel showToast={showToast} disabled={arcLocked} />
+
+            {sessionMode === 'arc' && (
+              <ArcPanel
+                arcId={arcId}
+                setArcId={setArcId}
+                durationSec={arcDurationSec}
+                setDurationSec={setArcDurationSec}
                 engineId={engineId}
-                setEngine={setEngine}
-                disabled={arcLocked}
+                disabled={isPlaying}
+              />
+            )}
+
+            <div className="mt-6">
+              <Visualizer
+                engineRef={engineRef}
+                isPlaying={isPlaying}
+                arcProgress={arcProgress}
+                segmentBoundaries={segmentBoundaries}
+                returning={returning}
               />
             </div>
-          </div>
-        </div>
 
-        <PresetsPanel showToast={showToast} disabled={arcLocked} />
+            <InputPanel input={input} />
 
-        {sessionMode === 'arc' && (
-          <ArcPanel
-            arcId={arcId}
-            setArcId={setArcId}
-            durationSec={arcDurationSec}
-            setDurationSec={setArcDurationSec}
-            engineId={engineId}
-            disabled={isPlaying}
-          />
-        )}
+            <LoopPedal
+              loops={loops}
+              inputConnected={input.state === 'connected'}
+            />
 
-        <div className="mt-6">
-          <Visualizer
-            engineRef={engineRef}
-            isPlaying={isPlaying}
-            arcProgress={arcProgress}
-            segmentBoundaries={segmentBoundaries}
-            returning={returning}
-          />
-        </div>
+            <ControlPanel
+              params={params}
+              setParam={setParam}
+              isPlaying={isPlaying}
+              engineId={engineId}
+              engineParams={engineParams[engineId] ?? {}}
+              setEngineParam={(key, value) =>
+                setEngineParam(engineId, key, value)
+              }
+              arcLocked={arcLocked}
+              showToast={showToast}
+            />
 
-        <InputPanel input={input} />
-
-        <LoopPedal loops={loops} inputConnected={input.state === 'connected'} />
-
-        <ControlPanel
-          params={params}
-          setParam={setParam}
-          isPlaying={isPlaying}
-          engineId={engineId}
-          engineParams={engineParams[engineId] ?? {}}
-          setEngineParam={(key, value) => setEngineParam(engineId, key, value)}
-          arcLocked={arcLocked}
-          showToast={showToast}
-        />
-
-        {activePatch && (
-          <>
-            <div className="am-hairline my-12" />
-            <SimilarPatchesRow patchId={activePatch.id} showToast={showToast} />
+            {activePatch && (
+              <>
+                <div className="am-hairline my-12" />
+                <SimilarPatchesRow
+                  patchId={activePatch.id}
+                  showToast={showToast}
+                />
+              </>
+            )}
           </>
         )}
 

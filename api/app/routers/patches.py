@@ -84,6 +84,7 @@ def to_out(patch: Patch, liked_by_me: bool = False) -> PatchOut:
         short_slug=patch.short_slug,
         created_at=patch.created_at,
         updated_at=patch.updated_at,
+        mode=patch.mode,
         ai_description=patch.ai_description,
         ai_description_source=patch.ai_description_source,
         like_count=patch.like_count,
@@ -178,7 +179,7 @@ async def create_patch(
         visibility=body.visibility,
         capture_refs=refs,
         engine=parse_engine(body.state),
-        mode=parse_mode(body.state),
+        mode=body.mode or "sketch",
         has_captures=bool(refs),
     )
     await _insert_with_slug(session, patch)
@@ -335,6 +336,8 @@ async def update_patch(
         patch.title = body.title
     if body.description is not None:
         patch.description = body.description
+    if body.mode is not None:
+        patch.mode = body.mode
 
     going_public = body.visibility == "public" and patch.visibility != "public"
     if body.visibility is not None:

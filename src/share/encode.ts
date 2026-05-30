@@ -140,8 +140,12 @@ export function encodeState(
   session: SessionConfig = DEFAULT_SESSION,
   loops?: LoopConfigMap,
   tuning?: TuningRef,
+  uiMode?: 'sketch' | 'drone',
 ): string {
   const parts = [`m=${session.mode}`];
+  if (uiMode) {
+    parts.push(`app_mode=${uiMode}`);
+  }
   if (session.mode === 'arc') {
     parts.push(`arc=${session.arcId}`, `dur=${session.durationSec}`);
   }
@@ -208,6 +212,7 @@ export type DecodedState =
       engineId: EngineId;
       engineParams: Partial<Record<EngineId, EngineParams>>;
       mode: SessionMode;
+      uiMode?: 'sketch' | 'drone';
       arcId?: string;
       durationSec?: number;
       loops: LoopConfigMap;
@@ -287,6 +292,7 @@ function decodePatchState(
   engineId: EngineId;
   engineParams: Partial<Record<EngineId, EngineParams>>;
   mode: SessionMode;
+  uiMode?: 'sketch' | 'drone';
   arcId?: string;
   durationSec?: number;
   loops: LoopConfigMap;
@@ -299,6 +305,7 @@ function decodePatchState(
   const warnings: string[] = [];
   let engineId: EngineId = 'sine';
   let mode: SessionMode = 'open';
+  let uiMode: 'sketch' | 'drone' | undefined;
   let arcId: string | undefined;
   let durationSec: number | undefined;
   let tuning: TuningRef | undefined;
@@ -314,6 +321,15 @@ function decodePatchState(
 
     const key = pair.slice(0, eq);
     const raw = pair.slice(eq + 1);
+
+    if (key === 'app_mode') {
+      if (raw === 'sketch' || raw === 'drone') {
+        uiMode = raw;
+      } else {
+        warnings.push(`unknown app_mode '${raw}', defaulting to sketch`);
+      }
+      continue;
+    }
 
     if (key === 't.system') {
       if (!tuning) tuning = { system: 'equal', referenceA4Hz: 440 };
@@ -485,6 +501,7 @@ function decodePatchState(
     engineId,
     engineParams,
     mode,
+    uiMode,
     arcId,
     durationSec,
     loops,

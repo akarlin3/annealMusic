@@ -47,6 +47,7 @@ class PatchCreate(BaseModel):
     visibility: Visibility = "unlisted"
     capture_refs: list[uuid.UUID] = Field(default_factory=list)
     acknowledge_source_visibility: bool = False
+    mode: Literal["sketch", "drone"] | None = "sketch"
 
 
 class PatchUpdate(BaseModel):
@@ -54,6 +55,7 @@ class PatchUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=2000)
     visibility: Visibility | None = None
     acknowledge_source_visibility: bool = False
+    mode: Literal["sketch", "drone"] | None = None
 
 
 class PatchOut(BaseModel):
@@ -69,6 +71,7 @@ class PatchOut(BaseModel):
     short_slug: str
     created_at: datetime
     updated_at: datetime
+    mode: str = "sketch"
     ai_description: str | None = None
     ai_description_source: str | None = None
     like_count: int = 0
@@ -472,8 +475,9 @@ class PieceListOut(BaseModel):
 # --- v4.0 Listening Sessions Schemas -----------------------------------------
 
 class ListeningSessionCreate(BaseModel):
-    piece_id: uuid.UUID
-    schema_ver: int = 16
+    piece_id: uuid.UUID | None = None
+    patch_id: uuid.UUID | None = None
+    schema_ver: int = 18
     title: str | None = Field(default=None, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     intention: str | None = Field(default=None, max_length=120)
@@ -488,6 +492,7 @@ class ListeningSessionCreate(BaseModel):
 
 class ListeningSessionUpdate(BaseModel):
     piece_id: uuid.UUID | None = None
+    patch_id: uuid.UUID | None = None
     title: str | None = Field(default=None, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     intention: str | None = Field(default=None, max_length=120)
@@ -506,6 +511,7 @@ class ListeningSessionOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     piece_id: uuid.UUID | None
+    patch_id: uuid.UUID | None = None
     schema_ver: int
     title: str | None
     description: str | None
@@ -523,6 +529,7 @@ class ListeningSessionOut(BaseModel):
     updated_at: datetime
     
     piece: PieceOut | None = None
+    patch: PatchOut | None = None
     creator_name: str | None = None
     creator_avatar_seed: str | None = None
     piece_creator_name: str | None = None

@@ -52,6 +52,9 @@ export default function ExportDialog({
     'offline',
   );
   const [durationSec, setDurationSec] = useState(() => {
+    if (store.mode === 'drone') {
+      return 30 * 60; // 30 minutes default
+    }
     if (store.sessionMode === 'arc') {
       return store.arcDurationSec;
     }
@@ -625,7 +628,7 @@ export default function ExportDialog({
                 )}
 
               {/* Duration Slider / Input */}
-              {store.sessionMode === 'open' && (
+              {store.sessionMode === 'open' && store.mode === 'sketch' && (
                 <div>
                   <div className="flex justify-between items-center mb-1">
                     <label className="font-body text-xs text-[#a8a29e]">
@@ -654,6 +657,48 @@ export default function ExportDialog({
                       <span>30m</span>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* Meditative Duration Selection for Drone Mode */}
+              {store.sessionMode === 'open' && store.mode === 'drone' && (
+                <div>
+                  <label className="mb-1.5 block font-body text-xs text-[#a8a29e]">
+                    Meditative Duration
+                  </label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(
+                      [
+                        { label: '10m', sec: 10 * 60 },
+                        { label: '20m', sec: 20 * 60 },
+                        { label: '30m', sec: 30 * 60 },
+                        { label: '60m', sec: 60 * 60 },
+                      ] as const
+                    ).map((opt) => {
+                      const active = durationSec === opt.sec;
+                      return (
+                        <button
+                          key={opt.sec}
+                          type="button"
+                          onClick={() => setDurationSec(opt.sec)}
+                          className="rounded-lg py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] transition-all border"
+                          style={{
+                            background: active ? '#f59e0b' : '#0c0a09',
+                            color: active ? '#0c0a09' : '#a8a29e',
+                            border: active
+                              ? '1px solid #f59e0b'
+                              : '1px solid #44403c',
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[9px] font-body text-[#78716c] mt-1.5">
+                    🧘 Configured duration of deterministic drone drift to
+                    render.
+                  </p>
                 </div>
               )}
 

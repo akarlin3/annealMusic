@@ -4,6 +4,7 @@ import { ArrangementView } from '@/piece/ArrangementView';
 
 vi.mock('react-router-dom', () => ({
   useParams: () => ({ slug: undefined }),
+  useNavigate: () => vi.fn(),
 }));
 
 vi.mock('@/api/client', () => ({

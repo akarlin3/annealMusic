@@ -36,6 +36,7 @@ export function useSession(): SessionApi {
   const params = useParamStore((s) => s.params);
   const engineId = useParamStore((s) => s.engineId);
   const engineParams = useParamStore((s) => s.engineParams);
+  const mode = useParamStore((s) => s.mode);
 
   const ensureOrchestrator = useCallback((): Orchestrator => {
     if (!engineRef.current) {
@@ -47,6 +48,7 @@ export function useSession(): SessionApi {
         undefined,
         state.loops,
       );
+      orch.setMode(state.mode);
       orch.subscribe(setSessionState);
       orch.setEngineErrorHandler((error) => errorHandlerRef.current?.(error));
       engineRef.current = orch;
@@ -69,6 +71,9 @@ export function useSession(): SessionApi {
     const active = engineParams[engineId];
     if (active) engineRef.current?.setEngineParams(active);
   }, [engineParams, engineId]);
+  useEffect(() => {
+    engineRef.current?.setMode(mode);
+  }, [mode]);
 
   // Poll arc progress while an arc runs or settles out.
   useEffect(() => {

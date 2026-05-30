@@ -143,7 +143,7 @@ class Patch(Base):
     # Plain columns rather than JSON-path filters keep gallery filtering portable
     # across Postgres (prod) and SQLite (tests).
     engine: Mapped[str] = mapped_column(String, nullable=False, default="sine")
-    mode: Mapped[str] = mapped_column(String, nullable=False, default="open")
+    mode: Mapped[str] = mapped_column(String, nullable=False, default="sketch")
     has_captures: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
@@ -525,6 +525,10 @@ class ListeningSession(Base):
             "visibility IN ('unlisted','public','flagged')",
             name="ck_listening_sessions_visibility",
         ),
+        CheckConstraint(
+            "(piece_id IS NULL) OR (patch_id IS NULL)",
+            name="ls_source_one_of",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
@@ -533,6 +537,9 @@ class ListeningSession(Base):
     )
     piece_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(), ForeignKey("pieces.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    patch_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("patches.id", ondelete="SET NULL"), nullable=True, index=True
     )
     schema_ver: Mapped[int] = mapped_column(Integer, nullable=False)
     title: Mapped[str | None] = mapped_column(String, nullable=True)

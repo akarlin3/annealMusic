@@ -2,6 +2,7 @@
 import { driftStep } from '@/audio/drift';
 import { makeIR } from '@/audio/ir';
 import { midiOutput } from '@/midi/outputController';
+import { clampSharedParamsForDrone } from '@/drone/ModeConstraints';
 import {
   ENGINES,
   engineCapabilities,
@@ -89,6 +90,7 @@ export class Orchestrator {
   private engineId: EngineId;
   private engineParams: Partial<Record<EngineId, EngineParams>>;
   private readonly factories: Partial<Record<EngineId, EngineFactory>>;
+  private mode: 'sketch' | 'drone' = 'sketch';
 
   private ctx: AudioContext | null = null;
   private nodes: GraphNodes | null = null;
@@ -137,6 +139,14 @@ export class Orchestrator {
     this.engineParams = { ...engineParams };
     this.factories = factories;
     this.loopConfig = loopConfig;
+  }
+
+  setMode(mode: 'sketch' | 'drone'): void {
+    this.mode = mode;
+    if (mode === 'drone') {
+      const clamped = clampSharedParamsForDrone(this.shared);
+      this.setSharedParams(clamped);
+    }
   }
 
   isRunning(): boolean {
@@ -588,7 +598,11 @@ export class Orchestrator {
 
   /** Apply live shared-param updates: post-fx here, voice freqs to the engines. */
   setSharedParams(partial: Partial<SharedParams>, instant?: boolean): void {
-    this.shared = { ...this.shared, ...partial };
+    let update = { ...partial };
+    if (this.mode === 'drone') {
+      update = clampSharedParamsForDrone(update);
+    }
+    this.shared = { ...this.shared, ...update };
 
     const ctx = this.ctx;
     const nodes = this.nodes;
@@ -624,6 +638,7 @@ export class Orchestrator {
       };
 
       const gridLocked =
+        this.mode !== 'drone' &&
         this.tempoBpm !== null &&
         this.tempoBpm > 0 &&
         (this.engineParams[this.engineId]?.grid_lock === 1 ||
@@ -764,6 +779,11 @@ export class Orchestrator {
     }
 
     midiOutput.triggerStart();
+
+    if (this.mode === 'drone') {
+      this.setState('playing-patch');
+      return;
+    }
 
     if (opts.mode === 'open') {
       this.setState('playing-patch');

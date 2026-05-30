@@ -629,7 +629,8 @@ export const api = {
 
   // --- listening sessions (v4.0) -------------------------------------------
   async createListeningSession(body: {
-    piece_id: string;
+    piece_id?: string;
+    patch_id?: string;
     schema_ver: number;
     title: string;
     description?: string | null;
@@ -663,6 +664,7 @@ export const api = {
     id: string,
     body: {
       piece_id?: string;
+      patch_id?: string;
       title?: string;
       description?: string | null;
       intention?: string | null;

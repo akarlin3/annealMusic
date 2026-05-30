@@ -138,7 +138,7 @@ export const CONTROL_DEFS: readonly ControlDef[] = [
     key: 'density',
     label: 'Density',
     group: 'Pitch',
-    min: 2,
+    min: 1,
     max: 8,
     step: 1,
     fmt: (v) => `${v.toFixed(0)}`,
@@ -233,6 +233,8 @@ export interface ParamStore {
   tuning: TuningRef;
   /** List of user imported scales */
   customScales: CustomTuning[];
+  /** Top-level mode */
+  mode: 'sketch' | 'drone';
   setParam: (key: ParamKey, value: number) => void;
   setMany: (partial: Partial<AnnealMusicParams>) => void;
   setEngine: (id: EngineId) => void;
@@ -243,6 +245,7 @@ export interface ParamStore {
   setLoopConfig: (id: SlotId, config: SlotConfig) => void;
   setTuning: (ref: TuningRef) => void;
   setCustomScales: (scales: CustomTuning[]) => void;
+  setMode: (mode: 'sketch' | 'drone') => void;
   reset: () => void;
 }
 
@@ -256,6 +259,7 @@ export const useParamStore = create<ParamStore>((set) => ({
   loops: makeDefaultLoopConfig(),
   tuning: DEFAULT_TUNING,
   customScales: [],
+  mode: 'sketch',
   setParam: (key, value) =>
     set((state) => ({
       params: { ...state.params, [key]: clampParam(key, value) },
@@ -287,6 +291,7 @@ export const useParamStore = create<ParamStore>((set) => ({
     set((state) => ({ loops: { ...state.loops, [id]: config } })),
   setTuning: (ref) => set({ tuning: ref }),
   setCustomScales: (scales) => set({ customScales: scales }),
+  setMode: (mode) => set({ mode }),
   reset: () =>
     set({
       params: DEFAULT_PARAMS,
@@ -298,5 +303,6 @@ export const useParamStore = create<ParamStore>((set) => ({
       loops: makeDefaultLoopConfig(),
       tuning: DEFAULT_TUNING,
       customScales: [],
+      mode: 'sketch',
     }),
 }));
