@@ -35,6 +35,7 @@ from app.routers import (
     custom_tunings,
     me_sessions,
     library,
+    research,
 )
 
 
@@ -98,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(admin.router)
     app.include_router(embed.router)
+    app.include_router(research.router)
     app.include_router(auth.router)
     app.include_router(account.router)
     app.include_router(profiles.router)
