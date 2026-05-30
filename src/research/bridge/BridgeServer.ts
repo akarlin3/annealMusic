@@ -181,6 +181,13 @@ export class BridgeServer {
         return true;
       }
 
+      case 'anneal.state.setEngineParam': {
+        useParamStore
+          .getState()
+          .setEngineParam(params.engineId, params.key, params.value);
+        return true;
+      }
+
       case 'anneal.state.setEngine': {
         useParamStore.getState().setEngine(params.engineId);
         return true;

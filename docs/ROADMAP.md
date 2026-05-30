@@ -51,6 +51,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v4.5 ✅ | Session History + Curated Library                  | Private per-account practice history (`/me/sessions`, cross-device, optional reflections, deliberately understated stats, fully deletable) and a curated editorial library (`/listen`) browsable by length/intention/audio-character with editor's picks, previews, and admin curation; calm-by-design CI gate; Alembic migration `0015`, no URL schema bump |
 | v4.6 ✅ | Health Integrations & Accessibility Closeout        | Apple Health & Google Health Connect mindful minutes logging, comprehensive semantic HTML accessibility (a11y) audit & remediation on listening surface, and v4 retrospective |
 | v5.0 ✅ | Research Surface Foundation                        | Standalone `/research` route, decoupled assets bundle (`dist-research/`), BroadcastChannel-backed transport, transport-agnostic JSON-RPC 2.0 bridge server & client, and real-time console with Telemetry RPC logs + FFT Canvas visualizer |
+| v5.1 ✅ | Bidirectional Open Sound Control (OSC)             | Full OSC namespace state broadcasts & control actions, zero-dependency bridge helper tool, native Capacitor mobile plugins, and premium configurations/traffic monitoring panel inside /research |
 
 ## Shipped notes
 

@@ -26,7 +26,7 @@ export const METHOD_SCHEMAS: Record<string, MethodDef> = {
           'Invalid params: keys must be an array of strings',
         );
       }
-      const allowed = ['params', 'engineId', 'tuning', 'mode'];
+      const allowed = ['params', 'engineId', 'tuning', 'mode', 'engineParams'];
       for (const k of params.keys) {
         if (!allowed.includes(k)) {
           throw new BridgeError(
@@ -66,6 +66,23 @@ export const METHOD_SCHEMAS: Record<string, MethodDef> = {
         throw new BridgeError(
           -32602,
           'Invalid params: params object must be provided',
+        );
+      }
+    },
+  },
+  'anneal.state.setEngineParam': {
+    name: 'anneal.state.setEngineParam',
+    description: 'Updates a specific engine parameter.',
+    validate: (params) => {
+      if (
+        !params ||
+        typeof params.engineId !== 'string' ||
+        typeof params.key !== 'string' ||
+        params.value === undefined
+      ) {
+        throw new BridgeError(
+          -32602,
+          'Invalid params: engineId, key, and value must be provided',
         );
       }
     },

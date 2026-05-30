@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from 'react';
 import { BridgeClient } from './bridge/BridgeClient';
+import { OSCPanel } from './osc/OSCPanel';
 import {
   Activity,
   Terminal,
@@ -565,7 +566,11 @@ export function ResearchApp() {
             </div>
           )}
 
-          {activeTab !== 'telemetry' && (
+          {activeTab === 'osc' && clientRef.current && (
+            <OSCPanel client={clientRef.current} />
+          )}
+
+          {activeTab !== 'telemetry' && activeTab !== 'osc' && (
             <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 shadow-xl text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4">
                 <Terminal size={24} />

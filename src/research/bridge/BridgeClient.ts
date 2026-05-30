@@ -74,6 +74,14 @@ export class BridgeClient {
     return this.call('anneal.state.set', { params });
   }
 
+  async setEngineParam(
+    engineId: string,
+    key: string,
+    value: number | string,
+  ): Promise<boolean> {
+    return this.call('anneal.state.setEngineParam', { engineId, key, value });
+  }
+
   async setEngine(engineId: string): Promise<boolean> {
     return this.call('anneal.state.setEngine', { engineId });
   }

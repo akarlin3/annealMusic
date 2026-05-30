@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2026-05-30
+
+### Added
+
+- **Bidirectional Open Sound Control (OSC).** Integrates comprehensive state broadcasts (elapsed session time, spectrum FFTs, phase-coupled partial lists, and core parameters) and control actions (sweeping root frequencies, volume, and engine-specific parameters) to seamlessly bridge AnnealMusic with SuperCollider, Max/MSP, and external DAWs.
+- **Localhost WebSocket Bridge Helper.** Standalone Node CLI (`tools/osc-bridge/`) serving a loopback WebSocket server on port `8766` and translating packets bidirectional with UDP sockets (listen on `8765`, send to `9000`), packaged for npm (`annealmusic-osc-bridge`) and compilable into single-file binary executables.
+- **Apple Modern Network UDP Sockets.** High-performance iOS Capacitor plugin (`OSCBridge.swift`/`OSCBridge.m`) utilizing Apple's modern `Network` framework (`NWConnection` and `NWListener`) for lightweight local-network UDP routing with zero external Objective-C dependencies.
+- **Android DatagramSockets Plugin.** Low-overhead Android Capacitor native plugin (`OSCBridgePlugin.java`) opening `java.net.DatagramSocket` listeners inside background executor worker threads.
+- **Premium Glassmorphic OSC Panel UI.** High-fidelity configuration panel mounted inside `/research`, featuring glowing status badges, a canonical clipboard-copy address catalog, a scrollable live terminal log, port customizers, and an interactive rate-limiting filter rules editor.
+- **Deterministic Bandwidth Throttling.** Implement client-side filter engine (`OSCFilter.ts`) with custom millisecond-based rate throttling to keep network overhead extremely low (~7.7 KB/s) during high-frequency spectrum streams.
+- **Strict Security Boundaries.** Hardens the loopback bridge helper with loopback default bindings (`127.0.0.1`), strict UDP size limits (65,535 bytes), argument counters, regex address verification, and source IP burst rate limit thresholds.
+- **Bridge Binary Parse Test Suites.** Introduces comprehensive test cases for Web OSC routing, whitelisting, and the custom Node bridge binary encoder/decoder round-trips.
+
 ## [5.0.0] - 2026-05-30
 
 ### Added
