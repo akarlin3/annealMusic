@@ -6,11 +6,17 @@ interface TextStepProps {
 }
 
 export function TextStep({ step, onComplete }: TextStepProps) {
-  const { title, content, key_points } = step.config || {};
+  const { title, content, key_points, diagram } = step.config || {};
 
   // Simple paragraph parser that splits text by double newlines
   const paragraphs =
     typeof content === 'string' ? content.split('\n\n').filter(Boolean) : [];
+
+  // v6.1: an optional generated diagram. SVG is server-sanitized (allowlist) so
+  // it can be injected directly; mermaid source renders as a labelled block (the
+  // player does not bundle the mermaid runtime).
+  const diagramSource =
+    diagram && typeof diagram.source === 'string' ? diagram.source : null;
 
   return (
     <div className="learn-step-content text-step animate-fade-in">
@@ -23,6 +29,16 @@ export function TextStep({ step, onComplete }: TextStepProps) {
           </p>
         ))}
       </div>
+
+      {diagramSource && diagram.kind === 'svg' && (
+        <div
+          className="step-diagram"
+          dangerouslySetInnerHTML={{ __html: diagramSource }}
+        />
+      )}
+      {diagramSource && diagram.kind === 'mermaid' && (
+        <pre className="step-diagram step-diagram-mermaid">{diagramSource}</pre>
+      )}
 
       {key_points && Array.isArray(key_points) && key_points.length > 0 && (
         <div className="step-key-takeaways">

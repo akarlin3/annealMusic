@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.0] - 2026-05-30
+
+### Added
+
+- **LLM Lesson Generation Pipeline.** Lesson content is now generated from authored **specs** rather than hand-seeded. An admin POSTs a spec (id, track, objectives, difficulty, prerequisites, and a `step_outline`) to `POST /api/v1/admin/lessons/generate`; the server runs one LLM call per step, validates, and persists the result. Reuses the v1.7 `LLMClient`, schema-in-prompt machinery, and validate-and-retry loop (up to 2 retries with the validation errors fed back to the model).
+- **Six system prompts + few-shot library.** Dedicated prompts for `text`, `demo`, `prompt`, `reflection`, `svg`, and `mermaid` generation sharing a warm/precise preamble, plus a curated example library (`api/data/lesson_examples.json`: 4 text, 5 demo, 3 prompt, 3 reflection, 3 svg, 3 mermaid) — every SVG passes the sanitizer, every mermaid passes the linter, every demo patch validates against the schema manifest. Versioned by `LESSON_PROMPT_VERSION` (`v6.1.0`).
+- **Allowlist SVG sanitizer (`api/app/services/svg_sanitizer.py`).** Stdlib, deny-by-default. Hard-rejects `<script>`, `<image>`, `<foreignObject>`, external `href`/`url()`, `on*` handlers, and `DOCTYPE`/`ENTITY` (no silent stripping → retry). Caps the viewBox at 800×400. The client re-checks on render as defence-in-depth.
+- **Mermaid validation.** Lightweight server-side lint (allowlisted diagram types — `flowchart`, `graph`, `sequenceDiagram`, `stateDiagram-v2` — plus injection guards); full compile stays client-side.
+- **Schema-valid demo patches.** Demo steps generate a patch JSON that is clamped and validated through the existing v1.7 patch validator before persistence; the player loads the parsed patch.
+- **Immutable per-step caching.** Cache keyed on `sha256(prompt_version | schema_version | spec_id | step_index | step_type | model_id | diagram)`, stored in `ai_generations` (`cache_key` unique, `lesson_step_id` backref, `kind = lesson-*`, nullable `user_id`). Cache hits cost nothing and decrement no quota; a prompt-version bump invalidates only new generations.
+- **Manual per-step override.** `PUT/DELETE /api/v1/admin/lesson-steps/{id}/override` stores `manual_override_content`, which wins over generated content everywhere and is never regenerated (demo overrides are re-validated against the schema).
+- **Monthly budget ceiling.** `lesson_gen_monthly_budget_usd` (default `$10`) refuses fresh generation once trailing-30-day lesson spend exceeds it. A typical 6-step lesson costs ~$0.01–0.02; the full ~100-lesson curriculum ~$1–2.
+- **Admin generation console (`/learn#admin`).** Spec editor with "Generate now", a status dashboard (pending / generating / ready / failed), per-step preview, and a manual-override editor. Admin key held in tab `sessionStorage` only.
+- **Diagram rendering in the lesson player.** `TextStep` renders generated SVG inline (server-sanitized) and mermaid as a labelled block.
+- **Data model + migration `0019_v6_1_lesson_generation`.** `lessons.spec/generation_status/generation_error`; `lesson_steps` generation provenance + `manual_override_content`; `ai_generations.lesson_step_id/cache_key` + nullable `user_id`. Spec-based lessons stay hidden from learners until `ready`; hand-authored (spec-less) lessons remain always visible.
+
+### Docs
+
+- `docs/LESSON_GENERATION.md` (new): how the pipeline works, prompt versions, cache model, cost, manual override.
+- `docs/CURRICULUM_AUTHORING.md`: added the v6.1 spec-authoring guide.
+
 ## [6.0.0] - 2026-05-30
 
 ### Added

@@ -1,0 +1,101 @@
+{
+  "text": [
+    {
+      "topic": "What physical modeling is",
+      "content": "### Sound as physics\n\nMost synthesisers build sound by stacking waveforms. Physical modeling takes a different route: it simulates the *physics* of a real vibrating object — a plucked string, a blown reed, a struck bar — and lets the sound emerge from that simulation.\n\nWhen you pluck a guitar string, energy races back and forth along it, losing a little brightness at each reflection. AnnealMusic recreates exactly this: a short burst of noise is trapped in a loop and gently filtered each time around. What you hear is not a recording and not an oscillator — it is a tiny, living model of a string, responding to every parameter you touch."
+    },
+    {
+      "topic": "How damping shapes the decay",
+      "content": "### The shape of a fading note\n\nEvery real string loses energy. A bright steel string rings for a long time; a soft nylon one fades quickly and warmly. In AnnealMusic, **damping** controls how fast that energy leaks away.\n\nWith low damping, the loop keeps its high frequencies and the note sustains, shimmering. Turn damping up and the high partials vanish first — the tone darkens and the note dies away sooner, the way a muted string does under your palm. Damping is your single most expressive control over how a sound *ends*, and endings are where much of a sound's character lives."
+    },
+    {
+      "topic": "Coupling and emergent order",
+      "content": "### When voices find each other\n\nLeave two pendulum clocks on the same shelf and, given hours, they will tick in step. The faint vibration each sends through the wood nudges the other until they synchronise. This is **coupling**, and AnnealMusic uses the same idea between its voices.\n\nAt low coupling, each voice drifts on its own, and you hear a loose, shifting cloud. Raise coupling and the voices begin to pull on one another, locking into shared rhythms and pitches. Order is not imposed from outside — it *emerges* from the conversation between voices. This is the heart of how a generative patch can feel alive rather than mechanical."
+    },
+    {
+      "topic": "Reading the harmonic series",
+      "content": "### The ladder hidden in every note\n\nPluck a low string and you do not hear one pitch — you hear a stack. Above the fundamental sit the **harmonics**: frequencies at two, three, four times the base, each quieter than the last. This ladder is why a violin and a flute playing the same note still sound different; they emphasise different rungs.\n\nIn AnnealMusic, brightness and the engine's filtering decide which harmonics survive. A dark patch keeps only the lowest rungs and sounds round and hollow; a bright one lets the upper harmonics ring through and sounds present and edged. Learning to hear the ladder is learning to hear timbre itself."
+    }
+  ],
+  "demo": [
+    {
+      "patch_brief": "A bright Karplus pluck, drift 0, brightness high",
+      "patch": {"m": "open", "e": "physical", "rootFreq": 220, "spread": 1.0, "density": 1, "coupling": 0.2, "drift": 0.0, "brightness": 0.85, "space": 0.3, "ph.reed": 0.1, "ph.damping": 0.2}
+    },
+    {
+      "patch_brief": "Same patch with continuous, sustained excitation",
+      "patch": {"m": "open", "e": "physical", "rootFreq": 220, "spread": 1.0, "density": 1, "coupling": 0.2, "drift": 0.0, "brightness": 0.85, "space": 0.3, "ph.reed": 0.8, "ph.damping": 0.2}
+    },
+    {
+      "patch_brief": "A warm sine pad, gently detuned and spacious",
+      "patch": {"m": "open", "e": "sine", "rootFreq": 110, "spread": 1.2, "density": 6, "coupling": 0.4, "drift": 0.35, "brightness": 0.4, "space": 0.7}
+    },
+    {
+      "patch_brief": "A metallic FM bell, high mod ratio, short and bright",
+      "patch": {"m": "open", "e": "fm", "rootFreq": 330, "spread": 1.0, "density": 2, "coupling": 0.3, "drift": 0.1, "brightness": 0.7, "space": 0.5, "fm.modRatio": 3.5, "fm.modIndex": 4.0, "fm.feedback": 0.2}
+    },
+    {
+      "patch_brief": "A dense granular wash, slow and evolving",
+      "patch": {"m": "open", "e": "granular", "rootFreq": 165, "spread": 1.5, "density": 8, "coupling": 0.6, "drift": 0.5, "brightness": 0.5, "space": 0.8, "gr.size": 120, "gr.density": 0.7}
+    }
+  ],
+  "prompt": [
+    {
+      "task": "Try adjusting damping while listening",
+      "prompt": "Play the patch, then slowly raise damping and listen for the high frequencies fading before the low ones. Where does the note stop feeling like a 'string'?",
+      "hint": "Sweep damping from about 0.2 up to 0.9 and back; the change is clearest on the tail of each note."
+    },
+    {
+      "task": "Explore how coupling locks the voices together",
+      "prompt": "With several voices sounding, raise coupling from low to high and notice the moment the loose cloud snaps into a shared pulse.",
+      "hint": "Around the middle of the range you'll hear the voices 'agree' — pause there and listen before going higher."
+    },
+    {
+      "task": "Balance brightness against space",
+      "prompt": "Turn brightness up for an edged, present tone, then add space and hear how reverb softens that edge. Find a setting that feels both clear and roomy.",
+      "hint": "Brightness near 0.7 with space near 0.5 is a useful starting point."
+    }
+  ],
+  "reflection": [
+    {
+      "topic": "the effect of damping",
+      "prompt": "How did raising the damping change not just the brightness but the *feeling* of each note's ending?"
+    },
+    {
+      "topic": "emergent synchronisation",
+      "prompt": "At what point did the separate voices start to feel like a single instrument, and what told your ear it had happened?"
+    },
+    {
+      "topic": "tuning and consonance",
+      "prompt": "Which intervals felt restful to you, and which felt like they wanted to move somewhere else?"
+    }
+  ],
+  "svg": [
+    {
+      "topic": "Karplus-Strong signal flow",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 160\"><rect x=\"20\" y=\"60\" width=\"70\" height=\"40\" fill=\"none\" stroke=\"#f59e0b\" stroke-width=\"2\"/><text x=\"30\" y=\"85\" font-size=\"11\" fill=\"#fcd34d\">noise</text><line x1=\"90\" y1=\"80\" x2=\"160\" y2=\"80\" stroke=\"#fbbf24\" stroke-width=\"2\"/><rect x=\"160\" y=\"60\" width=\"80\" height=\"40\" fill=\"none\" stroke=\"#f59e0b\" stroke-width=\"2\"/><text x=\"170\" y=\"85\" font-size=\"11\" fill=\"#fcd34d\">delay</text><line x1=\"240\" y1=\"80\" x2=\"310\" y2=\"80\" stroke=\"#fbbf24\" stroke-width=\"2\"/><rect x=\"310\" y=\"60\" width=\"70\" height=\"40\" fill=\"none\" stroke=\"#f59e0b\" stroke-width=\"2\"/><text x=\"318\" y=\"85\" font-size=\"11\" fill=\"#fcd34d\">lowpass</text><polyline points=\"345,100 345,140 200,140 200,100\" fill=\"none\" stroke=\"#92400e\" stroke-width=\"2\"/></svg>"
+    },
+    {
+      "topic": "A simple sine waveform",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 160\"><line x1=\"10\" y1=\"80\" x2=\"390\" y2=\"80\" stroke=\"#92400e\" stroke-width=\"1\"/><path d=\"M10 80 Q60 10 110 80 T210 80 T310 80 T410 80\" fill=\"none\" stroke=\"#f59e0b\" stroke-width=\"2\"/></svg>"
+    },
+    {
+      "topic": "The harmonic series as bars",
+      "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 400 160\"><rect x=\"30\" y=\"30\" width=\"24\" height=\"110\" fill=\"#f59e0b\"/><rect x=\"80\" y=\"70\" width=\"24\" height=\"70\" fill=\"#fbbf24\"/><rect x=\"130\" y=\"95\" width=\"24\" height=\"45\" fill=\"#fcd34d\"/><rect x=\"180\" y=\"110\" width=\"24\" height=\"30\" fill=\"#fcd34d\"/><rect x=\"230\" y=\"120\" width=\"24\" height=\"20\" fill=\"#fcd34d\"/></svg>"
+    }
+  ],
+  "mermaid": [
+    {
+      "topic": "The excitation-resonator-output chain",
+      "mermaid": "flowchart LR\n  E[Excitation] --> R[Resonator loop]\n  R --> F[Low-pass filter]\n  F --> R\n  R --> O[Output]"
+    },
+    {
+      "topic": "Lifecycle of a generated lesson",
+      "mermaid": "stateDiagram-v2\n  [*] --> pending\n  pending --> generating\n  generating --> ready\n  generating --> generation_failed"
+    },
+    {
+      "topic": "How voices couple over time",
+      "mermaid": "sequenceDiagram\n  participant A as Voice A\n  participant B as Voice B\n  A->>B: phase nudge\n  B->>A: phase nudge\n  A->>B: now in step"
+    }
+  ]
+}

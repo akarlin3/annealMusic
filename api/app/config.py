@@ -118,6 +118,10 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     voyage_api_key: str | None = None
     monthly_cost_alarm_threshold: float = 100.0
+    # v6.1 lesson generation: soft monthly ceiling on uncached generation spend.
+    # The worker refuses a fresh LLM call once trailing-30-day cost exceeds this.
+    lesson_gen_monthly_budget_usd: float = 10.0
+    lesson_gen_model_id: str = "claude-3-haiku-20240307"
 
     @property
     def is_prod(self) -> bool:

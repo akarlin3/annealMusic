@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CurriculumBrowser } from './CurriculumBrowser';
 import { LessonPlayer } from './LessonPlayer';
+import { AdminPanel } from './admin/AdminPanel';
 
 export interface LessonStep {
   id: string;
@@ -42,6 +43,9 @@ export function LearnApp() {
   // Router state
   const [activeTrack, setActiveTrack] = useState<Track | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() =>
+    window.location.hash.startsWith('#admin'),
+  );
 
   const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
 
@@ -110,9 +114,23 @@ export function LearnApp() {
     };
   }, [tracks]);
 
+  // Admin console routing (#admin) — independent of curriculum load state so it
+  // works even if the public fetch fails.
+  useEffect(() => {
+    function onHash() {
+      setIsAdmin(window.location.hash.startsWith('#admin'));
+    }
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
   const navigateToHome = () => {
     window.location.hash = '';
   };
+
+  if (isAdmin) {
+    return <AdminPanel onClose={navigateToHome} />;
+  }
 
   const navigateToLesson = (trackSlug: string, lessonSlug: string) => {
     window.location.hash = `#lesson/${trackSlug}/${lessonSlug}`;
