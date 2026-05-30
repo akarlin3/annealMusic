@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.4.0] - 2026-05-30
+
+### Added
+
+- **The curriculum.** Five tracks, **55 authored lessons**: Synthesis Fundamentals (15), Composition Technique (12), Ambient History & Listening (10), Production & DAW (8), and Music + Science Crossover (10). Every lesson is authored as a `LessonSpec` (objectives, step outline, constraints) in `api/app/services/curriculum_content.py` — the single, reviewable source for tracks, lessons, and the prerequisite graph. Lessons are seeded `generation_status='pending'` (migration `0023_v6_4_curriculum_seed`, deterministic uuid5 ids) and filled in by the v6.1 LLM pipeline at batch-generation time (~$1 on Haiku, cached). Two new tracks land in migration `0022_v6_4_curriculum_tracks`.
+- **Prerequisite graph (a DAG).** Prerequisites are declared once as an edge list and resolved to lesson UUIDs at seed time. The graph is rooted at `synthesis-fundamentals/intro`, acyclic, depth ≤5, with cross-track edges (e.g. `harmonic-series` precedes the spectral engines; `phase-kuramoto` follows the drift-based `sculpt-model`). Every track has an ungated intro lesson so onboarding never blocks.
+- **Curriculum authoring tooling** (`#admin` console, new tabs):
+  - **Spec generator** — given a topic + outline, the LLM scaffolds a _starting_ spec (validated against `LessonSpec`, one retry, framing directive injected for sensitive topics) that the author always edits. `POST /api/v1/admin/curriculum/spec-generate`.
+  - **Batch generation** — generate all pending/failed specs at once; unchanged specs are free cache hits. `POST /api/v1/admin/curriculum/batch-generate`.
+  - **Review dashboard** — every lesson with its generation status + QA badge, alongside the per-step spec↔output editor; approve / revise / regenerate.
+  - **Prerequisite-graph editor** — pick a prerequisite + a lesson, add an edge; the server validates the DAG and **rejects cycles**, so a cycle can never persist. `GET/PUT /api/v1/admin/curriculum/prereqs`.
+  - **Quality checks** — `GET /api/v1/admin/curriculum/qa` runs nine pure, network-free rules over the whole curriculum.
+- **Quality-check pipeline** (`api/app/services/curriculum_qa.py`): step-type coverage (every lesson must let you _hear_ something and _reflect_), audio-clip existence, demo-patch schema validity, SVG/mermaid sanitization, per-type word-count bands, prerequisite-DAG (cycle/self-edge/unknown-node detection), spec/id integrity, **framing compliance**, and difficulty monotonicity. Errors block publish; warnings are advisory.
+- **Honest-framing lexicon** (`api/app/services/framing_lexicon.py`): the framing-trigger terms, prohibited claim phrases, and honest hedging signals live **once** and are shared by the spec generator, the QA pipeline, and CI. Framing-sensitive lessons (432 Hz, solfeggio, binaural, entrainment …) get the `docs/FRAMING.md` directive injected at generation and are asserted by QA — the `432-solfeggio` lesson must state the clinical evidence is absent.
+- **Discoverability.** The curriculum browser gains search-by-topic, a track filter, a difficulty filter, a per-track lesson count, a **"Start here"** banner for brand-new learners (points at the first ungated intro lesson), and quiet **prerequisite hints** ("Suggested first: …") on lessons whose prerequisites aren't yet complete. Recommendations continue to pull from the real curriculum via the v6.3 picker.
+
+### Calm-by-design
+
+- Discoverability stays descriptive: lesson counts, not percentages; prerequisite _hints_, not hard locks; a "Start here" offer, not a funnel. No certificates, no quizzes, no scores. The `src/learn` calm-by-design CI gate (now covering the admin tooling too) stays green.
+
+### Notes
+
+- Lessons ship `pending` — an admin with an API key runs **Batch → Generate all pending** to fill in per-step prose. Specs are the editorial deliverable; the per-step content is generated and cached.
+- No URL schema bump — the curriculum lives server-side under the existing `/learn` route.
+
 ## [6.3.0] - 2026-05-30
 
 ### Added

@@ -1,5 +1,5 @@
-import React from 'react';
-import type { Track } from './LearnApp';
+import React, { useMemo, useState } from 'react';
+import type { Lesson, Track } from './LearnApp';
 import type { LessonProgress } from './progress/ProgressClient';
 
 interface CurriculumBrowserProps {
@@ -9,11 +9,76 @@ interface CurriculumBrowserProps {
   progress?: Record<string, LessonProgress>;
 }
 
+type DifficultyFilter = 'all' | 'intro' | 'intermediate' | 'advanced';
+
 export function CurriculumBrowser({
   tracks,
   onSelectLesson,
   progress = {},
 }: CurriculumBrowserProps) {
+  const [query, setQuery] = useState('');
+  const [trackFilter, setTrackFilter] = useState<string>('all');
+  const [difficulty, setDifficulty] = useState<DifficultyFilter>('all');
+
+  // Lesson lookup by id, for resolving prerequisite titles + the "Start here"
+  // target. Cheap to recompute; the curriculum is small.
+  const lessonsById = useMemo(() => {
+    const map: Record<string, Lesson> = {};
+    for (const t of tracks) for (const l of t.lessons) map[l.id] = l;
+    return map;
+  }, [tracks]);
+
+  const hasAnyProgress = useMemo(
+    () => Object.values(progress).some((p) => p.state !== 'not_started'),
+    [progress],
+  );
+
+  // "Start here": the first intro lesson of the first track (synthesis/intro by
+  // position). Only surfaced for a brand-new learner.
+  const startLesson = useMemo(() => {
+    const ordered = [...tracks].sort((a, b) => a.position - b.position);
+    for (const t of ordered) {
+      const intro = [...t.lessons]
+        .sort((a, b) => a.position - b.position)
+        .find((l) => l.difficulty === 'intro');
+      if (intro) return { track: t, lesson: intro };
+    }
+    return null;
+  }, [tracks]);
+
+  const q = query.trim().toLowerCase();
+  const matches = (l: Lesson) =>
+    !q ||
+    l.title.toLowerCase().includes(q) ||
+    (l.description ?? '').toLowerCase().includes(q);
+
+  const visibleTracks = useMemo(
+    () =>
+      tracks
+        .filter((t) => trackFilter === 'all' || t.slug === trackFilter)
+        .map((t) => ({
+          track: t,
+          lessons: t.lessons.filter(
+            (l) =>
+              (difficulty === 'all' || l.difficulty === difficulty) &&
+              matches(l),
+          ),
+        }))
+        .filter(
+          ({ lessons }) => lessons.length > 0 || (!q && difficulty === 'all'),
+        ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tracks, trackFilter, difficulty, q],
+  );
+
+  const totalMatches = visibleTracks.reduce((n, t) => n + t.lessons.length, 0);
+
+  const unmetPrereqs = (lesson: Lesson): Lesson[] =>
+    lesson.prerequisites
+      .filter((id) => progress[id]?.state !== 'completed')
+      .map((id) => lessonsById[id])
+      .filter((l): l is Lesson => Boolean(l));
+
   return (
     <div className="curriculum-browser">
       <header className="curriculum-header">
@@ -28,9 +93,75 @@ export function CurriculumBrowser({
         </p>
       </header>
 
+      {!hasAnyProgress && startLesson && (
+        <div className="start-here-banner">
+          <div className="start-here-copy">
+            <h2 className="start-here-title">
+              New here? Start with the basics.
+            </h2>
+            <p className="start-here-sub">
+              “{startLesson.lesson.title}” is a calm place to begin — no
+              prerequisites, about {startLesson.lesson.estimated_minutes}{' '}
+              minutes.
+            </p>
+          </div>
+          <button
+            className="learn-primary-btn"
+            onClick={() =>
+              onSelectLesson(startLesson.track.slug, startLesson.lesson.slug)
+            }
+          >
+            Start here
+          </button>
+        </div>
+      )}
+
+      <div className="curriculum-controls" role="search">
+        <input
+          className="curriculum-search"
+          type="search"
+          value={query}
+          placeholder="Search lessons by topic…"
+          aria-label="Search lessons by topic"
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <select
+          className="curriculum-filter"
+          value={trackFilter}
+          aria-label="Filter by track"
+          onChange={(e) => setTrackFilter(e.target.value)}
+        >
+          <option value="all">All tracks</option>
+          {[...tracks]
+            .sort((a, b) => a.position - b.position)
+            .map((t) => (
+              <option key={t.slug} value={t.slug}>
+                {t.title}
+              </option>
+            ))}
+        </select>
+        <select
+          className="curriculum-filter"
+          value={difficulty}
+          aria-label="Filter by difficulty"
+          onChange={(e) => setDifficulty(e.target.value as DifficultyFilter)}
+        >
+          <option value="all">All levels</option>
+          <option value="intro">Intro</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+      </div>
+
+      {q && (
+        <p className="curriculum-result-count">
+          {totalMatches} lesson{totalMatches === 1 ? '' : 's'} match “{query}”.
+        </p>
+      )}
+
       <main className="curriculum-content">
         <div className="tracks-grid">
-          {tracks.map((track) => {
+          {visibleTracks.map(({ track, lessons }) => {
             const trackColor = track.color || '#6366f1';
             const completedCount = track.lessons.filter(
               (l) => progress[l.id]?.state === 'completed',
@@ -48,6 +179,10 @@ export function CurriculumBrowser({
                   </div>
                   <h2 className="track-title">{track.title}</h2>
                   <p className="track-description">{track.description}</p>
+                  <p className="track-lesson-count">
+                    {track.lessons.length} lesson
+                    {track.lessons.length === 1 ? '' : 's'}
+                  </p>
                   {/* Descriptive count only — no percentage, no bar, no streak. */}
                   {track.lessons.length > 0 && completedCount > 0 && (
                     <p className="track-progress-note">
@@ -58,15 +193,16 @@ export function CurriculumBrowser({
                 </div>
 
                 <div className="lessons-list">
-                  {track.lessons.length === 0 ? (
+                  {lessons.length === 0 ? (
                     <div className="no-lessons">
                       No lessons registered under this pillar.
                     </div>
                   ) : (
-                    track.lessons.map((lesson) => {
+                    lessons.map((lesson) => {
                       const state = progress[lesson.id]?.state;
                       const isCompleted = state === 'completed';
                       const isInProgress = state === 'in_progress';
+                      const unmet = unmetPrereqs(lesson);
                       return (
                         <div
                           key={lesson.id}
@@ -139,6 +275,12 @@ export function CurriculumBrowser({
                                 <span className="resume-badge">Resume</span>
                               )}
                             </div>
+                            {unmet.length > 0 && (
+                              <p className="lesson-prereq-note">
+                                Suggested first:{' '}
+                                {unmet.map((p) => p.title).join(', ')}
+                              </p>
+                            )}
                           </div>
                           <div className="lesson-action">
                             <span className="start-lesson-icon">
@@ -164,6 +306,12 @@ export function CurriculumBrowser({
               </section>
             );
           })}
+          {visibleTracks.length === 0 && (
+            <p className="curriculum-empty">
+              No lessons match your search. Try a different topic or clear the
+              filters.
+            </p>
+          )}
         </div>
       </main>
     </div>

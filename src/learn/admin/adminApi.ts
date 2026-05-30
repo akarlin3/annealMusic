@@ -189,6 +189,114 @@ export function archiveClip(id: string): Promise<ClipOut> {
   }) as Promise<ClipOut>;
 }
 
+// --- v6.4 curriculum authoring tooling --------------------------------------
+
+export interface LessonSpecOut {
+  id: string;
+  track: string;
+  title: string;
+  objectives: string[];
+  difficulty: 'intro' | 'intermediate' | 'advanced';
+  prerequisites: string[];
+  step_outline: Array<Record<string, unknown>>;
+  constraints_during_prompts: string[];
+  description?: string | null;
+}
+
+export interface BatchItem {
+  id: string;
+  slug: string;
+  title: string;
+  generation_status: string;
+  generation_error: string | null;
+}
+
+export interface BatchResult {
+  requested: number;
+  results: BatchItem[];
+}
+
+export interface QAFinding {
+  rule: string;
+  level: 'error' | 'warn';
+  message: string;
+}
+
+export interface LessonQA {
+  id: string;
+  spec_id: string | null;
+  slug: string;
+  title: string;
+  status: 'pass' | 'warn' | 'fail';
+  errors: number;
+  warnings: number;
+  findings: QAFinding[];
+}
+
+export interface CurriculumQA {
+  status: 'pass' | 'warn' | 'fail';
+  graph_findings: QAFinding[];
+  lessons: LessonQA[];
+}
+
+export interface PrereqNode {
+  id: string;
+  lesson_id: string;
+  track: string;
+  title: string;
+  difficulty: string;
+}
+
+export interface PrereqEdge {
+  prerequisite: string;
+  lesson: string;
+}
+
+export interface PrereqGraph {
+  nodes: PrereqNode[];
+  edges: PrereqEdge[];
+}
+
+export function generateSpec(body: {
+  topic: string;
+  track: string;
+  outline?: string;
+  difficulty?: 'intro' | 'intermediate' | 'advanced';
+}): Promise<{ spec: LessonSpecOut }> {
+  return adminFetch('/api/v1/admin/curriculum/spec-generate', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }) as Promise<{ spec: LessonSpecOut }>;
+}
+
+export function batchGenerate(lessonIds: string[] = []): Promise<BatchResult> {
+  return adminFetch('/api/v1/admin/curriculum/batch-generate', {
+    method: 'POST',
+    body: JSON.stringify({ lesson_ids: lessonIds }),
+  }) as Promise<BatchResult>;
+}
+
+export function runCurriculumQA(): Promise<CurriculumQA> {
+  return adminFetch('/api/v1/admin/curriculum/qa') as Promise<CurriculumQA>;
+}
+
+export function runLessonQA(lessonId: string): Promise<LessonQA> {
+  return adminFetch(
+    `/api/v1/admin/curriculum/qa/${lessonId}`,
+  ) as Promise<LessonQA>;
+}
+
+export function getPrereqs(): Promise<PrereqGraph> {
+  return adminFetch('/api/v1/admin/curriculum/prereqs') as Promise<PrereqGraph>;
+}
+
+export function putPrereqs(edges: PrereqEdge[]): Promise<PrereqGraph> {
+  return adminFetch('/api/v1/admin/curriculum/prereqs', {
+    method: 'PUT',
+    body: JSON.stringify({ edges }),
+  }) as Promise<PrereqGraph>;
+}
+
 export const EXAMPLE_SPEC = `{
   "id": "synthesis-fundamentals/karplus-strong",
   "track": "synthesis-fundamentals",

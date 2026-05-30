@@ -912,6 +912,88 @@ class StepOverrideIn(BaseModel):
     content: dict
 
 
+# --- v6.4 Curriculum authoring tooling ---------------------------------------
+
+
+class SpecGenerateIn(BaseModel):
+    """Request to scaffold a starting lesson spec from a topic + outline."""
+
+    topic: str = Field(..., min_length=2, max_length=400)
+    track: str = Field(..., min_length=1, max_length=100)
+    outline: str | None = Field(default=None, max_length=2000)
+    difficulty: Literal["intro", "intermediate", "advanced"] | None = None
+
+
+class SpecGenerateOut(BaseModel):
+    spec: LessonSpec
+
+
+class BatchGenerateIn(BaseModel):
+    """Kick off generation. Empty/omitted ``lesson_ids`` means 'all pending'."""
+
+    lesson_ids: list[uuid.UUID] = Field(default_factory=list)
+    include_failed: bool = True
+
+
+class BatchGenerateItem(BaseModel):
+    id: uuid.UUID
+    slug: str
+    title: str
+    generation_status: str
+    generation_error: str | None = None
+    cached: bool = False
+
+
+class BatchGenerateOut(BaseModel):
+    requested: int
+    results: list[BatchGenerateItem] = Field(default_factory=list)
+
+
+class QAFindingOut(BaseModel):
+    rule: str
+    level: str
+    message: str
+
+
+class LessonQAOut(BaseModel):
+    id: uuid.UUID
+    spec_id: str | None = None
+    slug: str
+    title: str
+    status: str  # 'pass' | 'warn' | 'fail'
+    errors: int
+    warnings: int
+    findings: list[QAFindingOut] = Field(default_factory=list)
+
+
+class CurriculumQAOut(BaseModel):
+    status: str  # worst-of across lessons + graph
+    graph_findings: list[QAFindingOut] = Field(default_factory=list)
+    lessons: list[LessonQAOut] = Field(default_factory=list)
+
+
+class PrereqEdge(BaseModel):
+    prerequisite: str  # spec id "track/slug"
+    lesson: str        # spec id "track/slug"
+
+
+class PrereqNode(BaseModel):
+    id: str            # spec id "track/slug"
+    lesson_id: uuid.UUID
+    track: str
+    title: str
+    difficulty: str
+
+
+class PrereqGraphOut(BaseModel):
+    nodes: list[PrereqNode] = Field(default_factory=list)
+    edges: list[PrereqEdge] = Field(default_factory=list)
+
+
+class PrereqGraphIn(BaseModel):
+    edges: list[PrereqEdge] = Field(default_factory=list)
+
+
 # --- v6.2 Audio clip library -------------------------------------------------
 
 ClipLicense = Literal["CC0", "CC-BY", "original-by-you", "licensed-third-party"]
