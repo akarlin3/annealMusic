@@ -33,6 +33,8 @@ New here? Press the **Help (?)** button in the app for a plain-language guide to
 - **Recording** — capture exactly what you hear to a file you can keep or share.
 - **Embed** — drop a tiny play-only player onto your own blog or website.
 - **Gallery** — browse and load soundscapes other people have shared.
+- **Listen** — a curated meditation library (`/listen`) of hand-picked sessions to browse by length, intention, and audio character.
+- **Your sessions** — a private history (`/me/sessions`) of what you've listened to, with optional reflections. Just for you.
 - **Share links** — copy a link that reopens your exact sound for anyone you send it to.
 
 ---
@@ -335,6 +337,30 @@ title/description, and any card can be **reported** (`…` → Report) for revie
 Moderation + the minimal `/admin` panel are documented in
 [`docs/MODERATION.md`](docs/MODERATION.md) and [`docs/ADMIN.md`](docs/ADMIN.md);
 design rationale is in [`docs/v0.8-PLAN.md`](docs/v0.8-PLAN.md).
+
+## Library + History (v4.5)
+
+Two surfaces for people who come to AnnealMusic to _meditate_, not to build.
+
+The [**`/listen`**](https://anneal.averykarlin.org/listen) library is a **curated**
+catalog of Listening Sessions — editorial, deliberately distinct from the
+creator-side `/gallery`. Browse by **length**, **intention** (morning, evening,
+sleep, difficult day, focus, …), and **audio character** (drone, composed, with
+bells, with tunings), with an **Editor's recent picks** strip. Each card previews
+a short server-rendered audio thumbnail (via the v0.8 pipeline on the source
+piece/patch) and loads into the listener in one click. v4.5 ships editorial-only;
+user-published sessions still live under `/gallery`. Curators manage the library
+from `/admin`. See [`docs/LIBRARY.md`](docs/LIBRARY.md).
+
+**`/me/sessions`** is your **private** Session History: a plain record of what
+you've listened to, logged on completion (or with the real partial duration if you
+end early), with optional reflections. The summary is intentionally understated —
+_"12 sessions, 4.3 hours total this month"_ — with **no streaks, no goals, no
+reminders, ever**. It's account-only, cross-device, never public, never shared,
+and fully deletable. The privacy posture and the project's anti-engagement stance
+are documented in [`docs/HISTORY.md`](docs/HISTORY.md) and
+[`docs/CALM_BY_DESIGN.md`](docs/CALM_BY_DESIGN.md) — the latter enforced by a CI
+lexical gate.
 
 ## Continuous Integration & Deployment (CI/CD)
 

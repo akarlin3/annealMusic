@@ -439,10 +439,12 @@ export interface LibraryListing {
   editor_pick_at: string | null;
   curator_note: string | null;
   added_at: string;
+  archived_at: string | null;
   session_title: string | null;
   session_slug: string | null;
   total_duration_ms: number | null;
   preview_status: 'none' | 'rendering' | 'ready' | 'failed';
+  preview_url: string | null;
 }
 
 export interface LibraryList {

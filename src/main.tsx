@@ -15,6 +15,7 @@ import PiecePage from '@/pages/PiecePage';
 import ListeningSessionPage from '@/pages/ListeningSessionPage';
 import MeditationTimerPage from '@/pages/MeditationTimerPage';
 import SessionHistoryPage from '@/history/SessionHistoryPage';
+import LibraryPage from '@/library/LibraryPage';
 import '@/styles/index.css';
 
 // Lazy load the AdminPage conditionally to tree-shake it out of mobile builds
@@ -58,6 +59,7 @@ createRoot(rootEl).render(
             <Route path="/legal/privacy" element={<PrivacyPage />} />
             <Route path="/timer" element={<MeditationTimerPage />} />
             <Route path="/me/sessions" element={<SessionHistoryPage />} />
+            <Route path="/listen" element={<LibraryPage />} />
           </Routes>
         </JamProvider>
       </AuthProvider>

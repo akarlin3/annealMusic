@@ -21,26 +21,30 @@ router = APIRouter(prefix="/api/v1/library", tags=["library"])
 
 async def _derive_preview(
     session: AsyncSession, ls: ListeningSession | None
-) -> tuple[int | None, str]:
-    """Return (total_duration_ms, preview_status) from the source artifact."""
+) -> tuple[int | None, str, str | None]:
+    """Return (total_duration_ms, preview_status, preview_url) from the source
+    artifact. The preview is rendered by the v0.8 pipeline onto the source
+    piece/patch, so the URL points at that artifact's existing preview route."""
     if ls is None:
-        return None, "none"
+        return None, "none", None
     if ls.piece_id is not None:
         piece = await session.get(Piece, ls.piece_id)
         if piece is not None:
-            return piece.total_duration_ms, piece.preview_status
+            url = f"/api/v1/pieces/{piece.short_slug}/preview"
+            return piece.total_duration_ms, piece.preview_status, url
     if ls.patch_id is not None:
         patch = await session.get(Patch, ls.patch_id)
         if patch is not None:
-            return ls.total_duration_ms, patch.preview_status
-    return ls.total_duration_ms, "none"
+            url = f"/api/v1/patches/{patch.short_slug}/preview"
+            return ls.total_duration_ms, patch.preview_status, url
+    return ls.total_duration_ms, "none", None
 
 
 async def listing_to_out(
     session: AsyncSession, listing: LibraryListing
 ) -> LibraryListingOut:
     ls = await session.get(ListeningSession, listing.listening_session_id)
-    total_ms, preview_status = await _derive_preview(session, ls)
+    total_ms, preview_status, preview_url = await _derive_preview(session, ls)
     return LibraryListingOut(
         id=listing.id,
         listening_session_id=listing.listening_session_id,
@@ -51,10 +55,12 @@ async def listing_to_out(
         editor_pick_at=listing.editor_pick_at,
         curator_note=listing.curator_note,
         added_at=listing.added_at,
+        archived_at=listing.archived_at,
         session_title=ls.title if ls else None,
         session_slug=ls.short_slug if ls else None,
         total_duration_ms=total_ms,
         preview_status=preview_status,
+        preview_url=preview_url,
     )
 
 

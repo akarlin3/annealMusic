@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.0] - 2026-05-30
+
+### Added
+
+- **Session History.** A private, per-account record of every Listening Session play, at the new route **`/me/sessions`** (also in the account menu). A play is logged on session start and finalized on completion — or when ended early, recording the _actual_ duration listened. Each entry shows the date, session title, time listened, and an optional reflection (≤500 chars) you can add, edit, or remove; click an entry to replay the session. A deliberately understated summary reads "_N sessions, H hours total this month_" + "_average M min_" — no streaks, no goals, no comparisons. History requires an account and is **cross-device**; anonymous listeners see a single gentle, dismissible "sign in to keep your history" prompt that never recurs. Strictly private: no public surface, no sharing, fully user-deletable, and cascade-removed on account deletion. Stats are computed in exactly one place (`compute_stats`) and the payload intentionally omits any engagement-signal field.
+- **Curated Listening Library.** A new curated meditation entry point at **`/listen`**, separate from the creator-side `/gallery`. Browse an editorial catalog of Listening Sessions by **length** (Short/Medium/Long/Extended), **intention** (Morning/Evening/Sleep/Difficult day/Focus/Open practice/Closing the week), and **audio character** (Drone/Composed/No spoken word/With bells/With tunings), with an **Editor's recent picks** strip. Each card carries title, tags, an optional curator note, a server-rendered audio **Preview** (reusing the v0.8 pipeline via the source Piece/Patch), and a **Listen** button into the v4.0 listener. Editorial-only in v4.5: listings are authored/selected by editors; user-published sessions remain in `/gallery`.
+- **Admin Library Curation.** A new `/admin` section to add sessions to the library (set intention, length, character tags, curator note), manage editor's picks, and archive listings — gated by the v0.8 admin key.
+- **Calm-by-Design CI gate.** New `docs/CALM_BY_DESIGN.md` review framework plus a lexical test (`src/test/calm-by-design.test.ts`) that fails the build if engagement-loop language (`streak`, `level up`, `achievement`, `daily goal`, `badge`, …) appears in the history/library UI. No notifications, emails, or reminders ship — calm-by-design is non-negotiable.
+- **Data model.** Two additive tables via Alembic migration `0015` (`session_plays`, `library_listings`), with portable GUID/JSON types and Postgres partial indexes for active listings and picks. No URL schema bump — history is server-side per-user state, the library is server-side editorial data (schema stays **v20**).
+
 ## [4.4.0] - 2026-05-30
 
 ### Added

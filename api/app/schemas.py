@@ -637,12 +637,14 @@ class LibraryListingOut(BaseModel):
     editor_pick_at: datetime | None
     curator_note: str | None
     added_at: datetime
+    archived_at: datetime | None = None
 
     # Joined source-session presentation + derived preview state.
     session_title: str | None = None
     session_slug: str | None = None
     total_duration_ms: int | None = None
     preview_status: str = "none"  # 'none' | 'rendering' | 'ready' | 'failed'
+    preview_url: str | None = None
 
 
 class LibraryListOut(BaseModel):
