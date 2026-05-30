@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - 2026-05-30
+
+### Added
+
+- **Standalone Research Console Route (`/research`).** Stands up a completely decoupled and sandboxed research route `/research` to serve advanced users, maintaining a strict physical bundle boundary to prevent heavy scripting engines from polluting the standard meditation client app.
+- **Decoupled Research Vite Build Bundle.** Dedicated build config `vite.config.research.ts` emitting optimized outputs exclusively to `dist-research/`, achieving a microscopic bundle footprint (under 52KB gzipped) and ensuring zero impact on standard user load times.
+- **Transport-Agnostic JSON-RPC 2.0 Bridge Contract.** Standardizes all client-server interface operations using the official JSON-RPC 2.0 protocol format, supporting flexible observation subscriptions (`anneal.state.subscribe`), parameter mutations, system health audits, and lifecycle management.
+- **Same-Origin BroadcastChannel Transport.** Implements standard, secure same-origin browser messaging wrapping the JSON-RPC wire format, enabling any custom web console scripts or adjacent pages on the same origin to drive the live synthesizer parameters in real-time.
+- **Dynamic Research console UI.** A premium stone-themed dashboard built with native CSS, featuring tabbed layouts, chronological live RPC traffic logs, quick-sculpt state sliders, and an interactive Web Audio FFT spectrum analyzer canvas.
+- **FastAPI Backend Research Router.** Creates backend routing targets and wildcards in the FastAPI controller to seamlessly serve the minimal HTML shell from `/research` in both development and production server environments.
+
 ## [4.6.0] - 2026-05-30
 
 ### Added
