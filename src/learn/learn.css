@@ -141,6 +141,81 @@
   line-height: 1.6;
 }
 
+/* v6.4 — Start here + discoverability controls */
+.start-here-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto 2rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    rgba(99, 102, 241, 0.12),
+    rgba(14, 165, 233, 0.08)
+  );
+}
+.start-here-title {
+  font-size: 1.2rem;
+  margin: 0 0 0.25rem;
+  color: #e2e8f0;
+}
+.start-here-sub {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.curriculum-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  max-width: 1100px;
+  margin: 0 auto 1rem;
+}
+.curriculum-search {
+  flex: 1 1 260px;
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.5);
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+.curriculum-filter {
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.5);
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+.curriculum-result-count,
+.curriculum-empty {
+  max-width: 1100px;
+  margin: 0 auto 1rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+.curriculum-empty {
+  text-align: center;
+  padding: 2rem;
+}
+.track-lesson-count {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0.25rem 0 0;
+}
+.lesson-prereq-note {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 0.35rem 0 0;
+  font-style: italic;
+}
+
 /* Tracks Grid */
 .tracks-grid {
   display: grid;

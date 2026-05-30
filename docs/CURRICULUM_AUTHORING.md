@@ -235,3 +235,24 @@ schema manifest. `DELETE` the override to fall back to generated content.
 Hand-seeded lessons (spec `NULL`) remain fully supported and are always visible —
 use a migration (§3) for fixed, non-generated content. Spec-based lessons are the
 default path for new curriculum from v6.1 onward.
+
+---
+
+## 5. Batch authoring tooling (v6.4)
+
+To make a 55-lesson curriculum tractable, the `#admin` console gained five tabs,
+all gated by `x-admin-key` under `/api/v1/admin/curriculum`:
+
+| Tab                | Does                                                                                                                                          | Endpoint                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| **Spec generator** | LLM scaffolds a _starting_ spec from a topic + outline; you always edit it. Framing-sensitive topics get the `FRAMING.md` directive injected. | `POST …/spec-generate`             |
+| **Batch**          | Generate all `pending`/`failed` specs at once; unchanged specs are free cache hits.                                                           | `POST …/batch-generate`            |
+| **Review**         | Every lesson with generation status + a QA badge, beside the per-step override editor; approve / revise / regenerate.                         | (reuses v6.1 generate/override)    |
+| **Prerequisites**  | Add prerequisite edges; the server **rejects cycles**, so the graph stays a DAG.                                                              | `GET/PUT …/prereqs`                |
+| **Quality**        | Run the nine QA rules over the whole curriculum.                                                                                              | `GET …/qa`, `GET …/qa/{lesson_id}` |
+
+The full authored curriculum and its prerequisite edge list live in
+`api/app/services/curriculum_content.py`; see [CURRICULUM.md](CURRICULUM.md) for
+the outline and pedagogy. Quality rules, the DAG check, and the framing lexicon
+are each defined once (`curriculum_qa.py`, `framing_lexicon.py`) and shared by the
+generator, the QA pipeline, the graph editor, and CI.
