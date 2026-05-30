@@ -58,3 +58,36 @@ To support multi-device synchronization and anonymous claims, we write your hist
 - **Security Bounds**:
   - Entries are tied strictly to your authenticated `user_id` or your cryptographically isolated `x-anon-id`.
   - The history export endpoint (`GET /me/sessions/export`) respects these authentication bounds and will never return history belonging to other users.
+
+---
+
+## 4. Lesson Progress (Learn surface, v6.3)
+
+The `/learn` surface records your progress through lessons so you can resume where you left off and so we can suggest a sensible next lesson. This data is **strictly private** — it is never shown to other users, never public, and never used to nudge you back.
+
+### 4.1 What we store
+
+For each lesson you start, a `lesson_progress` row (keyed to your `user_id`) holds:
+
+- `state` (`not_started` / `in_progress` / `completed`), the current step, and a 0..1 scroll position so you can resume.
+- `started_at` / `last_active_at` / `completed_at` timestamps.
+- A **bounded** per-step action log (`{step_position, action, time-on-step in ms}`) — metadata only, no free text.
+- `reflection_text` — any notes you chose to write in a reflection step.
+
+`abandoned` is **computed** (after 30 days of inactivity) for recommendation purposes only; it is never written to the database, and you can always resume.
+
+### 4.2 Where it lives
+
+- **Signed in:** progress is stored server-side against your account, so it follows you across devices.
+- **Anonymous:** progress stays in your browser's `localStorage` only — it is **never** uploaded to our servers. It is device-local; switching devices or clearing storage loses it. On your first sign-in, we offer to migrate this local progress to your account once (an idempotent merge); after that the server is the source of truth and the local copy is cleared.
+
+### 4.3 The next-lesson recommendation
+
+When we suggest a next lesson, we send a Claude (Haiku) model a **compact, metadata-only** summary of your progress: which lessons you completed (by title), your current track and aggregate counts, a text-free digest of recent step activity, and a coarse "time since last session" bucket — plus the candidate lesson list.
+
+- **Your `reflection_text` is never sent to the model.** Only step-action metadata becomes a signal. A server-side test asserts that no reflection content appears in the prompt.
+- The payload contains **no PII** (no name, email, or device identifiers).
+
+### 4.4 Your control
+
+Progress is account-scoped and never published or shared. Deleting your account cascades and removes all `lesson_progress` rows (`ON DELETE CASCADE`).

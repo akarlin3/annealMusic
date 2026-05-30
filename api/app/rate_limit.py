@@ -24,6 +24,9 @@ ANON_LIMITS: dict[str, int] = {
     "likes": 100,
     "follows": 60,
     "blocks": 30,
+    # Next-lesson ranking is called at most ~once per session and is TTL-cached;
+    # a tight bucket keeps the (cheap) LLM call from being hammered.
+    "recommendations": 30,
 }
 
 # A given IP may increment a given patch's load_count at most this many times per

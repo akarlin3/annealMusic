@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.3.0] - 2026-05-30
+
+### Added
+
+- **Lesson progress tracking.** A private, per-account `lesson_progress` record (migration `0021_v6_3_lesson_progress`, composite PK `user_id+lesson_id`) tracks `not_started` / `in_progress` / `completed` state, the current step, a 0..1 scroll position, timestamps, a bounded per-step action log, and any reflection text. `abandoned` is **computed** (>30 days inactive) and never stored, so a lesson can always be resumed. New endpoints: `POST/GET /api/v1/lesson-progress`, `GET /api/v1/lesson-progress/{lesson_id}` (resume), `GET /api/v1/lesson-progress/me/track/{slug}` (per-track summary), and `POST /api/v1/lesson-progress/import` (anon→authed migration).
+- **Pause + resume (cross-device).** The lesson player saves your step + scroll position on step change, on tab-hide (`visibilitychange`), and on close (`sendBeacon`), and silently resumes there on re-entry. Account progress is the server's (so it follows you across devices); anonymous progress stays in `localStorage` only and is migrated once on first sign-in via an idempotent **max-merge** import (completion is never downgraded).
+- **Next-lesson picker.** `POST /api/v1/recommendations/next` runs a two-stage pick: Stage 1 deterministically filters candidates (prerequisites satisfied, ±1 difficulty band, track scope, not-already-completed, ≤8 candidates); Stage 2 ranks them with **Haiku 4.5** into an ordered 1–3 with a one-sentence "why this next" each. Output is validated against the candidate set (hallucinated ids dropped), retried once, and falls back to the deterministic order if the model is unavailable. A 5-minute per-process TTL cache returns identical state without an LLM call.
+- **Onboarding picker.** Brand-new learners (no completions) get a deterministic set of intro lessons across tracks plus "explore a track" chips — no LLM call needed.
+- **Curriculum-browser progress display.** A quiet completed checkmark per lesson, a descriptive "N of M lessons explored" per track, and a "Resume" hint for in-progress lessons. No bars, no percentages, no streaks.
+- **Single source of truth for progress state.** `api/app/services/progress_state.py` is the one place effective-state derivation (the implicit `abandoned`), per-track aggregation, and the import max-merge live — the calm-by-design `compute_stats` heuristic-drift rule, applied to lessons.
+
+### Calm-by-design
+
+- This is the highest engagement-loop-risk slice, so the guardrails are explicit: progress is descriptive only (no streaks/scores/levels/%-pressure), the picker is an **offer** with a permanent "browse all lessons" escape (never a funnel, never autoplay-next), abandonment is invisible to the user, and the only outbound prompt is a single, dismissible, once-per-session "sign in to keep your progress" nudge.
+- **Privacy:** reflection text is private — never published and **never sent to the LLM ranker** (only step-action metadata becomes a signal). The recommendation payload carries no PII; a unit test asserts no reflection content reaches the prompt.
+- The calm-by-design CI lexical gate (`src/test/calm-by-design.test.ts`) now scans **`src/learn`**, refined to match banned terms as whole words and ignore CSS/code identifiers (e.g. a `difficulty-badge` class or a `StatusBadge` component) so it flags engagement-loop _copy_ only.
+
 ## [6.2.0] - 2026-05-30
 
 ### Added
