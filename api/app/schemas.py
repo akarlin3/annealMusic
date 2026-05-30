@@ -19,6 +19,7 @@ class UserOut(BaseModel):
     created_at: datetime
     bytes_used: int
     patch_count: int
+    piece_count: int
     capture_count: int
     recording_count: int
     source_count: int
@@ -26,6 +27,7 @@ class UserOut(BaseModel):
 
 class QuotaOut(BaseModel):
     patches: int
+    pieces: int
     captures: int
     recordings: int
     user_sources: int
@@ -304,7 +306,7 @@ class JamSessionJoinOut(BaseModel):
 # --- v2.0 Social Schemas -----------------------------------------------------
 
 class LikeCreate(BaseModel):
-    target_kind: Literal["patch", "recording"]
+    target_kind: Literal["patch", "recording", "piece"]
     target_id: uuid.UUID
 
 
@@ -333,7 +335,7 @@ class RelationshipListOut(BaseModel):
 
 
 class FeedItemOut(BaseModel):
-    kind: Literal["patch", "recording"]
+    kind: Literal["patch", "recording", "piece"]
     id: uuid.UUID
     short_slug: str
     title: str | None
@@ -341,11 +343,13 @@ class FeedItemOut(BaseModel):
     created_at: datetime
     like_count: int
     liked_by_me: bool
-    # Patch specific
+    # Patch / Piece specific
     state: str | None = None
     engine: str | None = None
     mode: str | None = None
     has_captures: bool | None = None
+    # Piece specific
+    movements_count: int | None = None
     # Recording specific
     duration_ms: int | None = None
     format: str | None = None
@@ -397,6 +401,7 @@ class PieceCreate(BaseModel):
     variation_seed: int | None = None
     variations: list[dict] | None = None
     automation_tracks: list[dict] | None = None
+    acknowledge_source_visibility: bool = False
 
 
 class PieceUpdate(BaseModel):
@@ -411,6 +416,7 @@ class PieceUpdate(BaseModel):
     variation_seed: int | None = None
     variations: list[dict] | None = None
     automation_tracks: list[dict] | None = None
+    acknowledge_source_visibility: bool = False
 
 
 class PieceSegmentOut(BaseModel):
@@ -432,8 +438,9 @@ class PieceOut(BaseModel):
     defaults_state: dict
     title: str | None
     description: str | None
-    visibility: str
+    visibility: PatchVisibility
     ai_description: str | None = None
+    ai_description_source: str | None = None
     total_duration_ms: int | None
     has_open_segment: bool
     created_at: datetime
@@ -446,6 +453,14 @@ class PieceOut(BaseModel):
     variation_seed: int | None = None
     variations: list[dict] | None = None
     automation_tracks: list[dict] | None = None
+    # derived/social columns
+    like_count: int = 0
+    liked_by_me: bool = False
+    load_count: int = 0
+    preview_status: PreviewStatus = "none"
+    preview_duration_ms: int | None = None
+    preview_slice_start_ms: int = 30000
+    has_captures: bool = False
 
 
 

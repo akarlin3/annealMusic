@@ -66,6 +66,7 @@ class Settings(BaseSettings):
 
     # Quotas (per anon user).
     quota_patches: int = 100
+    quota_pieces: int = 100
     quota_captures: int = 50
     quota_recordings: int = 10
     quota_user_sources: int = 20

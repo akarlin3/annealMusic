@@ -104,6 +104,7 @@ class User(Base):
 
     bytes_used: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     patch_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    piece_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     capture_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     recording_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     source_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -444,6 +445,10 @@ class Piece(Base):
             "visibility IN ('unlisted','public','flagged')",
             name="ck_pieces_visibility",
         ),
+        CheckConstraint(
+            "preview_status IN ('none','rendering','ready','failed')",
+            name="ck_pieces_preview_status",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
@@ -470,6 +475,28 @@ class Piece(Base):
         onupdate=func.now(),
     )
     short_slug: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+
+    # derived/social columns
+    like_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    load_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    preview_storage_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    preview_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    preview_status: Mapped[str] = mapped_column(
+        String, nullable=False, default="none"
+    )
+    preview_slice_start_ms: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=30000
+    )
+    ai_description_embedding: Mapped[list[float] | None] = mapped_column(
+        VectorType(1536), nullable=True
+    )
+    ai_description_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    has_captures: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
 
 
 class PieceSegment(Base):
@@ -542,6 +569,7 @@ def create_sqlite_triggers(target, connection, **kw):
             CREATE TRIGGER IF NOT EXISTS likes_insert_trigger AFTER INSERT ON likes
             BEGIN
                 UPDATE patches SET like_count = like_count + 1 WHERE id = NEW.target_id AND NEW.target_kind = 'patch';
+                UPDATE pieces SET like_count = like_count + 1 WHERE id = NEW.target_id AND NEW.target_kind = 'piece';
                 UPDATE recordings SET like_count = like_count + 1 WHERE id = NEW.target_id AND NEW.target_kind = 'recording';
             END;
         """))
@@ -549,6 +577,7 @@ def create_sqlite_triggers(target, connection, **kw):
             CREATE TRIGGER IF NOT EXISTS likes_delete_trigger AFTER DELETE ON likes
             BEGIN
                 UPDATE patches SET like_count = like_count - 1 WHERE id = OLD.target_id AND OLD.target_kind = 'patch';
+                UPDATE pieces SET like_count = like_count - 1 WHERE id = OLD.target_id AND OLD.target_kind = 'piece';
                 UPDATE recordings SET like_count = like_count - 1 WHERE id = OLD.target_id AND OLD.target_kind = 'recording';
             END;
         """))

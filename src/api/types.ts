@@ -322,3 +322,62 @@ export interface APIPieceList {
   items: APIPiece[];
   next_cursor: string | null;
 }
+
+export interface ListeningSession {
+  id: string;
+  user_id: string;
+  piece_id: string | null;
+  schema_ver: number;
+  title: string;
+  description: string | null;
+  intention: string | null;
+  length_category: string;
+  recommended_environment: string | null;
+  settle_in_ms: number;
+  integration_ms: number;
+  opening_tone: boolean;
+  closing_tone: boolean;
+  total_duration_ms: number | null;
+  visibility: Visibility;
+  short_slug: string;
+  created_at: string;
+  updated_at: string;
+  piece?: APIPiece | null;
+  creator_name: string | null;
+  creator_avatar_seed: string | null;
+  piece_creator_name: string | null;
+}
+
+export interface ListeningSessionList {
+  items: ListeningSession[];
+  next_cursor: string | null;
+}
+
+export interface CreateListeningSessionBody {
+  piece_id: string;
+  schema_ver: number;
+  title: string;
+  description?: string | null;
+  intention?: string | null;
+  length_category?: string;
+  recommended_environment?: string | null;
+  settle_in_ms?: number;
+  integration_ms?: number;
+  opening_tone?: boolean;
+  closing_tone?: boolean;
+  visibility?: Visibility;
+}
+
+export interface UpdateListeningSessionBody {
+  piece_id?: string;
+  title?: string;
+  description?: string | null;
+  intention?: string | null;
+  length_category?: string;
+  recommended_environment?: string | null;
+  settle_in_ms?: number;
+  integration_ms?: number;
+  opening_tone?: boolean;
+  closing_tone?: boolean;
+  visibility?: Visibility;
+}

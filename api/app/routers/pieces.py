@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import base64
+import logging
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, BackgroundTasks
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select, delete
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.deps import (
     CurrentUser,
     CurrentWriter,
@@ -16,12 +20,18 @@ from app.deps import (
     rate_limit,
     Identity,
     get_identity,
+    OptionalUser,
+    StorageDep,
 )
 from app.errors import (
     forbidden,
     not_found,
+    quota_exceeded,
+    content_rejected,
+    requires_source_consent,
 )
-from app.models import Piece, PieceSegment
+from app.models import Piece, PieceSegment, UserSource
+from app.moderation import screen_publish
 from app.schemas import (
     PieceCreate,
     PieceUpdate,
@@ -31,12 +41,12 @@ from app.schemas import (
 )
 from app.slug import new_slug
 
+logger = logging.getLogger("pieces")
 router = APIRouter(prefix="/api/v1/pieces", tags=["pieces"])
 
 
-def to_out(piece: Piece, segments: list[PieceSegment]) -> PieceOut:
+def to_out(piece: Piece, segments: list[PieceSegment], liked_by_me: bool = False) -> PieceOut:
     defaults = piece.defaults_state or {}
-    # Filter out hidden internal keys (prefixed by "_") from defaults_state response
     clean_defaults = {k: v for k, v in defaults.items() if not k.startswith("_")}
 
     return PieceOut(
@@ -45,8 +55,9 @@ def to_out(piece: Piece, segments: list[PieceSegment]) -> PieceOut:
         defaults_state=clean_defaults,
         title=piece.title,
         description=piece.description,
-        visibility=piece.visibility,
+        visibility=piece.visibility,  # type: ignore[arg-type]
         ai_description=piece.ai_description,
+        ai_description_source=piece.ai_description_source,
         total_duration_ms=piece.total_duration_ms,
         has_open_segment=piece.has_open_segment,
         created_at=piece.created_at,
@@ -69,7 +80,46 @@ def to_out(piece: Piece, segments: list[PieceSegment]) -> PieceOut:
         variation_seed=defaults.get("_variation_seed"),
         variations=defaults.get("_variations"),
         automation_tracks=defaults.get("_automation_tracks"),
+        like_count=piece.like_count,
+        liked_by_me=liked_by_me,
+        load_count=piece.load_count,
+        preview_status=piece.preview_status,  # type: ignore[arg-type]
+        preview_duration_ms=piece.preview_duration_ms,
+        preview_slice_start_ms=piece.preview_slice_start_ms,
+        has_captures=piece.has_captures,
     )
+
+
+def extract_user_sources_from_dict(d: Any) -> list[uuid.UUID]:
+    ids = []
+    if isinstance(d, dict):
+        for k, v in d.items():
+            if isinstance(v, str) and v.startswith("u:"):
+                try:
+                    ids.append(uuid.UUID(v[2:]))
+                except ValueError:
+                    pass
+            else:
+                ids.extend(extract_user_sources_from_dict(v))
+    elif isinstance(d, list):
+        for v in d:
+            ids.extend(extract_user_sources_from_dict(v))
+    return ids
+
+
+def extract_user_sources_from_piece(defaults_state: dict, segments: list[Any]) -> list[uuid.UUID]:
+    ids = []
+    ids.extend(extract_user_sources_from_dict(defaults_state))
+    for seg in segments:
+        ids.extend(extract_user_sources_from_dict(getattr(seg, "config", {})))
+    return list(set(ids))
+
+
+def _publish(piece: Piece, request: Request) -> None:
+    if piece.published_at is None:
+        piece.published_at = datetime.now(tz=timezone.utc)
+    piece.preview_status = "rendering"
+    request.app.state.render_queue.enqueue(piece.id)
 
 
 async def _resolve(session: AsyncSession, id_or_slug: str) -> Piece | None:
@@ -106,7 +156,42 @@ async def create_piece(
     body: PieceCreate,
     user: CurrentWriter,
     session: SessionDep,
+    request: Request,
+    background_tasks: BackgroundTasks,
 ) -> PieceOut:
+    settings = get_settings()
+    if user.piece_count >= settings.quota_pieces:
+        raise quota_exceeded("pieces", settings.quota_pieces)
+
+    if body.visibility == "public":
+        rejected = screen_publish(body.title, body.description)
+        if rejected:
+            raise content_rejected(rejected)
+
+    # Bind and verify user sources referenced in the piece segments / defaults
+    referenced_source_ids = extract_user_sources_from_piece(body.defaults_state, body.segments)
+    loaded_sources: list[UserSource] = []
+    if referenced_source_ids:
+        stmt = select(UserSource).where(UserSource.id.in_(referenced_source_ids))
+        loaded_sources = (await session.execute(stmt)).scalars().all()
+        loaded_ids = {s.id for s in loaded_sources}
+        for sid in referenced_source_ids:
+            if sid not in loaded_ids:
+                raise not_found("user_source")
+        for src in loaded_sources:
+            if src.user_id != user.id and src.visibility != "shared":
+                raise forbidden()
+
+    # Consent and transition check for public pieces
+    if body.visibility == "public" and loaded_sources:
+        owned_unlisted = [s for s in loaded_sources if s.user_id == user.id and s.visibility == "unlisted"]
+        if owned_unlisted:
+            if not body.acknowledge_source_visibility:
+                raise requires_source_consent()
+            for src in owned_unlisted:
+                src.visibility = "shared"
+                logger.info("Transitioned user source %s visibility to shared due to piece publication", src.id)
+
     has_open = any(seg.type == "open" for seg in body.segments)
     total_duration = None
     if not has_open:
@@ -133,13 +218,13 @@ async def create_piece(
         total_duration_ms=total_duration,
         has_open_segment=has_open,
         short_slug=new_slug(),
+        has_captures=bool(referenced_source_ids),
     )
     session.add(piece)
     await session.flush()
 
     segments = []
     for pos, seg_in in enumerate(body.segments):
-        # Store segment-level variations inside config
         config = {**(seg_in.config or {})}
         if seg_in.variations is not None:
             config["_variations"] = seg_in.variations
@@ -154,8 +239,23 @@ async def create_piece(
         session.add(seg)
         segments.append(seg)
 
+    if body.visibility == "public":
+        _publish(piece, request)
+
+    user.piece_count += 1
     await session.commit()
     await session.refresh(piece)
+
+    if body.visibility == "public":
+        from app.db import get_sessionmaker
+        background_tasks.add_task(
+            embed_piece_task,
+            piece.id,
+            get_sessionmaker(),
+            request.app.state.llm,
+            request.app.state.embeddings
+        )
+
     return to_out(piece, segments)
 
 
@@ -196,7 +296,14 @@ async def list_my_pieces(
     for seg in all_segs:
         segs_by_piece[seg.piece_id].append(seg)
 
-    items = [to_out(p, segs_by_piece[p.id]) for p in rows]
+    liked_piece_ids = set()
+    if user:
+        from app.models import Like
+        likes_stmt = select(Like.target_id).where(Like.user_id == user.id, Like.target_kind == "piece")
+        likes_res = await session.execute(likes_stmt)
+        liked_piece_ids = set(likes_res.scalars().all())
+
+    items = [to_out(p, segs_by_piece[p.id], liked_by_me=p.id in liked_piece_ids) for p in rows]
     return PieceListOut(items=items, next_cursor=next_cursor)
 
 
@@ -205,18 +312,53 @@ async def list_my_pieces(
 async def get_piece(
     id_or_slug: str,
     session: SessionDep,
+    user: OptionalUser,
 ) -> PieceOut:
     piece = await _resolve(session, id_or_slug)
     if piece is None:
         raise not_found("piece")
     if piece.visibility == "flagged":
-        # parallel to patches under review check
         raise not_found("piece")
 
     segments_stmt = select(PieceSegment).where(PieceSegment.piece_id == piece.id).order_by(PieceSegment.position.asc())
     segments = (await session.execute(segments_stmt)).scalars().all()
 
-    return to_out(piece, segments)
+    liked_by_me = False
+    if user:
+        from app.models import Like
+        stmt = select(Like).where(Like.user_id == user.id, Like.target_kind == "piece", Like.target_id == piece.id)
+        res = await session.execute(stmt)
+        liked_by_me = res.scalar_one_or_none() is not None
+
+    return to_out(piece, segments, liked_by_me=liked_by_me)
+
+
+@router.get("/{id_or_slug}/preview", dependencies=[Depends(rate_limit("get"))])
+async def get_preview(
+    id_or_slug: str, request: Request, session: SessionDep, storage: StorageDep
+):
+    """Stream the audio thumbnail of the piece."""
+    piece = await _resolve(session, id_or_slug)
+    if piece is None or piece.visibility != "public":
+        raise not_found("preview")
+
+    if piece.preview_status == "ready" and piece.preview_storage_key:
+        url = await storage.presigned_get_url(piece.preview_storage_key)
+        return RedirectResponse(
+            url=url, status_code=302,
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+    if piece.preview_status == "failed":
+        return JSONResponse(
+            status_code=503, content={"error": "preview_failed"},
+            headers={"Cache-Control": "no-store"},
+        )
+    # none or rendering -> enqueue render
+    request.app.state.render_queue.enqueue(piece.id)
+    return JSONResponse(
+        status_code=202, content={"status": "rendering"},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @router.patch("/{id}", response_model=PieceOut,
@@ -226,6 +368,8 @@ async def update_piece(
     body: PieceUpdate,
     user: CurrentWriter,
     session: SessionDep,
+    request: Request,
+    background_tasks: BackgroundTasks,
 ) -> PieceOut:
     piece = await session.get(Piece, id)
     if piece is None:
@@ -237,6 +381,8 @@ async def update_piece(
         piece.title = body.title
     if body.description is not None:
         piece.description = body.description
+
+    going_public = body.visibility == "public" and piece.visibility != "public"
     if body.visibility is not None:
         piece.visibility = body.visibility
     
@@ -261,6 +407,30 @@ async def update_piece(
 
     piece.defaults_state = defaults_state
 
+    # Manage user sources consent if public
+    if going_public:
+        if body.segments is not None:
+            active_segments = body.segments
+        else:
+            segments_stmt = select(PieceSegment).where(PieceSegment.piece_id == piece.id).order_by(PieceSegment.position.asc())
+            active_segments = (await session.execute(segments_stmt)).scalars().all()
+        referenced_source_ids = extract_user_sources_from_piece(defaults_state, active_segments)
+        if referenced_source_ids:
+            stmt = select(UserSource).where(UserSource.id.in_(referenced_source_ids))
+            loaded_sources = (await session.execute(stmt)).scalars().all()
+            owned_unlisted = [s for s in loaded_sources if s.user_id == user.id and s.visibility == "unlisted"]
+            if owned_unlisted:
+                if not body.acknowledge_source_visibility:
+                    raise requires_source_consent()
+                for src in owned_unlisted:
+                    src.visibility = "shared"
+                    logger.info("Transitioned user source %s visibility to shared due to piece publication update", src.id)
+
+        rejected = screen_publish(piece.title, piece.description)
+        if rejected:
+            raise content_rejected(rejected)
+        _publish(piece, request)
+
     if body.segments is not None:
         # Delete old segments
         await session.execute(
@@ -278,7 +448,6 @@ async def update_piece(
 
         segments = []
         for pos, seg_in in enumerate(body.segments):
-            # Store segment-level variations inside config
             config = {**(seg_in.config or {})}
             if seg_in.variations is not None:
                 config["_variations"] = seg_in.variations
@@ -296,8 +465,25 @@ async def update_piece(
         segments_stmt = select(PieceSegment).where(PieceSegment.piece_id == piece.id).order_by(PieceSegment.position.asc())
         segments = (await session.execute(segments_stmt)).scalars().all()
 
+    # Re-evaluate captures flag based on user sources
+    referenced_source_ids = extract_user_sources_from_piece(defaults_state, segments)
+    piece.has_captures = bool(referenced_source_ids)
+
+    description_changed = body.description is not None and body.description != piece.description
+
     await session.commit()
     await session.refresh(piece)
+
+    if going_public or (piece.visibility == "public" and description_changed):
+        from app.db import get_sessionmaker
+        background_tasks.add_task(
+            embed_piece_task,
+            piece.id,
+            get_sessionmaker(),
+            request.app.state.llm,
+            request.app.state.embeddings
+        )
+
     return to_out(piece, segments)
 
 
@@ -316,3 +502,37 @@ async def delete_piece(
 
     await session.delete(piece)
     await session.commit()
+
+
+async def embed_piece_task(
+    piece_id: uuid.UUID,
+    session_maker: Any,
+    llm: Any,
+    embeddings: Any,
+) -> None:
+    """Background task to generate AI description and embeddings for a public piece."""
+    async with session_maker() as session:
+        piece = await session.get(Piece, piece_id)
+        if not piece or piece.visibility != "public":
+            return
+
+        if not piece.description:
+            try:
+                from app.routers.ai import generate_ai_piece_description_internal
+                desc = await generate_ai_piece_description_internal(piece, llm)
+                piece.description = desc
+                piece.ai_description = desc
+                piece.ai_description_source = "ai"
+                await session.flush()
+            except Exception:
+                logger.error("Failed to generate AI description in background for piece %s", piece_id, exc_info=True)
+                return
+
+        # Generate embedding for the description
+        try:
+            vector = await embeddings.embed(piece.description)
+            piece.ai_description_embedding = vector
+            await session.commit()
+            logger.info("Successfully generated and saved embedding for piece %s", piece_id)
+        except Exception:
+            logger.error("Failed to generate embedding in background for piece %s", piece_id, exc_info=True)

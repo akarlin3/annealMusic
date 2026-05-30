@@ -13,6 +13,7 @@ def _quota() -> QuotaOut:
     s = get_settings()
     return QuotaOut(
         patches=s.quota_patches,
+        pieces=s.quota_pieces,
         captures=s.quota_captures,
         recordings=s.quota_recordings,
         user_sources=s.quota_user_sources,

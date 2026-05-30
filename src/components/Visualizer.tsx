@@ -21,6 +21,7 @@ interface VisualizerProps {
   segmentBoundaries?: number[];
   /** True during the final settle fade of an arc — shows a RETURNING label. */
   returning?: boolean;
+  isCalm?: boolean;
 }
 
 function fmtRemaining(sec: number): string {
@@ -36,6 +37,7 @@ export default function Visualizer({
   arcProgress = null,
   segmentBoundaries = [],
   returning = false,
+  isCalm = false,
 }: VisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const phasesRef = useRef<number[]>(
@@ -178,6 +180,7 @@ export default function Visualizer({
         fftSize,
         inputLevel,
         loops,
+        isCalm,
       };
 
       renderer.drawFrame(state, now);

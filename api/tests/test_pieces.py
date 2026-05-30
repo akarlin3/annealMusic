@@ -150,3 +150,103 @@ async def test_list_my_pieces(client):
     items = r.json()["items"]
     assert len(items) == 3
     assert all(p["title"].startswith("piece") for p in items)
+
+async def test_piece_likes_and_feed(client):
+    from app.db import get_sessionmaker
+    sm = get_sessionmaker()
+
+    # 1. Setup two logged-in accounts
+    sess1, acc1 = uuid.uuid4(), uuid.uuid4()
+    sess2, acc2 = uuid.uuid4(), uuid.uuid4()
+    user_a = str(uuid.uuid4())
+    user_b = str(uuid.uuid4())
+    h_a = _hdr(user_a)
+    h_b = _hdr(user_b)
+
+    from tests.test_social_checkpoint1 import _create_test_account
+    await _create_test_account(sm, "piece_a@example.com", sess1, acc1)
+    await _create_test_account(sm, "piece_b@example.com", sess2, acc2)
+
+    # 1.5 Claim anonymous user IDs to link User A and User B users with accounts
+    client.cookies.set("am_session", str(sess1))
+    await client.post("/api/v1/account/me/claim", json={"anon_id": user_a})
+    client.cookies.set("am_session", str(sess2))
+    await client.post("/api/v1/account/me/claim", json={"anon_id": user_b})
+
+    # 2. User B follows User A (Account 2 follows Account 1)
+    client.cookies.set("am_session", str(sess2))
+    follow = await client.post(f"/api/v1/follows/{acc1}", headers=h_b)
+    assert follow.status_code == 200
+
+    # 3. User A creates a public piece (using session 1)
+    client.cookies.clear()
+    client.cookies.set("am_session", str(sess1))
+    
+    defaults = {"m": "open", "e": "sine", "rootFreq": 147}
+    segments = [{"type": "fixed", "duration_ms": 1000, "config": {}}]
+    piece = (
+        await client.post(
+            "/api/v1/pieces",
+            headers=h_a,
+            json={
+                "defaults_state": defaults,
+                "schema_ver": 8,
+                "title": "Public Masterpiece",
+                "description": "Lovely ambient sounds",
+                "visibility": "public",
+                "segments": segments,
+            },
+        )
+    ).json()
+
+    # 4. User B likes the piece (using session 2)
+    client.cookies.clear()
+    client.cookies.set("am_session", str(sess2))
+    
+    like = await client.post(
+        "/api/v1/likes",
+        headers=h_b,
+        json={
+            "target_kind": "piece",
+            "target_id": piece["id"],
+        },
+    )
+    assert like.status_code == 200
+    assert like.json()["liked"] is True
+
+    # 5. Check like status
+    status = await client.get(
+        f"/api/v1/likes/status?target_kind=piece&target_id={piece['id']}",
+        headers=h_b,
+    )
+    assert status.status_code == 200
+    assert status.json()["liked"] is True
+
+    # 6. Retrieve piece to verify like_count is 1
+    g = await client.get(f"/api/v1/pieces/{piece['id']}")
+    assert g.json()["like_count"] == 1
+
+    # 7. Check User B's activity feed, should contain the piece
+    feed = await client.get("/api/v1/feed", headers=h_b)
+    assert feed.status_code == 200
+    feed_items = feed.json()["items"]
+    assert len(feed_items) > 0
+    piece_feed_item = next(item for item in feed_items if item["id"] == piece["id"])
+    assert piece_feed_item["kind"] == "piece"
+    assert piece_feed_item["title"] == "Public Masterpiece"
+    assert piece_feed_item["like_count"] == 1
+    assert piece_feed_item["liked_by_me"] is True
+    assert piece_feed_item["mode"] == "piece"
+
+    # 8. User B unlikes the piece
+    unlike = await client.delete(
+        f"/api/v1/likes/piece/{piece['id']}",
+        headers=h_b,
+    )
+    assert unlike.status_code == 200
+    assert unlike.json()["liked"] is False
+
+    # 9. Verify like_count is back to 0
+    client.cookies.clear()
+    g2 = await client.get(f"/api/v1/pieces/{piece['id']}")
+    assert g2.json()["like_count"] == 0

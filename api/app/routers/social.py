@@ -21,7 +21,7 @@ from app.deps import (
     get_blocked_user_ids,
 )
 from app.errors import bad_request, forbidden, not_found
-from app.models import Like, Follow, Block, Mute, Account, Patch, Recording, User, FeaturedPick
+from app.models import Like, Follow, Block, Mute, Account, Patch, Recording, User, FeaturedPick, Piece
 from app.schemas import (
     LikeCreate,
     LikeStatusOut,
@@ -62,6 +62,10 @@ async def add_like(
         target = await session.get(Recording, body.target_id)
         if target is None or target.visibility == "flagged":
             raise not_found("recording")
+    elif body.target_kind == "piece":
+        target = await session.get(Piece, body.target_id)
+        if target is None or target.visibility == "flagged":
+            raise not_found("piece")
     else:
         raise bad_request("Invalid target kind.")
 
@@ -107,7 +111,7 @@ async def add_like(
     dependencies=[Depends(rate_limit("likes"))],
 )
 async def remove_like(
-    target_kind: Literal["patch", "recording"],
+    target_kind: Literal["patch", "recording", "piece"],
     target_id: uuid.UUID,
     user: CurrentWriter,
     session: SessionDep,
@@ -129,7 +133,7 @@ async def remove_like(
 
 @router.get("/likes/status", response_model=LikeStatusOut)
 async def check_like_status(
-    target_kind: Literal["patch", "recording"],
+    target_kind: Literal["patch", "recording", "piece"],
     target_id: uuid.UUID,
     user: CurrentUser,
     session: SessionDep,
@@ -476,12 +480,28 @@ async def get_activity_feed(
     r_stmt = r_stmt.order_by(Recording.created_at.desc()).limit(limit + 1)
     r_rows = (await session.execute(r_stmt)).all()
 
+    # 6b. Fetch public pieces
+    pi_stmt = (
+        select(Piece, Account.display_name, Account.avatar_seed, Account.id)
+        .outerjoin(User, User.id == Piece.user_id)
+        .outerjoin(Account, Account.id == User.account_id)
+        .where(
+            Piece.visibility == "public",
+            Piece.user_id.in_(active_user_ids),
+        )
+    )
+    if cursor_dt:
+        pi_stmt = pi_stmt.where(Piece.created_at < cursor_dt)
+    pi_stmt = pi_stmt.order_by(Piece.created_at.desc()).limit(limit + 1)
+    pi_rows = (await session.execute(pi_stmt)).all()
+
     # 7. Merge in-memory and sort
     merged = []
     
     # Resolve current user's liked status for all items
     liked_patch_ids = set()
     liked_rec_ids = set()
+    liked_piece_ids = set()
     if user:
         likes_p_stmt = select(Like.target_id).where(Like.user_id == user.id, Like.target_kind == "patch")
         likes_p_res = await session.execute(likes_p_stmt)
@@ -490,6 +510,10 @@ async def get_activity_feed(
         likes_r_stmt = select(Like.target_id).where(Like.user_id == user.id, Like.target_kind == "recording")
         likes_r_res = await session.execute(likes_r_stmt)
         liked_rec_ids = set(likes_r_res.scalars().all())
+
+        likes_pi_stmt = select(Like.target_id).where(Like.user_id == user.id, Like.target_kind == "piece")
+        likes_pi_res = await session.execute(likes_pi_stmt)
+        liked_piece_ids = set(likes_pi_res.scalars().all())
 
     for p, c_name, c_avatar, c_id in p_rows:
         merged.append(
@@ -525,6 +549,40 @@ async def get_activity_feed(
                 liked_by_me=r.id in liked_rec_ids,
                 duration_ms=r.duration_ms,
                 format=r.format,
+                creator_name=c_name,
+                creator_avatar_seed=c_avatar,
+                creator_id=c_id,
+            )
+        )
+
+    for pi, c_name, c_avatar, c_id in pi_rows:
+        # Reconstruct flat state parameters to drive the card visual correctly
+        params = pi.defaults_state.get("params", {}) if pi.defaults_state else {}
+        engine_id = pi.defaults_state.get("engineId", "sine") if pi.defaults_state else "sine"
+        flat_parts = ["kind=piece", f"e={engine_id}"]
+        for k, v in params.items():
+            if not k.startswith("_"):
+                flat_parts.append(f"{k}={v}")
+        state_str = "&".join(flat_parts)
+
+        movements = pi.defaults_state.get("_movements") or [] if pi.defaults_state else []
+        movements_count = len(movements) if isinstance(movements, list) else 0
+
+        merged.append(
+            FeedItemOut(
+                kind="piece",
+                id=pi.id,
+                short_slug=pi.short_slug,
+                title=pi.title,
+                description=pi.description,
+                created_at=pi.created_at,
+                like_count=pi.like_count,
+                liked_by_me=pi.id in liked_piece_ids,
+                state=state_str,
+                engine=engine_id,
+                mode="piece",
+                has_captures=pi.has_captures,
+                movements_count=movements_count,
                 creator_name=c_name,
                 creator_avatar_seed=c_avatar,
                 creator_id=c_id,

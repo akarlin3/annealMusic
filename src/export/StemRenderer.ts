@@ -22,6 +22,7 @@ import type { Piece, VariationPoint } from '@/piece/types';
 import { interpolateState } from '@/piece/transitions';
 import { generateMetaArc } from '@/piece/generators';
 import { resolveVariations, hashStringToInt } from '@/piece/resolver';
+import { playBell } from '@/listening/punctuation';
 
 function resolveNestedConfigVariations(
   config: Record<string, any>,
@@ -72,9 +73,15 @@ export interface StemRenderConfig {
   loopConfig: LoopConfigMap;
   loopBuffers: Record<SlotId, AudioBuffer | null>;
   loopStates: Record<SlotId, SlotState>;
-  mode: 'open' | 'arc' | 'piece';
+  mode: 'open' | 'arc' | 'piece' | 'listening-session';
   piece?: Piece;
   arcId?: string;
+  listeningSession?: {
+    settleInMs: number;
+    integrationMs: number;
+    openingTone: boolean;
+    closingTone: boolean;
+  };
   durationSec: number;
 
   sampleRate: number;
@@ -287,7 +294,7 @@ export async function renderStemsOffline(
     includeFx: config.includeFx,
     includePartials: config.includePartials,
   });
-  if (config.mode === 'piece') {
+  if (config.mode === 'piece' || config.mode === 'listening-session') {
     stems = stems.filter((s) => s.id === 'master');
   }
 
@@ -452,7 +459,6 @@ export async function renderStemsOffline(
       dry.gain.value = 1 - config.params.space * 0.4;
 
       const masterVol = ctx.createGain();
-      masterVol.gain.value = config.params.volume;
 
       filter.connect(dry).connect(master);
       filter.connect(convolver).connect(wet).connect(master);
@@ -460,12 +466,56 @@ export async function renderStemsOffline(
 
       stemOutputNode = filter;
 
-      // End fade-out on masterVol so tail doesn't clip
-      masterVol.gain.setValueAtTime(
-        config.params.volume,
-        Math.max(0, config.durationSec - FADE_OUT_SEC),
-      );
-      masterVol.gain.linearRampToValueAtTime(0, config.durationSec);
+      if (config.mode === 'listening-session' && config.listeningSession) {
+        const ls = config.listeningSession;
+        const startOffset = ls.openingTone ? 4.0 : 0.0;
+        const pieceDuration =
+          config.durationSec -
+          (ls.openingTone ? 4.0 : 0.0) -
+          (ls.closingTone ? 4.0 : 0.0);
+
+        // Start silent
+        masterVol.gain.setValueAtTime(0, 0);
+
+        if (ls.openingTone) {
+          // Play opening chime at t=0
+          playBell(ctx as any, ctx.destination, 660, 0);
+          masterVol.gain.setValueAtTime(0, startOffset);
+        }
+
+        // Settle-in fade-in ramp
+        const settleInSec = ls.settleInMs / 1000;
+        masterVol.gain.setValueAtTime(0, startOffset);
+        masterVol.gain.linearRampToValueAtTime(
+          config.params.volume,
+          startOffset + settleInSec,
+        );
+
+        // Integration fade-out ramp
+        const integrationSec = ls.integrationMs / 1000;
+        const fadeOutStart = startOffset + pieceDuration - integrationSec;
+        masterVol.gain.setValueAtTime(config.params.volume, fadeOutStart);
+        masterVol.gain.linearRampToValueAtTime(0, startOffset + pieceDuration);
+
+        if (ls.closingTone) {
+          // Play closing chime at the end of the piece
+          playBell(
+            ctx as any,
+            ctx.destination,
+            660,
+            startOffset + pieceDuration,
+          );
+          masterVol.gain.setValueAtTime(0, startOffset + pieceDuration);
+        }
+      } else {
+        masterVol.gain.value = config.params.volume;
+        // End fade-out on masterVol so tail doesn't clip
+        masterVol.gain.setValueAtTime(
+          config.params.volume,
+          Math.max(0, config.durationSec - FADE_OUT_SEC),
+        );
+        masterVol.gain.linearRampToValueAtTime(0, config.durationSec);
+      }
 
       // Connect sources based on stem target
       if (stem.type === 'master' || stem.type === 'engine') {
@@ -613,6 +663,17 @@ export async function renderStemsOffline(
           }
         } else if (config.mode === 'piece' && renderedPiece) {
           const resolved = resolvePieceStateAtTime(renderedPiece, t);
+          Object.assign(live, resolved.params);
+          activeEngine?.setSharedParams(resolved.params);
+          if (stem.isFx && stemOutputNode) {
+            const filter = stemOutputNode as BiquadFilterNode;
+            filter.frequency.setValueAtTime(cutoffFor(live.brightness), t);
+          }
+        } else if (config.mode === 'listening-session' && renderedPiece) {
+          const ls = config.listeningSession;
+          const startOffset = ls?.openingTone ? 4.0 : 0.0;
+          const pieceTime = Math.max(0, t - startOffset);
+          const resolved = resolvePieceStateAtTime(renderedPiece, pieceTime);
           Object.assign(live, resolved.params);
           activeEngine?.setSharedParams(resolved.params);
           if (stem.isFx && stemOutputNode) {

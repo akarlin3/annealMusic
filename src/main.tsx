@@ -12,6 +12,7 @@ import { AuthProvider } from '@/auth/AuthProvider';
 import DeepLinkHandler from '@/components/DeepLinkHandler';
 import MidiSettingsPage from '@/midi/components/MidiSettingsPage';
 import PiecePage from '@/pages/PiecePage';
+import ListeningSessionPage from '@/pages/ListeningSessionPage';
 import '@/styles/index.css';
 
 // Lazy load the AdminPage conditionally to tree-shake it out of mobile builds
@@ -38,6 +39,7 @@ createRoot(rootEl).render(
             <Route path="/midi" element={<MidiSettingsPage />} />
             <Route path="/piece" element={<PiecePage />} />
             <Route path="/piece/:slug" element={<PiecePage />} />
+            <Route path="/listening/:slug" element={<ListeningSessionPage />} />
             <Route
               path="/admin"
               element={

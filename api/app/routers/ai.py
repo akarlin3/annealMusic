@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.deps import SessionDep, CurrentUser, Identity, get_identity, rate_limit, _client_ip
 from app.errors import invalid_state, quota_exceeded, rate_limited
-from app.models import AIGeneration, Patch
+from app.models import AIGeneration, Patch, Piece
 from app.schemas import AIGeneratedPatchOut, AIQuotaOut, AIChange, AIModifyPatchOut, AIDescribePatchOut
 from app.services.schema_prompt import get_schema_for_prompt, load_few_shot_examples
 from app.validation import load_manifest, validate_payload
@@ -587,6 +587,34 @@ async def generate_ai_description_internal(state_payload: str, llm: Any) -> str:
     rejected = screen_publish(None, desc)
     if rejected:
         return "Calm ambient sound with organic shifts"
+    return desc
+
+
+async def generate_ai_piece_description_internal(piece: Piece, llm: Any) -> str:
+    defaults = piece.defaults_state or {}
+    engine_id = defaults.get("engineId", "sine")
+    title = piece.title or "Untitled Piece"
+    desc_str = piece.description or ""
+    
+    summary = f"Piece Title: {title}\n"
+    if desc_str:
+        summary += f"User Description: {desc_str}\n"
+    summary += f"Synth Engine: {engine_id}\n"
+    
+    system_prompt = build_describe_system_prompt(get_schema_for_prompt())
+    user_prompt = f"Describe this ambient generative piece state and title:\n{summary}"
+
+    output, _, _ = await llm.generate(
+        system=system_prompt,
+        prompt=user_prompt,
+        model=MODEL_ID,
+    )
+
+    desc = output.strip().replace('"', '').replace("'", "")
+    from app.moderation import screen_publish
+    rejected = screen_publish(None, desc)
+    if rejected:
+        return "Gentle evolving currents and distant ambient tones"
     return desc
 
 

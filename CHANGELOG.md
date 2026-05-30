@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-05-30
+
+### Added
+
+- **First-Class Listening Sessions.** Introduces the third top-level ambient artifact: Listening Sessions, fully optimized for deep immersion on the listener side instead of creator sculpting.
+- **Synthesized Dual-Resonator Bell Chimes.** Implements high-quality opening and closing chime bells fully synthesized in real time in Web Audio using bandpass-filtered noise plucks with exponential decay.
+- **Immersive Fullscreen Listening View.** Creates a gorgeous fullscreen HUD featuring prominent elapsed/remaining timer dials, double attribution layers, and tucked-away "Escape Hatch" sculpting drawers for creators.
+- **Clinical disclaimer footprints.** Adheres strictly to the Honest Framing Baseline by persistently displaying professional and humble wellness disclaimers.
+- **Linear Settle-in and Integration Fades.** Automatically fade-in piece volume from absolute silence over custom Settle-In periods, and fade back to silence during Integration closeouts.
+- **Calm Visualizer Preset.** Slows visual orbits by `0.45` and reduces glow brightness by `0.6` across Canvas 2D and WebGL pixel shaders when in calm mode.
+- **Offline Rendering Fades.** Seamlessly bakes chimes and automated gain fades directly into wav multi-stem exports during offline rendering passes.
+- **URL Schema Version 16.** Enhances binary serialization to support compact, secure Listening Session representations.
+
 ## [3.2.0] - 2026-05-29
 
 ### Added

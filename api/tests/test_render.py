@@ -35,8 +35,8 @@ class _FakeRenderer:
     def __init__(self) -> None:
         self.calls: list[tuple] = []
 
-    async def render(self, payload, dur, urls):
-        self.calls.append((payload, dur, urls))
+    async def render(self, payload, dur, urls, preview_slice_start_ms=None):
+        self.calls.append((payload, dur, urls, preview_slice_start_ms))
         return b"FAKE-WEBM-BYTES"
 
     async def aclose(self) -> None:
@@ -44,7 +44,7 @@ class _FakeRenderer:
 
 
 class _BoomRenderer:
-    async def render(self, payload, dur, urls):
+    async def render(self, payload, dur, urls, preview_slice_start_ms=None):
         raise RuntimeError("render exploded")
 
     async def aclose(self) -> None:
@@ -151,7 +151,7 @@ async def test_queue_concurrency_cap(app, monkeypatch):
     peak = 0
 
     class _SlowRenderer:
-        async def render(self, payload, dur, urls):
+        async def render(self, payload, dur, urls, preview_slice_start_ms=None):
             nonlocal inflight, peak
             inflight += 1
             peak = max(peak, inflight)

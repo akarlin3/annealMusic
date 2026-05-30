@@ -29,6 +29,8 @@ import {
   type SaveSharedPatchBody,
   type APIPiece,
   type APIPieceList,
+  type ListeningSession,
+  type ListeningSessionList,
 } from '@/api/types';
 import type { GalleryList } from '@/gallery/types';
 
@@ -622,6 +624,69 @@ export const api = {
     await request<void>(`/api/v1/pieces/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
+  },
+
+  // --- listening sessions (v4.0) -------------------------------------------
+  async createListeningSession(body: {
+    piece_id: string;
+    schema_ver: number;
+    title: string;
+    description?: string | null;
+    intention?: string | null;
+    length_category?: string;
+    recommended_environment?: string | null;
+    settle_in_ms?: number;
+    integration_ms?: number;
+    opening_tone?: boolean;
+    closing_tone?: boolean;
+    visibility?: 'unlisted' | 'public';
+  }): Promise<ListeningSession> {
+    return request<ListeningSession>('/api/v1/listening-sessions', {
+      method: 'POST',
+      body,
+    });
+  },
+
+  async getListeningSession(idOrSlug: string): Promise<ListeningSession> {
+    return request<ListeningSession>(
+      `/api/v1/listening-sessions/${encodeURIComponent(idOrSlug)}`,
+    );
+  },
+
+  async myListeningSessions(cursor?: string): Promise<ListeningSessionList> {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    return request<ListeningSessionList>(`/api/v1/listening-sessions/me${q}`);
+  },
+
+  async updateListeningSession(
+    id: string,
+    body: {
+      piece_id?: string;
+      title?: string;
+      description?: string | null;
+      intention?: string | null;
+      length_category?: string;
+      recommended_environment?: string | null;
+      settle_in_ms?: number;
+      integration_ms?: number;
+      opening_tone?: boolean;
+      closing_tone?: boolean;
+      visibility?: 'unlisted' | 'public';
+    },
+  ): Promise<ListeningSession> {
+    return request<ListeningSession>(
+      `/api/v1/listening-sessions/${encodeURIComponent(id)}`,
+      { method: 'PATCH', body },
+    );
+  },
+
+  async deleteListeningSession(id: string): Promise<void> {
+    await request<void>(
+      `/api/v1/listening-sessions/${encodeURIComponent(id)}`,
+      {
+        method: 'DELETE',
+      },
+    );
   },
 };
 

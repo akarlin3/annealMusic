@@ -36,21 +36,22 @@ class PlaywrightRenderer:
         return self._browser
 
     async def render(
-        self, payload: str, duration_sec: int, capture_urls: list[str]
+        self, payload: str, duration_sec: int, capture_urls: list[str], preview_slice_start_ms: int | None = None
     ) -> bytes:
         browser = await self._ensure_browser()
         page = await browser.new_page()
         try:
             await page.goto(self.settings.render_harness_url)
             b64: str = await page.evaluate(
-                """async ([payload, dur, urls]) => {
+                """async ([payload, dur, urls, offset]) => {
                     const res = await window.__annealRender(payload, {
                         durationSec: dur,
                         captureUrls: urls,
+                        previewSliceStartMs: offset,
                     });
                     return res.b64;
                 }""",
-                [payload, duration_sec, capture_urls],
+                [payload, duration_sec, capture_urls, preview_slice_start_ms],
             )
             return base64.b64decode(b64)
         finally:

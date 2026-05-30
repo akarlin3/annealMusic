@@ -131,7 +131,13 @@ def get_engine():
     global _engine, _sessionmaker
     if _engine is None:
         settings = get_settings()
-        _engine = create_async_engine(settings.database_url, future=True)
+        kwargs = {}
+        import os
+        import sys
+        if "pytest" in sys.modules or os.environ.get("ENV") == "test":
+            from sqlalchemy.pool import NullPool
+            kwargs["poolclass"] = NullPool
+        _engine = create_async_engine(settings.database_url, future=True, **kwargs)
         _sessionmaker = async_sessionmaker(_engine, expire_on_commit=False)
     return _engine
 

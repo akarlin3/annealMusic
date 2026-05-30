@@ -18,11 +18,17 @@ import { decodeState } from '@/share/encode';
 import { applyDecodedToStore, captureSlotsFromPayload } from '@/share/hydrate';
 import { useParamStore } from '@/state/params';
 import type { SlotId } from '@/loop/types';
+import { PiecePlayer } from '@/piece/PiecePlayer';
+import { hashStringToInt } from '@/piece/resolver';
+import type { Piece } from '@/piece/types';
+import type { AnnealMusicParams } from '@/state/params';
+import type { EngineId, EngineParams } from '@/audio/engines/types';
 
 interface RenderOptions {
   durationSec: number;
   /** Presigned capture URLs, in flagged-slot order (matches the payload). */
   captureUrls?: string[];
+  previewSliceStartMs?: number;
 }
 
 interface RenderResult {
@@ -57,6 +63,71 @@ async function render(
   // Hydrate the store exactly as the client does on load.
   useParamStore.getState().reset();
   const decoded = decodeState(SCHEMA_VERSION, payload);
+
+  if (decoded.kind === 'piece') {
+    const piece = decoded.piece;
+    if (piece.variationSeed === null || piece.variationSeed === undefined) {
+      piece.variationSeed = hashStringToInt(
+        piece.title || 'render-harness-seed',
+      );
+    }
+
+    const orch = new Orchestrator(
+      piece.defaultsState.params as unknown as AnnealMusicParams,
+      piece.defaultsState.engineId,
+      piece.defaultsState.engineParams as unknown as Partial<
+        Record<EngineId, EngineParams>
+      >,
+      undefined,
+      piece.defaultsState.loops,
+    );
+
+    orch.ensureLoops();
+    const analyser = orch.getAnalyser();
+    if (!analyser) throw new Error('analyser unavailable');
+    const ctx = analyser.context as AudioContext;
+    const dest = ctx.createMediaStreamDestination();
+    analyser.connect(dest);
+
+    const slots = captureSlotsFromPayload(payload);
+    const urls = opts.captureUrls ?? [];
+    for (let i = 0; i < slots.length && i < urls.length; i++) {
+      const res = await fetch(urls[i]!);
+      const buf = await orch.decodeAudio(await res.arrayBuffer());
+      orch.loadLoopBuffer(slots[i] as SlotId, buf);
+    }
+
+    const recorder = new MediaRecorder(dest.stream, { mimeType: RECORD_MIME });
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+
+    const stopped = new Promise<void>((resolve) => {
+      recorder.onstop = () => resolve();
+    });
+
+    recorder.start();
+
+    const player = new PiecePlayer(piece as unknown as Piece, orch);
+    if (opts.previewSliceStartMs && opts.previewSliceStartMs > 0) {
+      player.seek(opts.previewSliceStartMs);
+    }
+    player.start();
+
+    await new Promise((r) => setTimeout(r, opts.durationSec * 1000));
+
+    player.stop();
+    recorder.stop();
+    await stopped;
+    await orch.dispose();
+
+    const blob = new Blob(chunks, { type: RECORD_MIME });
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    return { b64: bytesToBase64(bytes), mime: RECORD_MIME };
+  }
+
+  // Otherwise, handle patch
   applyDecodedToStore(decoded);
 
   const state = useParamStore.getState();

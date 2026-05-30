@@ -518,6 +518,30 @@ export class PiecePlayer {
     }
   }
 
+  seek(timeMs: number): void {
+    let currentMs = 0;
+    let segIdx = 0;
+    this.activeArcRunner = null;
+
+    while (segIdx < this.piece.segments.length) {
+      const seg = this.piece.segments[segIdx]!;
+      const dur = this.getSegmentDuration(seg);
+      if (currentMs + dur > timeMs) {
+        this.activeSegmentIdx = segIdx;
+        this.playheadMs = timeMs - currentMs;
+        this.applyActiveState();
+        return;
+      }
+      currentMs += dur;
+      segIdx++;
+    }
+    // Clamp to end
+    this.activeSegmentIdx = this.piece.segments.length - 1;
+    const lastSeg = this.piece.segments[this.activeSegmentIdx];
+    this.playheadMs = lastSeg ? this.getSegmentDuration(lastSeg) : 0;
+    this.applyActiveState();
+  }
+
   skipToMovement(movementIdx: number): void {
     if (!this.piece.movements || !this.piece.movements[movementIdx]) return;
     const movement = this.piece.movements[movementIdx]!;

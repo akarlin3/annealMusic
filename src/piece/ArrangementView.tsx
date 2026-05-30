@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import type {
   Piece,
   PieceSegment,
@@ -49,6 +49,7 @@ import {
   Copy,
   Scissors,
   Grid,
+  Sparkles,
 } from 'lucide-react';
 import type { Orchestrator } from '@/audio/orchestrator';
 import { VariationEditorPanel } from '@/piece/components/VariationEditorPanel';
@@ -57,6 +58,7 @@ import { generateMetaArc } from '@/piece/generators';
 import { ArcRunner } from '@/session/ArcRunner';
 import { engineCapabilities } from '@/audio/engines/index';
 import { hashStringToInt } from '@/piece/resolver';
+import ListeningControls from '@/listening/ListeningControls';
 
 interface ArrangementViewProps {
   ensureOrchestrator: () => Orchestrator;
@@ -73,6 +75,7 @@ export const ArrangementView: React.FC<ArrangementViewProps> = ({
   ensureOrchestrator,
   showToast,
 }) => {
+  const navigate = useNavigate();
   // Main piece state
   const [piece, setPiece] = useState<Piece>({
     schemaVer: SCHEMA_VERSION,
@@ -113,6 +116,7 @@ export const ArrangementView: React.FC<ArrangementViewProps> = ({
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showNotation, setShowNotation] = useState(false);
+  const [showListeningModal, setShowListeningModal] = useState(false);
   const [editingMovementIdx, setEditingMovementIdx] = useState<number | null>(
     null,
   );
@@ -1833,6 +1837,21 @@ export const ArrangementView: React.FC<ArrangementViewProps> = ({
             <Share2 className="w-4 h-4" />
             Share
           </button>
+          <button
+            onClick={() => {
+              if (!piece.id) {
+                showToast(
+                  'Save the piece first to configure a listening session!',
+                );
+                return;
+              }
+              setShowListeningModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/20 border border-amber-500/50 rounded-2xl text-xs font-bold text-amber-300 hover:bg-amber-500/30 transition"
+          >
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            Listen
+          </button>
         </div>
       </div>
 
@@ -2845,6 +2864,22 @@ export const ArrangementView: React.FC<ArrangementViewProps> = ({
           onSave={handleSavePieceVariation}
           onDelete={handleDeletePieceVariation}
         />
+      )}
+      {/* Listening Session Creation Modal */}
+      {showListeningModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn overflow-y-auto">
+          <div className="w-full max-w-xl my-8">
+            <ListeningControls
+              initialPiece={piece as any}
+              onCancel={() => setShowListeningModal(false)}
+              onSessionCreated={(session) => {
+                setShowListeningModal(false);
+                showToast(`Listening Session created successfully!`);
+                navigate(`/listening/${session.short_slug}`);
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
