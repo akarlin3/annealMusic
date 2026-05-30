@@ -101,6 +101,94 @@ export function clearStepOverride(stepId: string): Promise<GenStep> {
   }) as Promise<GenStep>;
 }
 
+// --- v6.2 audio clip library -------------------------------------------------
+
+export interface ClipOut {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  duration_ms: number;
+  track_affinity: string[];
+  concept_tags: string[];
+  license: string;
+  attribution: string | null;
+  audio_url: string | null;
+  created_at: string;
+}
+
+export interface ClipSearchResult {
+  slug: string;
+  title: string;
+  description: string;
+  duration_ms: number;
+  track_affinity: string[];
+  concept_tags: string[];
+  score: number;
+}
+
+export interface ClipMeta {
+  slug: string;
+  title: string;
+  description: string;
+  duration_ms?: number;
+  track_affinity: string[];
+  concept_tags: string[];
+  license: 'CC0' | 'CC-BY' | 'original-by-you' | 'licensed-third-party';
+  attribution?: string | null;
+}
+
+export function listClips(): Promise<ClipOut[]> {
+  return adminFetch('/api/v1/admin/clips') as Promise<ClipOut[]>;
+}
+
+export function searchClips(params: {
+  q?: string;
+  tags?: string[];
+  track?: string;
+  limit?: number;
+}): Promise<ClipSearchResult[]> {
+  const qs = new URLSearchParams();
+  if (params.q) qs.set('q', params.q);
+  if (params.track) qs.set('track', params.track);
+  if (params.limit) qs.set('limit', String(params.limit));
+  for (const t of params.tags ?? []) qs.append('tags', t);
+  return adminFetch(`/api/v1/admin/clips/search?${qs.toString()}`) as Promise<
+    ClipSearchResult[]
+  >;
+}
+
+export async function uploadClip(meta: ClipMeta, file: File): Promise<ClipOut> {
+  // Multipart upload — note we must NOT set content-type (the browser sets the
+  // multipart boundary), so this bypasses the JSON adminFetch helper.
+  const form = new FormData();
+  form.append('meta', JSON.stringify(meta));
+  form.append('file', file);
+  const res = await fetch(`${API_BASE}/api/v1/admin/clips`, {
+    method: 'POST',
+    headers: { 'x-admin-key': getAdminKey() ?? '' },
+    body: form,
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  return (await res.json()) as ClipOut;
+}
+
+export function patchClip(
+  id: string,
+  body: Partial<ClipMeta>,
+): Promise<ClipOut> {
+  return adminFetch(`/api/v1/admin/clips/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  }) as Promise<ClipOut>;
+}
+
+export function archiveClip(id: string): Promise<ClipOut> {
+  return adminFetch(`/api/v1/admin/clips/${id}`, {
+    method: 'DELETE',
+  }) as Promise<ClipOut>;
+}
+
 export const EXAMPLE_SPEC = `{
   "id": "synthesis-fundamentals/karplus-strong",
   "track": "synthesis-fundamentals",
