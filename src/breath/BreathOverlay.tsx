@@ -134,7 +134,13 @@ export default function BreathOverlay({
         ctx.strokeStyle = `rgba(245, 158, 11, ${0.18 + frame.amplitude * 0.12})`;
         ctx.lineWidth = BREATH.ringLineWidth;
         const start = -Math.PI / 2;
-        ctx.arc(cx, cy, ringR, start, start + Math.PI * 2 * frame.cycleProgress);
+        ctx.arc(
+          cx,
+          cy,
+          ringR,
+          start,
+          start + Math.PI * 2 * frame.cycleProgress,
+        );
         ctx.stroke();
 
         // Optional faint lowercase "hold" label — no numerals, ever.

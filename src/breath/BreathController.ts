@@ -94,7 +94,8 @@ export class BreathController {
 
     const elapsed = nowSec - this.t0;
     // Positive modulo so negative elapsed (clock before reset) still maps sanely.
-    const t = ((elapsed % this.cycleLength) + this.cycleLength) % this.cycleLength;
+    const t =
+      ((elapsed % this.cycleLength) + this.cycleLength) % this.cycleLength;
 
     let current = this.phases[this.phases.length - 1]!;
     for (const p of this.phases) {
@@ -124,7 +125,8 @@ export class BreathController {
         break;
     }
 
-    const transition = this.lastPhase !== null && this.lastPhase !== current.phase;
+    const transition =
+      this.lastPhase !== null && this.lastPhase !== current.phase;
     this.lastPhase = current.phase;
 
     return {

@@ -3,6 +3,16 @@
 
 export type Visibility = 'unlisted' | 'public';
 
+/**
+ * Optional visual breath-pacing pattern on a listening session (v4.4). Mirrors
+ * the `breath_pattern` JSONB column. `custom_pattern` is `[inhale, hold_full,
+ * exhale, hold_empty]` in seconds, present only for `pattern: 'custom'`.
+ */
+export interface BreathPatternRef {
+  pattern: 'box' | '4-7-8' | 'coherent' | 'resonance' | 'custom';
+  custom_pattern?: [number, number, number, number];
+}
+
 export interface Quota {
   patches: number;
   captures: number;
@@ -338,6 +348,8 @@ export interface ListeningSession {
   settle_in_ms: number;
   integration_ms: number;
   bell_schedule: any[];
+  /** Optional visual breath-pacing pattern (v4.4 / schema v20). Null = none. */
+  breath_pattern?: BreathPatternRef | null;
   total_duration_ms: number | null;
   visibility: Visibility;
   short_slug: string;
@@ -368,6 +380,7 @@ export interface CreateListeningSessionBody {
   settle_in_ms?: number;
   integration_ms?: number;
   bell_schedule?: any[];
+  breath_pattern?: BreathPatternRef | null;
   visibility?: Visibility;
 }
 
@@ -382,5 +395,6 @@ export interface UpdateListeningSessionBody {
   settle_in_ms?: number;
   integration_ms?: number;
   bell_schedule?: any[];
+  breath_pattern?: BreathPatternRef | null;
   visibility?: Visibility;
 }

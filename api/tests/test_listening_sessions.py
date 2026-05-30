@@ -69,6 +69,7 @@ async def test_create_and_get_listening_session(client):
                 {"bellId": "zen_bell_rin", "trigger": "at-start", "volume": 0.7},
                 {"bellId": "zen_bell_rin", "trigger": "at-end", "volume": 0.7},
             ],
+            "breath_pattern": {"pattern": "box"},
             "visibility": "unlisted",
         },
     )
@@ -78,6 +79,8 @@ async def test_create_and_get_listening_session(client):
     assert ls["piece_id"] == piece["id"]
     assert len(ls["bell_schedule"]) == 2
     assert ls["bell_schedule"][0]["bellId"] == "zen_bell_rin"
+    # Breath pattern (v4.4) round-trips through create + read.
+    assert ls["breath_pattern"] == {"pattern": "box"}
     # Layered concurrently, total duration is exactly the piece's duration
     assert ls["total_duration_ms"] == 10000
     assert ls["piece"]["title"] == "My Composition"

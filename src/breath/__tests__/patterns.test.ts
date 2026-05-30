@@ -9,7 +9,9 @@ import {
 
 describe('breath patterns', () => {
   it('ships the four documented built-ins with correct tuples', () => {
-    const byId = Object.fromEntries(BUILT_IN_PATTERNS.map((p) => [p.id, p.tuple]));
+    const byId = Object.fromEntries(
+      BUILT_IN_PATTERNS.map((p) => [p.id, p.tuple]),
+    );
     expect(byId.box).toEqual([4, 4, 4, 4]);
     expect(byId['4-7-8']).toEqual([4, 7, 8, 0]);
     expect(byId.coherent).toEqual([5.5, 0, 5.5, 0]);

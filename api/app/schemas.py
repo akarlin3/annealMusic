@@ -480,7 +480,7 @@ class PieceListOut(BaseModel):
 class ListeningSessionCreate(BaseModel):
     piece_id: uuid.UUID | None = None
     patch_id: uuid.UUID | None = None
-    schema_ver: int = 19
+    schema_ver: int = 20
     title: str | None = Field(default=None, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     intention: str | None = Field(default=None, max_length=120)
@@ -489,6 +489,7 @@ class ListeningSessionCreate(BaseModel):
     settle_in_ms: int = Field(default=30000, ge=0)
     integration_ms: int = Field(default=60000, ge=0)
     bell_schedule: list[dict] = Field(default_factory=list)
+    breath_pattern: dict | None = None
     visibility: Visibility = "unlisted"
 
 
@@ -503,6 +504,7 @@ class ListeningSessionUpdate(BaseModel):
     settle_in_ms: int | None = Field(default=None, ge=0)
     integration_ms: int | None = Field(default=None, ge=0)
     bell_schedule: list[dict] | None = None
+    breath_pattern: dict | None = None
     visibility: Visibility | None = None
 
 
@@ -522,6 +524,7 @@ class ListeningSessionOut(BaseModel):
     settle_in_ms: int
     integration_ms: int
     bell_schedule: list[dict] = Field(default_factory=list)
+    breath_pattern: dict | None = None
     total_duration_ms: int | None
     visibility: str
     short_slug: str

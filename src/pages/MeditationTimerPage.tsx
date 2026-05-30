@@ -7,6 +7,18 @@ import {
   resolveBellSchedule,
   type BellEvent,
 } from '@/audio/bells/scheduler';
+import { BreathController, type BreathPhase } from '@/breath/BreathController';
+import { resolveTuple } from '@/breath/patterns';
+import BreathPicker from '@/breath/BreathPicker';
+import { useBreathPattern, useBreathPrefs } from '@/breath/useBreathPrefs';
+import { pulsePhaseTransition } from '@/breath/hapticBridge';
+
+const PHASE_LABEL: Record<BreathPhase, string> = {
+  inhale: 'Inhale',
+  'hold-full': 'Hold',
+  exhale: 'Exhale',
+  'hold-empty': 'Hold',
+};
 
 function fmtTime(seconds: number): string {
   const mm = Math.floor(seconds / 60);
@@ -27,9 +39,15 @@ export default function MeditationTimerPage() {
   const [elapsedSec, setElapsedSec] = useState(0);
   const [remainingSec, setRemainingSec] = useState(15 * 60);
 
-  // Breathing LFO state
-  const [breathingLabel, setBreathingLabel] = useState('Inhale');
+  // Breath pacing: pattern persists on this device; box is the default cue.
+  const [breathPattern, setBreathPattern] = useBreathPattern('am_breath_timer');
+  const breathPrefs = useBreathPrefs();
+  const activePattern = breathPattern ?? { pattern: 'box' as const };
+
+  // Breath display state
+  const [breathingLabel, setBreathingLabel] = useState('Prepare');
   const [breathingScale, setBreathingScale] = useState(1.0);
+  const [breathingOpacity, setBreathingOpacity] = useState(0.3);
 
   // Audio refs
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -38,8 +56,7 @@ export default function MeditationTimerPage() {
   const breathTimerRef = useRef<ReturnType<
     typeof requestAnimationFrame
   > | null>(null);
-  const lastFrameTimeRef = useRef<number>(0);
-  const breathCycleRef = useRef<number>(0); // tracks position in 16s cycle without triggering re-renders
+  const controllerRef = useRef<BreathController | null>(null);
 
   // Initialize total remaining seconds on setting change
   useEffect(() => {
@@ -49,12 +66,17 @@ export default function MeditationTimerPage() {
     }
   }, [durationMin, isPlaying]);
 
-  // Breathing LFO animation loop
+  // Breath animation loop. Phase math lives once in BreathController, driven by
+  // AudioContext.currentTime (not wall-clock), so a backgrounded tab resumes at
+  // the correct phase and long sessions never drift. RAF only paints.
+  const tuple = resolveTuple(activePattern);
+  const tupleKey = tuple ? tuple.join(',') : '';
   useEffect(() => {
-    if (!isPlaying) {
+    if (!isPlaying || !tuple) {
       setBreathingScale(1.0);
+      setBreathingOpacity(0.3);
       setBreathingLabel('Prepare');
-      breathCycleRef.current = 0;
+      controllerRef.current = null;
       if (breathTimerRef.current) {
         cancelAnimationFrame(breathTimerRef.current);
         breathTimerRef.current = null;
@@ -62,43 +84,37 @@ export default function MeditationTimerPage() {
       return;
     }
 
-    lastFrameTimeRef.current = performance.now();
+    const ctrl = new BreathController(tuple);
+    ctrl.reset(audioCtxRef.current?.currentTime ?? 0);
+    controllerRef.current = ctrl;
 
-    const updateBreathing = (time: number) => {
-      const deltaSec = (time - lastFrameTimeRef.current) / 1000;
-      lastFrameTimeRef.current = time;
+    const tick = () => {
+      const now = audioCtxRef.current?.currentTime ?? 0;
+      const frame = ctrl.frameAt(now);
+      const reduced =
+        breathPrefs.reduceMotion ||
+        (typeof window !== 'undefined' &&
+          window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
-      breathCycleRef.current = (breathCycleRef.current + deltaSec) % 16;
-      const next = breathCycleRef.current;
+      // Reduced motion: fixed size, opacity carries the breath instead.
+      setBreathingScale(reduced ? 1.4 : 1.0 + frame.amplitude * 0.8);
+      setBreathingOpacity(0.3 + frame.amplitude * 0.5);
+      setBreathingLabel(PHASE_LABEL[frame.phase]);
 
-      // 4s Inhale, 4s Hold, 4s Exhale, 4s Hold
-      if (next < 4) {
-        setBreathingLabel('Inhale');
-        // Scale from 1.0 to 1.8
-        setBreathingScale(1.0 + (next / 4) * 0.8);
-      } else if (next < 8) {
-        setBreathingLabel('Hold');
-        setBreathingScale(1.8);
-      } else if (next < 12) {
-        setBreathingLabel('Exhale');
-        // Scale from 1.8 down to 1.0
-        setBreathingScale(1.8 - ((next - 8) / 4) * 0.8);
-      } else {
-        setBreathingLabel('Hold');
-        setBreathingScale(1.0);
+      if (frame.transition && breathPrefs.haptics) {
+        void pulsePhaseTransition(frame.phase);
       }
-
-      breathTimerRef.current = requestAnimationFrame(updateBreathing);
+      breathTimerRef.current = requestAnimationFrame(tick);
     };
-
-    breathTimerRef.current = requestAnimationFrame(updateBreathing);
+    breathTimerRef.current = requestAnimationFrame(tick);
 
     return () => {
       if (breathTimerRef.current) {
         cancelAnimationFrame(breathTimerRef.current);
+        breathTimerRef.current = null;
       }
     };
-  }, [isPlaying]);
+  }, [isPlaying, tupleKey, breathPrefs.reduceMotion, breathPrefs.haptics]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStart = () => {
     // 1. Initialize Web Audio Context and Scheduler
@@ -247,12 +263,12 @@ export default function MeditationTimerPage() {
           <div className="relative w-72 h-72 rounded-full border border-stone-900/60 bg-stone-950/10 flex items-center justify-center overflow-hidden">
             {/* LFO expanding breath circle */}
             <div
-              className="absolute rounded-full bg-amber-500/10 border border-amber-500/20 shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-300 ease-out"
+              className="absolute rounded-full bg-amber-500/10 border border-amber-500/20 shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-transform duration-150 ease-out"
               style={{
                 width: '140px',
                 height: '140px',
                 transform: `scale(${breathingScale})`,
-                opacity: isPlaying ? 0.8 : 0.3,
+                opacity: isPlaying ? breathingOpacity : 0.3,
               }}
             />
 
@@ -333,6 +349,35 @@ export default function MeditationTimerPage() {
               <option value={10}>Every 10 Minutes</option>
               <option value={15}>Every 15 Minutes</option>
             </select>
+          </div>
+
+          {/* Breath pacing (persists on this device) */}
+          <div className="border-t border-stone-900 pt-3 normal-case tracking-normal">
+            <BreathPicker value={breathPattern} onChange={setBreathPattern} />
+            {tuple && (
+              <div className="mt-3 flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-wider text-stone-400">
+                  <input
+                    type="checkbox"
+                    checked={breathPrefs.reduceMotion}
+                    onChange={(e) =>
+                      breathPrefs.setReduceMotion(e.target.checked)
+                    }
+                  />
+                  Reduce motion
+                </label>
+                {breathPrefs.hapticsAvailable && (
+                  <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-wider text-stone-400">
+                    <input
+                      type="checkbox"
+                      checked={breathPrefs.haptics}
+                      onChange={(e) => breathPrefs.setHaptics(e.target.checked)}
+                    />
+                    Haptics
+                  </label>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Bell Description */}

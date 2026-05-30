@@ -14,7 +14,11 @@ describe('BreathOverlay', () => {
 
   it('renders nothing when inactive', () => {
     const { container } = render(
-      <BreathOverlay pattern={{ pattern: 'box' }} active={false} getNow={getNow} />,
+      <BreathOverlay
+        pattern={{ pattern: 'box' }}
+        active={false}
+        getNow={getNow}
+      />,
     );
     expect(container.querySelector('canvas')).toBeNull();
   });

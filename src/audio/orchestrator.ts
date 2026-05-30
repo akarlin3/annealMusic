@@ -233,6 +233,15 @@ export class Orchestrator {
     return this.active?.engine.getPartialCount() ?? 0;
   }
 
+  /**
+   * Current audio clock in seconds, or 0 before the context exists. Used by the
+   * breath overlay so its cycle is driven by `AudioContext.currentTime` (which
+   * keeps advancing while a tab is backgrounded) rather than wall-clock/RAF.
+   */
+  getAudioTime(): number {
+    return this.ctx?.currentTime ?? 0;
+  }
+
   getPartialFrequencies(): number[] {
     return this.active?.engine.getPartialFrequencies() ?? [];
   }

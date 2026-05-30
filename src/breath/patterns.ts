@@ -15,7 +15,12 @@ export type BreathTuple = [
   hold_empty_s: number,
 ];
 
-export type BreathPatternId = 'box' | '4-7-8' | 'coherent' | 'resonance' | 'custom';
+export type BreathPatternId =
+  | 'box'
+  | '4-7-8'
+  | 'coherent'
+  | 'resonance'
+  | 'custom';
 
 /** A breath pattern attached to a session/drone/timer. */
 export interface BreathPattern {
@@ -126,7 +131,9 @@ export function clampCustomPattern(raw: BreathTuple): BreathTuple {
  * registry; custom clamps the user tuple. Returns `null` for an unknown id so
  * callers treat it as "no overlay".
  */
-export function resolveTuple(pattern: BreathPattern | null | undefined): BreathTuple | null {
+export function resolveTuple(
+  pattern: BreathPattern | null | undefined,
+): BreathTuple | null {
   if (!pattern) return null;
   if (pattern.pattern === 'custom') {
     const custom = pattern.custom_pattern;

@@ -20,6 +20,9 @@ import type { Piece, SegmentType, Movement } from '@/piece/types';
 import { resolveBellSchedule } from '@/audio/bells/scheduler';
 import type { BellEvent } from '@/audio/bells/scheduler';
 import { getBellById } from '@/audio/bells/registry';
+import BreathOverlay from '@/breath/BreathOverlay';
+import { BREATH, type BreathPattern } from '@/breath/patterns';
+import { useBreathPrefs } from '@/breath/useBreathPrefs';
 
 interface ListeningViewProps {
   session: ListeningSession;
@@ -53,6 +56,8 @@ export default function ListeningView({
   // Sync parameters for the escape hatch
   const params = useParamStore((s) => s.params);
   const setParam = useParamStore((s) => s.setParam);
+
+  const breathPrefs = useBreathPrefs();
 
   useEffect(() => {
     const orchestrator = ensureOrchestrator();
@@ -210,6 +215,21 @@ export default function ListeningView({
   const progressPercent =
     totalDurationMs > 0 ? (elapsedMs / totalDurationMs) * 100 : 0;
 
+  // Breath overlay: active during deep listening only — after settle-in and
+  // before integration — so it doesn't intrude on the open/close of the session.
+  const breathPattern = (session.breath_pattern ??
+    null) as BreathPattern | null;
+  const pastSettle = elapsedMs >= session.settle_in_ms;
+  const beforeIntegration =
+    (playerRef.current?.getTotalDurationMs() ?? totalDurationMs) - elapsedMs >=
+    session.integration_ms;
+  const breathActive =
+    !!breathPattern &&
+    isPlaying &&
+    currentState === 'sounding' &&
+    pastSettle &&
+    beforeIntegration;
+
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-stone-950 text-stone-200 transition-opacity duration-700 ease-in-out px-8 py-10"
@@ -264,10 +284,26 @@ export default function ListeningView({
       <main className="relative flex-1 w-full max-w-4xl flex flex-col items-center justify-center py-6">
         {/* Fullscreen visualizer wrap (passes isCalm = true) */}
         <div className="relative w-full h-[360px] rounded-2xl overflow-hidden shadow-2xl border border-stone-900/60 bg-stone-950/20">
-          <Visualizer
-            engineRef={orchestratorRef}
-            isPlaying={isPlaying}
-            isCalm={true}
+          <div
+            className="absolute inset-0 transition-[filter] duration-700"
+            style={{
+              filter: breathActive
+                ? `brightness(${BREATH.visualizerDim})`
+                : 'none',
+            }}
+          >
+            <Visualizer
+              engineRef={orchestratorRef}
+              isPlaying={isPlaying}
+              isCalm={true}
+            />
+          </div>
+          <BreathOverlay
+            pattern={breathPattern}
+            active={breathActive}
+            getNow={() => orchestratorRef.current?.getAudioTime() ?? 0}
+            haptics={breathPrefs.haptics}
+            reduceMotion={breathPrefs.reduceMotion}
           />
         </div>
 

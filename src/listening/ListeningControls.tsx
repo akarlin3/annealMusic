@@ -6,6 +6,8 @@ import { SCHEMA_VERSION } from '@/share/schema';
 import { getErrorMessage } from '@/api/client';
 import type { BellEvent } from '@/audio/bells/scheduler';
 import BellScheduleEditor from '@/listening/BellScheduleEditor';
+import BreathPicker from '@/breath/BreathPicker';
+import type { BreathPattern } from '@/breath/patterns';
 import {
   Clock,
   Compass,
@@ -48,6 +50,9 @@ export default function ListeningControls({
   const [bellSchedule, setBellSchedule] = useState<BellEvent[]>([
     { bellId: 'zen_bell_rin', trigger: 'at-start', volume: 0.7 },
   ]);
+  const [breathPattern, setBreathPattern] = useState<BreathPattern | null>(
+    null,
+  );
   const [visibility, setVisibility] = useState<'unlisted' | 'public'>(
     'unlisted',
   );
@@ -142,6 +147,7 @@ export default function ListeningControls({
         settle_in_ms: settleInSec * 1000,
         integration_ms: integrationSec * 1000,
         bell_schedule: bellSchedule,
+        breath_pattern: breathPattern,
         visibility,
       };
 
@@ -376,6 +382,10 @@ export default function ListeningControls({
                 | undefined
             }
           />
+        </div>
+
+        <div className="border-t border-stone-900 pt-5">
+          <BreathPicker value={breathPattern} onChange={setBreathPattern} />
         </div>
 
         {/* Footer controls */}

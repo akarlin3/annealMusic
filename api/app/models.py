@@ -551,6 +551,8 @@ class ListeningSession(Base):
     settle_in_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=30000)
     integration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=60000)
     bell_schedule: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
+    # Optional visual breath-pacing pattern (v4.4). Nullable; None = no overlay.
+    breath_pattern: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
     total_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     visibility: Mapped[str] = mapped_column(
