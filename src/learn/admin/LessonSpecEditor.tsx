@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { EXAMPLE_SPEC, generateLesson, type GenStatus } from './adminApi';
 
 interface LessonSpecEditorProps {
   onGenerated: (status: GenStatus) => void;
+  // When the spec generator scaffolds a draft, AdminPanel seeds it here.
+  initialSpec?: string | null;
 }
 
 // Authoring surface: paste/edit a lesson spec, then "Generate now" runs the
 // LLM pipeline server-side and returns the per-step result.
-export function LessonSpecEditor({ onGenerated }: LessonSpecEditorProps) {
-  const [spec, setSpec] = useState<string>(EXAMPLE_SPEC);
+export function LessonSpecEditor({
+  onGenerated,
+  initialSpec,
+}: LessonSpecEditorProps) {
+  const [spec, setSpec] = useState<string>(initialSpec ?? EXAMPLE_SPEC);
+
+  useEffect(() => {
+    if (initialSpec) setSpec(initialSpec);
+  }, [initialSpec]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
