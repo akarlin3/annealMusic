@@ -23,6 +23,8 @@ import { PiecePlayer } from '@/piece/PiecePlayer';
 import { hashStringToInt } from '@/piece/resolver';
 import type { Piece } from '@/piece/types';
 import type { AnnealMusicParams } from '@/state/params';
+import { DEFAULT_PARAMS } from '@/state/params';
+import { renderStemsOffline } from '@/export/StemRenderer';
 import type {
   EngineId,
   EngineParams,
@@ -47,6 +49,10 @@ declare global {
       payload: string,
       opts: RenderOptions,
     ) => Promise<RenderResult>;
+    __annealStemsRender: (
+      payload: string,
+      opts: any,
+    ) => Promise<Record<string, string>>;
   }
 }
 
@@ -226,3 +232,168 @@ async function render(
 }
 
 window.__annealRender = render;
+
+async function stemsRender(
+  payload: string,
+  opts: any,
+): Promise<Record<string, string>> {
+  const decoded = decodeState(SCHEMA_VERSION, payload);
+
+  let config: any;
+  if (decoded.kind === 'piece') {
+    const defaults = decoded.piece.defaultsState;
+    config = {
+      params: { ...DEFAULT_PARAMS, ...defaults.params },
+      engineId: defaults.engineId,
+      engineParams: defaults.engineParams[defaults.engineId] ?? {},
+      loopConfig: defaults.loops,
+      loopBuffers: { A: null, B: null, C: null },
+      loopStates: {
+        A: defaults.loops.A.muted
+          ? 'muted'
+          : defaults.loops.A.frozen
+            ? 'frozen'
+            : 'playing',
+        B: defaults.loops.B.muted
+          ? 'muted'
+          : defaults.loops.B.frozen
+            ? 'frozen'
+            : 'playing',
+        C: defaults.loops.C.muted
+          ? 'muted'
+          : defaults.loops.C.frozen
+            ? 'frozen'
+            : 'playing',
+      },
+      mode: 'piece',
+      piece: decoded.piece,
+      durationSec: opts.durationSec,
+      sampleRate: opts.sampleRate ?? 48000,
+      bitDepth: opts.bitDepth ?? 24,
+      includeFx: opts.withFx ?? true,
+      includePartials: opts.perPartial ?? false,
+      seed: opts.seed ?? 42,
+      patchTitle: decoded.piece.title ?? 'Piece',
+      patchHash: 'headless',
+    };
+  } else if (decoded.kind === 'listening-session') {
+    const ls = decoded.listeningSession;
+    const dummyPiece = opts.piece ?? {
+      defaultsState: {
+        params: DEFAULT_PARAMS,
+        engineId: 'sine',
+        engineParams: {},
+        loops: {
+          A: {
+            muted: true,
+            frozen: false,
+            driftCoupled: false,
+            grain: { sizeMs: 120, density: 12, posJitter: 0, pitchJitter: 0 },
+          },
+          B: {
+            muted: true,
+            frozen: false,
+            driftCoupled: false,
+            grain: { sizeMs: 120, density: 12, posJitter: 0, pitchJitter: 0 },
+          },
+          C: {
+            muted: true,
+            frozen: false,
+            driftCoupled: false,
+            grain: { sizeMs: 120, density: 12, posJitter: 0, pitchJitter: 0 },
+          },
+        },
+      },
+      segments: [
+        { type: 'open', durationMs: opts.durationSec * 1000, config: {} },
+      ],
+    };
+    const defaults = dummyPiece.defaultsState;
+    config = {
+      params: { ...DEFAULT_PARAMS, ...defaults.params },
+      engineId: defaults.engineId,
+      engineParams: defaults.engineParams[defaults.engineId] ?? {},
+      loopConfig: defaults.loops,
+      loopBuffers: { A: null, B: null, C: null },
+      loopStates: {
+        A: defaults.loops.A.muted
+          ? 'muted'
+          : defaults.loops.A.frozen
+            ? 'frozen'
+            : 'playing',
+        B: defaults.loops.B.muted
+          ? 'muted'
+          : defaults.loops.B.frozen
+            ? 'frozen'
+            : 'playing',
+        C: defaults.loops.C.muted
+          ? 'muted'
+          : defaults.loops.C.frozen
+            ? 'frozen'
+            : 'playing',
+      },
+      mode: 'listening-session',
+      piece: dummyPiece,
+      listeningSession: {
+        settleInMs: ls.settleInMs,
+        integrationMs: ls.integrationMs,
+        bellSchedule: ls.bellSchedule,
+      },
+      durationSec: opts.durationSec,
+      sampleRate: opts.sampleRate ?? 48000,
+      bitDepth: opts.bitDepth ?? 24,
+      includeFx: opts.withFx ?? true,
+      includePartials: opts.perPartial ?? false,
+      seed: opts.seed ?? 42,
+      patchTitle: ls.title ?? 'Listening Session',
+      patchHash: 'headless',
+    };
+  } else {
+    config = {
+      params: { ...DEFAULT_PARAMS, ...decoded.params },
+      engineId: decoded.engineId,
+      engineParams: decoded.engineParams[decoded.engineId] ?? {},
+      loopConfig: decoded.loops,
+      loopBuffers: { A: null, B: null, C: null },
+      loopStates: {
+        A: decoded.loops.A.muted
+          ? 'muted'
+          : decoded.loops.A.frozen
+            ? 'frozen'
+            : 'playing',
+        B: decoded.loops.B.muted
+          ? 'muted'
+          : decoded.loops.B.frozen
+            ? 'frozen'
+            : 'playing',
+        C: decoded.loops.C.muted
+          ? 'muted'
+          : decoded.loops.C.frozen
+            ? 'frozen'
+            : 'playing',
+      },
+      mode: decoded.mode,
+      arcId: decoded.arcId,
+      durationSec: opts.durationSec,
+      sampleRate: opts.sampleRate ?? 48000,
+      bitDepth: opts.bitDepth ?? 24,
+      includeFx: opts.withFx ?? true,
+      includePartials: opts.perPartial ?? false,
+      seed: opts.seed ?? 42,
+      patchTitle: 'CLI Render',
+      patchHash: 'headless',
+    };
+  }
+
+  const results = await renderStemsOffline(config, () => {}, {
+    aborted: false,
+  });
+
+  const b64Results: Record<string, string> = {};
+  for (const [key, buffer] of Object.entries(results)) {
+    b64Results[key] = bytesToBase64(new Uint8Array(buffer));
+  }
+  return b64Results;
+}
+
+window.__annealStemsRender = stemsRender;

@@ -5,6 +5,7 @@ import { Command } from 'commander';
 import { runRender } from './commands/render.js';
 import { validateFile } from './commands/validate.js';
 import { printFileInfo } from './commands/info.js';
+import { runVerifyParity } from './commands/verifyParity.js';
 
 const program = new Command();
 
@@ -117,6 +118,14 @@ program
   )
   .action((file) => {
     printFileInfo(file);
+  });
+
+// 8. Verify Parity Command
+program
+  .command('verify-parity <fileA> <fileB>')
+  .description('Compare two WAV files to check for sample parity')
+  .action(async (fileA, fileB) => {
+    await runVerifyParity(fileA, fileB);
   });
 
 // Run parser
