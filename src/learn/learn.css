@@ -1333,3 +1333,54 @@
 .audio-clip-attribution {
   color: #9aa0b4;
 }
+
+/* --- v6.2 admin clip manager ------------------------------------------------ */
+.clip-manager .clip-upload-form,
+.clip-manager .clip-search {
+  margin: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.clip-manager .clip-results {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+}
+
+.clip-manager .clip-score {
+  color: #9aa0b4;
+}
+
+.clip-manager .clip-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.clip-manager .clip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.clip-manager .clip-meta {
+  font-size: 0.75rem;
+  color: #9aa0b4;
+}
+
+.clip-manager .clip-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clip-manager .admin-h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #c7cad6;
+}
