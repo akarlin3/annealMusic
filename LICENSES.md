@@ -49,3 +49,20 @@ No attribution is required; none of these files contain third-party material.
 | synth_fm_bell      | bells/synth_fm_bell.opus      | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
 | synth_pluck        | bells/synth_pluck.opus        | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
 | synth_hollow       | bells/synth_hollow.opus       | CC0-1.0 | Original (synthesized) — Anneal Ambiance |
+
+## Audio clip library (`public/clips/`)
+
+The v6.2 clip library (`api/data/clip_library.json`, rendered by
+`tools/gen_clips.py`). All clips are **original works authored in AnnealMusic**
+(`original-by-you`) **except** the two CC0 acoustic reference recordings listed
+below. Ambient-history clips are stylistic **homages** ("in the style of …"),
+not reproductions of any copyrighted recording. CI (`tools/check-clip-licenses.mjs`)
+enforces a license on every clip and an attribution on every non-original clip.
+
+| slug                      | file                                 | license         | attribution                                                                                                    |
+| ------------------------- | ------------------------------------ | --------------- | -------------------------------------------------------------------------------------------------------------- |
+| (47 original clips)       | clips/\*.opus                        | original-by-you | Original — authored in AnnealMusic                                                                             |
+| ref-tibetan-bowl-acoustic | clips/ref-tibetan-bowl-acoustic.opus | CC0-1.0         | Public-domain (CC0) singing-bowl recording, Freesound.org — see `docs/AUDIO_CLIPS.md` for the exact source URL |
+| ref-gong-acoustic         | clips/ref-gong-acoustic.opus         | CC0-1.0         | Public-domain (CC0) gong recording, Freesound.org — see `docs/AUDIO_CLIPS.md` for the exact source URL         |
+
+See `docs/AUDIO_CLIPS.md` for the full per-clip listing.

@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.2.0] - 2026-05-30
+
+### Added
+
+- **Audio clip library.** A curated library of short audio examples (5–60 s) that lessons reference by `slug`: engine archetypes, physical sub-models, FM ratios, granular textures, composition shapes, ambient-history homages, production demos, and psychoacoustic phenomena (Shepard tones, Risset rhythms, the tritone paradox, beating, just-vs-equal tuning). 49 clips across the five curriculum tracks, defined in `api/data/clip_library.json` and rendered to `public/clips/*.opus` (96 kbps mono) by `tools/gen_clips.py`.
+- **`audio_clips` data model + API.** New table (migration `0020_v6_2_audio_clips`) with slug, metadata, `track_affinity`/`concept_tags`, license, and a 1536-dim `description_embedding`. Public `GET /api/v1/clips/:slug` (metadata) and `GET /api/v1/clips/:slug/audio` (streams Opus, redirecting to the static asset for shipped clips). Admin `POST/PATCH/DELETE /api/v1/admin/clips` + `GET /api/v1/admin/clips/search`.
+- **`audio-clip` lesson step type.** `AudioClipStep` shows intro text, a waveform + play/pause/seek/loop transport, and outro text on completion, with the clip license surfaced on hover/focus. The embedded engine's `AudioContext` is suspended for the duration (new bridge methods `suspendEngine`/`resumeEngine` → `Orchestrator.suspendAudio`/`resumeAudio`) so clips don't fight the live engine, and resumed only if the player suspended it.
+- **Shared clip retrieval.** One `search_clips` service blends embedding similarity (0.6), tag intersection (0.3), and track affinity (0.1), used by **both** admin search and the LLM pipeline. Generating an `audio-clip` step retrieves the top 3 candidates and the LLM picks one (or declines, preferring no clip over a weak match) and writes the framing. `LESSON_PROMPT_VERSION` → `v6.2.0`.
+- **Admin clip manager.** `ClipManager` (in the `#admin` console) lists clips, uploads with a **required license** (attribution required for non-original), and tests retrieval.
+- **License CI gate.** `tools/check-clip-licenses.mjs` fails the build if any clip lacks a license or a non-`original-by-you` clip lacks an attribution. Canonical ambient works are not CC-licensed, so the library ships 100% original homages + 2 CC0 acoustic reference recordings; paid licensed material is deferred.
+
+### Notes
+
+- The clip Opus binaries are generated from the committed manifest, not hand-committed; run `python tools/gen_clips.py` (requires ffmpeg) to (re)produce `public/clips/`. The two CC0 reference recordings must be dropped in manually with their source recorded in `docs/AUDIO_CLIPS.md`.
+
 ## [6.1.0] - 2026-05-30
 
 ### Added

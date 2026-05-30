@@ -7,7 +7,7 @@ export interface LessonStep {
   id: string;
   lesson_id: string;
   position: number;
-  type: 'text' | 'demo' | 'prompt' | 'reflection';
+  type: 'text' | 'demo' | 'prompt' | 'reflection' | 'audio-clip';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config: any;
 }

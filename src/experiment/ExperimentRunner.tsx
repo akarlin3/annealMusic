@@ -15,6 +15,7 @@ import { BreakScreen } from './screens/BreakScreen';
 import { DebriefScreen } from './screens/DebriefScreen';
 import { exportExperimentData } from './export';
 import { useAnnealMusic } from '@/hooks/useAnnealMusic';
+import type { EngineId } from '@/audio/engines/types';
 import { DataLogger } from '@/datalog/DataLogger';
 import { ShieldAlert, RefreshCw } from 'lucide-react';
 import { hashSubjectId, getLatinSquareRow } from './utils';
@@ -233,7 +234,7 @@ export const ExperimentRunner: React.FC<ExperimentRunnerProps> = ({
       if (trial.stimulus.patch) {
         Object.entries(trial.stimulus.patch).forEach(([k, v]) => {
           if (k === 'engine') {
-            am.setEngine(v as 'sine' | 'waveguide' | 'bowed' | 'pulse');
+            am.setEngine(v as EngineId);
           } else {
             am.setParam(
               k as

@@ -46,6 +46,13 @@ async def main() -> None:
         await session.commit()
         print(f"seeded demo anon {DEMO_ANON} with 2 patches")
 
+        # v6.2 — seed the audio-clip library from the committed manifest.
+        from app.services.clip_seed import seed_clips_from_manifest
+        from app.services.embeddings import OpenAIEmbeddingClient
+
+        n = await seed_clips_from_manifest(session, OpenAIEmbeddingClient())
+        print(f"seeded {n} audio clips")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

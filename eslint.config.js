@@ -35,6 +35,18 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // Honour the underscore convention for intentionally-unused args/vars.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
+  },
+  {
+    // Tests frequently use `any` for fixtures and partial mocks.
+    files: ['**/*.test.{ts,tsx}', '**/__tests__/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   prettier,

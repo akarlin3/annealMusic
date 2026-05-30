@@ -351,6 +351,18 @@ export class BridgeServer {
         return true;
       }
 
+      // v6.2: pause/resume the live engine's audio context while a lesson audio
+      // clip plays in the parent frame, so the two don't fight. Returns whether
+      // this call changed the context state (resume only restores a context this
+      // bridge suspended). No-op (returns false) when the engine isn't running.
+      case 'anneal.lesson.suspendEngine': {
+        return orch ? await orch.suspendAudio() : false;
+      }
+
+      case 'anneal.lesson.resumeEngine': {
+        return orch ? await orch.resumeAudio() : false;
+      }
+
       case 'anneal.version':
         return {
           app: '5.0.0',

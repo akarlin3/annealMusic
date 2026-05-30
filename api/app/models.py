@@ -817,6 +817,39 @@ class LessonStep(Base):
     manual_override_content: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
 
 
+class AudioClip(Base):
+    """A short curated audio example (5–60 s) referenced by lessons via ``slug``
+    (v6.2). License is non-negotiable: every clip carries one of four license
+    kinds, and a non-``original-by-you`` clip must declare ``attribution``."""
+
+    __tablename__ = "audio_clips"
+    __table_args__ = (
+        CheckConstraint(
+            "license IN ('CC0', 'CC-BY', 'original-by-you', 'licensed-third-party')",
+            name="ck_audio_clips_license",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False)
+    # ``public:clips/<slug>.opus`` for shipped (static) clips, else an object-store key.
+    storage_key: Mapped[str] = mapped_column(String, nullable=False)
+    track_affinity: Mapped[list[str]] = mapped_column(JSONType(), nullable=False, default=list)
+    concept_tags: Mapped[list[str]] = mapped_column(JSONType(), nullable=False, default=list)
+    license: Mapped[str] = mapped_column(String, nullable=False)
+    attribution: Mapped[str | None] = mapped_column(String, nullable=True)
+    description_embedding: Mapped[list[float] | None] = mapped_column(
+        VectorType(1536), nullable=True
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 
 # SQLite trigger events for tests/local development when using SQLite
 @event.listens_for(Base.metadata, "after_create")

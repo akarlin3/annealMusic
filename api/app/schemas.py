@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Visibility = Literal["unlisted", "public"]
 # A patch's stored visibility can also be 'flagged' (moderator action); only the
@@ -757,13 +758,13 @@ class ExperimentListOut(BaseModel):
 
 class LessonStepCreate(BaseModel):
     position: int
-    type: Literal["text", "demo", "prompt", "reflection"]
+    type: Literal["text", "demo", "prompt", "reflection", "audio-clip"]
     config: dict
 
 
 class LessonStepUpdate(BaseModel):
     position: int | None = None
-    type: Literal["text", "demo", "prompt", "reflection"] | None = None
+    type: Literal["text", "demo", "prompt", "reflection", "audio-clip"] | None = None
     config: dict | None = None
 
 
@@ -850,7 +851,7 @@ class TrackListOut(BaseModel):
 
 # --- v6.1 Lesson generation --------------------------------------------------
 
-StepType = Literal["text", "demo", "prompt", "reflection"]
+StepType = Literal["text", "demo", "prompt", "reflection", "audio-clip"]
 
 
 class LessonSpecStep(BaseModel):
@@ -859,6 +860,9 @@ class LessonSpecStep(BaseModel):
     patch_brief: str | None = Field(default=None, max_length=400)
     task: str | None = Field(default=None, max_length=400)
     diagram: Literal["svg", "mermaid"] | None = None
+    # v6.2 — for an 'audio-clip' step, what the clip should illustrate. Retrieval
+    # uses this to surface candidates; the LLM picks one and writes intro/outro.
+    clip_topic: str | None = Field(default=None, max_length=400)
 
 
 class LessonSpec(BaseModel):
@@ -906,6 +910,74 @@ class LessonGenStatusOut(BaseModel):
 
 class StepOverrideIn(BaseModel):
     content: dict
+
+
+# --- v6.2 Audio clip library -------------------------------------------------
+
+ClipLicense = Literal["CC0", "CC-BY", "original-by-you", "licensed-third-party"]
+
+
+class AudioClipOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    slug: str
+    title: str
+    description: str
+    duration_ms: int
+    track_affinity: list[str] = Field(default_factory=list)
+    concept_tags: list[str] = Field(default_factory=list)
+    license: str
+    attribution: str | None = None
+    audio_url: str | None = None
+    created_at: datetime
+
+
+class AudioClipMeta(BaseModel):
+    """Metadata for create/patch (the audio bytes arrive as a separate upload)."""
+
+    slug: str = Field(..., max_length=100)
+    title: str = Field(..., max_length=200)
+    description: str = Field(..., max_length=2000)
+    duration_ms: int | None = Field(default=None, ge=1, le=120000)
+    track_affinity: list[str] = Field(default_factory=list)
+    concept_tags: list[str] = Field(default_factory=list)
+    license: ClipLicense
+    attribution: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("slug")
+    @classmethod
+    def _slug_urlsafe(cls, v: str) -> str:
+        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", v):
+            raise ValueError("slug must be lowercase URL-safe (a-z, 0-9, hyphens)")
+        return v
+
+    @model_validator(mode="after")
+    def _attribution_required(self) -> "AudioClipMeta":
+        if self.license != "original-by-you" and not (self.attribution or "").strip():
+            raise ValueError(
+                f"attribution is required for license '{self.license}'"
+            )
+        return self
+
+
+class AudioClipPatch(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    track_affinity: list[str] | None = None
+    concept_tags: list[str] | None = None
+    license: ClipLicense | None = None
+    attribution: str | None = Field(default=None, max_length=2000)
+
+
+class ClipSearchResult(BaseModel):
+    slug: str
+    title: str
+    description: str
+    duration_ms: int
+    track_affinity: list[str] = Field(default_factory=list)
+    concept_tags: list[str] = Field(default_factory=list)
+    score: float
 
 
 

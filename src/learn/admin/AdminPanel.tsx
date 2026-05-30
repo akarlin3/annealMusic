@@ -9,6 +9,7 @@ import {
 import { LessonSpecEditor } from './LessonSpecEditor';
 import { LessonStatusDashboard } from './LessonStatusDashboard';
 import { StepOverrideEditor } from './StepOverrideEditor';
+import { ClipManager } from './ClipManager';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -139,6 +140,8 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
           ))}
         </section>
       )}
+
+      <ClipManager />
     </div>
   );
 }

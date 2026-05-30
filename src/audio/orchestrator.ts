@@ -234,6 +234,30 @@ export class Orchestrator {
   }
 
   /**
+   * v6.2: suspend the audio context so a lesson audio clip can play through the
+   * user's speakers without the live engine fighting it. Returns true only if
+   * this call actually suspended a running context, so the caller knows whether
+   * a later {@link resumeAudio} should restore it (it must not resume a context
+   * the user had already paused). Idempotent and safe before the core exists.
+   */
+  async suspendAudio(): Promise<boolean> {
+    if (this.ctx && this.ctx.state === 'running') {
+      await this.ctx.suspend();
+      return true;
+    }
+    return false;
+  }
+
+  /** Resume a context this orchestrator previously suspended. Idempotent. */
+  async resumeAudio(): Promise<boolean> {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      await this.ctx.resume();
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Current audio clock in seconds, or 0 before the context exists. Used by the
    * breath overlay so its cycle is driven by `AudioContext.currentTime` (which
    * keeps advancing while a tab is backgrounded) rather than wall-clock/RAF.

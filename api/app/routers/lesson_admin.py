@@ -45,6 +45,8 @@ def _validate_spec(spec: LessonSpec) -> str:
             raise bad_request(f"step {i}: prompt requires 'task'")
         if step.type in ("text", "reflection") and not step.topic:
             raise bad_request(f"step {i}: {step.type} requires 'topic'")
+        if step.type == "audio-clip" and not step.clip_topic:
+            raise bad_request(f"step {i}: audio-clip requires 'clip_topic'")
         if step.diagram and step.type != "text":
             raise bad_request(f"step {i}: 'diagram' is only valid on text steps")
     for c in spec.constraints_during_prompts:
@@ -162,7 +164,7 @@ async def generate_lesson_endpoint(
 ) -> LessonGenStatusOut:
     slug = _validate_spec(spec)
     lesson = await _upsert_lesson(session, spec, slug)
-    await generate_lesson(session, request.app.state.llm, lesson)
+    await generate_lesson(session, request.app.state.llm, lesson, embeddings=request.app.state.embeddings)
     await session.refresh(lesson)
     return await _status_out(session, lesson)
 
@@ -176,7 +178,7 @@ async def regenerate_lesson_endpoint(
         raise not_found("lesson")
     if not lesson.spec:
         raise bad_request("lesson has no spec to regenerate from")
-    await generate_lesson(session, request.app.state.llm, lesson)
+    await generate_lesson(session, request.app.state.llm, lesson, embeddings=request.app.state.embeddings)
     await session.refresh(lesson)
     return await _status_out(session, lesson)
 
