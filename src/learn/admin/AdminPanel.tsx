@@ -15,6 +15,7 @@ import { BatchGenerationDashboard } from './BatchGenerationDashboard';
 import { ReviewDashboard } from './ReviewDashboard';
 import { PrerequisiteGraphEditor } from './PrerequisiteGraphEditor';
 import { QualityChecks } from './QualityChecks';
+import { AnalyticsPage } from './AnalyticsPage';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -27,7 +28,8 @@ type Tab =
   | 'review'
   | 'graph'
   | 'qa'
-  | 'clips';
+  | 'clips'
+  | 'analytics';
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'authoring', label: 'Authoring' },
@@ -37,6 +39,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'graph', label: 'Prerequisites' },
   { id: 'qa', label: 'Quality' },
   { id: 'clips', label: 'Clips' },
+  { id: 'analytics', label: 'Analytics' },
 ];
 
 // Admin curriculum console (v6.1 generation + v6.4 authoring tooling): key gate →
@@ -222,6 +225,8 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
       {tab === 'qa' && <QualityChecks />}
 
       {tab === 'clips' && <ClipManager />}
+
+      {tab === 'analytics' && <AnalyticsPage />}
     </div>
   );
 }

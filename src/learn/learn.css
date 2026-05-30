@@ -1779,3 +1779,58 @@
   color: #71768a;
   text-align: center;
 }
+
+/* v6.5 — admin lesson analytics (aggregate-only). */
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-top: 0.5rem;
+}
+.analytics-table th,
+.analytics-table td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+.analytics-table th {
+  color: #94a3b8;
+  font-weight: 500;
+}
+.analytics-table tbody tr {
+  cursor: pointer;
+}
+.analytics-table tbody tr.row-selected {
+  background: rgba(129, 140, 248, 0.1);
+}
+.analytics-detail {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+.dropoff-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 120px;
+  margin: 0.75rem 0;
+}
+.dropoff-bar-wrap {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+.dropoff-bar {
+  width: 100%;
+  min-height: 2px;
+  background: rgba(129, 140, 248, 0.55);
+  border-radius: 2px 2px 0 0;
+}
+.dropoff-label {
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: #71768a;
+}
