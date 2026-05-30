@@ -1,0 +1,26 @@
+{
+  "name": "annealmusic-cli",
+  "version": "5.2.0",
+  "description": "Standalone Headless CLI and Batch Renderer for AnnealMusic",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "annealmusic": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --packages=external --define:import.meta.env='{\"BASE_URL\":\"/\",\"VITE_API_BASE\":\"\",\"VITE_MOBILE\":false}' --alias:@=../../src",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "node-web-audio-api": "^2.0.0",
+    "playwright": "^1.49.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "esbuild": "^0.24.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

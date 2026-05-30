@@ -1,0 +1,4 @@
+{
+  "schema_ver": 20,
+  "payload": "m=open&e=sine&rootFreq=147&spread=1.08&density=4&coupling=0.2&drift=0.3&brightness=0.6&space=0.4"
+}
