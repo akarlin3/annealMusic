@@ -38,6 +38,7 @@ import JamIndicator from '@/jam/JamIndicator';
 import ParticipantCursor from '@/jam/ParticipantCursor';
 import { startBufferSharing } from '@/jam/bufferSharing';
 import { useRecorder } from '@/record/useRecorder';
+import { BridgeServer } from '@/research/bridge/BridgeServer';
 import RecordControls from '@/record/RecordControls';
 import RecordingDialog from '@/record/RecordingDialog';
 import MyRecordings, { type MyRecordingsHandle } from '@/record/MyRecordings';
@@ -180,6 +181,11 @@ export default function App() {
       return () => cleanup();
     }
   }, [session, ensureOrchestrator, showToast]);
+
+  // Register orchestrator getter on BridgeServer
+  useEffect(() => {
+    BridgeServer.registerOrchestrator(ensureOrchestrator);
+  }, [ensureOrchestrator]);
 
   const recordingsRef = useRef<MyRecordingsHandle>(null);
   const backendOn = api.isBackendConfigured();
