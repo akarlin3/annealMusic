@@ -36,7 +36,7 @@ New here? Press the **Help (?)** button in the app for a plain-language guide to
 - **Listen** — a curated meditation library (`/listen`) of hand-picked sessions to browse by length, intention, and audio character.
 - **Your sessions** — a private history (`/me/sessions`) of what you've listened to, with optional reflections. Just for you.
 - **Share links** — copy a link that reopens your exact sound for anyone you send it to.
-- **Learn (v6.0)** — an interactive pedagogical surface (`/learn`) designed to teach ambient synthesis, phase-coupling, and tuning physics through structured lessons, sandboxed parameter constraints, and visual cues.
+- **Learn (v6.0 · v6.1)** — an interactive pedagogical surface (`/learn`) designed to teach ambient synthesis, phase-coupling, and tuning physics through structured lessons, sandboxed parameter constraints, and visual cues. In v6.1, lesson content is **LLM-generated from authored specs**: an admin writes a spec (topic, objectives, step outline) and Claude generates the validated step sequence — markdown with sanitized SVG/mermaid diagrams, schema-valid demo patches, prompts, and reflections — cached immutably so the whole curriculum costs ~$1–2 to generate once. See [docs/LESSON_GENERATION.md](docs/LESSON_GENERATION.md).
 - **Session Datalogging (v5.3)** — record high-resolution session observations (sculpt states, Kuramoto coupling order parameter, partial details, and audio features like RMS, ZCR, spectral centroid, and flux) to scientific formats (CSV, JSONL, Parquet, and HDF5) at configurable sample rates for ingestion into Python, MATLAB, Julia, or R.
 
 ---

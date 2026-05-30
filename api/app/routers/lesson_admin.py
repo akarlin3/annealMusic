@@ -181,6 +181,15 @@ async def regenerate_lesson_endpoint(
     return await _status_out(session, lesson)
 
 
+@router.get("/lessons", response_model=list[LessonGenStatusOut])
+async def list_lessons_status(session: SessionDep) -> list[LessonGenStatusOut]:
+    """All lessons with their generation status (for the admin dashboard)."""
+    lessons = (await session.execute(
+        select(Lesson).order_by(Lesson.position.asc(), Lesson.slug.asc())
+    )).scalars().all()
+    return [await _status_out(session, l) for l in lessons]
+
+
 @router.get("/lessons/{lesson_id}/status", response_model=LessonGenStatusOut)
 async def lesson_status_endpoint(lesson_id: uuid.UUID, session: SessionDep) -> LessonGenStatusOut:
     lesson = await session.get(Lesson, lesson_id)

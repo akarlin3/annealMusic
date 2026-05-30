@@ -310,6 +310,19 @@ async def test_spec_validation_errors(app, client, admin_key):
     assert r3.status_code == 404
 
 
+async def test_admin_lessons_list_includes_status(app, client, admin_key):
+    await _make_track(client, admin_key)
+    mock = MockLLMClient()
+    app.state.llm = mock
+    mock.add_response(_LONG_TEXT)
+    spec = _spec("synth", [{"type": "text", "topic": "intro"}])
+    await client.post("/api/v1/admin/lessons/generate", headers=_ah(), json=spec)
+    r = await client.get("/api/v1/admin/lessons", headers=_ah())
+    assert r.status_code == 200, r.text
+    rows = r.json()
+    assert any(row["slug"] == "karplus" and row["generation_status"] == "ready" for row in rows)
+
+
 async def test_admin_endpoints_require_key(client):
     r = await client.post("/api/v1/admin/lessons/generate", json=_spec("x", [{"type": "text", "topic": "y"}]))
     assert r.status_code in (404, 401)
