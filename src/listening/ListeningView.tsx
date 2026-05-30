@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Orchestrator } from '@/audio/orchestrator';
 import { ListeningSessionPlayer } from '@/listening/ListeningSessionPlayer';
 import type { ListeningSession } from '@/api/types';
+import { api } from '@/api/client';
+import { healthApi } from '@/health/api';
 import Visualizer from '@/components/Visualizer';
 import { useParamStore } from '@/state/params';
 import {
@@ -53,6 +55,41 @@ export default function ListeningView({
   // Sync parameters for the escape hatch
   const params = useParamStore((s) => s.params);
   const setParam = useParamStore((s) => s.setParam);
+
+  const sessionStartedAtRef = useRef<Date | null>(null);
+
+  const logSessionResult = async (finalElapsedMs: number) => {
+    const startedAt = sessionStartedAtRef.current;
+    if (!startedAt) return;
+
+    const durationSec = finalElapsedMs / 1000;
+    if (durationSec < 5) {
+      return;
+    }
+
+    const endedAt = new Date();
+    sessionStartedAtRef.current = null;
+
+    if (api.isBackendConfigured()) {
+      try {
+        await api.logPlayedSession({
+          listening_session_id: session.id,
+          started_at: startedAt.toISOString(),
+          completed_at: endedAt.toISOString(),
+          duration_seconds: durationSec,
+          is_standalone_timer: false,
+        });
+      } catch (err) {
+        console.error('Failed to log session history:', err);
+      }
+    }
+
+    try {
+      await healthApi.logPlayedSession(startedAt, endedAt);
+    } catch (err) {
+      console.error('Failed to sync to health platform:', err);
+    }
+  };
 
   useEffect(() => {
     const orchestrator = ensureOrchestrator();
@@ -106,14 +143,20 @@ export default function ListeningView({
     setRemainingMs(player.getTotalDurationMs());
 
     return () => {
+      const elapsed = player.getElapsedMs();
+      if (sessionStartedAtRef.current) {
+        logSessionResult(elapsed);
+      }
       player.stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, ensureOrchestrator]);
 
   const handleStart = () => {
     const player = playerRef.current;
     if (!player) return;
 
+    sessionStartedAtRef.current = new Date();
     setIsPlaying(true);
     player.start(
       (_, remainMs) => {
@@ -125,6 +168,9 @@ export default function ListeningView({
         setIsPlaying(false);
         setRemainingMs(0);
         setCurrentState('ended');
+        if (playerRef.current) {
+          logSessionResult(playerRef.current.getElapsedMs());
+        }
       },
     );
   };
@@ -135,11 +181,14 @@ export default function ListeningView({
   };
 
   const handleResume = () => {
+    sessionStartedAtRef.current = new Date();
     playerRef.current?.resume();
     setIsPlaying(true);
   };
 
   const handleStop = () => {
+    const elapsed = playerRef.current?.getElapsedMs() || elapsedMs;
+    logSessionResult(elapsed);
     playerRef.current?.stop();
     setIsPlaying(false);
     setElapsedMs(0);
@@ -190,14 +239,22 @@ export default function ListeningView({
     (session.piece?.bell_schedule as BellEvent[] | undefined) ?? [],
     session.piece?.total_duration_ms || 30000,
     segmentDurations,
-    (session.piece?.movements as Movement[] | undefined) ?? [],
+    ((
+      session.piece as Omit<typeof session.piece, 'movements'> & {
+        movements?: Movement[];
+      }
+    )?.movements as Movement[] | undefined) ?? [],
   );
 
   const resolvedSessionBells = resolveBellSchedule(
     (session.bell_schedule as BellEvent[] | undefined) ?? [],
     session.piece?.total_duration_ms || 30000,
     segmentDurations,
-    (session.piece?.movements as Movement[] | undefined) ?? [],
+    ((
+      session.piece as Omit<typeof session.piece, 'movements'> & {
+        movements?: Movement[];
+      }
+    )?.movements as Movement[] | undefined) ?? [],
   );
 
   // Merge and sort
@@ -205,6 +262,13 @@ export default function ListeningView({
     ...resolvedPieceBells,
     ...resolvedSessionBells,
   ].sort((a, b) => a.offsetMs - b.offsetMs);
+
+  const handleClose = () => {
+    const elapsed = playerRef.current?.getElapsedMs() || elapsedMs;
+    logSessionResult(elapsed);
+    playerRef.current?.stop();
+    onClose();
+  };
 
   const totalDurationMs = remainingMs + elapsedMs;
   const progressPercent =
@@ -218,9 +282,10 @@ export default function ListeningView({
       {/* Header Attribution Layer */}
       <header className="w-full max-w-4xl flex items-center justify-between border-b border-stone-900 pb-4 z-10">
         <button
-          onClick={onClose}
-          className="flex items-center gap-2 p-2 rounded-full border border-stone-850 bg-stone-950/20 hover:border-stone-700 text-stone-400 hover:text-white transition-colors"
+          onClick={handleClose}
+          className="flex items-center justify-center h-11 w-11 rounded-full border border-stone-850 bg-stone-950/20 hover:border-stone-700 text-stone-400 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-colors"
           title="Exit Session"
+          aria-label="Exit Session"
         >
           <ArrowLeft size={14} />
         </button>
@@ -249,12 +314,14 @@ export default function ListeningView({
         {/* Escape Hatch Button */}
         <button
           onClick={() => setShowEscapeHatch(!showEscapeHatch)}
-          className={`flex items-center gap-1.5 p-2 rounded-full border transition-all ${
+          className={`flex items-center justify-center h-11 w-11 rounded-full border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 ${
             showEscapeHatch
               ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
               : 'border-stone-850 bg-stone-950/20 hover:border-stone-700 text-stone-400'
           }`}
           title="Escape Hatch Sculpting Controls"
+          aria-label="Toggle Sculpting Controls"
+          aria-expanded={showEscapeHatch}
         >
           <Sliders size={14} />
         </button>
@@ -402,7 +469,8 @@ export default function ListeningView({
                 onChange={(e) =>
                   handleParamChange('density', Number(e.target.value))
                 }
-                className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
+                className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950"
+                aria-label="Density"
               />
             </div>
 
@@ -422,7 +490,8 @@ export default function ListeningView({
                 onChange={(e) =>
                   handleParamChange('rootFreq', Number(e.target.value))
                 }
-                className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
+                className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950"
+                aria-label="Root Frequency"
               />
             </div>
 
@@ -443,7 +512,8 @@ export default function ListeningView({
                 onChange={(e) =>
                   handleParamChange('brightness', Number(e.target.value))
                 }
-                className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
+                className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950"
+                aria-label="Brightness"
               />
             </div>
 
@@ -464,7 +534,8 @@ export default function ListeningView({
                 onChange={(e) =>
                   handleParamChange('space', Number(e.target.value))
                 }
-                className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
+                className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950"
+                aria-label="Reverb Space"
               />
             </div>
           </div>
@@ -477,8 +548,9 @@ export default function ListeningView({
           {isPlaying ? (
             <button
               onClick={handlePause}
-              className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-300 hover:border-amber-500/50 hover:text-amber-400 transition-all shadow-lg"
+              className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-300 hover:border-amber-500/50 hover:text-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all shadow-lg"
               title="Pause Session"
+              aria-label="Pause Session"
             >
               <Pause size={16} strokeWidth={1.5} />
             </button>
@@ -489,8 +561,9 @@ export default function ListeningView({
                   ? handleStart
                   : handleResume
               }
-              className="flex items-center justify-center h-12 w-12 rounded-full bg-amber-500 text-stone-950 hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/10"
+              className="flex items-center justify-center h-12 w-12 rounded-full bg-amber-500 text-stone-950 hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all shadow-lg shadow-amber-500/10"
               title="Play Session"
+              aria-label="Play Session"
             >
               <Play size={16} strokeWidth={1.5} className="ml-0.5" />
             </button>
@@ -499,8 +572,9 @@ export default function ListeningView({
           <button
             onClick={handleStop}
             disabled={currentState === 'idle'}
-            className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-500 hover:text-stone-300 hover:border-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-500 hover:text-stone-300 hover:border-stone-700 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all"
             title="Stop / Reset Session"
+            aria-label="Stop Session"
           >
             <Square size={16} strokeWidth={1.5} />
           </button>

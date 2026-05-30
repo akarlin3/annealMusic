@@ -92,7 +92,9 @@ describe('ListeningControls with Drone Mode support', () => {
     });
 
     // Select piece-2
-    const select = screen.getByRole('combobox');
+    const select = screen.getByRole('combobox', {
+      name: /source piece or drone/i,
+    });
     fireEvent.change(select, { target: { value: 'piece:piece-2' } });
 
     // Submit the form
@@ -126,7 +128,9 @@ describe('ListeningControls with Drone Mode support', () => {
     });
 
     // Select drone-1
-    const select = screen.getByRole('combobox');
+    const select = screen.getByRole('combobox', {
+      name: /source piece or drone/i,
+    });
     fireEvent.change(select, { target: { value: 'drone:drone-1' } });
 
     // Submit the form

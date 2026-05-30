@@ -195,7 +195,13 @@ export interface DecodedPiece {
 
 export interface BellEvent {
   bellId: string;
-  trigger: 'at-start' | 'at-end' | 'at-time' | 'every' | 'at-movement-start' | 'at-movement-end';
+  trigger:
+    | 'at-start'
+    | 'at-end'
+    | 'at-time'
+    | 'every'
+    | 'at-movement-start'
+    | 'at-movement-end';
   offsetMs?: number; // Used for 'at-start', 'at-end', 'at-time'
   intervalMin?: number; // Used for 'every'
   movementIndex?: number; // Used for 'at-movement-start', 'at-movement-end'
@@ -904,6 +910,7 @@ export function encodePiece(piece: {
       interpolation: InterpolationMode;
     }[];
   }[];
+  bellSchedule?: BellEvent[];
 }): string {
   const parts = ['kind=piece'];
   if (piece.title) parts.push(`title=${encodeURIComponent(piece.title)}`);
@@ -921,7 +928,9 @@ export function encodePiece(piece: {
     parts.push(`v.p=${encodeURIComponent(val)}`);
   }
   if (piece.bellSchedule && piece.bellSchedule.length > 0) {
-    parts.push(`b.sched=${encodeURIComponent(JSON.stringify(piece.bellSchedule))}`);
+    parts.push(
+      `b.sched=${encodeURIComponent(JSON.stringify(piece.bellSchedule))}`,
+    );
   }
   if (piece.notation && piece.notation.length > 0) {
     const encodedNotes = piece.notation
@@ -1130,10 +1139,18 @@ export function decodeListeningSessionPayload(
   // Auto-migrate legacy boolean fields to single-bell at-start / at-end schedule events
   if (bellSchedule.length === 0) {
     if (openingTone) {
-      bellSchedule.push({ bellId: 'zen_bell_rin', trigger: 'at-start', volume: 0.7 });
+      bellSchedule.push({
+        bellId: 'zen_bell_rin',
+        trigger: 'at-start',
+        volume: 0.7,
+      });
     }
     if (closingTone) {
-      bellSchedule.push({ bellId: 'zen_bell_rin', trigger: 'at-end', volume: 0.7 });
+      bellSchedule.push({
+        bellId: 'zen_bell_rin',
+        trigger: 'at-end',
+        volume: 0.7,
+      });
     }
   }
 
@@ -1167,7 +1184,9 @@ export function encodeListeningSession(
   parts.push(`settle=${session.settleInMs}`);
   parts.push(`integrate=${session.integrationMs}`);
   if (session.bellSchedule && session.bellSchedule.length > 0) {
-    parts.push(`b.sched=${encodeURIComponent(JSON.stringify(session.bellSchedule))}`);
+    parts.push(
+      `b.sched=${encodeURIComponent(JSON.stringify(session.bellSchedule))}`,
+    );
   }
   return parts.join('&');
 }

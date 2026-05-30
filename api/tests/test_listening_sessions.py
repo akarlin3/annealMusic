@@ -244,3 +244,85 @@ async def test_source_piece_deleted_set_null(client):
     assert updated_ls["piece_id"] is None
     assert updated_ls["piece"] is None
     assert updated_ls["piece_creator_name"] is None
+
+
+async def test_listening_history(client):
+    h = _hdr()
+    
+    # 1. Create a Piece and a Listening Session wrapping it
+    piece_res = await client.post(
+        "/api/v1/pieces",
+        headers=h,
+        json={
+            "defaults_state": {"m": "open"},
+            "schema_ver": 8,
+            "segments": [{"type": "fixed", "duration_ms": 1000, "config": {}}],
+        },
+    )
+    piece = piece_res.json()
+    
+    ls_res = await client.post(
+        "/api/v1/listening-sessions",
+        headers=h,
+        json={
+            "piece_id": piece["id"],
+            "schema_ver": 19,
+            "title": "A Meditation",
+        },
+    )
+    ls = ls_res.json()
+
+    # 2. Log a played session config
+    log_res = await client.post(
+        "/api/v1/listening-sessions/me/sessions/log",
+        headers=h,
+        json={
+            "listening_session_id": ls["id"],
+            "started_at": "2026-05-30T10:00:00Z",
+            "completed_at": "2026-05-30T10:10:00Z",
+            "duration_seconds": 600.0,
+            "is_standalone_timer": False,
+        },
+    )
+    assert log_res.status_code == 201
+    log_out = log_res.json()
+    assert log_out["listening_session_id"] == ls["id"]
+    assert log_out["duration_seconds"] == 600.0
+    assert not log_out["is_standalone_timer"]
+
+    # 3. Log a standalone timer session
+    log_res_timer = await client.post(
+        "/api/v1/listening-sessions/me/sessions/log",
+        headers=h,
+        json={
+            "listening_session_id": None,
+            "started_at": "2026-05-30T11:00:00Z",
+            "completed_at": "2026-05-30T11:15:00Z",
+            "duration_seconds": 900.0,
+            "is_standalone_timer": True,
+        },
+    )
+    assert log_res_timer.status_code == 201
+    log_timer_out = log_res_timer.json()
+    assert log_timer_out["listening_session_id"] is None
+    assert log_timer_out["duration_seconds"] == 900.0
+    assert log_timer_out["is_standalone_timer"]
+
+    # 4. Export CSV and check format/contents
+    export_res = await client.get(
+        "/api/v1/listening-sessions/me/sessions/export",
+        headers=h,
+    )
+    assert export_res.status_code == 200
+    assert export_res.headers["content-type"].startswith("text/csv")
+    csv_text = export_res.text
+    
+    # Assert headers
+    assert "ID,Session ID,Session Title,Started At,Completed At,Duration (Seconds),Type" in csv_text
+    
+    # Assert values are included
+    assert "A Meditation" in csv_text
+    assert "Standalone Bell Timer" in csv_text
+    assert "600.000" in csv_text
+    assert "900.000" in csv_text
+

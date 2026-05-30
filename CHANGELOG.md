@@ -4,9 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.6.0] - 2026-05-30
+
+### Added
+
+- **iOS & Android Native Health Bridges.** Custom lightweight native Swift (`HealthBridge.swift`/`HealthBridge.m`) and Java (`HealthBridgePlugin.java`) Capacitor plugins to securely log mindful sessions (mindful minutes) to Apple Health and Google Health Connect on a strictly opt-in basis.
+- **Premium Privacy & Integrations UI.** A gorgeous settings section under Account Settings to toggle iOS HealthKit, Android Health Connect, and include/exclude standalone bell timers with first-time permission requests.
+- **WCAG 2.1 AA Accessibility Remediations.** Thorough visual and structural audit across all v4 surfaces, elevating text contrast ratios, expanding touch targets to a minimum of 44x44 CSS pixels, and introducing descriptive `aria-label` and `aria-expanded` attributes on all interactive controls.
+- **Dynamic Reduced Motion Support.** Integrates `prefers-reduced-motion` detection directly into the WebGL visualizer and breathing LFO loops, instantly freezing particle orbital motion and breathing expansions to hold a steady, static focus state.
+- **Secure CSV History Streaming.** Secure endpoint (`GET /me/sessions/export`) and frontend integration to stream a clean comma-separated backup spreadsheet of the user's complete played history, respecting auth identity boundaries.
+
 ## [4.4.0] - 2026-05-30
 
 ### Added
+
 - **Digital Waveguide Fractional-Delay String Core.** Replaces 1st-order linear delay interpolation in `KarplusStrong` (plucked) and `BowedString` (bowed) physical modeling engines with a high-fidelity 3rd-order Lagrange FIR interpolator.
 - **Feedback Loop Group-Delay Compensation.** Subtracts the exact frequency-dependent phase delay of the feedback low-pass filter dynamically as brightness varies, achieving sub-cent tuning accuracy across the entire frequency range (measured error $<1.4$ cents at 55 Hz and $<0.005$ cents at 1760 Hz!).
 - **Spectral Correctness Test Suite.** Integrates Cooley-Tukey radix-2 FFT and log-magnitude parabolic peak interpolation helpers directly into `dsp.test.ts` to assert that string frequencies remain within $\pm$2 cents of their microtonal and standard pitch targets.
@@ -14,6 +25,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [4.3.0] - 2026-05-30
 
 ### Added
+
 - **12 Curated Bell Library.** Programmatically synthesizes high-fidelity CC0-licensed Opus bell assets (3 Tibetan Bowls, 2 Crystal Singing Bowls, Zen Rin, Deep Temple Gong, 2 Carillons, and 3 Synthesized FM/pluck resonators) lazy-loaded and cached dynamically.
 - **Concurrent Punctuation Scheduler & Resolver.** Replaces legacy sequential chimes and pauses with sample-accurate, dry-routed concurrent bell scheduling mapped to absolute session and piece time offsets, including support for movement-relative boundary triggers.
 - **Interactive Bell Schedule Editor.** Introduces a rich accordion card editor (`src/listening/BellScheduleEditor.tsx`) allowing users to pick bell instruments, play previews, adjust volume levels, and map triggers.

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import base64
+import csv
+import io
 import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select, delete
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,12 +25,14 @@ from app.errors import (
     not_found,
     bad_request,
 )
-from app.models import ListeningSession, Piece, User, Account
+from app.models import ListeningSession, Piece, User, Account, ListeningHistoryEntry
 from app.schemas import (
     ListeningSessionCreate,
     ListeningSessionUpdate,
     ListeningSessionOut,
     ListeningSessionListOut,
+    ListeningHistoryCreate,
+    ListeningHistoryOut,
 )
 from app.slug import new_slug
 from app.routers.pieces import to_out as piece_to_out
@@ -350,6 +355,98 @@ async def list_my_listening_sessions(
 
     items = []
     for ls in rows:
-        items.append(await to_out(session, ls))
+      items.append(await to_out(session, ls))
 
     return ListeningSessionListOut(items=items, next_cursor=next_cursor)
+
+
+@router.post(
+    "/me/sessions/log", response_model=ListeningHistoryOut, status_code=201,
+    dependencies=[Depends(rate_limit("patches"))]
+)
+async def log_played_session(
+    body: ListeningHistoryCreate,
+    user: CurrentWriter,
+    session: SessionDep,
+) -> ListeningHistoryOut:
+    if body.listening_session_id is not None:
+        ls = await session.get(ListeningSession, body.listening_session_id)
+        if ls is None or ls.visibility == "flagged":
+            raise not_found("listening_session")
+
+    history_entry = ListeningHistoryEntry(
+        user_id=user.id,
+        listening_session_id=body.listening_session_id,
+        started_at=body.started_at,
+        completed_at=body.completed_at,
+        duration_seconds=body.duration_seconds,
+        is_standalone_timer=body.is_standalone_timer,
+    )
+    session.add(history_entry)
+    await session.commit()
+    await session.refresh(history_entry)
+    return history_entry
+
+
+@router.get(
+    "/me/sessions/export",
+    dependencies=[Depends(rate_limit("get"))]
+)
+async def export_session_history_csv(
+    user: CurrentUser,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
+) -> StreamingResponse:
+    if identity.account_id is not None:
+        stmt = select(ListeningHistoryEntry).where(
+            ListeningHistoryEntry.user_id.in_(identity.owned_anon_ids)
+        )
+    else:
+        stmt = select(ListeningHistoryEntry).where(
+            ListeningHistoryEntry.user_id == user.id
+        )
+        
+    stmt = stmt.order_by(ListeningHistoryEntry.started_at.desc())
+    rows = (await session.execute(stmt)).scalars().all()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "ID",
+        "Session ID",
+        "Session Title",
+        "Started At",
+        "Completed At",
+        "Duration (Seconds)",
+        "Type"
+    ])
+    
+    for row in rows:
+        title = "Standalone Bell Timer"
+        if row.listening_session_id is not None:
+            ls = await session.get(ListeningSession, row.listening_session_id)
+            if ls is not None:
+                title = ls.title or "Untitled Session"
+            else:
+                title = "Unknown Session (Deleted)"
+                
+        writer.writerow([
+            str(row.id),
+            str(row.listening_session_id) if row.listening_session_id else "",
+            title,
+            row.started_at.isoformat(),
+            row.completed_at.isoformat(),
+            f"{row.duration_seconds:.3f}",
+            "standalone-timer" if row.is_standalone_timer else "listening-session"
+        ])
+        
+    response_content = output.getvalue()
+    
+    return StreamingResponse(
+        io.StringIO(response_content),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": 'attachment; filename="annealmusic_history_export.csv"'
+        }
+    )
+

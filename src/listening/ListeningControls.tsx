@@ -176,7 +176,10 @@ export default function ListeningControls({
         {/* Source Selection */}
         {!initialPiece && !initialPatch && (
           <div>
-            <label className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-stone-400 mb-2">
+            <label
+              htmlFor="source-select"
+              className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-stone-400 mb-2"
+            >
               <Layout size={10} className="text-stone-500" />
               Source Piece or Drone
             </label>
@@ -191,6 +194,7 @@ export default function ListeningControls({
               </div>
             ) : (
               <select
+                id="source-select"
                 value={`${selectedSourceType}:${selectedSourceId}`}
                 onChange={(e) => handleSourceChange(e.target.value)}
                 className="w-full rounded border border-stone-850 bg-stone-950 px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-stone-200 focus:border-amber-500/50 focus:outline-none"
@@ -371,9 +375,12 @@ export default function ListeningControls({
             schedule={bellSchedule}
             onChange={setBellSchedule}
             movements={
-              pieces.find((p) => p.id === selectedSourceId)?.movements as
-                | Movement[]
-                | undefined
+              (
+                pieces.find((p) => p.id === selectedSourceId) as Omit<
+                  APIPiece,
+                  'movements'
+                > & { movements?: Movement[] }
+              )?.movements as Movement[] | undefined
             }
           />
         </div>

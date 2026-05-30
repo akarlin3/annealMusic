@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Bell, Play, Plus, Trash2, HelpCircle } from 'lucide-react';
-import { BELL_REGISTRY, getBellById } from '@/audio/bells/registry';
+import {
+  BELL_REGISTRY,
+  getBellById,
+  type BellDef,
+} from '@/audio/bells/registry';
 import { playBellPreview, type BellEvent } from '@/audio/bells/scheduler';
 import type { Movement } from '@/piece/types';
 
@@ -13,20 +17,18 @@ interface BellScheduleEditorProps {
 
 let tempAudioCtx: AudioContext | null = null;
 
-interface WindowWithWebkit extends Window {
-  webkitAudioContext?: typeof AudioContext;
-}
-
 function getPreviewContext(): AudioContext {
-  const win = window as WindowWithWebkit;
   if (!tempAudioCtx) {
-    const Ctx = win.AudioContext ?? win.webkitAudioContext ?? AudioContext;
+    const Ctx =
+      window.AudioContext ??
+      (window as Window & { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
     tempAudioCtx = new Ctx();
   }
-  if (tempAudioCtx.state === 'suspended') {
-    void tempAudioCtx.resume();
+  if (tempAudioCtx!.state === 'suspended') {
+    void tempAudioCtx!.resume();
   }
-  return tempAudioCtx;
+  return tempAudioCtx!;
 }
 
 export default function BellScheduleEditor({
@@ -75,10 +77,10 @@ export default function BellScheduleEditor({
   };
 
   // Group bells by category
-  const categories = BELL_REGISTRY.reduce<Record<string, typeof BELL_REGISTRY>>(
+  const categories = BELL_REGISTRY.reduce<Record<string, BellDef[]>>(
     (acc, bell) => {
       if (!acc[bell.category]) acc[bell.category] = [];
-      acc[bell.category]!.push(bell);
+      (acc[bell.category] as BellDef[]).push(bell);
       return acc;
     },
     {},

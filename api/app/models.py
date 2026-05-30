@@ -586,6 +586,25 @@ class CustomTuning(Base):
     )
 
 
+class ListeningHistoryEntry(Base):
+    __tablename__ = "listening_history"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    listening_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("listening_sessions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    duration_seconds: Mapped[float] = mapped_column(Numeric(10, 3), nullable=False)
+    is_standalone_timer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 # SQLite trigger events for tests/local development when using SQLite
 @event.listens_for(Base.metadata, "after_create")
 

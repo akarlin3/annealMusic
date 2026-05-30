@@ -692,6 +692,19 @@ export const api = {
     );
   },
 
+  async logPlayedSession(body: {
+    listening_session_id: string | null;
+    started_at: string;
+    completed_at: string;
+    duration_seconds: number;
+    is_standalone_timer: boolean;
+  }): Promise<any> {
+    return request<any>('/api/v1/listening-sessions/me/sessions/log', {
+      method: 'POST',
+      body,
+    });
+  },
+
   // --- custom tunings (v4.1) -----------------------------------------------
   async createCustomTuning(body: {
     name: string;

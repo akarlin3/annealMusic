@@ -4,11 +4,11 @@
 [![API CI](https://github.com/akarlin3/annealMusic/actions/workflows/api.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/api.yml)
 [![Firebase Deploy](https://github.com/akarlin3/annealMusic/actions/workflows/deploy.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/deploy.yml)
 
-**A browser instrument that generates endless, slowly-evolving ambient soundscapes — set a few sliders and let it drift. Good for focus, sleep, or background calm.**
+**An immersive wellness ecosystem and generative instrument that builds slowly-evolving ambient soundscapes and timed focus journeys. Designed for deep meditation, conscious breathing, and absolute focus punctuated by organic physical bell chimes.**
 
-### ▶︎ [Hear it in 10 seconds → anneal.averykarlin.org](https://anneal.averykarlin.org/)
+### ▶︎ [Experience it in 10 seconds → anneal.averykarlin.org](https://anneal.averykarlin.org/)
 
-No install, no account, nothing to download. Open the link, press **Begin**, and listen.
+No install, no account, nothing to download. Simply pick an immersive soundscape or a silent focus timer, press **Begin**, and drift.
 
 ![Anneal Ambiance visualizer](docs/media/demo.gif)
 

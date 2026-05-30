@@ -156,21 +156,18 @@ describe('ListeningSessionPlayer', () => {
       piece,
       settleInMs: 3000,
       integrationMs: 3000,
-      openingTone: true,
-      closingTone: true,
+      bellSchedule: [
+        { bellId: 'zen_bell_rin', trigger: 'at-start' as const, volume: 0.7 },
+      ],
     };
 
     const player = new ListeningSessionPlayer(config, mockOrch);
-    expect(player.getTotalDurationMs()).toBe(18000); // 10s piece + 4s open + 4s close
+    expect(player.getTotalDurationMs()).toBe(10000); // exactly the piece duration
     expect(player.getSessionState()).toBe('idle');
 
     player.start();
     expect(mockOrch.start).toHaveBeenCalled();
-    expect(player.getSessionState()).toBe('opening_bell');
-
-    // Inside opening bell decay, master gain is clamped to 0
-    const masterVol = mockOrch.getNodes().masterVol;
-    expect(masterVol.gain.setValueAtTime).toHaveBeenLastCalledWith(0, 0);
+    expect(player.getSessionState()).toBe('sounding');
 
     // Fast forward by 4.1s
     mockTime = 5100;
@@ -183,8 +180,7 @@ describe('ListeningSessionPlayer', () => {
       piece,
       settleInMs: 2000,
       integrationMs: 4000,
-      openingTone: false,
-      closingTone: false,
+      bellSchedule: [],
     };
 
     const player = new ListeningSessionPlayer(config, mockOrch);
@@ -232,8 +228,7 @@ describe('ListeningSessionPlayer', () => {
       piece,
       settleInMs: 2000,
       integrationMs: 4000,
-      openingTone: false,
-      closingTone: false,
+      bellSchedule: [],
     };
 
     const player = new ListeningSessionPlayer(config, mockOrch);

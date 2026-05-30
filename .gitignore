@@ -44,3 +44,5 @@ Thumbs.db
 .pytest_cache/
 .ruff_cache/
 api/.env
+*.db
+

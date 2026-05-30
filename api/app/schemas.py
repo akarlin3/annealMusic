@@ -566,6 +566,29 @@ class CustomTuningListOut(BaseModel):
     items: list[CustomTuningOut]
 
 
+# --- v4.6 Listening History Schemas ------------------------------------------
+
+class ListeningHistoryCreate(BaseModel):
+    listening_session_id: uuid.UUID | None = None
+    started_at: datetime
+    completed_at: datetime
+    duration_seconds: float
+    is_standalone_timer: bool = False
+
+
+class ListeningHistoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    listening_session_id: uuid.UUID | None
+    started_at: datetime
+    completed_at: datetime
+    duration_seconds: float
+    is_standalone_timer: bool
+    created_at: datetime
+
+
+
 
 
 

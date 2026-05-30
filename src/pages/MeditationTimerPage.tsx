@@ -7,6 +7,8 @@ import {
   resolveBellSchedule,
   type BellEvent,
 } from '@/audio/bells/scheduler';
+import { api } from '@/api/client';
+import { healthApi } from '@/health/api';
 
 function fmtTime(seconds: number): string {
   const mm = Math.floor(seconds / 60);
@@ -17,6 +19,44 @@ function fmtTime(seconds: number): string {
 export default function MeditationTimerPage() {
   const navigate = useNavigate();
 
+  const sessionStartedAtRef = useRef<Date | null>(null);
+
+  const logSessionResult = async (elapsedSeconds: number) => {
+    const startedAt = sessionStartedAtRef.current;
+    if (!startedAt) return;
+
+    if (!healthApi.getIncludeTimer()) {
+      return;
+    }
+
+    if (elapsedSeconds < 5) {
+      return;
+    }
+
+    const endedAt = new Date();
+    sessionStartedAtRef.current = null;
+
+    if (api.isBackendConfigured()) {
+      try {
+        await api.logPlayedSession({
+          listening_session_id: null,
+          started_at: startedAt.toISOString(),
+          completed_at: endedAt.toISOString(),
+          duration_seconds: elapsedSeconds,
+          is_standalone_timer: true,
+        });
+      } catch (err) {
+        console.error('Failed to log standalone timer history:', err);
+      }
+    }
+
+    try {
+      await healthApi.logPlayedSession(startedAt, endedAt);
+    } catch (err) {
+      console.error('Failed to sync standalone timer to health platform:', err);
+    }
+  };
+
   // Timer settings state
   const [selectedBellId, setSelectedBellId] = useState('zen_bell_rin');
   const [durationMin, setDurationMin] = useState(15);
@@ -26,6 +66,11 @@ export default function MeditationTimerPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [remainingSec, setRemainingSec] = useState(15 * 60);
+
+  const elapsedSecRef = useRef(0);
+  useEffect(() => {
+    elapsedSecRef.current = elapsedSec;
+  }, [elapsedSec]);
 
   // Breathing LFO state
   const [breathingLabel, setBreathingLabel] = useState('Inhale');
@@ -65,6 +110,16 @@ export default function MeditationTimerPage() {
     lastFrameTimeRef.current = performance.now();
 
     const updateBreathing = (time: number) => {
+      const isReduced = window.matchMedia(
+        '(prefers-reduced-motion: reduce)',
+      ).matches;
+      if (isReduced) {
+        setBreathingScale(1.0);
+        setBreathingLabel('Focus');
+        breathTimerRef.current = requestAnimationFrame(updateBreathing);
+        return;
+      }
+
       const deltaSec = (time - lastFrameTimeRef.current) / 1000;
       lastFrameTimeRef.current = time;
 
@@ -103,16 +158,14 @@ export default function MeditationTimerPage() {
   const handleStart = () => {
     // 1. Initialize Web Audio Context and Scheduler
     if (!audioCtxRef.current) {
-      interface WinWebkit extends Window {
-        webkitAudioContext?: typeof AudioContext;
-      }
-      const win = window as WinWebkit;
       const AudioCtx =
-        win.AudioContext ?? win.webkitAudioContext ?? AudioContext;
+        window.AudioContext ??
+        (window as Window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
       audioCtxRef.current = new AudioCtx();
     }
 
-    const ctx = audioCtxRef.current;
+    const ctx = audioCtxRef.current!;
     if (ctx.state === 'suspended') {
       void ctx.resume();
     }
@@ -156,6 +209,7 @@ export default function MeditationTimerPage() {
     schedulerRef.current.setTriggers(resolved);
     schedulerRef.current.start(elapsedSec * 1000);
 
+    sessionStartedAtRef.current = new Date();
     setIsPlaying(true);
 
     // 3. Start progress interval
@@ -166,7 +220,7 @@ export default function MeditationTimerPage() {
         const nextRemaining = totalSec - nextElapsed;
 
         if (nextRemaining <= 0) {
-          handleStop();
+          handleStop(totalSec);
           return totalSec;
         }
 
@@ -185,7 +239,10 @@ export default function MeditationTimerPage() {
     setIsPlaying(false);
   };
 
-  const handleStop = () => {
+  const handleStop = (customElapsed?: number | React.MouseEvent) => {
+    const elapsed =
+      typeof customElapsed === 'number' ? customElapsed : elapsedSec;
+    logSessionResult(elapsed);
     if (mainTimerRef.current) {
       clearInterval(mainTimerRef.current);
       mainTimerRef.current = null;
@@ -200,6 +257,9 @@ export default function MeditationTimerPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (sessionStartedAtRef.current) {
+        logSessionResult(elapsedSecRef.current);
+      }
       if (mainTimerRef.current) {
         clearInterval(mainTimerRef.current);
       }
@@ -224,8 +284,9 @@ export default function MeditationTimerPage() {
             handleStop();
             navigate('/');
           }}
-          className="flex items-center gap-2 p-2 rounded-full border border-stone-850 bg-stone-950/20 hover:border-stone-700 text-stone-400 hover:text-white transition-colors"
+          className="flex items-center justify-center h-11 w-11 rounded-full border border-stone-850 bg-stone-950/20 hover:border-stone-700 text-stone-400 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-colors"
           title="Back to App"
+          aria-label="Back to App"
         >
           <ArrowLeft size={14} />
         </button>
@@ -284,7 +345,7 @@ export default function MeditationTimerPage() {
               value={selectedBellId}
               disabled={isPlaying}
               onChange={(e) => setSelectedBellId(e.target.value)}
-              className="w-full rounded border border-stone-850 bg-stone-950 px-2.5 py-1.5 font-mono text-[10px] uppercase text-stone-200 focus:border-amber-500/50 focus:outline-none disabled:opacity-50"
+              className="w-full rounded border border-stone-850 bg-stone-950 px-2.5 py-1.5 font-mono text-[10px] uppercase text-stone-200 focus:border-amber-500/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950 disabled:opacity-50"
             >
               {BELL_REGISTRY.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -310,7 +371,8 @@ export default function MeditationTimerPage() {
               value={durationMin}
               disabled={isPlaying}
               onChange={(e) => setDurationMin(Number(e.target.value))}
-              className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500 disabled:opacity-50"
+              className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950 disabled:opacity-50"
+              aria-label="Duration"
             />
           </div>
 
@@ -323,7 +385,7 @@ export default function MeditationTimerPage() {
               value={intervalMin}
               disabled={isPlaying}
               onChange={(e) => setIntervalMin(Number(e.target.value))}
-              className="w-full rounded border border-stone-850 bg-stone-950 px-2.5 py-1.5 font-mono text-[10px] uppercase text-stone-200 focus:border-amber-500/50 focus:outline-none disabled:opacity-50"
+              className="w-full rounded border border-stone-850 bg-stone-950 px-2.5 py-1.5 font-mono text-[10px] uppercase text-stone-200 focus:border-amber-500/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950 disabled:opacity-50"
             >
               <option value={0}>None (Only Start/End)</option>
               <option value={1}>Every 1 Minute</option>
@@ -354,16 +416,18 @@ export default function MeditationTimerPage() {
           {isPlaying ? (
             <button
               onClick={handlePause}
-              className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-300 hover:border-amber-500/50 hover:text-amber-400 transition-all shadow-lg"
+              className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-300 hover:border-amber-500/50 hover:text-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all shadow-lg"
               title="Pause Timer"
+              aria-label="Pause Timer"
             >
               <Pause size={16} strokeWidth={1.5} />
             </button>
           ) : (
             <button
               onClick={handleStart}
-              className="flex items-center justify-center h-12 w-12 rounded-full bg-amber-500 text-stone-950 hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/10"
+              className="flex items-center justify-center h-12 w-12 rounded-full bg-amber-500 text-stone-950 hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all shadow-lg shadow-amber-500/10"
               title="Start Timer"
+              aria-label="Start Timer"
             >
               <Play size={16} strokeWidth={1.5} className="ml-0.5" />
             </button>
@@ -372,8 +436,9 @@ export default function MeditationTimerPage() {
           <button
             onClick={handleStop}
             disabled={!isPlaying && elapsedSec === 0}
-            className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-500 hover:text-stone-300 hover:border-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-500 hover:text-stone-300 hover:border-stone-700 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all"
             title="Reset Timer"
+            aria-label="Reset Timer"
           >
             <Square size={16} strokeWidth={1.5} />
           </button>

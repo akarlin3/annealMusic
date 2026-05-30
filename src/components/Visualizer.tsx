@@ -124,7 +124,10 @@ export default function Visualizer({
     let lastT = performance.now();
 
     const draw = (now: number) => {
-      const dt = Math.min(0.05, (now - lastT) / 1000);
+      const isReduced = window.matchMedia(
+        '(prefers-reduced-motion: reduce)',
+      ).matches;
+      const dt = isReduced ? 0 : Math.min(0.05, (now - lastT) / 1000);
       lastT = now;
       const { w, h } = sizeRef.current;
 
@@ -197,7 +200,7 @@ export default function Visualizer({
       cancelAnimationFrame(raf);
       renderer.dispose();
     };
-  }, [engineRef, rendererPref, qualityPref, showSpectrumPref]);
+  }, [engineRef, rendererPref, qualityPref, showSpectrumPref, isCalm]);
 
   const params = useParamStore((s) => s.params);
 
