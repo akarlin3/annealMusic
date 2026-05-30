@@ -6,6 +6,7 @@ import { runRender } from './commands/render.js';
 import { validateFile } from './commands/validate.js';
 import { printFileInfo } from './commands/info.js';
 import { runVerifyParity } from './commands/verifyParity.js';
+import { runCiteCommand } from './commands/cite.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { generateSweepCombinations } from './output/sweep.js';
@@ -16,7 +17,7 @@ const program = new Command();
 program
   .name('annealmusic')
   .description('Standalone CLI + Batch Renderer for AnnealMusic')
-  .version('5.3.0');
+  .version('5.7.0');
 
 // 1. Single Render Command
 program
@@ -142,6 +143,14 @@ program
   .description('Compare two WAV files to check for sample parity')
   .action(async (fileA, fileB) => {
     await runVerifyParity(fileA, fileB);
+  });
+
+// 8.5 Cite Command
+program
+  .command('cite')
+  .description('Print academic APA citation and BibTeX entry for AnnealMusic')
+  .action(() => {
+    runCiteCommand();
   });
 
 // 9. Sweep helper commands for Slurm job arrays

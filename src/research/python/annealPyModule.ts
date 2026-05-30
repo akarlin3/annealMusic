@@ -240,11 +240,40 @@ async def render(duration=30, format='numpy', path=None):
             f.write(bytes_data)
         return True
 
+def cite():
+    return """=========================================
+      ANNEALMUSIC CITATION GUIDE
+=========================================
+
+To cite AnnealMusic in your academic publications, please use the following reference:
+
+APA Format:
+Karlin, A. (2026). AnnealMusic: A generative ambient meditation sandbox (v5.7.0) [Software]. https://anneal.averykarlin.org. https://doi.org/10.5281/zenodo.10729482
+
+BibTeX:
+@software{karlin2026annealmusic,
+  author       = {Karlin, Avery},
+  title        = {AnnealMusic: A generative ambient meditation sandbox},
+  month        = may,
+  year         = 2026,
+  publisher    = {Zenodo},
+  version      = {v5.7.0},
+  doi          = {10.5281/zenodo.10729482},
+  url          = {https://anneal.averykarlin.org}
+}
+
+-----------------------------------------
+Zenodo persistent DOI: 10.5281/zenodo.10729482
+ORCID: 0000-0002-3904-7128
+ROR: https://ror.org/03t748b94
+========================================="""
+
 anneal.session_log = session_log
 anneal.stream_log = stream_log
 anneal.sweep = sweep
 anneal.features = features
 anneal.render = render
+anneal.cite = cite
 
 # Define anneal.experiment APIs
 experiment = types.ModuleType("experiment")

@@ -2,7 +2,7 @@
   "name": "annealmusic",
   "private": true,
   "license": "AGPL-3.0-or-later",
-  "version": "5.4.0",
+  "version": "5.7.0",
   "type": "module",
   "description": "A generative ambient meditation sandbox: physics-driven sound, session arc, and audio-reactive visuals.",
   "scripts": {
@@ -81,6 +81,7 @@
     "typescript-eslint": "^8.18.1",
     "vite": "^5.4.11",
     "vite-node": "^2.1.8",
+    "vitepress": "^1.6.4",
     "vitest": "^2.1.8"
   }
 }

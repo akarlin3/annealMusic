@@ -1,0 +1,20 @@
+{
+  "title": "AnnealMusic: A generative ambient meditation sandbox",
+  "description": "A scientific instrument and generative ambient meditation sandbox featuring phase-coupled synthesis, local/mobile OSC control, and perceptual experiment frameworks.",
+  "creators": [
+    {
+      "name": "Karlin, Avery",
+      "orcid": "0000-0002-3904-7128",
+      "affiliation": "Independent Researcher"
+    }
+  ],
+  "keywords": [
+    "generative-music",
+    "physics-based-synthesis",
+    "kuramoto-oscillators",
+    "psychoacoustics",
+    "music-cognition"
+  ],
+  "license": "AGPL-3.0-or-later",
+  "access_right": "open"
+}

@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.7.0] - 2026-05-30
+
+### Added
+
+- **Unified Research Documentation Site.** Consolidated every research-surface API (JSON-RPC Bridge, OSC Address Namespace, CLI Commands, Python whitelisted modules, Datalogger Schema, and Experiment Framework) into a highly navigable, client-side searchable VitePress doc site served at `https://docs.annealmusic.org/research/`.
+- **Comprehensive 16-Recipe Cookbook.** Shipped 16 fully self-contained, working examples covering composer, music technologist, cognition researcher, MIR/ML, and computational science adjacent personas, including biofeedback and diffusion equations.
+- **Academic Citation Infrastructure.** Implemented programmatic print commands in both the CLI (`annealmusic cite`) and Python sandbox runtime (`anneal.cite()`), returning version-locked APA and BibTeX blocks, coupled with persistent ORCID, ROR, and `.zenodo.json` metadata configurations.
+- **Headless CI Notebook Verification.** Added automated cell-execution test runner hooks into the GitHub Actions CI pipeline, guaranteeing zero regression or API drift across Jupyter notebooks on tagged releases.
+- **SemVer Stability Matrix.** Formulated a formal API stability commitment matrix across all 6 research layers, establishing strict 6-month deprecation grace periods.
+- **v5 Engineering Retrospective.** Published a transparent review (`docs/V5_RETROSPECTIVE.md`) evaluating abstract successes, performance strains, cost realities, and next post-v5 thesis horizons.
+
 ## [5.6.0] - 2026-05-30
 
 ### Added
