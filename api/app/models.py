@@ -551,6 +551,8 @@ class ListeningSession(Base):
     settle_in_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=30000)
     integration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=60000)
     bell_schedule: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
+    # Optional visual breath-pacing pattern (v4.4). Nullable; None = no overlay.
+    breath_pattern: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
     total_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     visibility: Mapped[str] = mapped_column(
@@ -605,6 +607,76 @@ class ListeningHistoryEntry(Base):
     )
 
 
+class SessionPlay(Base):
+    """v4.5 — a single private record of a user playing a Listening Session.
+
+    Calm-by-design: stores only what's needed to let a user revisit their own
+    practice (when, what, how long, an optional reflection). Never stores sculpt
+    actions, audio, or biometrics. Strictly private — no public surface.
+    """
+
+    __tablename__ = "session_plays"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    listening_session_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(),
+        ForeignKey("listening_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Actual time listened; may be < the session's full duration if ended early.
+    duration_listened_ms: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
+    # Optional post-session reflection (≤500 chars, enforced in the schema layer).
+    reflection: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class LibraryListing(Base):
+    """v4.5 — an editorial entry in the curated ``/listen`` library.
+
+    A listing curates an existing Listening Session with intention / length /
+    audio-character metadata. Created only via admin endpoints (editorial-only).
+    Soft-archived via ``archived_at`` so picks history survives removal.
+    """
+
+    __tablename__ = "library_listings"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    listening_session_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(),
+        ForeignKey("listening_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    intention: Mapped[str | None] = mapped_column(String, nullable=True)
+    length_category: Mapped[str | None] = mapped_column(String, nullable=True)
+    character_tags: Mapped[list] = mapped_column(
+        JSONType(), nullable=False, default=list
+    )
+    editor_pick: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    editor_pick_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    curator_note: Mapped[str | None] = mapped_column(String, nullable=True)
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 # SQLite trigger events for tests/local development when using SQLite
 @event.listens_for(Base.metadata, "after_create")
 

@@ -47,6 +47,8 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v1.6 ✅ | MIDI Input + Output                                | Physical controller map, note-to-root, output CC & clock sync |
 | v1.8 ✅ | Collaborative Sessions                             | Real-time co-creation (Jam Mode), dual WebRTC + WebSocket fallback, loop capture sharing, co-author patch saves |
 | v4.3 ✅ | Bells & Punctuation                                | Curated high-fidelity bell assets, concurrent scheduler, interactive schedule editor panel, progress timeline markers, standalone breathing meditation timer, schema v19 JSONB migration |
+| v4.4 ✅ | Breath Pacing Visuals                              | Optional silent visual breath overlay (Listening Sessions, Drone, Timer), four built-in patterns + bounded custom, pure audio-clock `BreathController`, honest framing per pattern, `prefers-reduced-motion` fade, optional mobile haptics, schema v20 |
+| v4.5 ✅ | Session History + Curated Library                  | Private per-account practice history (`/me/sessions`, cross-device, optional reflections, deliberately understated stats, fully deletable) and a curated editorial library (`/listen`) browsable by length/intention/audio-character with editor's picks, previews, and admin curation; calm-by-design CI gate; Alembic migration `0015`, no URL schema bump |
 
 ## Shipped notes
 

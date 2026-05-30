@@ -22,6 +22,12 @@ import type { Piece, SegmentType, Movement } from '@/piece/types';
 import { resolveBellSchedule } from '@/audio/bells/scheduler';
 import type { BellEvent } from '@/audio/bells/scheduler';
 import { getBellById } from '@/audio/bells/registry';
+import BreathOverlay from '@/breath/BreathOverlay';
+import { BREATH, type BreathPattern } from '@/breath/patterns';
+import { useBreathPrefs } from '@/breath/useBreathPrefs';
+import { usePlayLogger } from '@/history/usePlayLogger';
+import { useAuth } from '@/auth/AuthProvider';
+import { Link } from 'react-router-dom';
 
 interface ListeningViewProps {
   session: ListeningSession;
@@ -91,6 +97,16 @@ export default function ListeningView({
     }
   };
 
+  const breathPrefs = useBreathPrefs();
+
+  const { isAuthenticated } = useAuth();
+  const {
+    onStart: logStart,
+    onEnd: logEnd,
+    showNudge,
+    dismissNudge,
+  } = usePlayLogger(session.id, isAuthenticated);
+
   useEffect(() => {
     const orchestrator = ensureOrchestrator();
     orchestratorRef.current = orchestrator;
@@ -147,10 +163,11 @@ export default function ListeningView({
       if (sessionStartedAtRef.current) {
         logSessionResult(elapsed);
       }
+      logEnd(elapsed);
       player.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, ensureOrchestrator]);
+  }, [session, ensureOrchestrator, logEnd]);
 
   const handleStart = () => {
     const player = playerRef.current;
@@ -158,6 +175,7 @@ export default function ListeningView({
 
     sessionStartedAtRef.current = new Date();
     setIsPlaying(true);
+    logStart();
     player.start(
       (_, remainMs) => {
         setRemainingMs(remainMs);
@@ -168,9 +186,10 @@ export default function ListeningView({
         setIsPlaying(false);
         setRemainingMs(0);
         setCurrentState('ended');
-        if (playerRef.current) {
-          logSessionResult(playerRef.current.getElapsedMs());
-        }
+        const elapsed =
+          playerRef.current?.getElapsedMs() || player.getElapsedMs();
+        logSessionResult(elapsed);
+        logEnd(elapsed);
       },
     );
   };
@@ -189,6 +208,7 @@ export default function ListeningView({
   const handleStop = () => {
     const elapsed = playerRef.current?.getElapsedMs() || elapsedMs;
     logSessionResult(elapsed);
+    logEnd(elapsed);
     playerRef.current?.stop();
     setIsPlaying(false);
     setElapsedMs(0);
@@ -274,6 +294,21 @@ export default function ListeningView({
   const progressPercent =
     totalDurationMs > 0 ? (elapsedMs / totalDurationMs) * 100 : 0;
 
+  // Breath overlay: active during deep listening only — after settle-in and
+  // before integration — so it doesn't intrude on the open/close of the session.
+  const breathPattern = (session.breath_pattern ??
+    null) as BreathPattern | null;
+  const pastSettle = elapsedMs >= session.settle_in_ms;
+  const beforeIntegration =
+    (playerRef.current?.getTotalDurationMs() ?? totalDurationMs) - elapsedMs >=
+    session.integration_ms;
+  const breathActive =
+    !!breathPattern &&
+    isPlaying &&
+    currentState === 'sounding' &&
+    pastSettle &&
+    beforeIntegration;
+
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-stone-950 text-stone-200 transition-opacity duration-700 ease-in-out px-8 py-10"
@@ -331,10 +366,26 @@ export default function ListeningView({
       <main className="relative flex-1 w-full max-w-4xl flex flex-col items-center justify-center py-6">
         {/* Fullscreen visualizer wrap (passes isCalm = true) */}
         <div className="relative w-full h-[360px] rounded-2xl overflow-hidden shadow-2xl border border-stone-900/60 bg-stone-950/20">
-          <Visualizer
-            engineRef={orchestratorRef}
-            isPlaying={isPlaying}
-            isCalm={true}
+          <div
+            className="absolute inset-0 transition-[filter] duration-700"
+            style={{
+              filter: breathActive
+                ? `brightness(${BREATH.visualizerDim})`
+                : 'none',
+            }}
+          >
+            <Visualizer
+              engineRef={orchestratorRef}
+              isPlaying={isPlaying}
+              isCalm={true}
+            />
+          </div>
+          <BreathOverlay
+            pattern={breathPattern}
+            active={breathActive}
+            getNow={() => orchestratorRef.current?.getAudioTime() ?? 0}
+            haptics={breathPrefs.haptics}
+            reduceMotion={breathPrefs.reduceMotion}
           />
         </div>
 
@@ -589,6 +640,40 @@ export default function ListeningView({
           </p>
         </div>
       </footer>
+
+      {/* Gentle, dismissible "keep your history" nudge for anonymous listeners.
+          Shown once after a session — never recurring, never a guilt message. */}
+      {showNudge && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 max-w-sm w-[92%] rounded-xl border border-stone-800 bg-stone-900/90 backdrop-blur-md px-4 py-3 shadow-2xl">
+          <div className="flex items-start gap-3">
+            <p className="flex-1 text-stone-300 text-sm font-body leading-snug">
+              Sign in to keep your history — a private record of your sessions,
+              just for you.
+            </p>
+            <button
+              onClick={dismissNudge}
+              className="text-stone-500 hover:text-stone-300 transition-colors"
+              title="Dismiss"
+            >
+              <X size={16} strokeWidth={1.5} />
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-3">
+            <Link
+              to="/account"
+              className="font-mono text-[10px] uppercase tracking-wider text-amber-400 hover:text-amber-300"
+            >
+              Sign in
+            </Link>
+            <button
+              onClick={dismissNudge}
+              className="font-mono text-[10px] uppercase tracking-wider text-stone-500 hover:text-stone-400"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

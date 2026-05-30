@@ -31,6 +31,10 @@ import {
   type APIPieceList,
   type ListeningSession,
   type ListeningSessionList,
+  type SessionPlay,
+  type SessionPlayList,
+  type SessionStats,
+  type LibraryList,
 } from '@/api/types';
 import type { GalleryList } from '@/gallery/types';
 import type { CustomTuning } from '@/audio/tuning/types';
@@ -726,6 +730,69 @@ export const api = {
     await request<void>(`/api/v1/custom_tunings/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     });
+  },
+
+  // --- session history (v4.5) ----------------------------------------------
+  async logSessionPlay(body: {
+    listening_session_id: string;
+    started_at?: string;
+  }): Promise<SessionPlay> {
+    return request<SessionPlay>('/api/v1/me/sessions', {
+      method: 'POST',
+      body,
+    });
+  },
+
+  async updateSessionPlay(
+    id: string,
+    body: {
+      completed_at?: string;
+      duration_listened_ms?: number;
+      reflection?: string | null;
+    },
+  ): Promise<SessionPlay> {
+    return request<SessionPlay>(
+      `/api/v1/me/sessions/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body,
+      },
+    );
+  },
+
+  async listSessionPlays(cursor?: string): Promise<SessionPlayList> {
+    const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+    return request<SessionPlayList>(`/api/v1/me/sessions${q}`);
+  },
+
+  async sessionStats(): Promise<SessionStats> {
+    return request<SessionStats>('/api/v1/me/sessions/stats');
+  },
+
+  async forgetSessionPlay(id: string): Promise<void> {
+    await request<void>(`/api/v1/me/sessions/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // --- curated library (v4.5) ----------------------------------------------
+  async getLibrary(filters?: {
+    intention?: string;
+    length?: string;
+    character?: string;
+    picks?: 'only';
+  }): Promise<LibraryList> {
+    const p = new URLSearchParams();
+    if (filters?.intention) p.set('intention', filters.intention);
+    if (filters?.length) p.set('length', filters.length);
+    if (filters?.character) p.set('character', filters.character);
+    if (filters?.picks) p.set('picks', filters.picks);
+    const q = p.toString();
+    return request<LibraryList>(`/api/v1/library${q ? `?${q}` : ''}`);
+  },
+
+  async getLibraryPicks(): Promise<LibraryList> {
+    return request<LibraryList>('/api/v1/library/picks');
   },
 };
 

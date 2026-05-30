@@ -96,6 +96,7 @@ async def to_out(
         settle_in_ms=ls.settle_in_ms,
         integration_ms=ls.integration_ms,
         bell_schedule=ls.bell_schedule,
+        breath_pattern=ls.breath_pattern,
         total_duration_ms=ls.total_duration_ms,
         visibility=ls.visibility,
         short_slug=ls.short_slug,
@@ -198,6 +199,7 @@ async def create_listening_session(
         settle_in_ms=body.settle_in_ms,
         integration_ms=body.integration_ms,
         bell_schedule=body.bell_schedule,
+        breath_pattern=body.breath_pattern,
         total_duration_ms=total_duration,
         visibility=body.visibility,
         short_slug=new_slug(),
@@ -277,6 +279,9 @@ async def update_listening_session(
         ls.integration_ms = body.integration_ms
     if body.bell_schedule is not None:
         ls.bell_schedule = body.bell_schedule
+    # Allow explicit null to clear the breath pattern (presence, not non-None).
+    if "breath_pattern" in body.model_fields_set:
+        ls.breath_pattern = body.breath_pattern
     if body.visibility is not None:
         ls.visibility = body.visibility
 

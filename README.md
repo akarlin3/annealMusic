@@ -33,6 +33,8 @@ New here? Press the **Help (?)** button in the app for a plain-language guide to
 - **Recording** — capture exactly what you hear to a file you can keep or share.
 - **Embed** — drop a tiny play-only player onto your own blog or website.
 - **Gallery** — browse and load soundscapes other people have shared.
+- **Listen** — a curated meditation library (`/listen`) of hand-picked sessions to browse by length, intention, and audio character.
+- **Your sessions** — a private history (`/me/sessions`) of what you've listened to, with optional reflections. Just for you.
 - **Share links** — copy a link that reopens your exact sound for anyone you send it to.
 
 ---
@@ -165,6 +167,24 @@ your starting patch is the neutral pose the arc deforms from. Arc timing rides o
 the `AudioContext` clock, so long sessions stay accurate. (Both current engines
 lock density while playing, so Dawn/Dusk's density move is held — they sweep
 brightness and spread instead.)
+
+## Breath pacing
+
+Listening Sessions, Drone Mode, and the Standalone Timer (`/timer`) can show an
+optional, silent, **visual** breath-pacing cue: a slow-pulsing amber circle that
+expands on the inhale, holds at the peak/trough, and contracts on the exhale,
+ringed by a cycle-progress indicator. It composes over the existing visualizer
+(which dims slightly so the cue reads) and shows **no numerals** — just motion.
+
+Four built-in patterns ship — **Box** (4-4-4-4), **4-7-8**, **Coherent**
+(5.5/min), and **Resonance** (4.5/min) — each with honest evidence framing, plus
+a bounded **custom** pattern. It's off by default and opt-in (per session for
+Listening Sessions; per device for Drone and the Timer). The cycle is driven by
+the `AudioContext` clock, so backgrounded tabs and long sessions never drift.
+`prefers-reduced-motion` is honored (a colour fade replaces the size pulse), and
+native mobile builds can add an optional gentle haptic at phase transitions
+(off by default). It's strictly visual — no breath sounds or chimes; the music
+stays the only audio surface. See [docs/BREATH.md](docs/BREATH.md).
 
 ## Live input
 
@@ -317,6 +337,30 @@ title/description, and any card can be **reported** (`…` → Report) for revie
 Moderation + the minimal `/admin` panel are documented in
 [`docs/MODERATION.md`](docs/MODERATION.md) and [`docs/ADMIN.md`](docs/ADMIN.md);
 design rationale is in [`docs/v0.8-PLAN.md`](docs/v0.8-PLAN.md).
+
+## Library + History (v4.5)
+
+Two surfaces for people who come to AnnealMusic to _meditate_, not to build.
+
+The [**`/listen`**](https://anneal.averykarlin.org/listen) library is a **curated**
+catalog of Listening Sessions — editorial, deliberately distinct from the
+creator-side `/gallery`. Browse by **length**, **intention** (morning, evening,
+sleep, difficult day, focus, …), and **audio character** (drone, composed, with
+bells, with tunings), with an **Editor's recent picks** strip. Each card previews
+a short server-rendered audio thumbnail (via the v0.8 pipeline on the source
+piece/patch) and loads into the listener in one click. v4.5 ships editorial-only;
+user-published sessions still live under `/gallery`. Curators manage the library
+from `/admin`. See [`docs/LIBRARY.md`](docs/LIBRARY.md).
+
+**`/me/sessions`** is your **private** Session History: a plain record of what
+you've listened to, logged on completion (or with the real partial duration if you
+end early), with optional reflections. The summary is intentionally understated —
+_"12 sessions, 4.3 hours total this month"_ — with **no streaks, no goals, no
+reminders, ever**. It's account-only, cross-device, never public, never shared,
+and fully deletable. The privacy posture and the project's anti-engagement stance
+are documented in [`docs/HISTORY.md`](docs/HISTORY.md) and
+[`docs/CALM_BY_DESIGN.md`](docs/CALM_BY_DESIGN.md) — the latter enforced by a CI
+lexical gate.
 
 ## Continuous Integration & Deployment (CI/CD)
 

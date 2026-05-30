@@ -218,7 +218,27 @@ export interface DecodedListeningSession {
   settleInMs: number;
   integrationMs: number;
   bellSchedule: BellEvent[];
+  /** Optional visual breath-pacing pattern (v4.4 / schema v20). Null = none. */
+  breathPattern?: BreathPatternRef | null;
 }
+
+/**
+ * Breath-pacing pattern attached to a listening session (v4.4). Visual-only —
+ * never rendered into audio. `custom_pattern` is the 4-tuple of phase durations
+ * `[inhale, hold_full, exhale, hold_empty]`, present only for `pattern: 'custom'`.
+ */
+export interface BreathPatternRef {
+  pattern: 'box' | '4-7-8' | 'coherent' | 'resonance' | 'custom';
+  custom_pattern?: [number, number, number, number];
+}
+
+const BREATH_PATTERN_IDS: ReadonlySet<string> = new Set([
+  'box',
+  '4-7-8',
+  'coherent',
+  'resonance',
+  'custom',
+]);
 
 export type DecodedState =
   | {
@@ -1099,6 +1119,8 @@ export function decodeListeningSessionPayload(
   let openingTone = false;
   let closingTone = false;
   let bellSchedule: BellEvent[] = [];
+  let breathId: string | undefined;
+  let breathCustom: [number, number, number, number] | undefined;
 
   for (const pair of payload.split('&')) {
     if (pair === '') continue;
@@ -1133,6 +1155,25 @@ export function decodeListeningSessionPayload(
       } catch (e) {
         console.warn('Failed to parse bell schedule from URL:', e);
       }
+    } else if (key === 'br') {
+      breathId = raw;
+    } else if (key === 'br_c') {
+      const nums = raw.split(',').map(Number);
+      if (nums.length === 4 && nums.every((n) => Number.isFinite(n))) {
+        breathCustom = [nums[0]!, nums[1]!, nums[2]!, nums[3]!];
+      }
+    }
+  }
+
+  // Resolve the optional breath pattern, tolerating unknown ids (→ no overlay).
+  let breathPattern: BreathPatternRef | null = null;
+  if (breathId && BREATH_PATTERN_IDS.has(breathId)) {
+    if (breathId === 'custom') {
+      if (breathCustom) {
+        breathPattern = { pattern: 'custom', custom_pattern: breathCustom };
+      }
+    } else {
+      breathPattern = { pattern: breathId as BreathPatternRef['pattern'] };
     }
   }
 
@@ -1164,6 +1205,7 @@ export function decodeListeningSessionPayload(
     settleInMs,
     integrationMs,
     bellSchedule,
+    breathPattern,
   };
 }
 
@@ -1187,6 +1229,15 @@ export function encodeListeningSession(
     parts.push(
       `b.sched=${encodeURIComponent(JSON.stringify(session.bellSchedule))}`,
     );
+  }
+  if (session.breathPattern) {
+    parts.push(`br=${session.breathPattern.pattern}`);
+    if (
+      session.breathPattern.pattern === 'custom' &&
+      session.breathPattern.custom_pattern
+    ) {
+      parts.push(`br_c=${session.breathPattern.custom_pattern.join(',')}`);
+    }
   }
   return parts.join('&');
 }

@@ -6,6 +6,10 @@ import { DRONE_ENGINES } from '@/drone/droneEngines';
 import { ENGINE_LABELS } from '@/audio/engines/index';
 import InfoTip from '@/components/InfoTip';
 import type { EngineId } from '@/audio/engines/types';
+import BreathOverlay from '@/breath/BreathOverlay';
+import BreathPicker from '@/breath/BreathPicker';
+import { BREATH } from '@/breath/patterns';
+import { useBreathPattern, useBreathPrefs } from '@/breath/useBreathPrefs';
 
 interface DroneViewProps {
   engineRef: React.MutableRefObject<any>;
@@ -23,6 +27,11 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
     setEngineParam,
     setTuning,
   } = useParamStore();
+
+  // Drone breath pattern persists across sessions on this device.
+  const [breathPattern, setBreathPattern] = useBreathPattern('am_breath_drone');
+  const breathPrefs = useBreathPrefs();
+  const breathActive = !!breathPattern && isPlaying;
 
   // Enforce engine-specific sub-models for Drone mode if granular or physical is active
   useEffect(() => {
@@ -83,7 +92,27 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
     <div className="flex flex-col items-center justify-center py-6 text-[#f5f5f4]">
       {/* 1. Immersive Centerpiece Visualizer */}
       <div className="relative w-full max-w-xl aspect-square flex items-center justify-center rounded-full overflow-hidden bg-radial-gradient from-stone-900/40 to-transparent">
-        <Visualizer engineRef={engineRef} isPlaying={isPlaying} isCalm={true} />
+        <div
+          className="absolute inset-0 transition-[filter] duration-700"
+          style={{
+            filter: breathActive
+              ? `brightness(${BREATH.visualizerDim})`
+              : 'none',
+          }}
+        >
+          <Visualizer
+            engineRef={engineRef}
+            isPlaying={isPlaying}
+            isCalm={true}
+          />
+        </div>
+        <BreathOverlay
+          pattern={breathPattern}
+          active={breathActive}
+          getNow={() => engineRef.current?.getAudioTime?.() ?? 0}
+          haptics={breathPrefs.haptics}
+          reduceMotion={breathPrefs.reduceMotion}
+        />
 
         {/* Large Root Note Indicator in Center overlay */}
         <div className="absolute flex flex-col items-center justify-center pointer-events-none select-none text-center animate-pulse duration-[3000ms]">
@@ -254,6 +283,35 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
               <span>Warm / Muted</span>
               <span>Open / Bright</span>
             </div>
+          </div>
+
+          {/* Breath pacing (persists on this device) */}
+          <div className="border-t border-stone-850 pt-6">
+            <BreathPicker value={breathPattern} onChange={setBreathPattern} />
+            {breathPattern && (
+              <div className="mt-3 flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-wider text-[#a8a29e]">
+                  <input
+                    type="checkbox"
+                    checked={breathPrefs.reduceMotion}
+                    onChange={(e) =>
+                      breathPrefs.setReduceMotion(e.target.checked)
+                    }
+                  />
+                  Reduce motion
+                </label>
+                {breathPrefs.hapticsAvailable && (
+                  <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-wider text-[#a8a29e]">
+                    <input
+                      type="checkbox"
+                      checked={breathPrefs.haptics}
+                      onChange={(e) => breathPrefs.setHaptics(e.target.checked)}
+                    />
+                    Haptics
+                  </label>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

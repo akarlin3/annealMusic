@@ -480,7 +480,7 @@ class PieceListOut(BaseModel):
 class ListeningSessionCreate(BaseModel):
     piece_id: uuid.UUID | None = None
     patch_id: uuid.UUID | None = None
-    schema_ver: int = 19
+    schema_ver: int = 20
     title: str | None = Field(default=None, max_length=120)
     description: str | None = Field(default=None, max_length=2000)
     intention: str | None = Field(default=None, max_length=120)
@@ -489,6 +489,7 @@ class ListeningSessionCreate(BaseModel):
     settle_in_ms: int = Field(default=30000, ge=0)
     integration_ms: int = Field(default=60000, ge=0)
     bell_schedule: list[dict] = Field(default_factory=list)
+    breath_pattern: dict | None = None
     visibility: Visibility = "unlisted"
 
 
@@ -503,6 +504,7 @@ class ListeningSessionUpdate(BaseModel):
     settle_in_ms: int | None = Field(default=None, ge=0)
     integration_ms: int | None = Field(default=None, ge=0)
     bell_schedule: list[dict] | None = None
+    breath_pattern: dict | None = None
     visibility: Visibility | None = None
 
 
@@ -522,6 +524,7 @@ class ListeningSessionOut(BaseModel):
     settle_in_ms: int
     integration_ms: int
     bell_schedule: list[dict] = Field(default_factory=list)
+    breath_pattern: dict | None = None
     total_duration_ms: int | None
     visibility: str
     short_slug: str
@@ -587,6 +590,103 @@ class ListeningHistoryOut(BaseModel):
     is_standalone_timer: bool
     created_at: datetime
 
+
+# --- v4.5 Session History Schemas --------------------------------------------
+# Calm-by-design: these shapes deliberately contain NO engagement-signal fields
+# (no streak, no rank, no daily-goal progress, no consecutive-day count). The
+# omission is intentional and asserted in tests.
+
+
+class SessionPlayCreate(BaseModel):
+    """Logged on session start. The play is finalized later via PATCH."""
+
+    listening_session_id: uuid.UUID
+    started_at: datetime | None = None  # defaults to server now() when absent
+
+
+class SessionPlayUpdate(BaseModel):
+    """Finalize a play (on completion/end) and/or add or edit a reflection."""
+
+    completed_at: datetime | None = None
+    duration_listened_ms: int | None = Field(default=None, ge=0)
+    reflection: str | None = Field(default=None, max_length=500)
+
+
+class SessionPlayOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    listening_session_id: uuid.UUID
+    started_at: datetime
+    completed_at: datetime | None
+    duration_listened_ms: int
+    reflection: str | None
+    created_at: datetime
+
+    # Lightweight source-session info for rendering the list (title + thumbnail).
+    session_title: str | None = None
+    session_slug: str | None = None
+    session_length_category: str | None = None
+
+
+class SessionPlayListOut(BaseModel):
+    items: list[SessionPlayOut]
+    next_cursor: str | None = None
+
+
+class SessionStatsOut(BaseModel):
+    """Minimal, descriptive stats. Single computation site (compute_stats)."""
+
+    total_sessions: int
+    total_listened_ms: int
+    average_length_ms: int
+    this_month_sessions: int
+    this_month_listened_ms: int
+
+
+# --- v4.5 Curated Library Schemas --------------------------------------------
+
+
+class LibraryListingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    listening_session_id: uuid.UUID
+    intention: str | None
+    length_category: str | None
+    character_tags: list[str] = Field(default_factory=list)
+    editor_pick: bool
+    editor_pick_at: datetime | None
+    curator_note: str | None
+    added_at: datetime
+    archived_at: datetime | None = None
+
+    # Joined source-session presentation + derived preview state.
+    session_title: str | None = None
+    session_slug: str | None = None
+    total_duration_ms: int | None = None
+    preview_status: str = "none"  # 'none' | 'rendering' | 'ready' | 'failed'
+    preview_url: str | None = None
+
+
+class LibraryListOut(BaseModel):
+    items: list[LibraryListingOut]
+
+
+class AdminLibraryCreate(BaseModel):
+    listening_session_id: uuid.UUID
+    intention: str | None = Field(default=None, max_length=50)
+    length_category: str | None = Field(default=None, max_length=50)
+    character_tags: list[str] = Field(default_factory=list)
+    curator_note: str | None = Field(default=None, max_length=1000)
+
+
+class AdminLibraryUpdate(BaseModel):
+    intention: str | None = Field(default=None, max_length=50)
+    length_category: str | None = Field(default=None, max_length=50)
+    character_tags: list[str] | None = None
+    editor_pick: bool | None = None
+    curator_note: str | None = Field(default=None, max_length=1000)
 
 
 

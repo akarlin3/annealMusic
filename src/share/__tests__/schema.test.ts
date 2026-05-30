@@ -9,13 +9,13 @@ import {
 } from '@/share/schema';
 
 describe('schema', () => {
-  it('ships schema version 19', () => {
-    expect(SCHEMA_VERSION).toBe(19);
+  it('ships schema version 20', () => {
+    expect(SCHEMA_VERSION).toBe(20);
   });
 
-  it('still decodes legacy schema versions 1 through 18', () => {
+  it('still decodes legacy schema versions 1 through 19', () => {
     expect(SUPPORTED_SCHEMA_VERSIONS).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
     ]);
   });
 
