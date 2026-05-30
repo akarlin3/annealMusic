@@ -11,6 +11,7 @@ import type {
   EngineParams,
   SharedParams,
 } from '@/audio/engines/types';
+import { resolveLatticeRatio } from '@/audio/tuning/resolver';
 
 /** Sub-models, indexed so the value rides the numeric engine-param bag + URL. */
 export const PHYSICAL_MODELS = [
@@ -162,7 +163,12 @@ export interface PhysicalVoiceNode {
   /** The underlying node, routed into the engine's output gain. */
   readonly node: AudioNode;
   /** Smoothly set a k-rate param (no-op if the processor lacks it). */
-  setParam(name: PhysicalParam, value: number, targetTime?: number, instant?: boolean): void;
+  setParam(
+    name: PhysicalParam,
+    value: number,
+    targetTime?: number,
+    instant?: boolean,
+  ): void;
   /** Structural message to the processor (e.g. plate mode count). */
   post(message: unknown): void;
   /** Disconnect + tear down. */
@@ -179,6 +185,7 @@ export type SupportProbe = (ctx: AudioContext) => boolean;
 
 interface PhysicalPartial {
   readonly ratio: number;
+  readonly index: number;
   freq: number;
   detune: number;
   gain: number;
@@ -302,13 +309,27 @@ export class PhysicalEngine implements AnnealEngine {
     out.gain.value = 1;
     this.out = out;
 
-    this.partials = HARMONICS.slice(0, shared.density).map((ratio, i) => ({
-      ratio,
-      freq: shared.rootFreq * Math.pow(ratio, shared.spread),
-      detune: 0,
-      gain: partialShape(i).baselineOffset,
-      node: null,
-    }));
+    const tuning = shared.tuning ?? { system: 'equal' };
+    const customScale = shared.customScaleRatios;
+    const customEq = shared.customEqRatio;
+
+    this.partials = HARMONICS.slice(0, shared.density).map((ratio, i) => {
+      const latticeRatio = resolveLatticeRatio(
+        tuning,
+        i,
+        shared.rootFreq,
+        customScale,
+        customEq,
+      );
+      return {
+        ratio,
+        index: i,
+        freq: shared.rootFreq * Math.pow(latticeRatio, shared.spread),
+        detune: 0,
+        gain: partialShape(i).baselineOffset,
+        node: null,
+      };
+    });
 
     this.build();
   }
@@ -387,13 +408,36 @@ export class PhysicalEngine implements AnnealEngine {
     return this.out;
   }
 
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void {
+  setSharedParams(
+    partial: Partial<SharedParams>,
+    targetTime?: number,
+    instant?: boolean,
+  ): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
-    if (partial.rootFreq === undefined && partial.spread === undefined) return;
-    const { rootFreq, spread } = this.shared;
+    if (
+      partial.rootFreq === undefined &&
+      partial.spread === undefined &&
+      partial.tuning === undefined
+    )
+      return;
+    const {
+      rootFreq,
+      spread,
+      tuning: activeTuning,
+      customScaleRatios,
+      customEqRatio,
+    } = this.shared;
+    const tuning = activeTuning ?? { system: 'equal' };
     for (const p of this.partials) {
-      p.freq = rootFreq * Math.pow(p.ratio, spread);
+      const latticeRatio = resolveLatticeRatio(
+        tuning,
+        p.index,
+        rootFreq,
+        customScaleRatios,
+        customEqRatio,
+      );
+      p.freq = rootFreq * Math.pow(latticeRatio, spread);
       p.node?.setParam('f0', p.freq, targetTime, instant);
     }
   }

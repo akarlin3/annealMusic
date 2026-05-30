@@ -10,6 +10,7 @@ import type {
   EngineParams,
   SharedParams,
 } from '@/audio/engines/types';
+import { resolveLatticeRatio } from '@/audio/tuning/resolver';
 
 /** Longer crossfade than sine/FM to mask granular start-up jitter. */
 const GRANULAR_CROSSFADE_MS = 800;
@@ -100,6 +101,7 @@ const PARAM_DEFS: readonly EngineParamDef[] = [
 interface GranularPartial {
   readonly cloud: GrainCloud;
   readonly ratio: number;
+  readonly index: number;
   /** Undetuned partial frequency (Hz). */
   freq: number;
   /** Static cents offset mapping this partial's pitch to the source. */
@@ -176,14 +178,26 @@ export class GranularEngine implements AnnealEngine {
     out.gain.value = 1;
     this.out = out;
 
+    const tuning = shared.tuning ?? { system: 'equal' };
+    const customScale = shared.customScaleRatios;
+    const customEq = shared.customEqRatio;
+
     this.partials = HARMONICS.slice(0, shared.density).map((ratio, i) => {
       const cloud = new GrainCloud(ctx, this.random);
       cloud.getOutputNode().connect(out);
-      const freq = shared.rootFreq * Math.pow(ratio, shared.spread);
+      const latticeRatio = resolveLatticeRatio(
+        tuning,
+        i,
+        shared.rootFreq,
+        customScale,
+        customEq,
+      );
+      const freq = shared.rootFreq * Math.pow(latticeRatio, shared.spread);
       const { baselineOffset } = partialShape(i);
       return {
         cloud,
         ratio,
+        index: i,
         freq,
         pitchOffsetBase: this.pitchOffsetFor(freq, this.sourceVal),
         detune: 0,
@@ -301,13 +315,36 @@ export class GranularEngine implements AnnealEngine {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setSharedParams(partial: Partial<SharedParams>, _targetTime?: number, _instant?: boolean): void {
+  setSharedParams(
+    partial: Partial<SharedParams>,
+    _targetTime?: number,
+    _instant?: boolean,
+  ): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
-    if (partial.rootFreq === undefined && partial.spread === undefined) return;
-    const { rootFreq, spread } = this.shared;
+    if (
+      partial.rootFreq === undefined &&
+      partial.spread === undefined &&
+      partial.tuning === undefined
+    )
+      return;
+    const {
+      rootFreq,
+      spread,
+      tuning: activeTuning,
+      customScaleRatios,
+      customEqRatio,
+    } = this.shared;
+    const tuning = activeTuning ?? { system: 'equal' };
     for (const p of this.partials) {
-      p.freq = rootFreq * Math.pow(p.ratio, spread);
+      const latticeRatio = resolveLatticeRatio(
+        tuning,
+        p.index,
+        rootFreq,
+        customScaleRatios,
+        customEqRatio,
+      );
+      p.freq = rootFreq * Math.pow(latticeRatio, spread);
       p.pitchOffsetBase = this.pitchOffsetFor(p.freq, this.sourceVal);
       p.cloud.setPitchOffset(p.pitchOffsetBase + p.detune);
     }

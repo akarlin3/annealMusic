@@ -7,6 +7,7 @@ import type {
   EngineParams,
   SharedParams,
 } from '@/audio/engines/types';
+import { resolveLatticeRatio } from '@/audio/tuning/resolver';
 
 /** Time-constant for smoothed detune ramps applied by the drift loop. */
 const DETUNE_TC = 0.12;
@@ -75,6 +76,7 @@ interface FmVoice {
   readonly lfoGain: GainNode;
   readonly baseline: ConstantSourceNode;
   readonly ratio: number;
+  readonly index: number;
   /** Undetuned carrier fundamental (Hz); detune is applied separately. */
   carrierFreq: number;
   detune: number;
@@ -112,8 +114,20 @@ export class FmEngine implements AnnealEngine {
 
     const { modRatio, modIndex, feedback } = this.params;
 
+    const tuning = shared.tuning ?? { system: 'equal' };
+    const customScale = shared.customScaleRatios;
+    const customEq = shared.customEqRatio;
+
     this.voices = HARMONICS.slice(0, shared.density).map((ratio, i) => {
-      const carrierFreq = shared.rootFreq * Math.pow(ratio, shared.spread);
+      const latticeRatio = resolveLatticeRatio(
+        tuning,
+        i,
+        shared.rootFreq,
+        customScale,
+        customEq,
+      );
+      const carrierFreq =
+        shared.rootFreq * Math.pow(latticeRatio, shared.spread);
       const modFreq = carrierFreq * modRatio;
 
       const carrier = ctx.createOscillator();
@@ -171,6 +185,7 @@ export class FmEngine implements AnnealEngine {
         lfoGain,
         baseline,
         ratio,
+        index: i,
         carrierFreq,
         detune: 0,
       };
@@ -219,22 +234,44 @@ export class FmEngine implements AnnealEngine {
     return this.out;
   }
 
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void {
+  setSharedParams(
+    partial: Partial<SharedParams>,
+    targetTime?: number,
+    instant?: boolean,
+  ): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
     const ctx = this.ctx;
     if (!ctx) return;
 
-    if (partial.rootFreq !== undefined || partial.spread !== undefined) {
-      const { rootFreq, spread } = this.shared;
+    if (
+      partial.rootFreq !== undefined ||
+      partial.spread !== undefined ||
+      partial.tuning !== undefined
+    ) {
+      const {
+        rootFreq,
+        spread,
+        tuning: activeTuning,
+        customScaleRatios,
+        customEqRatio,
+      } = this.shared;
+      const tuning = activeTuning ?? { system: 'equal' };
       const t = ctx.currentTime;
       this.voices.forEach((v) => {
-        const targetFreq = rootFreq * Math.pow(v.ratio, spread);
+        const latticeRatio = resolveLatticeRatio(
+          tuning,
+          v.index,
+          rootFreq,
+          customScaleRatios,
+          customEqRatio,
+        );
+        const targetFreq = rootFreq * Math.pow(latticeRatio, spread);
         if (instant) {
           v.carrier.frequency.cancelScheduledValues(targetTime ?? t);
           v.carrier.frequency.setValueAtTime(targetFreq, targetTime ?? t);
           v.carrierFreq = targetFreq;
-          
+
           const { modRatio, modIndex, feedback } = this.params;
           const modFreq = targetFreq * modRatio;
           v.modulator.frequency.cancelScheduledValues(targetTime ?? t);
@@ -242,21 +279,38 @@ export class FmEngine implements AnnealEngine {
           v.modGain.gain.cancelScheduledValues(targetTime ?? t);
           v.modGain.gain.setValueAtTime(modIndex * targetFreq, targetTime ?? t);
           v.fbGain.gain.cancelScheduledValues(targetTime ?? t);
-          v.fbGain.gain.setValueAtTime(feedback * modFreq * FEEDBACK_SCALE, targetTime ?? t);
+          v.fbGain.gain.setValueAtTime(
+            feedback * modFreq * FEEDBACK_SCALE,
+            targetTime ?? t,
+          );
         } else if (targetTime !== undefined) {
           const currentFreq = v.carrier.frequency.value;
           v.carrier.frequency.setValueAtTime(currentFreq, targetTime - 0.005);
           v.carrier.frequency.setTargetAtTime(targetFreq, targetTime, FREQ_TC);
           v.carrierFreq = targetFreq;
-          
+
           const { modRatio, modIndex, feedback } = this.params;
           const modFreq = targetFreq * modRatio;
-          v.modulator.frequency.setValueAtTime(v.modulator.frequency.value, targetTime - 0.005);
+          v.modulator.frequency.setValueAtTime(
+            v.modulator.frequency.value,
+            targetTime - 0.005,
+          );
           v.modulator.frequency.setTargetAtTime(modFreq, targetTime, PARAM_TC);
-          v.modGain.gain.setValueAtTime(v.modGain.gain.value, targetTime - 0.005);
-          v.modGain.gain.setTargetAtTime(modIndex * targetFreq, targetTime, PARAM_TC);
+          v.modGain.gain.setValueAtTime(
+            v.modGain.gain.value,
+            targetTime - 0.005,
+          );
+          v.modGain.gain.setTargetAtTime(
+            modIndex * targetFreq,
+            targetTime,
+            PARAM_TC,
+          );
           v.fbGain.gain.setValueAtTime(v.fbGain.gain.value, targetTime - 0.005);
-          v.fbGain.gain.setTargetAtTime(feedback * modFreq * FEEDBACK_SCALE, targetTime, PARAM_TC);
+          v.fbGain.gain.setTargetAtTime(
+            feedback * modFreq * FEEDBACK_SCALE,
+            targetTime,
+            PARAM_TC,
+          );
         } else {
           v.carrierFreq = targetFreq;
           v.carrier.frequency.setTargetAtTime(targetFreq, t, FREQ_TC);

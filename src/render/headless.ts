@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Headless preview-render harness (v0.8, server-side rendering · Option B).
  *
@@ -22,7 +23,11 @@ import { PiecePlayer } from '@/piece/PiecePlayer';
 import { hashStringToInt } from '@/piece/resolver';
 import type { Piece } from '@/piece/types';
 import type { AnnealMusicParams } from '@/state/params';
-import type { EngineId, EngineParams } from '@/audio/engines/types';
+import type {
+  EngineId,
+  EngineParams,
+  SharedParams,
+} from '@/audio/engines/types';
 
 interface RenderOptions {
   durationSec: number;
@@ -72,8 +77,19 @@ async function render(
       );
     }
 
+    const pieceTuning = (piece.defaultsState as any).tuning;
+    const pieceCustomRatios = (piece.defaultsState as any).customScaleRatios;
+    const pieceCustomEq = (piece.defaultsState as any).customEqRatio;
+
+    const initialSharedParams: SharedParams = {
+      ...(piece.defaultsState.params as unknown as AnnealMusicParams),
+      tuning: pieceTuning,
+      customScaleRatios: pieceCustomRatios,
+      customEqRatio: pieceCustomEq,
+    };
+
     const orch = new Orchestrator(
-      piece.defaultsState.params as unknown as AnnealMusicParams,
+      initialSharedParams,
       piece.defaultsState.engineId,
       piece.defaultsState.engineParams as unknown as Partial<
         Record<EngineId, EngineParams>
@@ -131,8 +147,28 @@ async function render(
   applyDecodedToStore(decoded);
 
   const state = useParamStore.getState();
+
+  let customRatios: number[] | undefined;
+  let customEq: number | undefined;
+  if (state.tuning.system === 'custom' && state.tuning.sclId) {
+    const customScale = state.customScales.find(
+      (s) => s.id === state.tuning.sclId,
+    );
+    if (customScale) {
+      customRatios = customScale.parsed_scale;
+      customEq = customScale.parsed_scale[customScale.parsed_scale.length - 1];
+    }
+  }
+
+  const initialSharedParams: SharedParams = {
+    ...state.params,
+    tuning: state.tuning,
+    customScaleRatios: customRatios,
+    customEqRatio: customEq,
+  };
+
   const orch = new Orchestrator(
-    state.params,
+    initialSharedParams,
     state.engineId,
     state.engineParams,
     undefined,

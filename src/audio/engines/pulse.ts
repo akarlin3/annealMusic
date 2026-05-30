@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   AnnealEngine,
   AnnealEngineCapabilities,
@@ -13,6 +14,7 @@ import {
   type WorkletNodeFactory,
   type PhysicalVoiceNode,
 } from '@/audio/engines/physical';
+import { resolveLatticeRatio } from '@/audio/tuning/resolver';
 
 export const SUBDIVISIONS = [
   'Whole',
@@ -49,7 +51,8 @@ const PARAM_DEFS: readonly EngineParamDef[] = [
     max: 5,
     step: 1,
     default: DEFAULTS.density,
-    fmt: (v) => SUBDIVISIONS[Math.max(0, Math.min(5, Math.round(v)))] ?? 'Quarter',
+    fmt: (v) =>
+      SUBDIVISIONS[Math.max(0, Math.min(5, Math.round(v)))] ?? 'Quarter',
   },
   {
     key: 'accent',
@@ -162,7 +165,8 @@ export class PulseEngine implements AnnealEngine {
     this.stopped = false;
 
     // Use current orchestrator piece tempo if available
-    const tempoVal = (ctx as any)._tempoBpm !== undefined ? (ctx as any)._tempoBpm : null;
+    const tempoVal =
+      (ctx as any)._tempoBpm !== undefined ? (ctx as any)._tempoBpm : null;
     this.tempoBpm = tempoVal;
 
     const out = ctx.createGain();
@@ -245,7 +249,11 @@ export class PulseEngine implements AnnealEngine {
     return this.out;
   }
 
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void {
+  setSharedParams(
+    partial: Partial<SharedParams>,
+    targetTime?: number,
+    instant?: boolean,
+  ): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
     if (!this.voice) return;
@@ -254,10 +262,20 @@ export class PulseEngine implements AnnealEngine {
       (this.voice as any).setParam('f0', partial.rootFreq, targetTime, instant);
     }
     if (partial.spread !== undefined) {
-      (this.voice as any).setParam('spread', partial.spread, targetTime, instant);
+      (this.voice as any).setParam(
+        'spread',
+        partial.spread,
+        targetTime,
+        instant,
+      );
     }
     if (partial.density !== undefined) {
-      (this.voice as any).setParam('densityVal', partial.density, targetTime, instant);
+      (this.voice as any).setParam(
+        'densityVal',
+        partial.density,
+        targetTime,
+        instant,
+      );
     }
   }
 
@@ -299,10 +317,20 @@ export class PulseEngine implements AnnealEngine {
   getPartialFrequencies(): number[] {
     if (!this.shared) return [];
     const { rootFreq, spread, density } = this.shared;
-    const HARMONICS = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5];
-    return HARMONICS.slice(0, density).map((ratio) =>
-      rootFreq * Math.pow(ratio, spread)
-    );
+    const tuning = this.shared.tuning ?? { system: 'equal' };
+    const customScale = this.shared.customScaleRatios;
+    const customEq = this.shared.customEqRatio;
+
+    return Array.from({ length: density }, (_, i) => {
+      const latticeRatio = resolveLatticeRatio(
+        tuning,
+        i,
+        rootFreq,
+        customScale,
+        customEq,
+      );
+      return rootFreq * Math.pow(latticeRatio, spread);
+    });
   }
 
   /** Setter to update piece tempo dynamically on the engine */

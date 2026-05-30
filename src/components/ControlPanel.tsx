@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import {
   CONTROL_DEFS,
@@ -7,6 +8,7 @@ import {
   type ParamKey,
   getClosestNote,
   pianoNoteToFreq,
+  useParamStore,
 } from '@/state/params';
 import {
   ENGINE_LABELS,
@@ -18,7 +20,8 @@ import SourcePicker from '@/components/SourcePicker';
 import { PHYSICAL_MODELS } from '@/audio/engines/physical';
 import InfoTip from '@/components/InfoTip';
 import ControlCaption from '@/components/ControlCaption';
-import { Wand2 } from 'lucide-react';
+import { Wand2, Trash2 } from 'lucide-react';
+import { parseScl } from '@/audio/tuning/sclParser';
 import { api } from '@/api/client';
 import ModifyPatchDialog from '@/components/ModifyPatchDialog';
 
@@ -297,6 +300,145 @@ export default function ControlPanel({
   const structuralLock = isPlaying && caps.densityLockedWhilePlaying;
   const engineDefs = engineParamDefs(engineId);
 
+  // --- Tuning & Custom Scales (v4.1) ---------------------------------------
+  const { tuning, customScales, setTuning, setCustomScales } = useParamStore();
+  const [dragActive, setDragActive] = useState(false);
+
+  useEffect(() => {
+    if (api.isBackendConfigured()) {
+      api
+        .listCustomTunings()
+        .then((res) => {
+          setCustomScales(res.items);
+        })
+        .catch((err) => {
+          console.error('Failed to fetch custom tunings:', err);
+        });
+    }
+  }, [setCustomScales]);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = () => {
+    setDragActive(false);
+  };
+
+  const handleImportSclText = async (filename: string, text: string) => {
+    try {
+      const parsed = parseScl(text);
+      const baseName = filename.replace(/\.scl$/i, '');
+      const name = parsed.description
+        ? parsed.description.substring(0, 80)
+        : baseName;
+
+      if (!api.isBackendConfigured()) {
+        const localId = `local-${Math.random().toString(36).substr(2, 9)}`;
+        const localTuning = {
+          id: localId,
+          user_id: 'local-user',
+          name,
+          scl_text: text,
+          parsed_scale: parsed.scaleRatios,
+          reference_a4_hz: 440.0,
+          created_at: new Date().toISOString(),
+        };
+        setCustomScales([...customScales, localTuning]);
+        setTuning({ system: 'custom', sclId: localId, referenceA4Hz: 440 });
+        showToast('Scale imported locally (Offline mode)');
+        return;
+      }
+
+      const res = await api.createCustomTuning({
+        name,
+        scl_text: text,
+        parsed_scale: parsed.scaleRatios,
+        reference_a4_hz: 440.0,
+      });
+
+      setCustomScales([res, ...customScales]);
+      setTuning({ system: 'custom', sclId: res.id, referenceA4Hz: 440 });
+      showToast('Scala scale imported and saved successfully!');
+    } catch (err) {
+      console.error(err);
+      showToast(
+        err instanceof Error ? err.message : 'Invalid Scala file format.',
+      );
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      void handleImportSclText(file.name, text);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      void handleImportSclText(file.name, text);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleDeleteCustomScale = async (id: string) => {
+    try {
+      if (api.isBackendConfigured()) {
+        await api.deleteCustomTuning(id);
+      }
+      setCustomScales(customScales.filter((s) => s.id !== id));
+      if (tuning.system === 'custom' && tuning.sclId === id) {
+        setTuning({ system: 'equal', referenceA4Hz: tuning.referenceA4Hz });
+      }
+      showToast('Scale deleted successfully.');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to delete custom scale.');
+    }
+  };
+
+  const handleSystemChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    if (val.startsWith('custom:')) {
+      const sclId = val.slice(7);
+      setTuning({
+        system: 'custom',
+        sclId,
+        referenceA4Hz: tuning.referenceA4Hz,
+      });
+    } else {
+      setTuning({ system: val as any, referenceA4Hz: tuning.referenceA4Hz });
+    }
+  };
+
+  const handleRefA4Change = (val: number) => {
+    setTuning({ ...tuning, referenceA4Hz: val });
+  };
+
+  let disclaimerText = '';
+  if (tuning.system === 'solfeggio') {
+    disclaimerText =
+      'These nine frequencies are a modern reconstruction often associated with healing claims. AnnealMusic supports them because they produce a distinct non-octave-equivalent texture. The peer-reviewed evidence for specific clinical effects of these frequencies is absent.';
+  } else if (tuning.referenceA4Hz === 432) {
+    disclaimerText =
+      'The claim that 432 Hz possesses unique natural healing or acoustic properties is unsupported by scientific literature. AnnealMusic includes this option because the slight downward pitch shift produces a subtly warmer and different timbre.';
+  } else if (tuning.system !== 'equal' && tuning.system !== 'custom') {
+    disclaimerText =
+      'Historical Western temperaments give different keys unique "colors" due to unevenly distributed intervals. They produce beautiful acoustic textures but do not offer targeted physiological or medical benefits.';
+  }
+
   return (
     <>
       <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-6 md:grid-cols-3">
@@ -467,6 +609,172 @@ export default function ControlPanel({
           onChange={(e) => setParam('volume', parseFloat(e.target.value))}
         />
         {showCaptions && <ControlCaption id="volume" />}
+      </div>
+
+      {/* Tuning Settings Panel (v4.1) */}
+      <div className="mt-10 max-w-xl rounded-xl border border-[#2e2b28] bg-[#141210]/90 p-5">
+        <div className="mb-4 flex items-baseline justify-between border-b border-[#292524] pb-2">
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#78716c]">
+            Tuning & Scales
+          </span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-[#57534e]">
+            v4.1 Tuning Engine
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* Left Column: Selector & Reference A4 */}
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-[11px] font-mono uppercase tracking-[0.16em] text-[#a8a29e]">
+                Tuning System
+              </label>
+              <select
+                value={
+                  tuning.system === 'custom'
+                    ? `custom:${tuning.sclId}`
+                    : tuning.system
+                }
+                onChange={handleSystemChange}
+                disabled={arcLocked}
+                className="w-full rounded border border-[#2e2b28] bg-[#0d0c0b] px-3 py-2 text-xs font-mono text-[#e7e5e4] transition-all focus:border-[#fbbf24] focus:outline-none"
+              >
+                <option value="equal">Equal Temperament</option>
+                <option value="just-5">Just Intonation (5-limit)</option>
+                <option value="just-7">Just Intonation (7-limit)</option>
+                <option value="pythagorean">Pythagorean</option>
+                <option value="solfeggio">Solfeggio Frequencies</option>
+                <option value="werckmeister3">Werckmeister III</option>
+                <option value="kirnberger3">Kirnberger III</option>
+                <option value="meantone-quarter">Quarter-Comma Meantone</option>
+                <option value="valotti">Vallotti</option>
+                <option value="young">Young</option>
+
+                {customScales.length > 0 && (
+                  <optgroup label="Custom Scala Scales">
+                    {customScales.map((s) => (
+                      <option key={s.id} value={`custom:${s.id}`}>
+                        {s.name} ({s.parsed_scale.length - 1}-tone)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
+
+            <div>
+              <div className="mb-1.5 flex items-baseline justify-between">
+                <label
+                  className="text-[11px] font-mono uppercase tracking-[0.16em]"
+                  style={{
+                    color:
+                      tuning.system === 'solfeggio' || arcLocked
+                        ? '#57534e'
+                        : '#a8a29e',
+                  }}
+                >
+                  Reference A4
+                </label>
+                <span
+                  className="font-mono text-xs text-[#fbbf24] tabular-nums"
+                  style={{
+                    color:
+                      tuning.system === 'solfeggio' || arcLocked
+                        ? '#57534e'
+                        : '#fbbf24',
+                  }}
+                >
+                  {tuning.system === 'solfeggio'
+                    ? 'N/A (snapped)'
+                    : `${tuning.referenceA4Hz ?? 440} Hz`}
+                </span>
+              </div>
+              <input
+                type="range"
+                className="am-range"
+                min="400"
+                max="480"
+                step="0.1"
+                value={tuning.referenceA4Hz ?? 440}
+                disabled={tuning.system === 'solfeggio' || arcLocked}
+                onChange={(e) => handleRefA4Change(parseFloat(e.target.value))}
+              />
+            </div>
+          </div>
+
+          {/* Right Column: Scala File Drag & Drop */}
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-[11px] font-mono uppercase tracking-[0.16em] text-[#a8a29e]">
+                Import Scala (.scl)
+              </label>
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-4 text-center transition-all ${
+                  dragActive
+                    ? 'border-[#fbbf24] bg-[#fbbf24]/5'
+                    : 'border-[#2e2b28] bg-[#0d0c0b]/40 hover:border-[#44403c]'
+                }`}
+              >
+                <input
+                  type="file"
+                  accept=".scl"
+                  onChange={handleFileInput}
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                  disabled={arcLocked}
+                />
+                <span className="text-[10px] font-mono text-[#78716c]">
+                  Drag & Drop .scl File
+                </span>
+                <span className="mt-1 text-[9px] text-[#57534e]">
+                  or click to browse
+                </span>
+              </div>
+            </div>
+
+            {customScales.length > 0 && (
+              <div>
+                <span className="mb-1 block text-[10px] font-mono uppercase tracking-wider text-[#57534e]">
+                  Your Imported Scales
+                </span>
+                <div className="max-h-[80px] overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                  {customScales.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center justify-between rounded bg-[#1a1715]/60 px-2 py-1 border border-[#2e2b28]"
+                    >
+                      <span
+                        className="truncate text-[10px] font-mono text-[#d6d3d1]"
+                        title={s.name}
+                      >
+                        {s.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCustomScale(s.id)}
+                        disabled={arcLocked}
+                        className="text-[#78716c] hover:text-[#ef4444] transition-colors"
+                        title="Delete scale"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {disclaimerText && (
+          <div className="mt-4 rounded-lg bg-[#18120c] p-3.5 border border-[#45270f]/40">
+            <div className="text-[10px] font-mono text-[#e0a96d]/90 leading-relaxed font-medium">
+              {disclaimerText}
+            </div>
+          </div>
+        )}
       </div>
       {backendOn && (
         <ModifyPatchDialog

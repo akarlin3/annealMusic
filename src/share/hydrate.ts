@@ -30,6 +30,9 @@ export function applyDecodedToStore(decoded: DecodedState): void {
   if (decoded.durationSec !== undefined) {
     store.setArcDurationSec(decoded.durationSec);
   }
+  if (decoded.tuning) {
+    store.setTuning(decoded.tuning);
+  }
   for (const id of SLOT_IDS) {
     store.setLoopConfig(id, decoded.loops[id]);
   }

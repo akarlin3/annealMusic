@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { TuningRef, CustomTuning } from '@/audio/tuning/types';
 import {
   clampEngineParam,
   makeDefaultEngineParams,
@@ -209,6 +210,10 @@ export function clampParam(key: ParamKey, value: number): number {
 export const DEFAULT_ENGINE_ID: EngineId = 'sine';
 export const DEFAULT_SESSION_MODE: SessionMode = 'open';
 export const DEFAULT_ARC_ID = 'bell';
+export const DEFAULT_TUNING: TuningRef = {
+  system: 'equal',
+  referenceA4Hz: 440,
+};
 
 export interface ParamStore {
   params: AnnealMusicParams;
@@ -224,6 +229,10 @@ export interface ParamStore {
   arcDurationSec: number;
   /** Per-slot loop config (URL-encodable; buffers are runtime-only). */
   loops: LoopConfigMap;
+  /** Selected tuning ref */
+  tuning: TuningRef;
+  /** List of user imported scales */
+  customScales: CustomTuning[];
   setParam: (key: ParamKey, value: number) => void;
   setMany: (partial: Partial<AnnealMusicParams>) => void;
   setEngine: (id: EngineId) => void;
@@ -232,6 +241,8 @@ export interface ParamStore {
   setArcId: (id: string) => void;
   setArcDurationSec: (sec: number) => void;
   setLoopConfig: (id: SlotId, config: SlotConfig) => void;
+  setTuning: (ref: TuningRef) => void;
+  setCustomScales: (scales: CustomTuning[]) => void;
   reset: () => void;
 }
 
@@ -243,6 +254,8 @@ export const useParamStore = create<ParamStore>((set) => ({
   arcId: DEFAULT_ARC_ID,
   arcDurationSec: ARC_DURATION.default,
   loops: makeDefaultLoopConfig(),
+  tuning: DEFAULT_TUNING,
+  customScales: [],
   setParam: (key, value) =>
     set((state) => ({
       params: { ...state.params, [key]: clampParam(key, value) },
@@ -272,6 +285,8 @@ export const useParamStore = create<ParamStore>((set) => ({
   setArcDurationSec: (sec) => set({ arcDurationSec: clampArcDuration(sec) }),
   setLoopConfig: (id, config) =>
     set((state) => ({ loops: { ...state.loops, [id]: config } })),
+  setTuning: (ref) => set({ tuning: ref }),
+  setCustomScales: (scales) => set({ customScales: scales }),
   reset: () =>
     set({
       params: DEFAULT_PARAMS,
@@ -281,5 +296,7 @@ export const useParamStore = create<ParamStore>((set) => ({
       arcId: DEFAULT_ARC_ID,
       arcDurationSec: ARC_DURATION.default,
       loops: makeDefaultLoopConfig(),
+      tuning: DEFAULT_TUNING,
+      customScales: [],
     }),
 }));

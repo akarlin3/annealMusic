@@ -33,6 +33,7 @@ import type {
   AutomationPoint,
   InterpolationMode,
 } from '@/piece/types';
+import type { TuningRef, TuningSystemId } from '@/audio/tuning/types';
 
 const SHARED_KEY_SET: ReadonlySet<string> = new Set(SHARED_KEYS);
 
@@ -138,6 +139,7 @@ export function encodeState(
   engineParams: EngineParams,
   session: SessionConfig = DEFAULT_SESSION,
   loops?: LoopConfigMap,
+  tuning?: TuningRef,
 ): string {
   const parts = [`m=${session.mode}`];
   if (session.mode === 'arc') {
@@ -149,6 +151,13 @@ export function encodeState(
   if (loops) {
     const loopStr = encodeLoops(loops);
     if (loopStr) parts.push(loopStr);
+  }
+  if (tuning) {
+    parts.push(`t.system=${tuning.system}`);
+    if (tuning.sclId) parts.push(`t.scl_id=${tuning.sclId}`);
+    if (tuning.referenceA4Hz !== undefined) {
+      parts.push(`t.ref_a4=${tuning.referenceA4Hz}`);
+    }
   }
   return parts.join('&');
 }
@@ -171,6 +180,7 @@ export interface DecodedPiece {
     engineId: EngineId;
     engineParams: Partial<Record<EngineId, EngineParams>>;
     loops: LoopConfigMap;
+    tuning?: TuningRef;
   };
   segments: DecodedPieceSegment[];
   notation?: NotationNote[];
@@ -201,6 +211,7 @@ export type DecodedState =
       arcId?: string;
       durationSec?: number;
       loops: LoopConfigMap;
+      tuning?: TuningRef;
       warnings: string[];
     }
   | {
@@ -279,6 +290,7 @@ function decodePatchState(
   arcId?: string;
   durationSec?: number;
   loops: LoopConfigMap;
+  tuning?: TuningRef;
   warnings: string[];
 } {
   const params: Partial<AnnealMusicParams> = {};
@@ -289,6 +301,7 @@ function decodePatchState(
   let mode: SessionMode = 'open';
   let arcId: string | undefined;
   let durationSec: number | undefined;
+  let tuning: TuningRef | undefined;
 
   for (const pair of payload.split('&')) {
     if (pair === '') continue;
@@ -301,6 +314,22 @@ function decodePatchState(
 
     const key = pair.slice(0, eq);
     const raw = pair.slice(eq + 1);
+
+    if (key === 't.system') {
+      if (!tuning) tuning = { system: 'equal', referenceA4Hz: 440 };
+      tuning.system = raw as TuningSystemId;
+      continue;
+    }
+    if (key === 't.scl_id') {
+      if (!tuning) tuning = { system: 'equal', referenceA4Hz: 440 };
+      tuning.sclId = raw;
+      continue;
+    }
+    if (key === 't.ref_a4') {
+      if (!tuning) tuning = { system: 'equal', referenceA4Hz: 440 };
+      tuning.referenceA4Hz = parseFloat(raw) || 440;
+      continue;
+    }
 
     // Session mode.
     if (key === 'm') {
@@ -447,6 +476,10 @@ function decodePatchState(
     durationSec = undefined;
   }
 
+  if (version <= 16 && !tuning) {
+    tuning = { system: 'equal', referenceA4Hz: 440 };
+  }
+
   return {
     params,
     engineId,
@@ -455,6 +488,7 @@ function decodePatchState(
     arcId,
     durationSec,
     loops,
+    tuning,
     warnings,
   };
 }
@@ -504,7 +538,10 @@ function decodeVariationPoint(str: string): VariationPoint | null {
 }
 
 /** Decode a v8 piece payload from URL */
-export function decodePiecePayload(payload: string): DecodedPiece {
+export function decodePiecePayload(
+  payload: string,
+  version: number = 17,
+): DecodedPiece {
   let title: string | undefined;
   let description: string | undefined;
   let tempoBpm: number | null = null;
@@ -648,6 +685,19 @@ export function decodePiecePayload(payload: string): DecodedPiece {
             } catch (e) {
               console.warn('Failed to parse meta-arc config JSON', e);
             }
+          } else if (segKey.startsWith('t.')) {
+            if (!segMap[idx].config.tuning) {
+              segMap[idx].config.tuning = {};
+            }
+            const tKey = segKey.slice(2);
+            const tuningObj = segMap[idx].config.tuning as any;
+            if (tKey === 'system') {
+              tuningObj.system = raw;
+            } else if (tKey === 'scl_id') {
+              tuningObj.sclId = raw;
+            } else if (tKey === 'ref_a4') {
+              tuningObj.referenceA4Hz = parseFloat(raw);
+            }
           } else {
             const num = Number(raw);
             let parsedVal: unknown = isNaN(num) ? decodeURIComponent(raw) : num;
@@ -661,7 +711,7 @@ export function decodePiecePayload(payload: string): DecodedPiece {
   }
 
   const defPayload = defPairs.join('&');
-  const decodedDef = decodePatchState(7, defPayload);
+  const decodedDef = decodePatchState(version, defPayload);
 
   const sortedIndices = Object.keys(segMap)
     .map(Number)
@@ -720,6 +770,7 @@ export function decodePiecePayload(payload: string): DecodedPiece {
       engineId: decodedDef.engineId,
       engineParams: decodedDef.engineParams,
       loops: decodedDef.loops,
+      tuning: decodedDef.tuning,
     },
     segments,
     notation,
@@ -876,11 +927,12 @@ export function encodePiece(piece: {
   }
 
   const defStateStr = encodeState(
-    piece.defaultsState.params,
+    piece.defaultsState.params as AnnealMusicParams,
     piece.defaultsState.engineId,
-    piece.defaultsState.engineParams,
+    piece.defaultsState.engineParams as EngineParams,
     undefined,
     piece.defaultsState.loops,
+    (piece.defaultsState as any).tuning,
   );
   for (const pair of defStateStr.split('&')) {
     if (pair !== '') {
@@ -903,9 +955,19 @@ export function encodePiece(piece: {
       );
     } else {
       for (const [k, v] of Object.entries(seg.config)) {
-        parts.push(
-          `seg${idx}.${k}=${typeof v === 'string' ? encodeURIComponent(v) : v}`,
-        );
+        if (k === 'tuning' && v && typeof v === 'object') {
+          const segTuning = v as any;
+          parts.push(`seg${idx}.t.system=${segTuning.system}`);
+          if (segTuning.sclId)
+            parts.push(`seg${idx}.t.scl_id=${segTuning.sclId}`);
+          if (segTuning.referenceA4Hz !== undefined) {
+            parts.push(`seg${idx}.t.ref_a4=${segTuning.referenceA4Hz}`);
+          }
+        } else {
+          parts.push(
+            `seg${idx}.${k}=${typeof v === 'string' ? encodeURIComponent(v) : v}`,
+          );
+        }
       }
     }
   });
@@ -943,7 +1005,7 @@ export function decodeState(version: number, payload: string): DecodedState {
   if (kind === 'piece') {
     return {
       kind: 'piece',
-      piece: decodePiecePayload(payload),
+      piece: decodePiecePayload(payload, version),
       warnings: [],
     };
   } else if (kind === 'listening-session') {

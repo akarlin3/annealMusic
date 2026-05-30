@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { driftStep } from '@/audio/drift';
 import { makeIR } from '@/audio/ir';
 import { midiOutput } from '@/midi/outputController';
@@ -606,18 +607,34 @@ export class Orchestrator {
     if (partial.volume !== undefined) {
       nodes.masterVol.gain.setTargetAtTime(p.volume, t, 0.2);
     }
-    if (partial.rootFreq !== undefined || partial.spread !== undefined) {
+    if (
+      partial.rootFreq !== undefined ||
+      partial.spread !== undefined ||
+      partial.tuning !== undefined ||
+      partial.customScaleRatios !== undefined ||
+      partial.customEqRatio !== undefined
+    ) {
       // Forward to both engines so a mid-crossfade engine doesn't jump in pitch.
-      const voiceUpdate = { rootFreq: p.rootFreq, spread: p.spread };
-      
-      const gridLocked = this.tempoBpm !== null && this.tempoBpm > 0 && 
-        (this.engineParams[this.engineId]?.grid_lock === 1 || 
-         String(this.engineParams[this.engineId]?.grid_lock) === 'true');
-         
+      const voiceUpdate = {
+        rootFreq: p.rootFreq,
+        spread: p.spread,
+        tuning: p.tuning,
+        customScaleRatios: p.customScaleRatios,
+        customEqRatio: p.customEqRatio,
+      };
+
+      const gridLocked =
+        this.tempoBpm !== null &&
+        this.tempoBpm > 0 &&
+        (this.engineParams[this.engineId]?.grid_lock === 1 ||
+          String(this.engineParams[this.engineId]?.grid_lock) === 'true');
+
       if (gridLocked && !instant) {
         const elapsed = ctx.currentTime - this.playStartAudioTime;
         const beatDuration = 60 / this.tempoBpm!;
-        let targetTime = this.playStartAudioTime + Math.ceil(elapsed / beatDuration) * beatDuration;
+        let targetTime =
+          this.playStartAudioTime +
+          Math.ceil(elapsed / beatDuration) * beatDuration;
         if (targetTime <= ctx.currentTime) {
           targetTime += beatDuration;
         }

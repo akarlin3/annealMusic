@@ -9,6 +9,7 @@ export interface PartialVoice {
   readonly lfoGain: GainNode;
   readonly baseline: ConstantSourceNode;
   readonly ratio: number;
+  readonly index: number;
   /** Current detune in cents, evolved by the drift loop. */
   detune: number;
 }

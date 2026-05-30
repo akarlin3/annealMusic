@@ -54,6 +54,11 @@ export function resolveMidiNote(
 ): number {
   const refA4 = tuning.referenceA4Hz ?? 440;
 
+  // Equal Temperament direct exact formula
+  if (tuning.system === 'equal') {
+    return refA4 * Math.pow(2, (midiNote - 69) / 12);
+  }
+
   // Solfeggio special sparse-set snapping
   if (tuning.system === 'solfeggio') {
     const etFreq = refA4 * Math.pow(2, (midiNote - 69) / 12);
@@ -84,7 +89,10 @@ export function resolveMidiNote(
   }
 
   // Built-in Tuning System
-  const system = BUILTIN_TUNINGS[tuning.system] || BUILTIN_TUNINGS.equal;
+  const system =
+    tuning.system !== 'custom'
+      ? BUILTIN_TUNINGS[tuning.system]
+      : BUILTIN_TUNINGS.equal;
   const scale = system.scaleRatios;
 
   // A4 (MIDI 69) is semitone step 9 relative to C4 (MIDI 60)
@@ -145,6 +153,9 @@ export function resolveLatticeRatio(
   }
 
   // Built-in systems
-  const system = BUILTIN_TUNINGS[tuning.system] || BUILTIN_TUNINGS.equal;
+  const system =
+    tuning.system !== 'custom'
+      ? BUILTIN_TUNINGS[tuning.system]
+      : BUILTIN_TUNINGS.equal;
   return system.getLatticeRatio(partialIndex);
 }

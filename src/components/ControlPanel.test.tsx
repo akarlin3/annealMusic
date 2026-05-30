@@ -20,9 +20,9 @@ describe('ControlPanel — arc lock', () => {
 
     const sliders = screen.getAllByRole('slider') as HTMLInputElement[];
     const disabled = sliders.filter((s) => s.disabled);
-    // All sculpt controls locked; volume stays interactive.
-    expect(disabled).toHaveLength(CONTROL_DEFS.length);
-    expect(sliders).toHaveLength(CONTROL_DEFS.length + 1);
+    // All sculpt controls plus A4 slider locked; volume stays interactive.
+    expect(disabled).toHaveLength(CONTROL_DEFS.length + 1);
+    expect(sliders).toHaveLength(CONTROL_DEFS.length + 2);
     expect(screen.getAllByText('arc')).toHaveLength(CONTROL_DEFS.length);
   });
 

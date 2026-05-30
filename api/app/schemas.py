@@ -533,5 +533,31 @@ class ListeningSessionListOut(BaseModel):
     next_cursor: str | None = None
 
 
+# --- v4.1 Custom Tunings Schemas ---------------------------------------------
+
+class CustomTuningCreate(BaseModel):
+    name: str = Field(..., max_length=120)
+    scl_text: str
+    parsed_scale: list[float]
+    reference_a4_hz: float = Field(default=440.0, ge=20.0, le=4200.0)
+
+
+class CustomTuningOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    scl_text: str
+    parsed_scale: list[float]
+    reference_a4_hz: float
+    created_at: datetime
+
+
+class CustomTuningListOut(BaseModel):
+    items: list[CustomTuningOut]
+
+
+
 
 

@@ -29,3 +29,13 @@ export interface TuningSystem {
     customEqRatio?: number,
   ) => number;
 }
+
+export interface CustomTuning {
+  id: string;
+  user_id: string;
+  name: string;
+  scl_text: string;
+  parsed_scale: number[];
+  reference_a4_hz: number;
+  created_at: string;
+}

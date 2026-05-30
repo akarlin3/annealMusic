@@ -5,6 +5,7 @@ import type {
   AnnealEngineCapabilities,
   SharedParams,
 } from '@/audio/engines/types';
+import { resolveLatticeRatio } from '@/audio/tuning/resolver';
 
 /** Time-constant for smoothed detune ramps applied by the drift loop. */
 const DETUNE_TC = 0.12;
@@ -37,10 +38,22 @@ export class SineEngine implements AnnealEngine {
     const out = ctx.createGain();
     out.gain.value = 1;
 
+    const tuning = shared.tuning ?? { system: 'equal' };
+    const customScale = shared.customScaleRatios;
+    const customEq = shared.customEqRatio;
+
     this.partials = HARMONICS.slice(0, shared.density).map((ratio, i) => {
       const osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.value = shared.rootFreq * Math.pow(ratio, shared.spread);
+      const latticeRatio = resolveLatticeRatio(
+        tuning,
+        i,
+        shared.rootFreq,
+        customScale,
+        customEq,
+      );
+      osc.frequency.value =
+        shared.rootFreq * Math.pow(latticeRatio, shared.spread);
 
       const g = ctx.createGain();
       g.gain.value = 0;
@@ -64,7 +77,7 @@ export class SineEngine implements AnnealEngine {
       lfo.start();
       baseline.start();
 
-      return { osc, g, lfo, lfoGain, baseline, ratio, detune: 0 };
+      return { osc, g, lfo, lfoGain, baseline, ratio, index: i, detune: 0 };
     });
 
     this.out = out;
@@ -110,17 +123,39 @@ export class SineEngine implements AnnealEngine {
     return this.out;
   }
 
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void {
+  setSharedParams(
+    partial: Partial<SharedParams>,
+    targetTime?: number,
+    instant?: boolean,
+  ): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
     const ctx = this.ctx;
     if (!ctx) return;
 
-    if (partial.rootFreq !== undefined || partial.spread !== undefined) {
-      const { rootFreq, spread } = this.shared;
+    if (
+      partial.rootFreq !== undefined ||
+      partial.spread !== undefined ||
+      partial.tuning !== undefined
+    ) {
+      const {
+        rootFreq,
+        spread,
+        tuning: activeTuning,
+        customScaleRatios,
+        customEqRatio,
+      } = this.shared;
+      const tuning = activeTuning ?? { system: 'equal' };
       const t = ctx.currentTime;
       this.partials.forEach((part) => {
-        const targetFreq = rootFreq * Math.pow(part.ratio, spread);
+        const latticeRatio = resolveLatticeRatio(
+          tuning,
+          part.index,
+          rootFreq,
+          customScaleRatios,
+          customEqRatio,
+        );
+        const targetFreq = rootFreq * Math.pow(latticeRatio, spread);
         if (instant) {
           part.osc.frequency.cancelScheduledValues(targetTime ?? t);
           part.osc.frequency.setValueAtTime(targetFreq, targetTime ?? t);

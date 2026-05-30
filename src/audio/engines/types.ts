@@ -1,4 +1,5 @@
 import type { AnnealMusicParams } from '@/state/params';
+import type { TuningRef } from '@/audio/tuning/types';
 
 /** Identifier for a selectable synthesis engine. */
 export type EngineId = 'sine' | 'fm' | 'granular' | 'physical' | 'pulse';
@@ -7,7 +8,11 @@ export type EngineId = 'sine' | 'fm' | 'granular' | 'physical' | 'pulse';
  * Shared physics + post-fx params, owned by the orchestration layer and passed
  * down to every engine. Identical to the app-wide param set.
  */
-export type SharedParams = AnnealMusicParams;
+export type SharedParams = AnnealMusicParams & {
+  tuning?: TuningRef;
+  customScaleRatios?: number[];
+  customEqRatio?: number;
+};
 
 /** Engine-specific params: a flat scalar bag, keyed by the engine's param defs. */
 export type EngineParams = Record<string, number | string>;
@@ -59,7 +64,11 @@ export interface AnnealEngine {
   getOutputNode(): AudioNode;
 
   /** Smoothly update shared params relevant to voice frequencies (root, spread). */
-  setSharedParams(partial: Partial<SharedParams>, targetTime?: number, instant?: boolean): void;
+  setSharedParams(
+    partial: Partial<SharedParams>,
+    targetTime?: number,
+    instant?: boolean,
+  ): void;
 
   /** Update engine-specific params (e.g. FM ratio, index). */
   setEngineParams(partial: Partial<EngineParams>): void;

@@ -33,6 +33,7 @@ import {
   type ListeningSessionList,
 } from '@/api/types';
 import type { GalleryList } from '@/gallery/types';
+import type { CustomTuning } from '@/audio/tuning/types';
 
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
 const TIMEOUT_MS = 10_000;
@@ -687,6 +688,29 @@ export const api = {
         method: 'DELETE',
       },
     );
+  },
+
+  // --- custom tunings (v4.1) -----------------------------------------------
+  async createCustomTuning(body: {
+    name: string;
+    scl_text: string;
+    parsed_scale: number[];
+    reference_a4_hz: number;
+  }): Promise<CustomTuning> {
+    return request<CustomTuning>('/api/v1/custom_tunings', {
+      method: 'POST',
+      body,
+    });
+  },
+
+  async listCustomTunings(): Promise<{ items: CustomTuning[] }> {
+    return request<{ items: CustomTuning[] }>('/api/v1/custom_tunings');
+  },
+
+  async deleteCustomTuning(id: string): Promise<void> {
+    await request<void>(`/api/v1/custom_tunings/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   },
 };
 

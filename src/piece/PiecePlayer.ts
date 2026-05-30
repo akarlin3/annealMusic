@@ -14,6 +14,9 @@ import { generateMetaArc } from '@/piece/generators';
 import { doc, sessionConfigMap } from '@/jam/crdt';
 import { getAnonId } from '@/api/anon';
 import { resolveVariations, hashStringToInt } from '@/piece/resolver';
+import { resolveMidiNote } from '@/audio/tuning/resolver';
+import type { TuningRef } from '@/audio/tuning/types';
+import { useParamStore } from '@/state/params';
 
 export function evaluateAutomation(
   points: AutomationPoint[],
@@ -446,6 +449,39 @@ export class PiecePlayer {
       }
     }
 
+    const segTuning = seg.config?.tuning as TuningRef | undefined;
+    const pieceTuning = (this.piece.defaultsState as any).tuning as
+      | TuningRef
+      | undefined;
+    const activeTuning = segTuning ||
+      pieceTuning || { system: 'equal' as const, referenceA4Hz: 440 };
+
+    let customRatios: number[] | undefined;
+    let customEq: number | undefined;
+    if (activeTuning.system === 'custom' && activeTuning.sclId) {
+      const customScale = useParamStore
+        .getState()
+        .customScales.find((s) => s.id === activeTuning.sclId);
+      if (customScale) {
+        customRatios = customScale.parsed_scale;
+        customEq =
+          customScale.parsed_scale[customScale.parsed_scale.length - 1];
+      }
+    }
+
+    const defaultsStateAny = this.piece.defaultsState as any;
+    if (!customRatios) {
+      customRatios =
+        defaultsStateAny.customScaleRatios ||
+        (seg.config as any).customScaleRatios;
+    }
+    if (customEq === undefined) {
+      customEq =
+        defaultsStateAny.customEqRatio ??
+        (seg.config as any).customEqRatio ??
+        2.0;
+    }
+
     const activeNote = this.piece.notation?.find(
       (note) =>
         playheadGlobalMs >= note.onset_ms &&
@@ -456,7 +492,12 @@ export class PiecePlayer {
     let isFromNotation = false;
 
     if (activeNote) {
-      const freq = 440 * Math.pow(2, (activeNote.pitch_midi - 69) / 12);
+      const freq = resolveMidiNote(
+        activeTuning,
+        activeNote.pitch_midi,
+        customRatios,
+        customEq,
+      );
       targetRootFreq = freq;
       this.lastNotationPitchHz = freq;
       isFromNotation = true;
@@ -486,7 +527,13 @@ export class PiecePlayer {
     const isInstantChange = !this.smoothPitch && isFromNotation;
 
     this.orchestrator.setSharedParams(
-      { ...mergedParams, rootFreq: targetRootFreq },
+      {
+        ...mergedParams,
+        rootFreq: targetRootFreq,
+        tuning: activeTuning,
+        customScaleRatios: customRatios,
+        customEqRatio: customEq,
+      },
       isInstantChange,
     );
 

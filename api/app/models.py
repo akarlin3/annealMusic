@@ -560,6 +560,24 @@ class ListeningSession(Base):
     )
 
 
+class CustomTuning(Base):
+    __tablename__ = "custom_tunings"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    scl_text: Mapped[str] = mapped_column(String, nullable=False)
+    parsed_scale: Mapped[list] = mapped_column(JSONType(), nullable=False)
+    reference_a4_hz: Mapped[float] = mapped_column(
+        Numeric(8, 3), nullable=False, default=440.0
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 # SQLite trigger events for tests/local development when using SQLite
 @event.listens_for(Base.metadata, "after_create")
 
