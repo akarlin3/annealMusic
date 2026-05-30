@@ -3,6 +3,7 @@ import { adminApi, type AdminReport } from '@/admin/api';
 import { api, getErrorMessage } from '@/api/client';
 import { ApiError } from '@/api/types';
 import { ShieldAlert, Trash2, Star } from 'lucide-react';
+import LibraryCuration from '@/admin/LibraryCuration';
 
 const KEY_STORAGE = 'am_admin_key';
 
@@ -389,6 +390,9 @@ export default function AdminPage() {
             </div>
           </div>
         </section>
+
+        {/* Curated Library (v4.5) */}
+        <LibraryCuration adminKey={key} />
 
         {/* Account Moderation Panel */}
         <section className="mt-8 mb-16 rounded-xl p-6 border border-red-950/40 bg-red-950/5">

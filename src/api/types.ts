@@ -398,3 +398,55 @@ export interface UpdateListeningSessionBody {
   breath_pattern?: BreathPatternRef | null;
   visibility?: Visibility;
 }
+
+// --- v4.5 Session History ----------------------------------------------------
+
+export interface SessionPlay {
+  id: string;
+  listening_session_id: string;
+  started_at: string;
+  completed_at: string | null;
+  duration_listened_ms: number;
+  reflection: string | null;
+  created_at: string;
+  session_title: string | null;
+  session_slug: string | null;
+  session_length_category: string | null;
+}
+
+export interface SessionPlayList {
+  items: SessionPlay[];
+  next_cursor: string | null;
+}
+
+export interface SessionStats {
+  total_sessions: number;
+  total_listened_ms: number;
+  average_length_ms: number;
+  this_month_sessions: number;
+  this_month_listened_ms: number;
+}
+
+// --- v4.5 Curated Library ----------------------------------------------------
+
+export interface LibraryListing {
+  id: string;
+  listening_session_id: string;
+  intention: string | null;
+  length_category: string | null;
+  character_tags: string[];
+  editor_pick: boolean;
+  editor_pick_at: string | null;
+  curator_note: string | null;
+  added_at: string;
+  archived_at: string | null;
+  session_title: string | null;
+  session_slug: string | null;
+  total_duration_ms: number | null;
+  preview_status: 'none' | 'rendering' | 'ready' | 'failed';
+  preview_url: string | null;
+}
+
+export interface LibraryList {
+  items: LibraryListing[];
+}

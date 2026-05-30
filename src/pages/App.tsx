@@ -344,6 +344,16 @@ export default function App() {
 
             <span className="flex items-center gap-1.5">
               <Link
+                to="/listen"
+                className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
+                style={{ color: '#a8a29e' }}
+              >
+                Listen
+              </Link>
+            </span>
+
+            <span className="flex items-center gap-1.5">
+              <Link
                 to="/timer"
                 className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
                 style={{ color: '#a8a29e' }}
@@ -351,6 +361,18 @@ export default function App() {
                 Timer
               </Link>
             </span>
+
+            {backendOn && account && (
+              <span className="flex items-center gap-1.5">
+                <Link
+                  to="/me/sessions"
+                  className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
+                  style={{ color: '#a8a29e' }}
+                >
+                  Sessions
+                </Link>
+              </span>
+            )}
 
             {backendOn && (
               <>

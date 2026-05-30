@@ -23,6 +23,9 @@ import { getBellById } from '@/audio/bells/registry';
 import BreathOverlay from '@/breath/BreathOverlay';
 import { BREATH, type BreathPattern } from '@/breath/patterns';
 import { useBreathPrefs } from '@/breath/useBreathPrefs';
+import { usePlayLogger } from '@/history/usePlayLogger';
+import { useAuth } from '@/auth/AuthProvider';
+import { Link } from 'react-router-dom';
 
 interface ListeningViewProps {
   session: ListeningSession;
@@ -58,6 +61,14 @@ export default function ListeningView({
   const setParam = useParamStore((s) => s.setParam);
 
   const breathPrefs = useBreathPrefs();
+
+  const { isAuthenticated } = useAuth();
+  const {
+    onStart: logStart,
+    onEnd: logEnd,
+    showNudge,
+    dismissNudge,
+  } = usePlayLogger(session.id, isAuthenticated);
 
   useEffect(() => {
     const orchestrator = ensureOrchestrator();
@@ -111,15 +122,19 @@ export default function ListeningView({
     setRemainingMs(player.getTotalDurationMs());
 
     return () => {
+      // Finalize history with the actual duration if the user navigates away
+      // mid-session (partial completion).
+      logEnd(player.getElapsedMs());
       player.stop();
     };
-  }, [session, ensureOrchestrator]);
+  }, [session, ensureOrchestrator, logEnd]);
 
   const handleStart = () => {
     const player = playerRef.current;
     if (!player) return;
 
     setIsPlaying(true);
+    logStart();
     player.start(
       (_, remainMs) => {
         setRemainingMs(remainMs);
@@ -130,6 +145,8 @@ export default function ListeningView({
         setIsPlaying(false);
         setRemainingMs(0);
         setCurrentState('ended');
+        // Completed: log the full elapsed duration.
+        logEnd(player.getElapsedMs());
       },
     );
   };
@@ -145,6 +162,9 @@ export default function ListeningView({
   };
 
   const handleStop = () => {
+    // Ended mid-session: record the actual duration listened before resetting.
+    const elapsed = playerRef.current?.getElapsedMs() ?? 0;
+    logEnd(elapsed);
     playerRef.current?.stop();
     setIsPlaying(false);
     setElapsedMs(0);
@@ -551,6 +571,40 @@ export default function ListeningView({
           </p>
         </div>
       </footer>
+
+      {/* Gentle, dismissible "keep your history" nudge for anonymous listeners.
+          Shown once after a session — never recurring, never a guilt message. */}
+      {showNudge && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 max-w-sm w-[92%] rounded-xl border border-stone-800 bg-stone-900/90 backdrop-blur-md px-4 py-3 shadow-2xl">
+          <div className="flex items-start gap-3">
+            <p className="flex-1 text-stone-300 text-sm font-body leading-snug">
+              Sign in to keep your history — a private record of your sessions,
+              just for you.
+            </p>
+            <button
+              onClick={dismissNudge}
+              className="text-stone-500 hover:text-stone-300 transition-colors"
+              title="Dismiss"
+            >
+              <X size={16} strokeWidth={1.5} />
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-3">
+            <Link
+              to="/account"
+              className="font-mono text-[10px] uppercase tracking-wider text-amber-400 hover:text-amber-300"
+            >
+              Sign in
+            </Link>
+            <button
+              onClick={dismissNudge}
+              className="font-mono text-[10px] uppercase tracking-wider text-stone-500 hover:text-stone-400"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
