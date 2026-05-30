@@ -245,4 +245,183 @@ anneal.stream_log = stream_log
 anneal.sweep = sweep
 anneal.features = features
 anneal.render = render
+
+# Define anneal.experiment APIs
+experiment = types.ModuleType("experiment")
+anneal.experiment = experiment
+
+class Stimulus:
+    def __init__(self, id, patch, duration=4.0):
+        self.id = id
+        self.patch = patch
+        self.duration = duration
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "patch": self.patch,
+            "duration": self.duration
+        }
+
+class LikertResponse:
+    def __init__(self, prompt, scale=7):
+        self.prompt = prompt
+        self.scale = scale
+
+    def to_dict(self):
+        return {
+            "type": "LikertResponse",
+            "prompt": self.prompt,
+            "scale": self.scale
+        }
+
+class ForcedChoice:
+    def __init__(self, prompt, options):
+        self.prompt = prompt
+        self.options = list(options)
+
+    def to_dict(self):
+        return {
+            "type": "ForcedChoice",
+            "prompt": self.prompt,
+            "options": self.options
+        }
+
+class FreeText:
+    def __init__(self, prompt, max_chars=500):
+        self.prompt = prompt
+        self.max_chars = max_chars
+
+    def to_dict(self):
+        return {
+            "type": "FreeText",
+            "prompt": self.prompt,
+            "max_chars": self.max_chars
+        }
+
+class AdjustValue:
+    def __init__(self, prompt, range, step, target_param):
+        self.prompt = prompt
+        self.range = list(range) if hasattr(range, "__iter__") else range
+        self.step = step
+        self.target_param = target_param
+
+    def to_dict(self):
+        return {
+            "type": "AdjustValue",
+            "prompt": self.prompt,
+            "range": self.range,
+            "step": self.step,
+            "target_param": self.target_param
+        }
+
+class ReactionTime:
+    def __init__(self, prompt, target_key="Space"):
+        self.prompt = prompt
+        self.target_key = target_key
+
+    def to_dict(self):
+        return {
+            "type": "ReactionTime",
+            "prompt": self.prompt,
+            "target_key": self.target_key
+        }
+
+class Continuous:
+    def __init__(self, prompt, duration=4.0, scale=100):
+        self.prompt = prompt
+        self.duration = duration
+        self.scale = scale
+
+    def to_dict(self):
+        return {
+            "type": "Continuous",
+            "prompt": self.prompt,
+            "duration": self.duration,
+            "scale": self.scale
+        }
+
+class DemographicSurvey:
+    def __init__(self, fields=None):
+        self.fields = list(fields) if fields else ["age", "hearing_loss", "musical_experience"]
+
+    def to_dict(self):
+        return {
+            "fields": self.fields
+        }
+
+class Block:
+    def __init__(self, name, trials, randomize="full", counterbalance=False):
+        self.name = name
+        self.trials = trials
+        self.randomize = randomize
+        self.counterbalance = counterbalance
+
+    def to_dict(self):
+        dict_trials = []
+        for t in self.trials:
+            stim = t["stimulus"]
+            resp = t["response"]
+            dict_trials.append({
+                "stimulus": stim.to_dict() if hasattr(stim, "to_dict") else stim,
+                "response": resp.to_dict() if hasattr(resp, "to_dict") else resp
+            })
+        return {
+            "type": "block",
+            "name": self.name,
+            "trials": dict_trials,
+            "randomize": self.randomize,
+            "counterbalance": self.counterbalance
+        }
+
+class Experiment:
+    def __init__(self, title, description="", consent_text="", debrief_text=""):
+        self.title = title
+        self.description = description
+        self.consent_text = consent_text
+        self.debrief_text = debrief_text
+        self.steps = []
+        self.demographics = None
+
+    def add_block(self, block):
+        self.steps.append(block)
+
+    def add_break(self, message):
+        self.steps.append({
+            "type": "break",
+            "message": message
+        })
+
+    def add_demographics(self, survey):
+        self.demographics = survey
+
+    def to_dict(self):
+        dict_steps = []
+        for s in self.steps:
+            dict_steps.append(s.to_dict() if hasattr(s, "to_dict") else s)
+        return {
+            "title": self.title,
+            "description": self.description,
+            "consent_text": self.consent_text,
+            "debrief_text": self.debrief_text,
+            "demographics": self.demographics.to_dict() if self.demographics else None,
+            "steps": dict_steps
+        }
+
+    def run(self):
+        import pyodide
+        js_dict = pyodide.ffi.to_js(self.to_dict())
+        _anneal_bridge.registerExperiment(js_dict)
+
+# Register to the module
+experiment.Experiment = Experiment
+experiment.Stimulus = Stimulus
+experiment.LikertResponse = LikertResponse
+experiment.ForcedChoice = ForcedChoice
+experiment.FreeText = FreeText
+experiment.AdjustValue = AdjustValue
+experiment.ReactionTime = ReactionTime
+experiment.Continuous = Continuous
+experiment.Block = Block
+experiment.DemographicSurvey = DemographicSurvey
 `;

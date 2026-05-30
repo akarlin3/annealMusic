@@ -722,6 +722,37 @@ class UserScriptListOut(BaseModel):
     items: list[UserScriptOut]
 
 
+# --- v5.6 Experiment Framework Schemas ----------------------------------------
+
+class ExperimentCreate(BaseModel):
+    title: str = Field(..., max_length=120)
+    definition: dict
+    description: str | None = Field(default=None, max_length=2000)
+
+
+class ExperimentUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=120)
+    definition: dict | None = None
+    description: str | None = Field(default=None, max_length=2000)
+
+
+class ExperimentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    title: str
+    definition: dict
+    description: str | None
+    short_slug: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ExperimentListOut(BaseModel):
+    items: list[ExperimentOut]
+
+
 
 
 

@@ -22,6 +22,8 @@ export class PyodideWorker {
   private vfsReadResolver: ((bytes: Uint8Array) => void) | null = null;
   private vfsDeleteResolver: ((success: boolean) => void) | null = null;
   private onPlotRenderCallback: ((bytes: number[]) => void) | null = null;
+  private onExperimentRegisteredCallback: ((experiment: any) => void) | null =
+    null;
 
   constructor() {
     this.createWorker();
@@ -77,6 +79,10 @@ export class PyodideWorker {
         if (this.vfsDeleteResolver) {
           this.vfsDeleteResolver(success);
           this.vfsDeleteResolver = null;
+        }
+      } else if (type === 'experiment-registered') {
+        if (this.onExperimentRegisteredCallback) {
+          this.onExperimentRegisteredCallback(event.data.experiment);
         }
       }
     };
@@ -202,6 +208,10 @@ export class PyodideWorker {
 
   onPlotRender(callback: (bytes: number[]) => void): void {
     this.onPlotRenderCallback = callback;
+  }
+
+  onExperimentRegistered(callback: (experiment: any) => void): void {
+    this.onExperimentRegisteredCallback = callback;
   }
 
   terminate(): void {

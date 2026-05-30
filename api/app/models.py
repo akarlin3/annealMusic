@@ -709,6 +709,28 @@ class UserScript(Base):
     )
 
 
+class Experiment(Base):
+    __tablename__ = "experiments"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    definition: Mapped[dict] = mapped_column(JSONType(), nullable=False)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    short_slug: Mapped[str | None] = mapped_column(String, nullable=True, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
 # SQLite trigger events for tests/local development when using SQLite
 @event.listens_for(Base.metadata, "after_create")
 

@@ -145,6 +145,10 @@ self._anneal_bridge = {
   render: async (duration, format) => {
     return await callBridge('anneal.session.render', { duration, format });
   },
+  registerExperiment: (expDef) => {
+    const experiment = expDef.to_py ? expDef.to_py() : expDef;
+    postMessage({ type: 'experiment-registered', experiment });
+  },
   version: () => {
     return '5.5.0';
   },
