@@ -16,6 +16,7 @@ from sqlalchemy import (
     func,
     event,
     text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -729,6 +730,70 @@ class Experiment(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class Track(Base):
+    __tablename__ = "tracks"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    color: Mapped[str | None] = mapped_column(String, nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Lesson(Base):
+    __tablename__ = "lessons"
+    __table_args__ = (
+        CheckConstraint(
+            "difficulty IN ('intro', 'intermediate', 'advanced')",
+            name="ck_lessons_difficulty",
+        ),
+        UniqueConstraint("track_id", "slug", name="uq_lessons_track_slug"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    track_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    slug: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    difficulty: Mapped[str] = mapped_column(String, nullable=False, default="intro")  # 'intro' | 'intermediate' | 'advanced'
+    estimated_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    prerequisites: Mapped[list[uuid.UUID]] = mapped_column(UUIDArray(), nullable=False, default=list)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class LessonStep(Base):
+    __tablename__ = "lesson_steps"
+    __table_args__ = (
+        UniqueConstraint("lesson_id", "position", name="uq_lesson_steps_lesson_position"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    lesson_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("lessons.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False)  # 'text' | 'demo' | 'prompt' | 'reflection'
+    config: Mapped[dict] = mapped_column(JSONType(), nullable=False)
+
 
 
 # SQLite trigger events for tests/local development when using SQLite

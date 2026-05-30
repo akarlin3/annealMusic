@@ -753,6 +753,102 @@ class ExperimentListOut(BaseModel):
     items: list[ExperimentOut]
 
 
+# --- v6.0 Educational Curriculum Schemas -------------------------------------
+
+class LessonStepCreate(BaseModel):
+    position: int
+    type: Literal["text", "demo", "prompt", "reflection"]
+    config: dict
+
+
+class LessonStepUpdate(BaseModel):
+    position: int | None = None
+    type: Literal["text", "demo", "prompt", "reflection"] | None = None
+    config: dict | None = None
+
+
+class LessonStepOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    lesson_id: uuid.UUID
+    position: int
+    type: str
+    config: dict
+
+
+class LessonCreate(BaseModel):
+    track_id: uuid.UUID
+    slug: str = Field(..., max_length=100)
+    title: str = Field(..., max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    difficulty: Literal["intro", "intermediate", "advanced"] = "intro"
+    estimated_minutes: int = Field(default=10, ge=1)
+    position: int = 0
+    prerequisites: list[uuid.UUID] = Field(default_factory=list)
+
+
+class LessonUpdate(BaseModel):
+    slug: str | None = Field(default=None, max_length=100)
+    title: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    difficulty: Literal["intro", "intermediate", "advanced"] | None = None
+    estimated_minutes: int | None = Field(default=None, ge=1)
+    position: int | None = None
+    prerequisites: list[uuid.UUID] | None = None
+
+
+class LessonOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    track_id: uuid.UUID
+    slug: str
+    title: str
+    description: str | None
+    difficulty: str
+    estimated_minutes: int
+    position: int
+    prerequisites: list[uuid.UUID]
+    created_at: datetime
+    updated_at: datetime
+    steps: list[LessonStepOut] = Field(default_factory=list)
+
+
+class TrackCreate(BaseModel):
+    slug: str = Field(..., max_length=100)
+    title: str = Field(..., max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    position: int = 0
+    color: str | None = Field(default=None, max_length=50)
+
+
+class TrackUpdate(BaseModel):
+    slug: str | None = Field(default=None, max_length=100)
+    title: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    position: int | None = None
+    color: str | None = Field(default=None, max_length=50)
+
+
+class TrackOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    slug: str
+    title: str
+    description: str | None
+    position: int
+    color: str | None
+    created_at: datetime
+    lessons: list[LessonOut] = Field(default_factory=list)
+
+
+class TrackListOut(BaseModel):
+    items: list[TrackOut]
+
+
+
 
 
 

@@ -38,6 +38,7 @@ from app.routers import (
     research,
     user_scripts,
     experiments,
+    learn,
 )
 
 
@@ -115,6 +116,7 @@ def create_app() -> FastAPI:
     app.include_router(library.router)
     app.include_router(user_scripts.router)
     app.include_router(experiments.router)
+    app.include_router(learn.router)
 
     return app
 
