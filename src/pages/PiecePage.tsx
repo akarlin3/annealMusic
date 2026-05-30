@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { TimelineEditor } from '@/piece/TimelineEditor';
+import { ArrangementView } from '@/piece/ArrangementView';
 import { useAnnealMusic } from '@/hooks/useAnnealMusic';
 import Toast, { type ToastMessage } from '@/components/Toast';
 
@@ -46,8 +46,8 @@ export default function PiecePage() {
           </div>
         </header>
 
-        {/* Timeline Editor */}
-        <TimelineEditor
+        {/* DAW Arrangement View */}
+        <ArrangementView
           ensureOrchestrator={ensureOrchestrator}
           showToast={showToast}
         />

@@ -21,13 +21,17 @@ export function evaluateAutomation(
 ): number | null {
   if (!points || points.length === 0) return null;
   const sorted = [...points].sort((a, b) => a.timeMs - b.timeMs);
-  if (timeMs <= sorted[0].timeMs) return sorted[0].value;
-  if (timeMs >= sorted[sorted.length - 1].timeMs)
-    return sorted[sorted.length - 1].value;
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  if (!first || !last) return null;
+  if (timeMs <= first.timeMs) return first.value;
+  if (timeMs >= last.timeMs) return last.value;
 
   let idx = 0;
   for (let i = 0; i < sorted.length - 1; i++) {
-    if (timeMs >= sorted[i].timeMs && timeMs < sorted[i + 1].timeMs) {
+    const pCurr = sorted[i]!;
+    const pNext = sorted[i + 1]!;
+    if (timeMs >= pCurr.timeMs && timeMs < pNext.timeMs) {
       idx = i;
       break;
     }
@@ -437,7 +441,7 @@ export class PiecePlayer {
       for (const track of this.piece.automationTracks) {
         const autoValue = evaluateAutomation(track.points, playheadGlobalMs);
         if (autoValue !== null) {
-          mergedParams[track.paramKey] = autoValue;
+          (mergedParams as any)[track.paramKey] = autoValue;
         }
       }
     }

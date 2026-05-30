@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Piece, NotationNote } from '@/piece/types';
-import { Trash2, ZoomIn, Grid, HelpCircle, Activity, Upload, Download } from 'lucide-react';
+import {
+  Trash2,
+  ZoomIn,
+  Grid,
+  HelpCircle,
+  Activity,
+  Upload,
+  Download,
+} from 'lucide-react';
 import { Midi } from '@tonejs/midi';
-
 
 interface NotationEditorProps {
   piece: Piece;
@@ -11,7 +18,20 @@ interface NotationEditorProps {
   globalPlayheadMs: number;
 }
 
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const NOTE_NAMES = [
+  'C',
+  'C#',
+  'D',
+  'D#',
+  'E',
+  'F',
+  'F#',
+  'G',
+  'G#',
+  'A',
+  'A#',
+  'B',
+];
 
 // Generate MIDI note rows from C0 (12) to C8 (108)
 const MIDI_NOTES = (() => {
@@ -36,8 +56,10 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
 }) => {
   // Navigation & Zoom State
   const [zoomH, setZoomH] = useState(1.2); // Horizontal zoom factor (0.5x - 3.0x)
-  const [zoomV, setZoomV] = useState(24);   // Vertical row height (16px - 40px)
-  const [gridSnap, setGridSnap] = useState<'off' | '1/4' | '1/8' | '1/16' | '1/32'>('1/16');
+  const [zoomV, setZoomV] = useState(24); // Vertical row height (16px - 40px)
+  const [gridSnap, setGridSnap] = useState<
+    'off' | '1/4' | '1/8' | '1/16' | '1/32'
+  >('1/16');
   const [smoothPitch, setSmoothPitch] = useState(true);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -76,7 +98,10 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
     return maxTime;
   }, [piece.totalDurationMs, piece.notation]);
 
-  const editorWidthPx = useMemo(() => totalDurationMs * pxPerMs, [totalDurationMs, pxPerMs]);
+  const editorWidthPx = useMemo(
+    () => totalDurationMs * pxPerMs,
+    [totalDurationMs, pxPerMs],
+  );
 
   // Quantization Math
   const getSubdivisionDurationMs = (): number | null => {
@@ -85,11 +110,16 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
     }
     const beatDurationMs = (60 / piece.tempoBpm) * 1000;
     switch (gridSnap) {
-      case '1/4': return beatDurationMs;
-      case '1/8': return beatDurationMs / 2;
-      case '1/16': return beatDurationMs / 4;
-      case '1/32': return beatDurationMs / 8;
-      default: return null;
+      case '1/4':
+        return beatDurationMs;
+      case '1/8':
+        return beatDurationMs / 2;
+      case '1/16':
+        return beatDurationMs / 4;
+      case '1/32':
+        return beatDurationMs / 8;
+      default:
+        return null;
     }
   };
 
@@ -129,7 +159,7 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
 
     // Check monophonic overlapping notes
     const overlapping = piece.notation?.some(
-      (n) => onsetMs >= n.onset_ms && onsetMs < n.onset_ms + n.duration_ms
+      (n) => onsetMs >= n.onset_ms && onsetMs < n.onset_ms + n.duration_ms,
     );
     if (overlapping) return; // Prevent overlapping notes
 
@@ -141,7 +171,7 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
     };
 
     const updatedNotation = [...(piece.notation || []), newNote].sort(
-      (a, b) => a.onset_ms - b.onset_ms
+      (a, b) => a.onset_ms - b.onset_ms,
     );
 
     onChange({
@@ -155,7 +185,7 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
   const handleNotePointerDown = (
     e: React.PointerEvent<HTMLDivElement>,
     note: NotationNote,
-    action: 'move' | 'resize'
+    action: 'move' | 'resize',
   ) => {
     e.stopPropagation();
     e.preventDefault();
@@ -182,14 +212,18 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
         nextOnset = quantizeValue(nextOnset);
 
         const deltaPitch = -Math.round(deltaY / zoomV);
-        let nextPitch = Math.max(12, Math.min(108, startPitch + deltaPitch));
+        const nextPitch = Math.max(12, Math.min(108, startPitch + deltaPitch));
 
         // Enforce monophonic note limit: no overlap during move
-        const otherNotes = (piece.notation || []).filter((n) => n.id !== note.id);
+        const otherNotes = (piece.notation || []).filter(
+          (n) => n.id !== note.id,
+        );
         const hasOverlap = otherNotes.some(
           (n) =>
-            (nextOnset >= n.onset_ms && nextOnset < n.onset_ms + n.duration_ms) ||
-            (nextOnset + startDuration > n.onset_ms && nextOnset < n.onset_ms + n.duration_ms)
+            (nextOnset >= n.onset_ms &&
+              nextOnset < n.onset_ms + n.duration_ms) ||
+            (nextOnset + startDuration > n.onset_ms &&
+              nextOnset < n.onset_ms + n.duration_ms),
         );
 
         const updated = (piece.notation || []).map((n) => {
@@ -205,16 +239,24 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
 
         onChange({ ...piece, notation: updated });
       } else if (action === 'resize') {
-        let nextDuration = Math.max(MIN_NOTE_DURATION_MS, startDuration + deltaOnsetMs);
+        let nextDuration = Math.max(
+          MIN_NOTE_DURATION_MS,
+          startDuration + deltaOnsetMs,
+        );
         nextDuration = quantizeValue(nextDuration);
 
         // Prevent resizing note to overlap subsequent note
-        const otherNotes = (piece.notation || []).filter((n) => n.id !== note.id);
+        const otherNotes = (piece.notation || []).filter(
+          (n) => n.id !== note.id,
+        );
         const subsequentNote = otherNotes
           .filter((n) => n.onset_ms >= startOnset)
           .sort((a, b) => a.onset_ms - b.onset_ms)[0];
 
-        if (subsequentNote && startOnset + nextDuration > subsequentNote.onset_ms) {
+        if (
+          subsequentNote &&
+          startOnset + nextDuration > subsequentNote.onset_ms
+        ) {
           nextDuration = subsequentNote.onset_ms - startOnset;
         }
 
@@ -255,7 +297,9 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
     }
   };
 
-  const handleMidiFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMidiFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -299,7 +343,9 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
         });
       } catch (err) {
         console.error('Error parsing MIDI file:', err);
-        alert('Failed to parse MIDI file. Make sure it is a valid .mid or .midi file.');
+        alert(
+          'Failed to parse MIDI file. Make sure it is a valid .mid or .midi file.',
+        );
       }
     };
     reader.readAsArrayBuffer(file);
@@ -308,13 +354,18 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
   // Convert track notes to monophonic and apply quantization if requested
   const handleExecuteImport = () => {
     if (!midiImport) return;
-    const selectedTrack = midiImport.tracks.find((t) => t.index === midiImport.selectedTrackIndex);
+    const selectedTrack = midiImport.tracks.find(
+      (t) => t.index === midiImport.selectedTrackIndex,
+    );
     if (!selectedTrack) return;
 
-    const targetTempo = midiImport.syncTempo && midiImport.detectedBpm ? midiImport.detectedBpm : (piece.tempoBpm || 120);
+    const targetTempo =
+      midiImport.syncTempo && midiImport.detectedBpm
+        ? midiImport.detectedBpm
+        : piece.tempoBpm || 120;
 
     // Quantize notes
-    let notes = selectedTrack.notes.map((n) => {
+    const notes = selectedTrack.notes.map((n) => {
       const snap = midiImport.snapOnImport;
       if (snap === 'off') return n;
 
@@ -328,7 +379,10 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
       return {
         ...n,
         onset_ms: Math.round(n.onset_ms / subdivMs) * subdivMs,
-        duration_ms: Math.max(MIN_NOTE_DURATION_MS, Math.round(n.duration_ms / subdivMs) * subdivMs),
+        duration_ms: Math.max(
+          MIN_NOTE_DURATION_MS,
+          Math.round(n.duration_ms / subdivMs) * subdivMs,
+        ),
       };
     });
 
@@ -341,7 +395,11 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
       return a.onset_ms - b.onset_ms;
     });
 
-    const monophonic: { onset_ms: number; duration_ms: number; pitch_midi: number }[] = [];
+    const monophonic: {
+      onset_ms: number;
+      duration_ms: number;
+      pitch_midi: number;
+    }[] = [];
     for (let i = 0; i < notes.length; i++) {
       const noteItem = notes[i];
       if (!noteItem) continue;
@@ -353,7 +411,10 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
             continue; // Skip duplicates (already kept the highest note due to sorting)
           }
           if (current.onset_ms < prev.onset_ms + prev.duration_ms) {
-            prev.duration_ms = Math.max(MIN_NOTE_DURATION_MS, current.onset_ms - prev.onset_ms);
+            prev.duration_ms = Math.max(
+              MIN_NOTE_DURATION_MS,
+              current.onset_ms - prev.onset_ms,
+            );
           }
         }
       }
@@ -372,7 +433,9 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
     if (midiImport.appendMode) {
       const existing = piece.notation || [];
       if (existing.length > 0) {
-        const maxTime = Math.max(...existing.map((n) => n.onset_ms + n.duration_ms));
+        const maxTime = Math.max(
+          ...existing.map((n) => n.onset_ms + n.duration_ms),
+        );
         const shiftedImported = importedNotes.map((n) => ({
           ...n,
           onset_ms: n.onset_ms + maxTime,
@@ -395,7 +458,10 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
       if (checkedNotation.length > 0) {
         const prev = checkedNotation[checkedNotation.length - 1];
         if (prev && current.onset_ms < prev.onset_ms + prev.duration_ms) {
-          prev.duration_ms = Math.max(MIN_NOTE_DURATION_MS, current.onset_ms - prev.onset_ms);
+          prev.duration_ms = Math.max(
+            MIN_NOTE_DURATION_MS,
+            current.onset_ms - prev.onset_ms,
+          );
         }
       }
       checkedNotation.push(current);
@@ -403,7 +469,10 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
 
     onChange({
       ...piece,
-      tempoBpm: midiImport.syncTempo && midiImport.detectedBpm ? Math.round(midiImport.detectedBpm) : piece.tempoBpm,
+      tempoBpm:
+        midiImport.syncTempo && midiImport.detectedBpm
+          ? Math.round(midiImport.detectedBpm)
+          : piece.tempoBpm,
       notation: checkedNotation,
     });
 
@@ -438,7 +507,9 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
       });
 
       const midiArray = midi.toArray();
-      const blob = new Blob([midiArray.buffer as ArrayBuffer], { type: 'audio/midi' });
+      const blob = new Blob([midiArray.buffer as ArrayBuffer], {
+        type: 'audio/midi',
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -458,7 +529,10 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (selectedNoteId && (e.key === 'Delete' || e.key === 'Backspace')) {
         // Prevent deleting note if typing in an input field
-        if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') {
+        if (
+          document.activeElement?.tagName === 'INPUT' ||
+          document.activeElement?.tagName === 'TEXTAREA'
+        ) {
           return;
         }
         handleDeleteNote(selectedNoteId);
@@ -474,7 +548,8 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
     if (scrollContainerRef.current) {
       const rowIndex = MIDI_NOTES.findIndex((n) => n.pitch === 60);
       if (rowIndex !== -1) {
-        scrollContainerRef.current.scrollTop = rowIndex * zoomV - scrollContainerRef.current.clientHeight / 2;
+        scrollContainerRef.current.scrollTop =
+          rowIndex * zoomV - scrollContainerRef.current.clientHeight / 2;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -497,7 +572,9 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-teal-400" />
-            <span className="font-extrabold text-sm text-white/95 uppercase tracking-wider">Notation track</span>
+            <span className="font-extrabold text-sm text-white/95 uppercase tracking-wider">
+              Notation track
+            </span>
           </div>
 
           {/* Grid Snap Control */}
@@ -506,19 +583,35 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
             <span>Snap:</span>
             <select
               value={gridSnap}
-              onChange={(e) => setGridSnap(e.target.value as 'off' | '1/4' | '1/8' | '1/16' | '1/32')}
+              onChange={(e) =>
+                setGridSnap(
+                  e.target.value as 'off' | '1/4' | '1/8' | '1/16' | '1/32',
+                )
+              }
               className="bg-transparent text-teal-300 font-bold border-none outline-none cursor-pointer focus:ring-0"
               disabled={piece.tempoBpm === null}
             >
               {piece.tempoBpm === null ? (
-                <option value="off" className="bg-[#1b1723]">Snap Off (Tempoless)</option>
+                <option value="off" className="bg-[#1b1723]">
+                  Snap Off (Tempoless)
+                </option>
               ) : (
                 <>
-                  <option value="1/4" className="bg-[#1b1723] text-white">1/4 (Beat)</option>
-                  <option value="1/8" className="bg-[#1b1723] text-white">1/8 (Half-Beat)</option>
-                  <option value="1/16" className="bg-[#1b1723] text-white">1/16 (16th Note)</option>
-                  <option value="1/32" className="bg-[#1b1723] text-white">1/32</option>
-                  <option value="off" className="bg-[#1b1723] text-white">Off</option>
+                  <option value="1/4" className="bg-[#1b1723] text-white">
+                    1/4 (Beat)
+                  </option>
+                  <option value="1/8" className="bg-[#1b1723] text-white">
+                    1/8 (Half-Beat)
+                  </option>
+                  <option value="1/16" className="bg-[#1b1723] text-white">
+                    1/16 (16th Note)
+                  </option>
+                  <option value="1/32" className="bg-[#1b1723] text-white">
+                    1/32
+                  </option>
+                  <option value="off" className="bg-[#1b1723] text-white">
+                    Off
+                  </option>
                 </>
               )}
             </select>
@@ -627,11 +720,34 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
         <div className="bg-[#1f1a29]/95 px-6 py-4 border-b border-white/5 text-xs text-white/70 space-y-1 animate-slideDown">
           <p className="font-bold text-white/90">Piano-Roll Interactions:</p>
           <ul className="list-disc pl-4 space-y-0.5">
-            <li><span className="text-teal-400 font-bold">Add Note:</span> Click any empty grid cell.</li>
-            <li><span className="text-teal-400 font-bold">Move/Transpose:</span> Click and drag a note horizontally to adjust timing, or vertically to shift pitch.</li>
-            <li><span className="text-teal-400 font-bold">Change Duration:</span> Click and drag the <span className="underline decoration-teal-400 decoration-2 font-semibold">right edge handle</span> of a note block.</li>
-            <li><span className="text-teal-400 font-bold">Delete Note:</span> Select a note and click "Delete Note" or press <kbd className="bg-white/10 px-1 rounded">Backspace</kbd>/<kbd className="bg-white/10 px-1 rounded">Delete</kbd>.</li>
-            <li><span className="text-teal-400 font-bold">Monophony:</span> Overlapping notes are automatically restricted to preserve the engine's monophonic character.</li>
+            <li>
+              <span className="text-teal-400 font-bold">Add Note:</span> Click
+              any empty grid cell.
+            </li>
+            <li>
+              <span className="text-teal-400 font-bold">Move/Transpose:</span>{' '}
+              Click and drag a note horizontally to adjust timing, or vertically
+              to shift pitch.
+            </li>
+            <li>
+              <span className="text-teal-400 font-bold">Change Duration:</span>{' '}
+              Click and drag the{' '}
+              <span className="underline decoration-teal-400 decoration-2 font-semibold">
+                right edge handle
+              </span>{' '}
+              of a note block.
+            </li>
+            <li>
+              <span className="text-teal-400 font-bold">Delete Note:</span>{' '}
+              Select a note and click "Delete Note" or press{' '}
+              <kbd className="bg-white/10 px-1 rounded">Backspace</kbd>/
+              <kbd className="bg-white/10 px-1 rounded">Delete</kbd>.
+            </li>
+            <li>
+              <span className="text-teal-400 font-bold">Monophony:</span>{' '}
+              Overlapping notes are automatically restricted to preserve the
+              engine's monophonic character.
+            </li>
           </ul>
         </div>
       )}
@@ -655,7 +771,9 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
               }`}
             >
               <span>{note.name}</span>
-              {note.pitch % 12 === 0 && <span className="opacity-40 text-[7px]">Oct</span>}
+              {note.pitch % 12 === 0 && (
+                <span className="opacity-40 text-[7px]">Oct</span>
+              )}
             </div>
           ))}
         </div>
@@ -697,7 +815,9 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
                   const ticks = [];
                   const beatMs = (60 / piece.tempoBpm) * 1000;
                   const subdivMs = getSubdivisionDurationMs() || beatMs;
-                  const totalSubdivisions = Math.ceil(totalDurationMs / subdivMs);
+                  const totalSubdivisions = Math.ceil(
+                    totalDurationMs / subdivMs,
+                  );
 
                   for (let i = 0; i <= totalSubdivisions; i++) {
                     const timeMs = i * subdivMs;
@@ -714,7 +834,7 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
                         key={i}
                         className={`absolute inset-y-0 border-l ${borderClass}`}
                         style={{ left: `${left}px` }}
-                      />
+                      />,
                     );
                   }
                   return ticks;
@@ -725,8 +845,13 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
             {/* Note blocks absolute plotting */}
             {(piece.notation || []).map((note) => {
               const left = note.onset_ms * pxPerMs;
-              const width = Math.max(MIN_NOTE_DURATION_MS * pxPerMs, note.duration_ms * pxPerMs);
-              const pitchIndex = MIDI_NOTES.findIndex((n) => n.pitch === note.pitch_midi);
+              const width = Math.max(
+                MIN_NOTE_DURATION_MS * pxPerMs,
+                note.duration_ms * pxPerMs,
+              );
+              const pitchIndex = MIDI_NOTES.findIndex(
+                (n) => n.pitch === note.pitch_midi,
+              );
               const top = pitchIndex * zoomV;
 
               const isSelected = selectedNoteId === note.id;
@@ -770,7 +895,9 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
 
                   {/* Horizontal resize drag handle */}
                   <div
-                    onPointerDown={(e) => handleNotePointerDown(e, note, 'resize')}
+                    onPointerDown={(e) =>
+                      handleNotePointerDown(e, note, 'resize')
+                    }
                     className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize rounded-r-lg bg-white/20 opacity-0 group-hover:opacity-100 hover:bg-white/40 border-l border-white/10 transition-opacity"
                   />
                 </div>
@@ -790,9 +917,13 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
 
       {/* Footer statistics */}
       <div className="bg-[#1b1723]/90 px-6 py-3 border-t border-white/5 flex items-center justify-between text-[10px] text-white/40">
-        <span>Note count: {(piece.notation || []).length} monophonic notes</span>
+        <span>
+          Note count: {(piece.notation || []).length} monophonic notes
+        </span>
         {piece.tempoBpm !== null && (
-          <span>Grid size: 1 beat = {((60 / piece.tempoBpm) * 1000).toFixed(0)} ms</span>
+          <span>
+            Grid size: 1 beat = {((60 / piece.tempoBpm) * 1000).toFixed(0)} ms
+          </span>
         )}
       </div>
 
@@ -816,12 +947,19 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
             <div className="space-y-4">
               {/* Track Picker */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-white/60 block">Select Track ({midiImport.tracks.length} tracks found):</label>
+                <label className="text-xs font-bold text-white/60 block">
+                  Select Track ({midiImport.tracks.length} tracks found):
+                </label>
                 <div className="space-y-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
                   {midiImport.tracks.map((track) => (
                     <div
                       key={track.index}
-                      onClick={() => setMidiImport({ ...midiImport, selectedTrackIndex: track.index })}
+                      onClick={() =>
+                        setMidiImport({
+                          ...midiImport,
+                          selectedTrackIndex: track.index,
+                        })
+                      }
                       className={`p-3 bg-white/5 border rounded-2xl cursor-pointer transition flex items-center justify-between ${
                         midiImport.selectedTrackIndex === track.index
                           ? 'border-violet-500/80 bg-violet-500/10'
@@ -829,8 +967,12 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
                       }`}
                     >
                       <div>
-                        <p className="text-sm font-bold text-white/95">{track.name}</p>
-                        <p className="text-xs text-white/40">Track index: {track.index}</p>
+                        <p className="text-sm font-bold text-white/95">
+                          {track.name}
+                        </p>
+                        <p className="text-xs text-white/40">
+                          Track index: {track.index}
+                        </p>
                       </div>
                       <span className="text-xs font-bold bg-white/5 border border-white/10 px-2.5 py-1 rounded-xl text-teal-400">
                         {track.noteCount} notes
@@ -844,13 +986,23 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
               {midiImport.detectedBpm !== null && (
                 <div className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-2xl">
                   <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-white/90">Sync Piece Tempo</p>
-                    <p className="text-[10px] text-white/40">Set the piece's tempo to the MIDI file's BPM ({Math.round(midiImport.detectedBpm)} BPM)</p>
+                    <p className="text-xs font-bold text-white/90">
+                      Sync Piece Tempo
+                    </p>
+                    <p className="text-[10px] text-white/40">
+                      Set the piece's tempo to the MIDI file's BPM (
+                      {Math.round(midiImport.detectedBpm)} BPM)
+                    </p>
                   </div>
                   <input
                     type="checkbox"
                     checked={midiImport.syncTempo}
-                    onChange={(e) => setMidiImport({ ...midiImport, syncTempo: e.target.checked })}
+                    onChange={(e) =>
+                      setMidiImport({
+                        ...midiImport,
+                        syncTempo: e.target.checked,
+                      })
+                    }
                     className="w-4 h-4 rounded border-white/10 text-violet-600 focus:ring-0 bg-white/5 cursor-pointer"
                   />
                 </div>
@@ -859,29 +1011,62 @@ export const NotationEditor: React.FC<NotationEditorProps> = ({
               {/* Snap/Quantization dropdown */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-white/60 block">Quantize / Snap Grid:</label>
+                  <label className="text-xs font-bold text-white/60 block">
+                    Quantize / Snap Grid:
+                  </label>
                   <select
                     value={midiImport.snapOnImport}
-                    onChange={(e) => setMidiImport({ ...midiImport, snapOnImport: e.target.value as 'off' | '1/4' | '1/8' | '1/16' | '1/32' })}
+                    onChange={(e) =>
+                      setMidiImport({
+                        ...midiImport,
+                        snapOnImport: e.target.value as
+                          | 'off'
+                          | '1/4'
+                          | '1/8'
+                          | '1/16'
+                          | '1/32',
+                      })
+                    }
                     className="w-full bg-white/5 border border-white/10 rounded-2xl text-xs font-bold text-white p-3 focus:outline-none focus:border-violet-500"
                   >
-                    <option value="1/4" className="bg-[#1b1723] text-white">1/4 (Beat)</option>
-                    <option value="1/8" className="bg-[#1b1723] text-white">1/8 (Half-Beat)</option>
-                    <option value="1/16" className="bg-[#1b1723] text-white">1/16 (16th Note)</option>
-                    <option value="1/32" className="bg-[#1b1723] text-white">1/32</option>
-                    <option value="off" className="bg-[#1b1723] text-white">No Quantization</option>
+                    <option value="1/4" className="bg-[#1b1723] text-white">
+                      1/4 (Beat)
+                    </option>
+                    <option value="1/8" className="bg-[#1b1723] text-white">
+                      1/8 (Half-Beat)
+                    </option>
+                    <option value="1/16" className="bg-[#1b1723] text-white">
+                      1/16 (16th Note)
+                    </option>
+                    <option value="1/32" className="bg-[#1b1723] text-white">
+                      1/32
+                    </option>
+                    <option value="off" className="bg-[#1b1723] text-white">
+                      No Quantization
+                    </option>
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-white/60 block">Import Mode:</label>
+                  <label className="text-xs font-bold text-white/60 block">
+                    Import Mode:
+                  </label>
                   <select
                     value={midiImport.appendMode ? 'append' : 'replace'}
-                    onChange={(e) => setMidiImport({ ...midiImport, appendMode: e.target.value === 'append' })}
+                    onChange={(e) =>
+                      setMidiImport({
+                        ...midiImport,
+                        appendMode: e.target.value === 'append',
+                      })
+                    }
                     className="w-full bg-white/5 border border-white/10 rounded-2xl text-xs font-bold text-white p-3 focus:outline-none focus:border-violet-500"
                   >
-                    <option value="replace" className="bg-[#1b1723] text-white">Replace entire track</option>
-                    <option value="append" className="bg-[#1b1723] text-white">Append to end of track</option>
+                    <option value="replace" className="bg-[#1b1723] text-white">
+                      Replace entire track
+                    </option>
+                    <option value="append" className="bg-[#1b1723] text-white">
+                      Append to end of track
+                    </option>
                   </select>
                 </div>
               </div>

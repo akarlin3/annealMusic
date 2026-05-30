@@ -1,10 +1,10 @@
 import type { AnnealMusicParams } from '@/state/params';
 
-/** Which way a session runs: free-form ("open") or a scripted arc. */
-export type SessionMode = 'open' | 'arc';
+/** Which way a session runs: free-form ("open"), a scripted arc, or a piece timeline. */
+export type SessionMode = 'open' | 'arc' | 'piece';
 
 /** Runtime list of session modes (drives the share schema manifest). */
-export const SESSION_MODES: readonly SessionMode[] = ['open', 'arc'];
+export const SESSION_MODES: readonly SessionMode[] = ['open', 'arc', 'piece'];
 
 /**
  * Orchestrator session lifecycle. `stopping` is a real state so the fade-out
