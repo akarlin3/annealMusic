@@ -35,6 +35,23 @@ export function ResearchApp() {
   const [healthStatus, setHealthStatus] = useState<'ok' | 'offline'>('offline');
   const [healthTime, setHealthTime] = useState<string>('');
   const [versions, setVersions] = useState<any>(null);
+  const [experiments, setExperiments] = useState<any[]>([]);
+  const [loadingExps, setLoadingExps] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'experiments') {
+      setLoadingExps(true);
+      fetch('/api/v1/experiments/me')
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          setExperiments(Array.isArray(data) ? data : data.items || []);
+          setLoadingExps(false);
+        })
+        .catch(() => {
+          setLoadingExps(false);
+        });
+    }
+  }, [activeTab]);
 
   // Sculpt values
   const [rootFreq, setRootFreq] = useState<number>(110);
@@ -580,23 +597,131 @@ export function ResearchApp() {
 
           {activeTab === 'scripting' && <ScriptingPanel />}
 
-          {activeTab !== 'telemetry' &&
-            activeTab !== 'osc' &&
-            activeTab !== 'datalogger' &&
-            activeTab !== 'scripting' && (
-              <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 shadow-xl text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4">
-                  <Terminal size={24} />
-                </div>
-                <h2 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-300">
-                  {activeTab.toUpperCase()} Panel Available in later slices
+          {activeTab === 'experiments' && (
+            <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+              <div className="flex flex-col gap-1 select-none">
+                <h2 className="text-lg font-mono uppercase tracking-wider font-semibold text-stone-200">
+                  Experiments Console
                 </h2>
-                <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm">
-                  Infrastructure foundation is ready. This panel is scheduled
-                  for implementation in a later v5 milestone sweep.
+                <p className="text-xs text-stone-500 font-mono">
+                  Define, preview, and deploy psychoacoustic and cognitive music
+                  perception studies.
                 </p>
               </div>
-            )}
+
+              {loadingExps ? (
+                <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 text-center backdrop-blur-md">
+                  <RefreshCw
+                    size={24}
+                    className="animate-spin text-amber-500 mb-4"
+                  />
+                  <span className="text-xs uppercase tracking-widest text-stone-500 font-mono">
+                    Loading saved experiment configurations...
+                  </span>
+                </div>
+              ) : experiments.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 text-center backdrop-blur-md select-none">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4 animate-pulse">
+                    <Shield size={24} />
+                  </div>
+                  <h3 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-200">
+                    No active experiments found
+                  </h3>
+                  <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm leading-relaxed">
+                    Perceptual studies are defined programmatically using Python
+                    scripts. Boot up the
+                    <button
+                      onClick={() => setActiveTab('scripting')}
+                      className="text-amber-500 underline mx-1 hover:text-amber-400"
+                    >
+                      Scripting Console
+                    </button>
+                    and execute one of the pre-curated template scripts to
+                    compile your first experiment!
+                  </p>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 pr-2 scrollbar-thin">
+                  {experiments.map((exp) => (
+                    <div
+                      key={exp.id}
+                      className="border border-stone-900 bg-stone-900/10 rounded-xl p-5 shadow-lg backdrop-blur-md hover:border-amber-500/20 transition-all flex flex-col justify-between gap-4"
+                    >
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-start gap-2">
+                          <h3 className="text-sm font-mono font-semibold text-stone-200 uppercase tracking-wide">
+                            {exp.title}
+                          </h3>
+                          <span className="text-[9px] font-mono bg-stone-900 border border-stone-850 px-2 py-0.5 rounded text-stone-400">
+                            v5.6.0
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-stone-400 font-mono leading-relaxed line-clamp-3">
+                          {exp.description || 'No description provided.'}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-3 pt-2 border-t border-stone-900">
+                        <div className="flex justify-between text-[10px] font-mono text-stone-500">
+                          <span>
+                            Slug: {exp.short_slug || exp.id.substring(0, 8)}
+                          </span>
+                          <span>
+                            Created:{' '}
+                            {new Date(exp.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <div className="flex gap-2.5">
+                          <button
+                            onClick={() => {
+                              localStorage.setItem(
+                                'am_preview_experiment',
+                                JSON.stringify(exp.definition),
+                              );
+                              window.open('/experiment/preview', '_blank');
+                            }}
+                            className="flex-1 py-2 px-3 rounded-lg text-xs font-mono uppercase bg-amber-500 text-stone-950 hover:bg-amber-400 font-semibold transition-all text-center shadow-md shadow-amber-500/5"
+                          >
+                            Preview Runner
+                          </button>
+                          <button
+                            onClick={() => {
+                              const path = `/experiment/${exp.short_slug || exp.id}`;
+                              navigator.clipboard.writeText(
+                                window.location.origin + path,
+                              );
+                              alert(
+                                'Participant study link copied to clipboard!',
+                              );
+                            }}
+                            className="flex-1 py-2 px-3 rounded-lg text-xs font-mono uppercase bg-stone-900 border border-stone-850 text-stone-400 hover:text-stone-200 transition-all"
+                          >
+                            Copy Study Link
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'cli' && (
+            <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 shadow-xl text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4">
+                <Terminal size={24} />
+              </div>
+              <h2 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-300">
+                CLI Helper Panel
+              </h2>
+              <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm">
+                Infrastructure foundation is ready. This panel is scheduled for
+                implementation in a later v5 milestone sweep.
+              </p>
+            </div>
+          )}
         </main>
       </div>
     </div>

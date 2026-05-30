@@ -86,6 +86,78 @@ for step in range(15):
 print("Organic drift cycle complete.")
 `,
   },
+  {
+    name: 'Consonance Rating Study',
+    desc: 'Auditory perception experiment to rate perfect fifth vs tritone dyad pleasantness.',
+    code: `import anneal
+from anneal.experiment import Experiment, Stimulus, LikertResponse, Block, DemographicSurvey
+
+# 1. Define perfect fifth vs tritone stimuli
+dyads = [
+    Stimulus(id="perfect_fifth", patch={"engine": "sine", "rootFreq": 150, "brightness": 0.5}, duration=2.5),
+    Stimulus(id="tritone", patch={"engine": "sine", "rootFreq": 150, "brightness": 0.8}, duration=2.5),
+]
+
+# 2. Compile into a randomized block
+consonance_block = Block(
+    name="Auditory Consonance Rating",
+    trials=[
+        {"stimulus": dyads[0], "response": LikertResponse(prompt="Rate the pleasantness of this perfect fifth dyad:", scale=7)},
+        {"stimulus": dyads[1], "response": LikertResponse(prompt="Rate the pleasantness of this tritone dyad:", scale=7)},
+    ],
+    randomize="full"
+)
+
+# 3. Assemble and launch experiment
+exp = Experiment(
+    title="Dyad Consonance Perception Study",
+    description="A scientific perceptual study investigating consonant vs dissonant intervals.",
+    consent_text="Click accept to participate in this brief, non-invasive auditory perception study...",
+    debrief_text="Thank you for participating! Your responses help us analyze pitch ratio pleasantness."
+)
+exp.add_demographics(DemographicSurvey(["age", "musical_experience"]))
+exp.add_block(consonance_block)
+
+print("Registering Consonance Rating Study...")
+exp.run()
+`,
+  },
+  {
+    name: 'Brightness Tuning Study',
+    desc: 'Tuning experiment where subjects match continuous slider values against synthesizer states.',
+    code: `import anneal
+from anneal.experiment import Experiment, Stimulus, AdjustValue, Block, DemographicSurvey
+
+# 1. Define stimuli
+stimuli = [
+    Stimulus(id="dark_drone", patch={"engine": "waveguide", "brightness": 0.2, "drift": 0.1}, duration=5.0),
+    Stimulus(id="bright_drone", patch={"engine": "waveguide", "brightness": 0.8, "drift": 0.1}, duration=5.0),
+]
+
+# 2. Define block
+match_block = Block(
+    name="Synthesizer Brightness Matching",
+    trials=[
+        {"stimulus": stimuli[0], "response": AdjustValue(prompt="Tweak brightness to match the dark drone profile:", range=[0.0, 1.0], step=0.01, target_param="brightness")},
+        {"stimulus": stimuli[1], "response": AdjustValue(prompt="Tweak brightness to match the bright drone profile:", range=[0.0, 1.0], step=0.01, target_param="brightness")},
+    ],
+    randomize="full"
+)
+
+# 3. Assemble
+exp = Experiment(
+    title="Spectral Brightness Matching Task",
+    description="A tuning task to measure continuous parameter adjustments against synthetic models.",
+    consent_text="Click accept to participate in the parameter calibration match study...",
+    debrief_text="Tuning study completed successfully! Your data records have been generated."
+)
+exp.add_demographics(DemographicSurvey(["age", "hearing_loss"]))
+exp.add_block(match_block)
+
+print("Registering Brightness Tuning Study...")
+exp.run()
+`,
+  },
 ];
 
 export const ScriptingPanel: React.FC = () => {
@@ -196,6 +268,18 @@ export const ScriptingPanel: React.FC = () => {
 
         // Register interactive matplotlib plot callback
         worker.onPlotRender(handlePlotRender);
+
+        // Register experiment registration bridge listener
+        worker.onExperimentRegistered((expDef) => {
+          localStorage.setItem('am_preview_experiment', JSON.stringify(expDef));
+          if (
+            window.confirm(
+              `Experiment "${expDef.title}" compiled and registered successfully! Would you like to launch the Preview Runner in a new tab to test it?`,
+            )
+          ) {
+            window.open('/experiment/preview', '_blank');
+          }
+        });
       } else if (status.stage === 'error') {
         setIsInitializing(false);
       }

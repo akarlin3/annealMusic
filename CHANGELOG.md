@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.6.0] - 2026-05-30
+
+### Added
+
+- **Auditory Perceptual Experimentation Framework.** Introduced a dedicated, purpose-built surface for music cognition and Music Information Retrieval (MIR) researchers to programmatically define, counterbalance, and run perceptual studies.
+- **`anneal.experiment` Python API Bindings.** Shipped canonical, sandboxed Python APIs allowing researchers to define experiments as Python scripts containing consent gates, blocks of randomized trials, breaks, and customizable demographic intakes.
+- **Modular Participant UI Runner.** Created a highly focused, clinical-aesthetic React runner (`ExperimentRunner.tsx`) served at `/experiment/:slug` and `/experiment/preview` with strict zero-data-processor architectures to simplify IRB and legal approvals.
+- **Six Integrated Response Input Modalities.** Implemented highly optimized React response components for standard inputs:
+  - `LikertResponse`: High-contrast, tactile rating scales.
+  - `ForcedChoice`: Accessible option grids and dropdown selectors.
+  - `FreeText`: Formatted, character-capped text areas.
+  - `AdjustValue`: Live parameter adjustment sliders that directly modulate synthesizer voices in real time.
+  - `ReactionTime`: Keyboard-anchored response latency logs accurate to browser event loops.
+  - `Continuous`: Real-time tracking samplers logging parameter adjustment values at `30Hz` over active stimulus playback.
+- **Williams Latin Square Row Counterbalancing.** Added deterministic row generators to counterbalance and randomize block conditions, eliminating carryover bias across participants.
+- **Lossless In-Memory Data Exporter.** Compiles participant intake, responses, and high-resolution `30Hz` acoustic/synthesizer telemetry into an uncompressed ZIP archive containing standard metadata `manifest.json`, clean tabular `responses.csv`, and comprehensive `datalogger.jsonl` ticks.
+- **Experiments Dashboard Console Tab.** Designed an elegant, glassmorphic researcher cockpit inside `/research`, allowing researchers to manage completed definitions, copy participant recruitment links, and trigger local sandbox previews.
+- **Pre-Curated Scientific Templates.** Shipped high-value experiment script templates (e.g. Dyad Consonance Rating, Spectral Brightness Tuning) in the example scripting library for immediate deployment.
+
 ## [5.5.0] - 2026-05-30
 
 ### Added

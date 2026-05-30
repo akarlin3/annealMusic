@@ -83,7 +83,20 @@ export const ExperimentRunner: React.FC<ExperimentRunnerProps> = ({
   // Fetch experiment definition if not in preview mode
   useEffect(() => {
     if (isPreview) {
-      setDefinition(previewDefinition);
+      if (previewDefinition) {
+        setDefinition(previewDefinition);
+      } else {
+        const cached = localStorage.getItem('am_preview_experiment');
+        if (cached) {
+          try {
+            setDefinition(JSON.parse(cached));
+          } catch {
+            setError('Failed to parse cached preview experiment.');
+          }
+        } else {
+          setError('No experiment definition provided for preview.');
+        }
+      }
       setLoading(false);
       return;
     }
@@ -149,6 +162,7 @@ export const ExperimentRunner: React.FC<ExperimentRunnerProps> = ({
   };
 
   // Saves a completed trial's data payload into state
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const saveTrialResult = useCallback(
     (value: unknown, rtMs: number | null = null) => {
       if (trialTimeoutRef.current) clearTimeout(trialTimeoutRef.current);
@@ -199,8 +213,8 @@ export const ExperimentRunner: React.FC<ExperimentRunnerProps> = ({
           advanceStep();
         }
       }, 500);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [am, currentTrials, activeTrialIndex, results, subjectId],
   );
 
