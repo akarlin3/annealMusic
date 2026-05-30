@@ -68,6 +68,7 @@ def to_out(piece: Piece, segments: list[PieceSegment]) -> PieceOut:
         notation=defaults.get("_notation"),
         variation_seed=defaults.get("_variation_seed"),
         variations=defaults.get("_variations"),
+        automation_tracks=defaults.get("_automation_tracks"),
     )
 
 
@@ -111,7 +112,7 @@ async def create_piece(
     if not has_open:
         total_duration = sum((seg.duration_ms or 0) for seg in body.segments)
 
-    # Store movements, tempo, notation, and variations in defaults_state
+    # Store movements, tempo, notation, variations, and automation_tracks in defaults_state
     defaults_state = {
         **body.defaults_state,
         "_movements": body.movements,
@@ -119,6 +120,7 @@ async def create_piece(
         "_notation": body.notation,
         "_variation_seed": body.variation_seed,
         "_variations": body.variations,
+        "_automation_tracks": body.automation_tracks,
     }
 
     piece = Piece(
@@ -254,6 +256,8 @@ async def update_piece(
         defaults_state["_variation_seed"] = body.variation_seed
     if body.variations is not None:
         defaults_state["_variations"] = body.variations
+    if body.automation_tracks is not None:
+        defaults_state["_automation_tracks"] = body.automation_tracks
 
     piece.defaults_state = defaults_state
 

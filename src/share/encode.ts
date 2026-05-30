@@ -29,6 +29,9 @@ import type {
   NotationNote,
   SegmentType,
   VariationPoint,
+  AutomationTrack,
+  AutomationPoint,
+  InterpolationMode,
 } from '@/piece/types';
 
 const SHARED_KEY_SET: ReadonlySet<string> = new Set(SHARED_KEYS);
@@ -172,6 +175,7 @@ export interface DecodedPiece {
   segments: DecodedPieceSegment[];
   notation?: NotationNote[];
   movements?: Movement[];
+  automationTracks?: AutomationTrack[];
 }
 
 export type DecodedState =
@@ -490,6 +494,7 @@ export function decodePiecePayload(payload: string): DecodedPiece {
   let variations: VariationPoint[] = [];
   let notation: NotationNote[] = [];
   const defPairs: string[] = [];
+  const automationTracksMap = new Map<string, AutomationPoint[]>();
   const segMap: Record<
     number,
     {
@@ -546,6 +551,31 @@ export function decodePiecePayload(payload: string): DecodedPiece {
           pitch_midi: pitch,
         };
       });
+    } else if (key.startsWith('auto.')) {
+      const paramKey = key.slice(5);
+      if (raw !== '') {
+        const points: AutomationPoint[] = decodeURIComponent(raw)
+          .split(';')
+          .map((ptStr, idx) => {
+            const parts = ptStr.split(',');
+            const timeMs = Number(parts[0] ?? 0);
+            const value = Number(parts[1] ?? 0);
+            const interpCode = parts[2] ?? 'l';
+            const interpolation: InterpolationMode =
+              interpCode === 'e'
+                ? 'exponential'
+                : interpCode === 'h'
+                  ? 'hold'
+                  : 'linear';
+            return {
+              id: `point-${idx}-${Math.random().toString(36).substr(2, 5)}`,
+              timeMs,
+              value,
+              interpolation,
+            };
+          });
+        automationTracksMap.set(paramKey, points);
+      }
     } else if (key.startsWith('def.')) {
       defPairs.push(pair.slice(4));
     } else if (key.startsWith('mov')) {
@@ -653,6 +683,14 @@ export function decodePiecePayload(payload: string): DecodedPiece {
     })
     .filter(Boolean) as Movement[];
 
+  const automationTracks: AutomationTrack[] = Array.from(
+    automationTracksMap.entries(),
+  ).map(([paramKey, points]) => ({
+    id: `track-${paramKey}`,
+    paramKey,
+    points: points.sort((a, b) => a.timeMs - b.timeMs),
+  }));
+
   return {
     title,
     description,
@@ -668,10 +706,62 @@ export function decodePiecePayload(payload: string): DecodedPiece {
     segments,
     notation,
     movements: movements.length > 0 ? movements : undefined,
+    automationTracks:
+      automationTracks.length > 0 ? automationTracks : undefined,
   };
 }
 
-/** Encode a Piece into a version 13 URL payload string */
+function simplifyPoints(
+  points: {
+    timeMs: number;
+    value: number;
+    interpolation: string;
+    id?: string;
+  }[],
+  tolerance: number = 0.001,
+): typeof points {
+  if (points.length <= 2) return points;
+
+  let maxSqDist = 0;
+  let index = 0;
+  const end = points.length - 1;
+  const p0 = points[0]!;
+  const pE = points[end]!;
+
+  for (let i = 1; i < end; i++) {
+    const p = points[i]!;
+    let sqDist = 0;
+    const dx = pE.timeMs - p0.timeMs;
+    const dy = pE.value - p0.value;
+    if (dx !== 0 || dy !== 0) {
+      const t =
+        ((p.timeMs - p0.timeMs) * dx + (p.value - p0.value) * dy) /
+        (dx * dx + dy * dy);
+      const clampedT = Math.max(0, Math.min(1, t));
+      const projX = p0.timeMs + clampedT * dx;
+      const projY = p0.value + clampedT * dy;
+      sqDist = Math.pow(p.timeMs - projX, 2) + Math.pow(p.value - projY, 2);
+    } else {
+      sqDist =
+        Math.pow(p.timeMs - p0.timeMs, 2) + Math.pow(p.value - p0.value, 2);
+    }
+
+    if (sqDist > maxSqDist) {
+      index = i;
+      maxSqDist = sqDist;
+    }
+  }
+
+  if (maxSqDist > tolerance * tolerance) {
+    const results1 = simplifyPoints(points.slice(0, index + 1), tolerance);
+    const results2 = simplifyPoints(points.slice(index), tolerance);
+    return results1.slice(0, results1.length - 1).concat(results2);
+  } else {
+    return [p0, pE];
+  }
+}
+
+/** Encode a Piece into a version 14 URL payload string */
 export function encodePiece(piece: {
   title?: string | null;
   description?: string | null;
@@ -702,6 +792,14 @@ export function encodePiece(piece: {
     transition_out_ms?: number;
     startSegmentIndex: number;
     endSegmentIndex: number;
+  }[];
+  automationTracks?: {
+    paramKey: string;
+    points: {
+      timeMs: number;
+      value: number;
+      interpolation: InterpolationMode;
+    }[];
   }[];
 }): string {
   const parts = ['kind=piece'];
@@ -742,6 +840,20 @@ export function encodePiece(piece: {
       }
       parts.push(`mov${idx}.start=${mov.startSegmentIndex}`);
       parts.push(`mov${idx}.end=${mov.endSegmentIndex}`);
+    });
+  }
+  if (piece.automationTracks && piece.automationTracks.length > 0) {
+    piece.automationTracks.forEach((track) => {
+      const simplified = simplifyPoints(track.points, 0.001);
+      const bounds = KEY_BOUNDS[track.paramKey as SharedKey];
+      const decimals = bounds ? bounds.decimals : 2;
+      const encodedPoints = simplified
+        .map(
+          (p) =>
+            `${p.timeMs},${p.value.toFixed(decimals)},${p.interpolation[0]}`,
+        )
+        .join(';');
+      parts.push(`auto.${track.paramKey}=${encodeURIComponent(encodedPoints)}`);
     });
   }
 

@@ -396,6 +396,7 @@ class PieceCreate(BaseModel):
     notation: list[dict] | None = None
     variation_seed: int | None = None
     variations: list[dict] | None = None
+    automation_tracks: list[dict] | None = None
 
 
 class PieceUpdate(BaseModel):
@@ -409,6 +410,7 @@ class PieceUpdate(BaseModel):
     notation: list[dict] | None = None
     variation_seed: int | None = None
     variations: list[dict] | None = None
+    automation_tracks: list[dict] | None = None
 
 
 class PieceSegmentOut(BaseModel):
@@ -443,6 +445,7 @@ class PieceOut(BaseModel):
     notation: list[dict] | None = None
     variation_seed: int | None = None
     variations: list[dict] | None = None
+    automation_tracks: list[dict] | None = None
 
 
 

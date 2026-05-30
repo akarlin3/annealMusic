@@ -43,6 +43,21 @@ export interface Movement {
   endSegmentIndex: number;
 }
 
+export type InterpolationMode = 'linear' | 'exponential' | 'hold';
+
+export interface AutomationPoint {
+  id: string;
+  timeMs: number;
+  value: number;
+  interpolation: InterpolationMode;
+}
+
+export interface AutomationTrack {
+  id: string;
+  paramKey: string;
+  points: AutomationPoint[];
+}
+
 export interface Piece {
   id?: string;
   schemaVer: number;
@@ -63,4 +78,5 @@ export interface Piece {
   variationSeed?: number | null;
   variations?: VariationPoint[];
   movements?: Movement[];
+  automationTracks?: AutomationTrack[];
 }

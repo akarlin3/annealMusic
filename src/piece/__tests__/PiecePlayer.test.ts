@@ -343,4 +343,172 @@ describe('PiecePlayer timeline', () => {
       expect(player.getPlayheadMs()).toBe(0);
     });
   });
+
+  describe('PiecePlayer automation and priority overrides', () => {
+    it('evaluates automation points correctly with different interpolation modes', () => {
+      const piece: Piece = {
+        schemaVer: 14,
+        tempoBpm: null,
+        title: 'Automation Priority Test',
+        description: null,
+        visibility: 'unlisted',
+        totalDurationMs: 10000,
+        hasOpenSegment: false,
+        defaultsState: {
+          params: { ...DEFAULT_PARAMS, brightness: 0.5, space: 0.2 },
+          engineId: 'sine',
+          engineParams: {},
+        },
+        segments: [
+          {
+            position: 0,
+            type: 'fixed',
+            durationMs: 10000,
+            config: { params: { brightness: 0.3 } },
+          },
+        ],
+        automationTracks: [
+          {
+            id: 'track-brightness',
+            paramKey: 'brightness',
+            points: [
+              { id: 'p0', timeMs: 1000, value: 0.4, interpolation: 'linear' },
+              { id: 'p1', timeMs: 3000, value: 0.8, interpolation: 'linear' },
+              { id: 'p2', timeMs: 5000, value: 0.2, interpolation: 'hold' },
+              {
+                id: 'p3',
+                timeMs: 7000,
+                value: 0.9,
+                interpolation: 'exponential',
+              },
+              {
+                id: 'p4',
+                timeMs: 9000,
+                value: 0.1,
+                interpolation: 'exponential',
+              },
+            ],
+          },
+        ],
+      };
+
+      const mockOrch = {
+        start: vi.fn(),
+        setEngine: vi.fn(),
+        setSharedParams: vi.fn(),
+        setEngineParams: vi.fn(),
+        setTempoBpm: vi.fn(),
+      } as unknown as Orchestrator;
+
+      const player = new PiecePlayer(piece, mockOrch);
+
+      let mockTime = 1000;
+      vi.spyOn(performance, 'now').mockImplementation(() => mockTime);
+      player.start(); // ticks at t=0
+
+      // Before first point (t=500ms): evaluates to first point value (0.4)
+      mockTime = 1500;
+      (player as any).tick();
+      expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+        expect.objectContaining({ brightness: 0.4 }),
+        false,
+      );
+
+      // Linear interpolation (t=2000ms, halfway between 1000ms [0.4] and 3000ms [0.8]): evaluates to 0.6
+      mockTime = 3000;
+      (player as any).tick();
+      expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+        expect.objectContaining({ brightness: expect.closeTo(0.6, 2) }),
+        false,
+      );
+
+      // Hold interpolation (t=6000ms, between 5000ms [0.2, hold] and 7000ms [0.9]): evaluates to 0.2
+      mockTime = 7000;
+      (player as any).tick();
+      expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+        expect.objectContaining({ brightness: 0.2 }),
+        false,
+      );
+
+      // Exponential interpolation (t=8000ms, halfway between 7000ms [0.9] and 9000ms [0.1]): evaluates to 0.9 * sqrt(0.1 / 0.9) = 0.3
+      mockTime = 9000;
+      (player as any).tick();
+      expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+        expect.objectContaining({ brightness: expect.closeTo(0.3, 2) }),
+        false,
+      );
+    });
+
+    it('resolves notation > automation > segment > defaults priority correctly', () => {
+      const piece: Piece = {
+        schemaVer: 14,
+        tempoBpm: null,
+        title: 'Full Priority Test',
+        description: null,
+        visibility: 'unlisted',
+        totalDurationMs: 10000,
+        hasOpenSegment: false,
+        defaultsState: {
+          params: { ...DEFAULT_PARAMS, rootFreq: 150, brightness: 0.5 },
+          engineId: 'sine',
+          engineParams: {},
+        },
+        segments: [
+          {
+            position: 0,
+            type: 'fixed',
+            durationMs: 10000,
+            config: { params: { rootFreq: 180, brightness: 0.3 } }, // segment overrides
+          },
+        ],
+        automationTracks: [
+          {
+            id: 'track-rootFreq',
+            paramKey: 'rootFreq',
+            points: [
+              { id: 'p0', timeMs: 2000, value: 220, interpolation: 'hold' }, // automation override
+            ],
+          },
+        ],
+        notation: [
+          { id: 'n0', onset_ms: 4000, duration_ms: 2000, pitch_midi: 69 }, // notation override A4=440Hz
+        ],
+      };
+
+      const mockOrch = {
+        start: vi.fn(),
+        setEngine: vi.fn(),
+        setSharedParams: vi.fn(),
+        setEngineParams: vi.fn(),
+        setTempoBpm: vi.fn(),
+      } as unknown as Orchestrator;
+
+      const player = new PiecePlayer(piece, mockOrch);
+      let mockTime = 1000;
+      vi.spyOn(performance, 'now').mockImplementation(() => mockTime);
+      player.start();
+
+      // At t=500ms (globalPlayheadMs=0): segment overrides defaults for brightness (0.3), automation overrides segment for rootFreq (220)
+      expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+        expect.objectContaining({ brightness: 0.3, rootFreq: 220 }),
+        false,
+      );
+
+      // At t=3500ms (globalPlayheadMs=2500): automation overrides segment for rootFreq -> 220
+      mockTime = 3500;
+      (player as any).tick();
+      expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+        expect.objectContaining({ rootFreq: 220 }),
+        false,
+      );
+
+      // At t=6000ms (globalPlayheadMs=5000): notation overrides automation for rootFreq -> A4 (440)
+      mockTime = 6000;
+      (player as any).tick();
+      expect(mockOrch.setSharedParams).toHaveBeenLastCalledWith(
+        expect.objectContaining({ rootFreq: 440 }),
+        false,
+      );
+    });
+  });
 });

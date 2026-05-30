@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Piece, PieceSegment, VariationPoint } from '@/piece/types';
+import type {
+  Piece,
+  PieceSegment,
+  VariationPoint,
+  AutomationPoint,
+} from '@/piece/types';
 import type { Orchestrator } from '@/audio/orchestrator';
 import { interpolateState, type PieceState } from '@/piece/transitions';
 import { ArcRunner } from '@/session/ArcRunner';
@@ -9,6 +14,41 @@ import { generateMetaArc } from '@/piece/generators';
 import { doc, sessionConfigMap } from '@/jam/crdt';
 import { getAnonId } from '@/api/anon';
 import { resolveVariations, hashStringToInt } from '@/piece/resolver';
+
+export function evaluateAutomation(
+  points: AutomationPoint[],
+  timeMs: number,
+): number | null {
+  if (!points || points.length === 0) return null;
+  const sorted = [...points].sort((a, b) => a.timeMs - b.timeMs);
+  if (timeMs <= sorted[0].timeMs) return sorted[0].value;
+  if (timeMs >= sorted[sorted.length - 1].timeMs)
+    return sorted[sorted.length - 1].value;
+
+  let idx = 0;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (timeMs >= sorted[i].timeMs && timeMs < sorted[i + 1].timeMs) {
+      idx = i;
+      break;
+    }
+  }
+
+  const p0 = sorted[idx]!;
+  const p1 = sorted[idx + 1]!;
+  const dt = p1.timeMs - p0.timeMs;
+  if (dt === 0) return p0.value;
+  const t = (timeMs - p0.timeMs) / dt;
+
+  if (p0.interpolation === 'hold') {
+    return p0.value;
+  }
+  if (p0.interpolation === 'exponential') {
+    if (p0.value !== 0 && p1.value !== 0 && p0.value * p1.value > 0) {
+      return p0.value * Math.pow(p1.value / p0.value, t);
+    }
+  }
+  return p0.value + t * (p1.value - p0.value);
+}
 
 function resolveNestedConfigVariations(
   config: Record<string, any>,
@@ -391,13 +431,24 @@ export class PiecePlayer {
     }
     playheadGlobalMs += this.playheadMs;
 
+    // Apply Automation Overrides
+    const mergedParams = { ...targetState.params };
+    if (this.piece.automationTracks) {
+      for (const track of this.piece.automationTracks) {
+        const autoValue = evaluateAutomation(track.points, playheadGlobalMs);
+        if (autoValue !== null) {
+          mergedParams[track.paramKey] = autoValue;
+        }
+      }
+    }
+
     const activeNote = this.piece.notation?.find(
       (note) =>
         playheadGlobalMs >= note.onset_ms &&
         playheadGlobalMs < note.onset_ms + note.duration_ms,
     );
 
-    let targetRootFreq = targetState.params.rootFreq;
+    let targetRootFreq = mergedParams.rootFreq ?? targetState.params.rootFreq;
     let isFromNotation = false;
 
     if (activeNote) {
@@ -406,11 +457,17 @@ export class PiecePlayer {
       this.lastNotationPitchHz = freq;
       isFromNotation = true;
     } else {
+      const hasAutomationRootOverride = this.piece.automationTracks?.some(
+        (track) =>
+          track.paramKey === 'rootFreq' &&
+          evaluateAutomation(track.points, playheadGlobalMs) !== null,
+      );
       const hasSegmentRootOverride =
         seg.type === 'transition' ||
         seg.type === 'arc' ||
         seg.type === 'meta-arc' ||
-        (seg.type === 'fixed' && seg.config?.params?.rootFreq !== undefined);
+        (seg.type === 'fixed' && seg.config?.params?.rootFreq !== undefined) ||
+        hasAutomationRootOverride;
 
       if (hasSegmentRootOverride) {
         this.lastNotationPitchHz = null;
@@ -425,7 +482,7 @@ export class PiecePlayer {
     const isInstantChange = !this.smoothPitch && isFromNotation;
 
     this.orchestrator.setSharedParams(
-      { ...targetState.params, rootFreq: targetRootFreq },
+      { ...mergedParams, rootFreq: targetRootFreq },
       isInstantChange,
     );
 
