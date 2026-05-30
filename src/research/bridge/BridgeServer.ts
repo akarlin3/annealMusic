@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BroadcastTransport } from './transport/broadcast';
+import { PostMessageTransport } from './transport/postmessage';
 import { useParamStore } from '../../state/params';
 import { METHOD_SCHEMAS, BRIDGE_VERSION, SCHEMA_VERSION } from './schema';
 import type { Orchestrator } from '../../audio/orchestrator';
@@ -22,7 +23,7 @@ interface Subscription {
 }
 
 export class BridgeServer {
-  private transport: BroadcastTransport;
+  private transports: (BroadcastTransport | PostMessageTransport)[] = [];
   private subscriptions: Map<string, Subscription> = new Map();
   private storeUnsubscribe: (() => void) | null = null;
   private datalogSubscriptions: Map<string, () => void> = new Map();
@@ -50,8 +51,13 @@ export class BridgeServer {
   }
 
   constructor() {
-    this.transport = new BroadcastTransport();
-    this.transport.onMessage((msg) => this.handleMessage(msg));
+    this.transports.push(new BroadcastTransport());
+    if (typeof window !== 'undefined') {
+      this.transports.push(new PostMessageTransport());
+    }
+    for (const t of this.transports) {
+      t.onMessage((msg) => this.handleMessage(msg, t));
+    }
     this.setupStoreSubscription();
   }
 
@@ -74,7 +80,9 @@ export class BridgeServer {
                 value: val,
               },
             };
-            this.transport.send(notification);
+            for (const t of this.transports) {
+              t.send(notification);
+            }
           }
         }
       }
@@ -82,7 +90,10 @@ export class BridgeServer {
     });
   }
 
-  private async handleMessage(msg: any): Promise<void> {
+  private async handleMessage(
+    msg: any,
+    transport: BroadcastTransport | PostMessageTransport,
+  ): Promise<void> {
     // We only process requests that have a method and an id
     if (!msg || typeof msg.method !== 'string' || msg.id === undefined) {
       return;
@@ -107,6 +118,7 @@ export class BridgeServer {
       const result = await this.dispatchMethod(req.method, req.params);
       response.result = result;
     } catch (err) {
+      console.error('[BridgeServer] Error in handleMessage:', err);
       if (err instanceof BridgeError) {
         response.error = err.toJsonRpcError();
       } else {
@@ -117,7 +129,7 @@ export class BridgeServer {
       }
     }
 
-    this.transport.send(response);
+    transport.send(response);
   }
 
   private async dispatchMethod(method: string, params: any): Promise<any> {
@@ -290,6 +302,7 @@ export class BridgeServer {
         };
       }
 
+      case 'anneal.lesson.loadPatch':
       case 'anneal.session.loadPatch': {
         const patch = params.patch;
         const s = useParamStore.getState();
@@ -306,8 +319,35 @@ export class BridgeServer {
         return true;
       }
 
+      case 'anneal.lesson.loadPiece':
       case 'anneal.session.loadPiece': {
         // Mock loading piece
+        return true;
+      }
+
+      case 'anneal.lesson.highlight': {
+        if (typeof window !== 'undefined') {
+          const ev =
+            typeof CustomEvent !== 'undefined'
+              ? new CustomEvent('anneal-highlight', {
+                  detail: { controlKey: params.controlKey },
+                })
+              : {
+                  type: 'anneal-highlight',
+                  detail: { controlKey: params.controlKey },
+                };
+          window.dispatchEvent(ev as any);
+        }
+        return true;
+      }
+
+      case 'anneal.lesson.constrain': {
+        useParamStore.getState().setConstraints(params.constraints);
+        return true;
+      }
+
+      case 'anneal.lesson.releaseConstraints': {
+        useParamStore.getState().setConstraints(null);
         return true;
       }
 
@@ -356,7 +396,9 @@ export class BridgeServer {
               tick,
             },
           };
-          this.transport.send(notification);
+          for (const t of this.transports) {
+            t.send(notification);
+          }
         });
         this.datalogSubscriptions.set(subId, unsub);
         return { subscriptionId: subId };
@@ -376,6 +418,8 @@ export class BridgeServer {
       unsub();
     }
     this.datalogSubscriptions.clear();
-    this.transport.close();
+    for (const t of this.transports) {
+      t.close();
+    }
   }
 }

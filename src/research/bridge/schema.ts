@@ -238,4 +238,56 @@ export const METHOD_SCHEMAS: Record<string, MethodDef> = {
     description:
       'Subscribes to real-time session datalogger tick notifications.',
   },
+  'anneal.lesson.loadPatch': {
+    name: 'anneal.lesson.loadPatch',
+    description: 'Loads a patch state during a lesson step.',
+    validate: (params) => {
+      if (!params || typeof params.patch !== 'object') {
+        throw new BridgeError(
+          -32602,
+          'Invalid params: patch object must be provided',
+        );
+      }
+    },
+  },
+  'anneal.lesson.loadPiece': {
+    name: 'anneal.lesson.loadPiece',
+    description: 'Loads a piece state during a lesson step.',
+    validate: (params) => {
+      if (!params || typeof params.piece !== 'object') {
+        throw new BridgeError(
+          -32602,
+          'Invalid params: piece object must be provided',
+        );
+      }
+    },
+  },
+  'anneal.lesson.highlight': {
+    name: 'anneal.lesson.highlight',
+    description: 'Highlights a specific parameter key in the UI for ~3s.',
+    validate: (params) => {
+      if (!params || typeof params.controlKey !== 'string') {
+        throw new BridgeError(
+          -32602,
+          'Invalid params: controlKey must be a string',
+        );
+      }
+    },
+  },
+  'anneal.lesson.constrain': {
+    name: 'anneal.lesson.constrain',
+    description: 'Enforces control restrictions during a lesson step.',
+    validate: (params) => {
+      if (!params || !Array.isArray(params.constraints)) {
+        throw new BridgeError(
+          -32602,
+          'Invalid params: constraints must be an array of strings',
+        );
+      }
+    },
+  },
+  'anneal.lesson.releaseConstraints': {
+    name: 'anneal.lesson.releaseConstraints',
+    description: 'Removes active control restrictions.',
+  },
 };

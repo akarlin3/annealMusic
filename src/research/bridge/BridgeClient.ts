@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BroadcastTransport } from './transport/broadcast';
+import { PostMessageTransport } from './transport/postmessage';
 import type { JsonRpcRequest } from './types';
 
 export class BridgeClient {
-  private transport: BroadcastTransport;
+  private transport: BroadcastTransport | PostMessageTransport;
   private nextId = 1;
   private pendingRequests: Map<
     string | number,
@@ -11,16 +12,17 @@ export class BridgeClient {
   > = new Map();
   private subscriptionCallbacks: Map<string, (val: any) => void> = new Map();
 
-  constructor() {
-    this.transport = new BroadcastTransport();
+  constructor(transport?: BroadcastTransport | PostMessageTransport) {
+    this.transport = transport || new BroadcastTransport();
     this.transport.onMessage((msg) => this.handleMessage(msg));
   }
 
   private handleMessage(msg: any): void {
     if (!msg) return;
+    console.log('[BridgeClient] Received message:', msg);
 
-    // Check if it's a response
-    if (msg.id !== undefined && msg.id !== null) {
+    // Check if it's a response (responses never have a 'method' field)
+    if (msg.id !== undefined && msg.id !== null && msg.method === undefined) {
       const pending = this.pendingRequests.get(msg.id);
       if (pending) {
         this.pendingRequests.delete(msg.id);
@@ -138,11 +140,23 @@ export class BridgeClient {
   }
 
   async loadPatch(patch: any): Promise<boolean> {
-    return this.call('anneal.session.loadPatch', { patch });
+    return this.call('anneal.lesson.loadPatch', { patch });
   }
 
   async loadPiece(piece: any): Promise<boolean> {
-    return this.call('anneal.session.loadPiece', { piece });
+    return this.call('anneal.lesson.loadPiece', { piece });
+  }
+
+  async highlight(controlKey: string): Promise<boolean> {
+    return this.call('anneal.lesson.highlight', { controlKey });
+  }
+
+  async constrain(constraints: string[]): Promise<boolean> {
+    return this.call('anneal.lesson.constrain', { constraints });
+  }
+
+  async releaseConstraints(): Promise<boolean> {
+    return this.call('anneal.lesson.releaseConstraints');
   }
 
   close(): void {

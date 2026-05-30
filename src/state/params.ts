@@ -246,6 +246,8 @@ export interface ParamStore {
   setTuning: (ref: TuningRef) => void;
   setCustomScales: (scales: CustomTuning[]) => void;
   setMode: (mode: 'sketch' | 'drone') => void;
+  constraints: string[] | null;
+  setConstraints: (constraints: string[] | null) => void;
   reset: () => void;
 }
 
@@ -260,30 +262,56 @@ export const useParamStore = create<ParamStore>((set) => ({
   tuning: DEFAULT_TUNING,
   customScales: [],
   mode: 'sketch',
+  constraints: null,
   setParam: (key, value) =>
-    set((state) => ({
-      params: { ...state.params, [key]: clampParam(key, value) },
-    })),
+    set((state) => {
+      if (state.constraints && !state.constraints.includes(key)) {
+        return {};
+      }
+      return {
+        params: { ...state.params, [key]: clampParam(key, value) },
+      };
+    }),
   setMany: (partial) =>
     set((state) => {
       const next = { ...state.params };
       for (const key of Object.keys(partial) as ParamKey[]) {
         const value = partial[key];
-        if (value !== undefined) next[key] = clampParam(key, value);
+        if (value !== undefined) {
+          if (state.constraints && !state.constraints.includes(key)) {
+            continue;
+          }
+          next[key] = clampParam(key, value);
+        }
       }
       return { params: next };
     }),
-  setEngine: (id) => set({ engineId: id }),
+  setEngine: (id) =>
+    set((state) => {
+      if (state.constraints && !state.constraints.includes('engineId')) {
+        return {};
+      }
+      return { engineId: id };
+    }),
   setEngineParam: (id, key, value) =>
-    set((state) => ({
-      engineParams: {
-        ...state.engineParams,
-        [id]: {
-          ...state.engineParams[id],
-          [key]: clampEngineParam(id, key, value),
+    set((state) => {
+      if (
+        state.constraints &&
+        !state.constraints.includes(key) &&
+        !state.constraints.includes(`${id}.${key}`)
+      ) {
+        return {};
+      }
+      return {
+        engineParams: {
+          ...state.engineParams,
+          [id]: {
+            ...state.engineParams[id],
+            [key]: clampEngineParam(id, key, value),
+          },
         },
-      },
-    })),
+      };
+    }),
   setSessionMode: (mode) => set({ sessionMode: mode }),
   setArcId: (id) => set({ arcId: id }),
   setArcDurationSec: (sec) => set({ arcDurationSec: clampArcDuration(sec) }),
@@ -292,6 +320,7 @@ export const useParamStore = create<ParamStore>((set) => ({
   setTuning: (ref) => set({ tuning: ref }),
   setCustomScales: (scales) => set({ customScales: scales }),
   setMode: (mode) => set({ mode }),
+  setConstraints: (constraints) => set({ constraints }),
   reset: () =>
     set({
       params: DEFAULT_PARAMS,
@@ -304,5 +333,6 @@ export const useParamStore = create<ParamStore>((set) => ({
       tuning: DEFAULT_TUNING,
       customScales: [],
       mode: 'sketch',
+      constraints: null,
     }),
 }));

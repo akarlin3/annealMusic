@@ -160,8 +160,31 @@ function Slider({
   const sliderMax = isRoot ? 220 : def.max;
   const sliderVal = isRoot ? Math.min(220, Math.max(55, value)) : value;
 
+  const [highlighted, setHighlighted] = useState(false);
+
+  useEffect(() => {
+    const handleHighlight = (e: Event) => {
+      const customEvent = e as CustomEvent<{ controlKey: string }>;
+      if (customEvent.detail.controlKey === explainId) {
+        setHighlighted(true);
+        const timer = setTimeout(() => setHighlighted(false), 3000);
+        return () => clearTimeout(timer);
+      }
+    };
+    window.addEventListener('anneal-highlight', handleHighlight);
+    return () =>
+      window.removeEventListener('anneal-highlight', handleHighlight);
+  }, [explainId]);
+
   return (
-    <div data-tour={tourId}>
+    <div
+      data-tour={tourId}
+      className={`transition-all duration-300 ${
+        highlighted
+          ? 'rounded-lg p-2 bg-[#fbbf24]/10 shadow-[0_0_15px_rgba(251,191,36,0.3)] ring-2 ring-[#fbbf24]'
+          : ''
+      }`}
+    >
       <div className="mb-1.5 flex items-baseline justify-between">
         <span className="flex items-center gap-1.5">
           <label
@@ -301,7 +324,8 @@ export default function ControlPanel({
   const engineDefs = engineParamDefs(engineId);
 
   // --- Tuning & Custom Scales (v4.1) ---------------------------------------
-  const { tuning, customScales, setTuning, setCustomScales } = useParamStore();
+  const { tuning, customScales, setTuning, setCustomScales, constraints } =
+    useParamStore();
   const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
@@ -451,21 +475,29 @@ export default function ControlPanel({
               {group}
             </div>
             <div className="space-y-5">
-              {CONTROL_DEFS.filter((c) => c.group === group).map((c) => (
-                <Slider
-                  key={c.key}
-                  def={c}
-                  value={params[c.key]}
-                  disabled={
-                    arcLocked || (Boolean(c.lockWhilePlaying) && structuralLock)
-                  }
-                  lockLabel={arcLocked ? 'arc' : 'locked'}
-                  explainId={c.key}
-                  showCaption={showCaptions}
-                  tourId={c.key}
-                  onChange={(v) => setParam(c.key, v)}
-                />
-              ))}
+              {CONTROL_DEFS.filter((c) => c.group === group).map((c) => {
+                const allowedByLesson =
+                  !constraints || constraints.includes(c.key);
+                return (
+                  <Slider
+                    key={c.key}
+                    def={c}
+                    value={params[c.key]}
+                    disabled={
+                      arcLocked ||
+                      (Boolean(c.lockWhilePlaying) && structuralLock) ||
+                      !allowedByLesson
+                    }
+                    lockLabel={
+                      !allowedByLesson ? 'lesson' : arcLocked ? 'arc' : 'locked'
+                    }
+                    explainId={c.key}
+                    showCaption={showCaptions}
+                    tourId={c.key}
+                    onChange={(v) => setParam(c.key, v)}
+                  />
+                );
+              })}
             </div>
           </div>
         ))}
@@ -524,12 +556,20 @@ export default function ControlPanel({
                 </span>
                 <InfoTip id="granular.source" label="Source" />
               </div>
-              <SourcePicker
-                value={engineParams.source ?? 0}
-                disabled={arcLocked}
-                isPlaying={isPlaying}
-                onChange={(idx) => setEngineParam('source', idx)}
-              />
+              {(() => {
+                const allowedByLesson =
+                  !constraints ||
+                  constraints.includes('source') ||
+                  constraints.includes('granular.source');
+                return (
+                  <SourcePicker
+                    value={engineParams.source ?? 0}
+                    disabled={arcLocked || !allowedByLesson}
+                    isPlaying={isPlaying}
+                    onChange={(idx) => setEngineParam('source', idx)}
+                  />
+                );
+              })()}
               {showCaptions && <ControlCaption id="granular.source" />}
             </div>
           )}
@@ -544,39 +584,53 @@ export default function ControlPanel({
                 </span>
                 <InfoTip id="physical.model" label="Model" />
               </div>
-              <ModelPicker
-                value={
-                  typeof engineParams.model === 'string'
-                    ? parseFloat(engineParams.model)
-                    : (engineParams.model ?? 0)
-                }
-                disabled={arcLocked}
-                onChange={(idx) => setEngineParam('model', idx)}
-              />
+              {(() => {
+                const allowedByLesson =
+                  !constraints ||
+                  constraints.includes('model') ||
+                  constraints.includes('physical.model');
+                return (
+                  <ModelPicker
+                    value={
+                      typeof engineParams.model === 'string'
+                        ? parseFloat(engineParams.model)
+                        : (engineParams.model ?? 0)
+                    }
+                    disabled={arcLocked || !allowedByLesson}
+                    onChange={(idx) => setEngineParam('model', idx)}
+                  />
+                );
+              })()}
               {showCaptions && <ControlCaption id="physical.model" />}
             </div>
           )}
           <div className="space-y-5">
             {engineDefs
               .filter((def) => def.key !== 'source' && def.key !== 'model')
-              .map((def) => (
-                <Slider
-                  key={def.key}
-                  def={def}
-                  value={
-                    typeof (engineParams[def.key] ?? def.default) === 'string'
-                      ? parseFloat(
-                          (engineParams[def.key] ?? def.default) as string,
-                        )
-                      : ((engineParams[def.key] ?? def.default) as number)
-                  }
-                  disabled={arcLocked}
-                  lockLabel="arc"
-                  explainId={`${engineId}.${def.key}`}
-                  showCaption={showCaptions}
-                  onChange={(v) => setEngineParam(def.key, v)}
-                />
-              ))}
+              .map((def) => {
+                const allowedByLesson =
+                  !constraints ||
+                  constraints.includes(def.key) ||
+                  constraints.includes(`${engineId}.${def.key}`);
+                return (
+                  <Slider
+                    key={def.key}
+                    def={def}
+                    value={
+                      typeof (engineParams[def.key] ?? def.default) === 'string'
+                        ? parseFloat(
+                            (engineParams[def.key] ?? def.default) as string,
+                          )
+                        : ((engineParams[def.key] ?? def.default) as number)
+                    }
+                    disabled={arcLocked || !allowedByLesson}
+                    lockLabel={!allowedByLesson ? 'lesson' : 'arc'}
+                    explainId={`${engineId}.${def.key}`}
+                    showCaption={showCaptions}
+                    onChange={(v) => setEngineParam(def.key, v)}
+                  />
+                );
+              })}
           </div>
         </div>
       )}
