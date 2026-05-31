@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.1.0] - 2026-05-31
+
+**v9.1 Aesthetic System.** Establishes a comprehensive, unified design system with per-mode aesthetic variations. The warm-amber-dark identity is preserved across all modes, while color saturation, background depth, spacing density, motion duration, typography weight, and ornamentation scale dynamically based on the active mode (Meditation deeper dark, Musician standard, Researcher clinical). Features a complete canonical component library (`Button`, `Slider`, `Panel`, `Card`), automated prefers-reduced-motion transitions, minimum 44px touch-target bounds, customized WebGL/Canvas visualizer presets, and 2D text telemetry overlays.
+
+### Added
+
+- **Design Tokens System:** Implemented a single source-of-truth token registry (`tokens.ts`) defining colors, typography weights, line heights, spacing multipliers, motion durations, and icons.
+- **Dynamic ModeAesthetic Provider:** Built `ModeAesthetic.tsx` to automatically compile tokens into scoped CSS variables on the document element, including media overrides for `prefers-reduced-motion` and global typography styling.
+- **Canonical Components:** Added `Button.tsx`, `Slider.tsx`, `Panel.tsx`, and `Card.tsx` under `src/design/components/`, establishing standard visual signatures with complete touch-safe bounds.
+- **Visualizer Presets & Overlays:** Enhanced WebGL and Canvas visualizers to scale orbit speeds, bloom radii, and background opacities per mode. Added a transparent 2D overlay canvas in `Visualizer.tsx` to render high-contrast frequency telemetry labels in Researcher mode.
+- **Comprehensive Reference Manuals:** Documented all specifications, templates, and accessibility audits under a dedicated `docs/design/` catalog.
+- **Robust Integration Testing:** Delivered unit tests in `modeAesthetic.test.tsx` and `components.test.tsx`, validating all visual modes, DOM attributes, and slider/button handlers.
+
+### Changed
+
+- **Component Migration:** Upgraded `CopyLinkButton.tsx` to consume the new canonical components.
+- **Tabular Monospace Numerics:** Standardized class `.tabular-nums` across telemetry displays to enforce tabular monospace alignment.
+
 ## [9.0.0] - 2026-05-31
 
 **v9.0 Mode Foundation & Audit.** Elevates the concept of "Focus" from a nested toggle inside the Sketch UI to a first-class, top-level navigation primitive: **Meditation Focus Mode** (🧘), **Musician Sandbox Mode** (🎹), and **Research Interface Console** (🔬). This release establishes the core mode-aware routing, layout, and metadata filtering foundations, with sticky per-device storage synchronization and strict adherence to a "soft gating" layout policy where direct bookmarks and URLs remain completely functional.
