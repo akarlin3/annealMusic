@@ -125,6 +125,11 @@ export function ModeAesthetic({ children }: ModeAestheticProps) {
       font-family: var(--font-family-display);
       font-weight: var(--font-weight-head);
     }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+      font-family: var(--font-family-mono);
+    }
   `;
 
   return (

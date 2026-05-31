@@ -251,13 +251,14 @@ export class WebGLRenderer implements VisualRenderer {
     const partialsData = new Float32Array(16 * 4);
 
     const rVal = state.r ?? 0;
+    const isMeditation = state.mode === 'meditation' || state.isCalm;
 
     for (let i = 0; i < 16; i++) {
       const offset = i * 4;
       if (i < count) {
         const freqHz = state.freqs[i] ?? 0;
         const visualRate = freqHz / 220; // visualRateRef = 220
-        const speedScale = state.isCalm ? 0.45 : 1.0;
+        const speedScale = isMeditation ? 0.45 : 1.0;
         const phase =
           ((state.phases[i] ?? 0) + visualRate * state.dt * speedScale) %
           (Math.PI * 2);
@@ -344,7 +345,7 @@ export class WebGLRenderer implements VisualRenderer {
       this.uCache.u_show_spectrum = nextShowSpectrum;
     }
 
-    const nextCalm = state.isCalm ? 1.0 : 0.0;
+    const nextCalm = isMeditation ? 1.0 : 0.0;
     if (this.uCache.u_calm !== nextCalm) {
       u.u_calm.value = nextCalm;
       this.uCache.u_calm = nextCalm;

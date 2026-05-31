@@ -11,6 +11,8 @@ import { readRms } from '@/input/meter';
 import { HARMONICS } from '@/types/audio';
 import { SLOT_IDS } from '@/loop/types';
 import { useParamStore, getClosestNote } from '@/state/params';
+import { useMode } from '@/mode/useMode';
+import { ampForFreq } from '@/visual/canvas/draw';
 
 interface VisualizerProps {
   engineRef: React.MutableRefObject<Orchestrator | null>;
@@ -39,7 +41,9 @@ export default function Visualizer({
   returning = false,
   isCalm = false,
 }: VisualizerProps) {
+  const { mode } = useMode();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const phasesRef = useRef<number[]>(
     HARMONICS.map(() => Math.random() * Math.PI * 2),
   );
@@ -116,6 +120,16 @@ export default function Visualizer({
       const cappedDpr = Math.min(2, dpr);
       renderer.resize(rect.width, rect.height, cappedDpr);
       sizeRef.current = { w: rect.width, h: rect.height };
+
+      const overlay = overlayCanvasRef.current;
+      if (overlay) {
+        overlay.width = Math.max(1, Math.floor(rect.width * cappedDpr));
+        overlay.height = Math.max(1, Math.floor(rect.height * cappedDpr));
+        const oCtx = overlay.getContext('2d');
+        if (oCtx) {
+          oCtx.setTransform(cappedDpr, 0, 0, cappedDpr, 0, 0);
+        }
+      }
     };
     resize();
     window.addEventListener('resize', resize);
@@ -172,6 +186,7 @@ export default function Visualizer({
       }
 
       const r = engine?.getOrderParameter() ?? 0;
+      const isMeditation = mode === 'meditation' || isCalm;
 
       const state: VisualState = {
         w,
@@ -185,11 +200,55 @@ export default function Visualizer({
         fftSize,
         inputLevel,
         loops,
-        isCalm,
+        isCalm: isMeditation,
         r,
+        mode: mode || 'musician',
       };
 
       renderer.drawFrame(state, now);
+
+      // --- 2D TELEMETRY OVERLAY FOR WEBGL PRESET ---
+      const overlayCanvas = overlayCanvasRef.current;
+      if (overlayCanvas && mode === 'researcher') {
+        const oCtx = overlayCanvas.getContext('2d');
+        if (oCtx) {
+          oCtx.clearRect(0, 0, w, h);
+          oCtx.fillStyle = 'rgba(250, 250, 249, 0.75)'; // stone-50
+          oCtx.font = '8px Geist Mono, ui-monospace, monospace';
+          oCtx.textAlign = 'left';
+
+          const baseR = Math.min(w, h) * 0.3; // baseRadiusFactor = 0.3
+          const cx = w / 2;
+          const cy = h / 2;
+          const rVal = r;
+
+          for (let i = 0; i < count; i++) {
+            const freqHz = freqs[i] ?? 0;
+            const phase = phasesRef.current[i] ?? 0;
+
+            const baseOrbitFactor = 0.45 + 0.55 * (i / Math.max(1, count - 1));
+            const targetOrbitFactor = 0.725;
+            const orbitFactor =
+              baseOrbitFactor +
+              (targetOrbitFactor - baseOrbitFactor) * rVal * 0.7;
+
+            const orbit = baseR * orbitFactor;
+            const px = cx + Math.cos(phase) * orbit;
+            const py = cy + Math.sin(phase) * orbit * 0.78; // orbitSquash = 0.78
+
+            const amp = spectrum
+              ? ampForFreq(freqHz, spectrum, sampleRate, fftSize)
+              : 0.4;
+            const sizeR = 5.0 + amp * 22.0;
+
+            oCtx.fillText(
+              `${freqHz.toFixed(1)} Hz (f${i + 1})`,
+              px + sizeR + 4,
+              py + 3,
+            );
+          }
+        }
+      }
 
       raf = requestAnimationFrame(draw);
     };
@@ -200,7 +259,7 @@ export default function Visualizer({
       cancelAnimationFrame(raf);
       renderer.dispose();
     };
-  }, [engineRef, rendererPref, qualityPref, showSpectrumPref, isCalm]);
+  }, [engineRef, rendererPref, qualityPref, showSpectrumPref, isCalm, mode]);
 
   const params = useParamStore((s) => s.params);
 
@@ -214,6 +273,13 @@ export default function Visualizer({
       }}
     >
       <canvas ref={canvasRef} className="block h-full w-full" />
+      {mode === 'researcher' && (
+        <canvas
+          ref={overlayCanvasRef}
+          className="absolute inset-0 pointer-events-none block h-full w-full"
+          style={{ zIndex: 5 }}
+        />
+      )}
 
       {/* Visual Settings Overlay Toggle Button */}
       <button

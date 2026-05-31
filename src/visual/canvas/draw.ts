@@ -50,8 +50,9 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
 
   // Faint input ring around the halo — present only when input is connected,
   // swelling with the live signal so it reads as part of the field.
-  const calmAlphaScale = state.isCalm ? 0.6 : 1.0;
-  const speedScale = state.isCalm ? 0.45 : 1.0;
+  const isMeditation = state.mode === 'meditation' || state.isCalm;
+  const calmAlphaScale = isMeditation ? 0.45 : 1.0;
+  const speedScale = isMeditation ? 0.45 : 1.0;
 
   if (inputLevel !== undefined) {
     const lvl = Math.max(0, Math.min(1, inputLevel));
@@ -105,7 +106,7 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
   );
   halo.addColorStop(
     0,
-    state.isCalm ? 'rgba(245, 158, 11, 0.024)' : PALETTE.haloInner,
+    isMeditation ? 'rgba(245, 158, 11, 0.015)' : PALETTE.haloInner,
   );
   halo.addColorStop(1, PALETTE.haloOuter);
   ctx2d.fillStyle = halo;
@@ -137,9 +138,15 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
 
     const r = VISUAL.glowMinRadius + amp * VISUAL.glowAmpScale;
     const grad = ctx2d.createRadialGradient(x, y, 0, x, y, r);
-    if (state.isCalm) {
-      grad.addColorStop(0, `rgba(254, 215, 170, ${(0.55 + amp * 0.35) * 0.6})`);
-      grad.addColorStop(0.4, `rgba(251, 191, 36, ${(0.3 + amp * 0.25) * 0.6})`);
+    if (isMeditation) {
+      grad.addColorStop(
+        0,
+        `rgba(254, 215, 170, ${(0.55 + amp * 0.35) * 0.45})`,
+      );
+      grad.addColorStop(
+        0.4,
+        `rgba(251, 191, 36, ${(0.3 + amp * 0.25) * 0.45})`,
+      );
     } else {
       grad.addColorStop(0, PALETTE.glowCore(amp));
       grad.addColorStop(0.4, PALETTE.glowMid(amp));
@@ -149,13 +156,22 @@ export function drawFrame(ctx2d: CanvasRenderingContext2D, state: VisualState) {
     ctx2d.beginPath();
     ctx2d.arc(x, y, r, 0, Math.PI * 2);
     ctx2d.fill();
+
+    // RENDERER FREQUENCY LABELS OVERLAY FOR RESEARCHER
+    if (state.mode === 'researcher') {
+      ctx2d.fillStyle = 'rgba(250, 250, 249, 0.75)';
+      ctx2d.font = '8px Geist Mono, ui-monospace, monospace';
+      ctx2d.fillText(`${freqHz.toFixed(1)} Hz (f${i + 1})`, x + r + 4, y + 3);
+    }
   }
 
   // subtle spectrum trace at the bottom
   if (spectrum) {
-    ctx2d.strokeStyle = state.isCalm
-      ? 'rgba(245, 245, 244, 0.096)'
-      : PALETTE.spectrum;
+    ctx2d.strokeStyle = isMeditation
+      ? 'rgba(245, 245, 244, 0.05)'
+      : state.mode === 'researcher'
+        ? 'rgba(245, 245, 244, 0.35)'
+        : PALETTE.spectrum;
     ctx2d.lineWidth = 1;
     ctx2d.beginPath();
     const bottom = h - VISUAL.spectrumBottomPad;

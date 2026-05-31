@@ -95,3 +95,13 @@ export const tokens = {
     },
   },
 };
+
+export function getIconProps(
+  mode: 'meditation' | 'musician' | 'researcher' | null,
+) {
+  const active = mode || 'musician';
+  return {
+    strokeWidth:
+      active === 'meditation' ? 1.2 : active === 'researcher' ? 2.2 : 1.8,
+  };
+}

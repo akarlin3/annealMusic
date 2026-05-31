@@ -30,6 +30,7 @@ export interface VisualState {
   isCalm?: boolean;
   /** Kuramoto order parameter r (0..1) representing synchronization. */
   r?: number;
+  mode?: 'meditation' | 'musician' | 'researcher';
 }
 
 export interface VisualRenderer {
