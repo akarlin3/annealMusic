@@ -1097,6 +1097,30 @@ class StudyVersion(Base):
     )
 
 
+class StudyExport(Base):
+    """v7.5 — an immutable clinical/sonification study export bundle archive.
+    """
+
+    __tablename__ = "study_exports"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    study_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("studies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("study_versions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    bundle_storage_key: Mapped[str] = mapped_column(String, nullable=False)
+    bundle_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    bundle_sha256: Mapped[str] = mapped_column(String, nullable=False)
+    reproducibility_level: Mapped[str] = mapped_column(String, nullable=False)
+    includes_subject_data: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    manifest: Mapped[dict] = mapped_column(JSONType(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class StudyAuditLog(Base):
     """Provenance: one row per study mutation (see docs/v7.0-PLAN.md §5).
     Written only through ``app.study_provenance.record_audit`` — the single

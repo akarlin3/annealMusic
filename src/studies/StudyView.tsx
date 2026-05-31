@@ -13,6 +13,7 @@ import { InvestigatorManager } from './InvestigatorManager';
 import { ResourceLinker } from './ResourceLinker';
 import { SnapshotDialog } from './SnapshotDialog';
 import { PublishFlow } from './PublishFlow';
+import { ExportDialog } from './export/ExportDialog';
 import { ROLE_RANK } from './types';
 import { ProtocolEditor } from '../clinical/ProtocolEditor';
 import type {
@@ -44,6 +45,8 @@ export function StudyView({
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [showSnapshot, setShowSnapshot] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [exportVersion, setExportVersion] = useState<StudyVersion | null>(null);
   const [dirty, setDirty] = useState<Partial<Study>>({});
 
   const reload = useCallback(async () => {
@@ -251,13 +254,26 @@ export function StudyView({
                 <span className="text-[11px] font-mono text-stone-300">
                   {v.version_label}
                 </span>
-                <span className="text-[10px] font-mono text-stone-500">
-                  {v.doi ? (
-                    <span className="text-emerald-400">{v.doi}</span>
-                  ) : (
-                    new Date(v.created_at).toLocaleDateString()
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-stone-500">
+                    {v.doi ? (
+                      <span className="text-emerald-400">{v.doi}</span>
+                    ) : (
+                      new Date(v.created_at).toLocaleDateString()
+                    )}
+                  </span>
+                  {role && ROLE_RANK[role] >= ROLE_RANK['co-investigator'] && (
+                    <button
+                      onClick={() => {
+                        setExportVersion(v);
+                        setShowExport(true);
+                      }}
+                      className="text-[10px] font-mono px-2 py-0.5 rounded border border-stone-850 bg-stone-950 text-stone-400 hover:text-amber-500 hover:border-amber-500/30 transition-all font-semibold"
+                    >
+                      Export
+                    </button>
                   )}
-                </span>
+                </div>
               </div>
             ))
           )}
@@ -303,6 +319,17 @@ export function StudyView({
           study={study}
           onClose={() => setShowPublish(false)}
           onPublished={reload}
+        />
+      )}
+      {showExport && (
+        <ExportDialog
+          study={study}
+          preselectedVersion={exportVersion}
+          versions={versions}
+          onClose={() => {
+            setShowExport(false);
+            setExportVersion(null);
+          }}
         />
       )}
     </div>

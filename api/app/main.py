@@ -136,6 +136,8 @@ def create_app() -> FastAPI:
     app.include_router(lesson_progress.router)
     app.include_router(recommendations.router)
     app.include_router(studies.router)
+    app.include_router(studies.study_exports_router)
+    app.include_router(studies.reproduce_router)
     app.include_router(learn.html_router)
     app.include_router(sonifications.router)
     app.include_router(clinical.router)

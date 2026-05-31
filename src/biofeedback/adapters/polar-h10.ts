@@ -2,8 +2,8 @@
 import { BiosignalAdapter, Observable, BiosignalFrame } from '../types';
 
 export class PolarH10Adapter implements BiosignalAdapter {
-  readonly id = 'polar-h10';
-  readonly name = 'Polar H10';
+  readonly id: string = 'polar-h10';
+  readonly name: string = 'Polar H10';
   readonly capabilities = ['hrv', 'heart_rate'];
   readonly transports: ('webserial' | 'webbluetooth' | 'webhid' | 'osc')[] = [
     'webbluetooth',
@@ -37,7 +37,7 @@ export class PolarH10Adapter implements BiosignalAdapter {
     }
 
     try {
-      const device = await navigator.bluetooth.requestDevice({
+      const device = await (navigator as any).bluetooth.requestDevice({
         filters: [{ services: ['heart_rate'] }],
       });
 

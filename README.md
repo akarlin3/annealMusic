@@ -439,6 +439,20 @@ are documented in [`docs/HISTORY.md`](docs/HISTORY.md) and
 [`docs/CALM_BY_DESIGN.md`](docs/CALM_BY_DESIGN.md) — the latter enforced by a CI
 lexical gate.
 
+## Clinical Study Export & Reproducibility (v7.5)
+
+To support clinical researchers and replicators, v7.5 introduces **fully reproducible study export bundles**. A study's entire context — including version locks, stimuli parameters, experimental protocols, anonymized subject records, and data-analysis scripts — can be packaged into a single self-contained archive (ZIP) for supplementary scientific publication or peer-review audits.
+
+Features include:
+
+- **Reproducible Bundles**: Self-contained ZIP assemblies containing structured stimulus parameters, custom protocols, optional subject session databases, relative timestamp shifts, calibration files, research documentation, and BibTeX citations (`CITATION.bib`).
+- **Strict Version Locking**: Locks package dependencies, core schemas, custom DSP assets, and the Python environment (using SHA-256 checksum registry) to completely prevent heuristic-drift over years of archive storage.
+- **IRB & Privacy Compliance**: A specialized data-anonymization pipeline that strips absolute timestamps, masks participant IDs with random UUIDs, and optionally adds **Differential Privacy (Laplace noise)** to subject response metrics. Built-in compliance UI warrants PI attestation.
+- **Premium Auditor Portal**: An interactive verification console at `/reproduce` with sleek glassmorphism dashboarding and micro-animations, enabling auditors to upload zip bundles, run schema validations, batch-re-render synthesized stimuli (comparing output bits/statistics), execute Python analysis routines in isolated sandboxed processes, and generate discrepancy reports.
+- **Developer & Node CLI**: Introduces offline `export`, `validate`, and `reproduce` commands directly into the Node CLI tool (`annealmusic`), complete with local Python offline run/render fallbacks.
+
+For full architectural details, see the researcher guide in [`docs/STUDY_EXPORT.md`](docs/STUDY_EXPORT.md) and the reviewer guide in [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md).
+
 ## Continuous Integration & Deployment (CI/CD)
 
 Anneal Ambiance uses GitHub Actions to automate quality gates and continuous delivery. Every pull request and push to the main branch triggers automated validation sweeps across both the client and API layers.

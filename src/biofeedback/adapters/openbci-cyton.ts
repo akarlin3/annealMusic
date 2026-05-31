@@ -33,7 +33,7 @@ export class OpenBCICytonAdapter implements BiosignalAdapter {
     }
 
     try {
-      const port = await navigator.serial.requestPort();
+      const port = await (navigator as any).serial.requestPort();
       await port.open({ baudRate: 115200 });
 
       return {

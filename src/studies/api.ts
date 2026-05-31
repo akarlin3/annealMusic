@@ -135,4 +135,19 @@ export const studiesApi = {
     request<{ format: string; citation: string }>(
       `${BASE}/${idOrSlug}/citation?format=${format}`,
     ),
+
+  export: (
+    studyId: string,
+    body: {
+      version_id: string;
+      reproducibility_level: string;
+      includes_subject_data: boolean;
+      differential_privacy: boolean;
+      pi_attestation: boolean;
+    },
+  ) =>
+    request<{ id: string }>(`${BASE}/${studyId}/export`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };

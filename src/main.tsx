@@ -18,6 +18,7 @@ import SessionHistoryPage from '@/history/SessionHistoryPage';
 import LibraryPage from '@/library/LibraryPage';
 import { ExperimentRunner } from '@/experiment/ExperimentRunner';
 import { SubjectRunner } from '@/clinical/SubjectRunner';
+import ReproducerPage from '@/studies/export/ReproducerPage';
 import '@/styles/index.css';
 import { BridgeServer } from '@/research/bridge/BridgeServer';
 
@@ -73,6 +74,7 @@ createRoot(rootEl).render(
             />
             <Route path="/experiment/:slug" element={<ExperimentRunner />} />
             <Route path="/clinical/:slug" element={<SubjectRunner />} />
+            <Route path="/reproduce" element={<ReproducerPage />} />
           </Routes>
         </JamProvider>
       </AuthProvider>

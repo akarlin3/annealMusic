@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.deps import Identity, SessionDep, get_identity, rate_limit
+from app.deps import Identity, SessionDep, get_identity, rate_limit, StorageDep
 from app.errors import ApiError, forbidden, not_found, quota_exceeded, unauthorized
 from app.models import (
     Account,
@@ -33,6 +33,7 @@ from app.models import (
     StudyVersion,
     User,
     UserScript,
+    StudyExport,
 )
 from app.schemas import (
     AuditEntryOut,
@@ -54,11 +55,16 @@ from app.schemas import (
     VersionDetailOut,
     VersionListOut,
     VersionOut,
+    StudyExportCreate,
+    StudyExportOut,
+    ReproduceReport,
 )
 from app.services.citation import Author, CitationContext, render as render_citation
 from app.services.zenodo import ZenodoError, get_zenodo_service
 from app.slug import new_slug
 from app.study_provenance import build_snapshot, record_audit
+from app.services.study_export import create_study_export_bundle
+from app.services.study_validation import validate_study_export_bundle, run_bundle_analysis_scripts
 
 router = APIRouter(prefix="/api/v1/studies", tags=["studies"])
 
@@ -874,3 +880,137 @@ async def get_citation(
     )
     await session.commit()
     return CitationOut(format=format, citation=render_citation(ctx, format))
+
+
+# ── study export and reproduction endpoints ─────────────────────────────────────
+
+@router.post("/{id}/export", response_model=StudyExportOut, dependencies=[Depends(rate_limit("scripts"))])
+async def export_study(
+    id: uuid.UUID,
+    body: StudyExportCreate,
+    session: SessionDep,
+    storage: StorageDep,
+    identity: Identity = Depends(get_identity),
+) -> StudyExportOut:
+    study = await session.get(Study, id)
+    if study is None:
+        raise not_found("study")
+    await require_study_role(session, study, identity, "co-investigator")
+
+    version = await session.get(StudyVersion, body.version_id)
+    if version is None or version.study_id != study.id:
+        raise not_found("version")
+
+    db_export = await create_study_export_bundle(
+        session,
+        storage,
+        study,
+        version,
+        body.reproducibility_level,
+        includes_subject_data=body.includes_subject_data,
+        differential_privacy=body.differential_privacy,
+        pi_attestation=body.pi_attestation,
+    )
+    
+    record_audit(
+        session,
+        study_id=study.id,
+        account_id=identity.account_id,
+        action="study.export",
+        after={"version_label": version.version_label, "reproducibility_level": body.reproducibility_level},
+    )
+    await session.commit()
+    return db_export
+
+
+study_exports_router = APIRouter(prefix="/api/v1/study-exports", tags=["studies"])
+
+@study_exports_router.get("/{id}", response_model=StudyExportOut, dependencies=[Depends(rate_limit("get"))])
+async def get_study_export(
+    id: uuid.UUID,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
+) -> StudyExportOut:
+    export = await session.get(StudyExport, id)
+    if export is None:
+        raise not_found("export")
+    
+    study = await session.get(Study, export.study_id)
+    if study is None:
+        raise not_found("study")
+    
+    inv = await _get_investigator(session, study.id, identity.account_id)
+    if inv is None and study.visibility != "public":
+        raise not_found("study")
+    
+    await session.commit()
+    return export
+
+
+from fastapi.responses import StreamingResponse
+import io
+
+@study_exports_router.get("/{id}/download", dependencies=[Depends(rate_limit("get"))])
+async def download_study_export(
+    id: uuid.UUID,
+    session: SessionDep,
+    storage: StorageDep,
+    identity: Identity = Depends(get_identity),
+):
+    export = await session.get(StudyExport, id)
+    if export is None:
+        raise not_found("export")
+    
+    study = await session.get(Study, export.study_id)
+    if study is None:
+        raise not_found("study")
+    
+    inv = await _get_investigator(session, study.id, identity.account_id)
+    if inv is None and study.visibility != "public":
+        raise not_found("study")
+    
+    zip_bytes = await storage.get(export.bundle_storage_key)
+    if zip_bytes is None:
+        raise not_found("zip")
+    
+    await session.commit()
+    return StreamingResponse(
+        io.BytesIO(zip_bytes),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=study_{study.slug}_export_{export.id}.zip"},
+    )
+
+
+reproduce_router = APIRouter(prefix="/api/v1/reproduce", tags=["studies"])
+from fastapi import UploadFile, File
+
+@reproduce_router.post("/validate", response_model=ReproduceReport, dependencies=[Depends(rate_limit("scripts"))])
+async def validate_bundle_endpoint(
+    file: UploadFile = File(...),
+) -> ReproduceReport:
+    zip_bytes = await file.read()
+    report = validate_study_export_bundle(zip_bytes)
+    return report
+
+
+@reproduce_router.post("/run", response_model=ReproduceReport, dependencies=[Depends(rate_limit("scripts"))])
+async def run_bundle_endpoint(
+    file: UploadFile = File(...),
+) -> ReproduceReport:
+    zip_bytes = await file.read()
+    val_report = validate_study_export_bundle(zip_bytes)
+    if not val_report["valid"]:
+        return val_report
+    
+    run_report = run_bundle_analysis_scripts(zip_bytes)
+    
+    report = {
+        "valid": val_report["valid"] and run_report["valid"],
+        "errors": val_report["errors"] + run_report["errors"],
+        "warnings": val_report["warnings"],
+        "reproducibility_level": val_report["reproducibility_level"],
+        "rendered_audio_hash_matches": val_report["rendered_audio_hash_matches"],
+        "analysis_script_output": run_report["analysis_script_output"],
+        "analysis_script_errors": run_report["analysis_script_errors"],
+    }
+    return report

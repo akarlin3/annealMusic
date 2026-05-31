@@ -35,7 +35,7 @@ export class MuseAdapter implements BiosignalAdapter {
     }
 
     try {
-      const device = await navigator.bluetooth.requestDevice({
+      const device = await (navigator as any).bluetooth.requestDevice({
         filters: [{ services: ['0000fe8d-0000-1000-8000-00805f9b34fb'] }],
       });
 

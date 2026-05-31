@@ -2,6 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const manifestPath = path.resolve(
@@ -156,6 +157,51 @@ export function validatePayloadString(payload: string): ValidationResult {
 export function validateFile(filePath: string): ValidationResult {
   if (!fs.existsSync(filePath)) {
     return { valid: false, errors: [`File not found: ${filePath}`] };
+  }
+
+  if (filePath.endsWith('.zip') || filePath.endsWith('.tar.gz')) {
+    try {
+      const pyCode = `
+import zipfile, json, hashlib, os
+try:
+    zf = zipfile.ZipFile(os.path.abspath("${filePath}"))
+except Exception as e:
+    print(json.dumps({"valid": False, "errors": [f"Bad zip: {e}"]}))
+    exit(0)
+
+file_list = zf.namelist()
+if "manifest.json" not in file_list:
+    print(json.dumps({"valid": False, "errors": ["Missing manifest.json"]}))
+    exit(0)
+
+manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+errors = []
+for f in manifest.get("files", []):
+    path = f.get("path")
+    expected = f.get("sha256")
+    if path not in file_list:
+        errors.append(f"Missing {path}")
+        continue
+    actual = hashlib.sha256(zf.read(path)).hexdigest()
+    if actual != expected:
+        errors.append(f"Hash mismatch for {path}")
+
+print(json.dumps({"valid": len(errors) == 0, "errors": errors}))
+`;
+      const output = execSync(`python3 -c '${pyCode.replace(/'/g, "'\\''")}'`, {
+        encoding: 'utf-8',
+      });
+      const res = JSON.parse(output);
+      return {
+        valid: res.valid,
+        errors: res.errors,
+      };
+    } catch (err: any) {
+      return {
+        valid: false,
+        errors: [`Local zip validation failed: ${err.message}`],
+      };
+    }
   }
 
   try {

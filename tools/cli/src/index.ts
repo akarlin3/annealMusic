@@ -7,6 +7,8 @@ import { validateFile } from './commands/validate.js';
 import { printFileInfo } from './commands/info.js';
 import { runVerifyParity } from './commands/verifyParity.js';
 import { runCiteCommand } from './commands/cite.js';
+import { runExportCommand } from './commands/export.js';
+import { runReproduceCommand } from './commands/reproduce.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { generateSweepCombinations } from './output/sweep.js';
@@ -125,6 +127,24 @@ program
       result.errors.forEach((err) => console.error(`  - ${err}`));
       process.exit(1);
     }
+  });
+
+program
+  .command('export <studyId>')
+  .description('Export a study fully reproducible bundle archive')
+  .option('-o, --output <output>', 'Output bundle ZIP path')
+  .option('--include-data', 'Include anonymized subject clinical data', false)
+  .action(async (studyId, options) => {
+    await runExportCommand(studyId, options);
+  });
+
+program
+  .command('reproduce <bundle>')
+  .description(
+    'Run schema validation, asset parity, and analysis script execution on a study bundle',
+  )
+  .action(async (bundle) => {
+    await runReproduceCommand(bundle);
   });
 
 // 7. Info Command

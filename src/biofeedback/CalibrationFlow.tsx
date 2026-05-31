@@ -1,13 +1,6 @@
 /* eslint-disable */
 import { useState, useEffect, useRef } from 'react';
-import {
-  Activity,
-  Heart,
-  ChevronRight,
-  Shield,
-  AlertTriangle,
-  Volume2,
-} from 'lucide-react';
+import { Activity, Heart, Shield } from 'lucide-react';
 import { useBiofeedbackStore } from './store';
 
 interface CalibrationFlowProps {

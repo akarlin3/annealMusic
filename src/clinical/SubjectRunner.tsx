@@ -19,7 +19,6 @@ import { decodeState } from '../share/encode';
 import { applyDecodedToStore } from '../share/hydrate';
 import { api } from '../api/client';
 import { AdverseEventDialog } from './AdverseEventDialog';
-import { ConnectionFlow } from '../biofeedback/ConnectionFlow';
 import { CalibrationFlow } from '../biofeedback/CalibrationFlow';
 import { StreamCapture } from '../biofeedback/StreamCapture';
 import type {

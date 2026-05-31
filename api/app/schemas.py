@@ -1576,6 +1576,47 @@ class BiosignalStreamUploadIn(BaseModel):
     frames: list[dict] = Field(default_factory=list)
 
 
+# --- v7.5 Study Export & Reproducibility Schemas -------------------------------
+
+class StudyExportCreate(BaseModel):
+    version_id: uuid.UUID
+    reproducibility_level: Literal["bytes-identical", "perceptually-identical", "statistically-equivalent"]
+    includes_subject_data: bool = False
+    differential_privacy: bool = False
+    pi_attestation: bool = False
+
+    @model_validator(mode="after")
+    def _validate_attestation(self) -> "StudyExportCreate":
+        if self.includes_subject_data and not self.pi_attestation:
+            raise ValueError("PI compliance attestation is required to export subject data.")
+        return self
+
+
+class StudyExportOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    study_id: uuid.UUID
+    version_id: uuid.UUID
+    bundle_storage_key: str
+    bundle_bytes: int
+    bundle_sha256: str
+    reproducibility_level: str
+    includes_subject_data: bool
+    manifest: dict
+    created_at: datetime
+
+
+class ReproduceReport(BaseModel):
+    valid: bool
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    reproducibility_level: str | None = None
+    rendered_audio_hash_matches: bool | None = None
+    analysis_script_output: str | None = None
+    analysis_script_errors: str | None = None
+
+
 
 
 

@@ -93,7 +93,8 @@ describe('PolarH10Adapter', () => {
       'characteristicvaluechanged',
       expect.any(Function),
     );
-    const callback = mockCharacteristic.addEventListener.mock.calls[0][1];
+    const callback = (mockCharacteristic.addEventListener as any).mock
+      .calls[0][1];
 
     // Trigger the callback with mock BLE packet
     callback(mockEvent);
@@ -139,7 +140,8 @@ describe('PolarH10Adapter', () => {
       },
     });
 
-    const callback = mockCharacteristic.addEventListener.mock.calls[0][1];
+    const callback = (mockCharacteristic.addEventListener as any).mock
+      .calls[0][1];
     callback(mockEvent);
 
     // Should emit two frames (one per R-R interval)

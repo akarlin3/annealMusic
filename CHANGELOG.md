@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.5.0] - 2026-05-31
+
+**Clinical Study Export & Reproducibility.** v7.5 enables clinical and sonification studies to be fully reproducible from a single self-contained export bundle. It bundles everything needed for peer review or replication — version locks, stimuli states, clinical protocols, optional anonymized participant logs with differential privacy, analysis scripts, sample data, and BibTeX citations — into a single archive with sufficient metadata to reproduce results months or years later.
+
+### Added
+
+- **Reproducible ZIP Assembler & Exporter Service.** Built backend `StudyExport` database model, migration, and export service (`study_export.py`) which compiles all linked stimuli, protocols, raw calibrated audio, researcher-authored Python scripts, and anonymized database records into a single `.zip` file.
+- **Strict Asset SHA-256 Hashing & Version Locking.** The manifest registry records the exact hashes (SHA-256) of every stimulus, protocol, data record, and audio calibration asset, locking specific synth engine models, schemas, and whitelisted packages to completely prevent heuristic-drift over years of archive storage.
+- **IRB & GDPR Compliance Anonymization Pipeline.** Implemented an anonymizer shifting all absolute timestamps to relative offsets in seconds from the session's start, masking direct participant IDs with random UUIDs, and optionally injecting **Differential Privacy (Laplace noise)** to subject response metrics with compliance PI attestation.
+- **Premium Glassmorphic Auditor Portal.** An interactive auditor console at `/reproduce` with smooth micro-animations and glowing metrics, allowing peer-reviewers or auditors to upload ZIP bundles, validate schemas/hashes, re-render and compare wave files (via bit-identical, perceptually, or statistically equivalent metrics), execute Python analysis scripts in isolated processes, and review detailed checklists.
+- **Extended Node CLI Command Suite.** Shipped new standalone CLI tools `export` (streams zipped bundles from backend API) and `reproduce` (local reproduction engine performing offline file unpacking, schema checks, offline stimulus audio rendering, and script execution), plus updated `validate` support for ZIP manifests.
+- **Academic Research Documentation Guides.** Authored researcher handbook `docs/STUDY_EXPORT.md` (export configurations and GDPR details) and peer-reviewer guide `docs/REPRODUCIBILITY.md` (detailed explanation of the validation steps).
+
 ## [7.4.0] - 2026-05-31
 
 **Biofeedback Ingest.** v7.4 bridges the dynamic data-mapping engine (v7.1) and clinical research framework (v7.2) with live, multi-modal physiological feedback streams (HRV, breath rate, EEG, GSR) driving real-time audio modulation and clinical session capture over WebSerial, Web Bluetooth, WebHID, and native iOS/Android BLE bridges.
