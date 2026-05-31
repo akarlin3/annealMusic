@@ -5,6 +5,7 @@ import '@/styles/index.css';
 import './learn.css';
 import { initializeErrorReporter } from '@/observability/errorReporter';
 import { ModeProvider } from '@/mode/ModeContext';
+import { ModeAesthetic } from '@/design/ModeAesthetic';
 
 // Boot error reporter
 initializeErrorReporter();
@@ -15,5 +16,9 @@ if (!rootEl) {
 }
 
 createRoot(rootEl).render(
-  createElement(ModeProvider, null, createElement(LearnApp)),
+  createElement(
+    ModeProvider,
+    null,
+    createElement(ModeAesthetic, null, createElement(LearnApp)),
+  ),
 );

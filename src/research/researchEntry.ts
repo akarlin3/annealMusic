@@ -4,6 +4,7 @@ import { ResearchApp } from './ResearchApp';
 import '@/styles/index.css';
 import { initializeErrorReporter } from '@/observability/errorReporter';
 import { ModeProvider } from '@/mode/ModeContext';
+import { ModeAesthetic } from '@/design/ModeAesthetic';
 
 // Boot error reporter
 initializeErrorReporter();
@@ -17,6 +18,10 @@ createRoot(rootEl).render(
   createElement(
     StrictMode,
     null,
-    createElement(ModeProvider, null, createElement(ResearchApp)),
+    createElement(
+      ModeProvider,
+      null,
+      createElement(ModeAesthetic, null, createElement(ResearchApp)),
+    ),
   ),
 );
