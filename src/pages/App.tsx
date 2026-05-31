@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { HelpCircle, Pause, Play } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
 import { useAnnealMusic } from '@/hooks/useAnnealMusic';
 import { useInput } from '@/hooks/useInput';
 import { useLoops } from '@/hooks/useLoops';
@@ -14,10 +14,13 @@ import ControlPanel from '@/components/ControlPanel';
 import InputPanel from '@/components/InputPanel';
 import LoopPedal from '@/components/LoopPedal';
 import EngineSelector from '@/components/EngineSelector';
-import ModeToggle from '@/components/ModeToggle';
+
 import SessionModeToggle from '@/components/SessionModeToggle';
 import FirstTimeBanner from '@/components/FirstTimeBanner';
 import DroneView from '@/drone/DroneView';
+import { Header } from '@/components/Header';
+import { useMode } from '@/mode/useMode';
+import { FirstTimeModePicker } from '@/mode/FirstTimeModePicker';
 import ArcPanel from '@/components/ArcPanel';
 import PresetsPanel from '@/components/PresetsPanel';
 import CopyLinkButton from '@/components/CopyLinkButton';
@@ -29,8 +32,7 @@ import Toast, { type ToastMessage } from '@/components/Toast';
 import { api } from '@/api/client';
 import type { Patch } from '@/api/types';
 import { usePatches } from '@/api/usePatches';
-import { useAuth } from '@/auth/AuthProvider';
-import { LissajousAvatar } from '@/components/LissajousAvatar';
+
 import LoginDialog from '@/components/LoginDialog';
 import { ConsentDialog } from '@/observability/consentDialog';
 import {
@@ -38,7 +40,7 @@ import {
   reportError,
 } from '@/observability/errorReporter';
 import ClaimBanner from '@/components/ClaimBanner';
-import { Sparkles, User, Users } from 'lucide-react';
+import { Sparkles, Users } from 'lucide-react';
 import { useJam } from '@/jam/JamProvider';
 import JamIndicator from '@/jam/JamIndicator';
 import ParticipantCursor from '@/jam/ParticipantCursor';
@@ -87,6 +89,25 @@ export default function App() {
   } = useAnnealMusic();
 
   const mode = useParamStore((s) => s.mode);
+  const { mode: appMode } = useMode();
+  const setSubMode = useParamStore((s) => s.setMode);
+
+  useEffect(() => {
+    if (appMode === 'meditation' && mode !== 'drone') {
+      setSubMode('drone');
+    }
+  }, [appMode, mode, setSubMode]);
+
+  // Redirect to mode-specific landing route if necessary on first arrival to /
+  useEffect(() => {
+    if (window.location.pathname === '/' && !window.location.hash) {
+      if (appMode === 'meditation') {
+        window.location.href = '/listen';
+      } else if (appMode === 'researcher') {
+        window.location.href = '/research.html';
+      }
+    }
+  }, [appMode]);
 
   const arcLocked = arcProgress !== null;
   const returning = sessionState === 'stopping' && arcProgress !== null;
@@ -112,7 +133,7 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const { account } = useAuth();
+
   const tour = useTour();
 
   const patchSlug = useMemo(() => {
@@ -296,271 +317,143 @@ export default function App() {
       className="min-h-screen w-full"
       style={{ background: '#0c0a09', color: '#f5f5f4' }}
     >
+      <FirstTimeModePicker />
       <div className="mx-auto max-w-5xl px-6 py-10 font-body">
-        <header className="mb-8 flex items-baseline justify-between">
-          <div>
-            <div className="flex items-baseline gap-3">
-              <h1
-                className="font-display text-5xl tracking-tight"
-                style={{ color: '#fef3c7' }}
-              >
-                <em>AnnealMusic</em>
-              </h1>
-              <span
-                className="font-mono text-[10px] uppercase tracking-[0.18em]"
-                style={{ color: '#78716c' }}
-              >
-                v1.4
-              </span>
-            </div>
-            <p
-              className="mt-1 max-w-md font-body text-sm"
-              style={{ color: '#a8a29e' }}
-            >
-              Endless, slowly-shifting ambient soundscapes. Set a few sliders,
-              press play, and let it drift — good for focus, sleep, or calm.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <ModeToggle />
-            <button
-              type="button"
-              aria-label="What is AnnealMusic? Open help"
-              onClick={() => setHelpOpen(true)}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all"
-              style={{ border: '1px solid #44403c', color: '#a8a29e' }}
-            >
-              <HelpCircle size={13} strokeWidth={1.5} />
-              <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
-                Help
-              </span>
-            </button>
-
-            <span className="flex items-center gap-1.5">
-              <Link
-                to="/feed"
-                className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
-                style={{ color: '#a8a29e' }}
-              >
-                Feed
-              </Link>
-            </span>
-
-            <span className="flex items-center gap-1.5">
-              <Link
-                to="/gallery"
-                className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors"
-                style={{ color: '#a8a29e' }}
-              >
-                Gallery
-              </Link>
-              <InfoTip id="feature.gallery" label="Gallery" />
-            </span>
-
-            <span className="flex items-center gap-1.5">
-              <Link
-                to="/piece"
-                className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
-                style={{ color: '#a8a29e' }}
-              >
-                Timeline
-              </Link>
-              <InfoTip id="feature.timeline" label="Timeline" />
-            </span>
-
-            <span className="flex items-center gap-1.5">
-              <Link
-                to="/listen"
-                className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
-                style={{ color: '#a8a29e' }}
-              >
-                Listen
-              </Link>
-            </span>
-
-            <span className="flex items-center gap-1.5">
-              <Link
-                to="/timer"
-                className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
-                style={{ color: '#a8a29e' }}
-              >
-                Timer
-              </Link>
-            </span>
-
-            {backendOn && account && (
+        <Header
+          subtitle="Endless, slowly-shifting ambient soundscapes. Set a few sliders, press play, and let it drift — good for focus, sleep, or calm."
+          showHelp={true}
+          onHelpClick={() => setHelpOpen(true)}
+        >
+          {/* Creative/Musician controls, shown conditionally depending on active mode */}
+          {appMode !== 'meditation' && (
+            <>
               <span className="flex items-center gap-1.5">
-                <Link
-                  to="/me/sessions"
-                  className="font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:text-stone-200"
-                  style={{ color: '#a8a29e' }}
-                >
-                  Sessions
-                </Link>
+                <CopyLinkButton
+                  params={params}
+                  engineId={engineId}
+                  engineParams={engineParams[engineId] ?? {}}
+                  loops={loopConfig}
+                  onResult={showToast}
+                />
+                <InfoTip id="feature.share" label="Copy link" />
               </span>
-            )}
 
-            {backendOn && (
-              <>
-                {account ? (
-                  <Link
-                    to="/account"
-                    className="flex items-center gap-2 rounded-full pl-2 pr-3 py-1 transition-all border border-stone-800 hover:border-stone-700 bg-stone-950/20"
-                    title={`Logged in as ${account.display_name ?? account.email}`}
-                  >
-                    <LissajousAvatar
-                      seed={account.avatar_seed ?? 'default'}
-                      size={20}
-                    />
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-stone-300 max-w-[80px] truncate">
-                      {account.display_name ?? 'Settings'}
-                    </span>
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setLoginOpen(true)}
-                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all"
-                    style={{ border: '1px solid #44403c', color: '#a8a29e' }}
-                  >
-                    <User size={12} strokeWidth={1.5} />
-                    <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
-                      Sign In
-                    </span>
-                  </button>
-                )}
-              </>
-            )}
-
-            <span className="flex items-center gap-1.5">
-              <CopyLinkButton
-                params={params}
-                engineId={engineId}
-                engineParams={engineParams[engineId] ?? {}}
-                loops={loopConfig}
-                onResult={showToast}
-              />
-              <InfoTip id="feature.share" label="Copy link" />
-            </span>
-
-            <span className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setExportOpen(true)}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
-                style={{ border: '1px solid #44403c', color: '#a8a29e' }}
-              >
-                <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
-                  Export Stems
-                </span>
-              </button>
-              <InfoTip id="feature.export" label="Export stems" />
-            </span>
-
-            {typeof navigator !== 'undefined' &&
-              typeof navigator.requestMIDIAccess === 'function' && (
-                <span className="flex items-center gap-1.5">
-                  <Link
-                    to="/midi"
-                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
-                    style={{ border: '1px solid #44403c', color: '#a8a29e' }}
-                  >
-                    <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
-                      MIDI
-                    </span>
-                  </Link>
-                  <InfoTip id="feature.midi" label="MIDI settings dashboard" />
-                </span>
-              )}
-
-            {backendOn && (
-              <>
-                {!session && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void startJam()
-                        .then(() => showToast('Started collaborative session'))
-                        .catch(() =>
-                          showToast('Failed to start collaborative session'),
-                        );
-                    }}
-                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
-                    style={{ border: '1px solid #44403c', color: '#a8a29e' }}
-                  >
-                    <Users size={12} strokeWidth={1.5} />
-                    <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
-                      Start Collab
-                    </span>
-                  </button>
-                )}
+              <span className="flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() => setAiGenerateOpen(true)}
-                  aria-label="Generate patch with AI"
-                  className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
-                  style={{
-                    background: 'rgba(245, 158, 11, 0.04)',
-                    border: '1px solid #44403c',
-                    color: '#d6d3d1',
-                  }}
+                  onClick={() => setExportOpen(true)}
+                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
+                  style={{ border: '1px solid #44403c', color: '#a8a29e' }}
                 >
-                  <Sparkles
-                    size={13}
-                    strokeWidth={1.5}
-                    style={{ color: '#fbbf24' }}
-                  />
-                  <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-                    AI Generate
+                  <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                    Export Stems
                   </span>
                 </button>
-                <SavePatchButton
-                  patches={patches}
-                  hasCaptures={hasCaptures}
-                  showToast={showToast}
-                />
-                <RecordControls recorder={recorder} />
-                <MyPatchesDrawer
-                  patches={patches}
-                  onLoad={patches.loadPatch}
-                  showToast={showToast}
-                />
-                <MyRecordings ref={recordingsRef} showToast={showToast} />
-              </>
-            )}
-
-            <button
-              data-tour="play"
-              onClick={() => (isPlaying ? stopSession() : startSession())}
-              className="group flex items-center gap-3 rounded-full px-5 py-2.5 transition-all"
-              style={{
-                background: isPlaying
-                  ? 'rgba(245, 158, 11, 0.10)'
-                  : 'rgba(245, 158, 11, 0.04)',
-                border: '1px solid #44403c',
-                color: '#fef3c7',
-              }}
-            >
-              {isPlaying ? (
-                <Pause
-                  size={14}
-                  strokeWidth={1.5}
-                  style={{ color: '#f59e0b' }}
-                />
-              ) : (
-                <Play
-                  size={14}
-                  strokeWidth={1.5}
-                  style={{ color: '#f59e0b' }}
-                />
-              )}
-              <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-                {beginLabel}
+                <InfoTip id="feature.export" label="Export stems" />
               </span>
-            </button>
-          </div>
-        </header>
+
+              {typeof navigator !== 'undefined' &&
+                typeof navigator.requestMIDIAccess === 'function' && (
+                  <span className="flex items-center gap-1.5">
+                    <Link
+                      to="/midi"
+                      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
+                      style={{ border: '1px solid #44403c', color: '#a8a29e' }}
+                    >
+                      <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                        MIDI
+                      </span>
+                    </Link>
+                    <InfoTip
+                      id="feature.midi"
+                      label="MIDI settings dashboard"
+                    />
+                  </span>
+                )}
+
+              {backendOn && (
+                <>
+                  {!session && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void startJam()
+                          .then(() =>
+                            showToast('Started collaborative session'),
+                          )
+                          .catch(() =>
+                            showToast('Failed to start collaborative session'),
+                          );
+                      }}
+                      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
+                      style={{ border: '1px solid #44403c', color: '#a8a29e' }}
+                    >
+                      <Users size={12} strokeWidth={1.5} />
+                      <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                        Start Collab
+                      </span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setAiGenerateOpen(true)}
+                    aria-label="Generate patch with AI"
+                    className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.04)',
+                      border: '1px solid #44403c',
+                      color: '#d6d3d1',
+                    }}
+                  >
+                    <Sparkles
+                      size={13}
+                      strokeWidth={1.5}
+                      style={{ color: '#fbbf24' }}
+                    />
+                    <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
+                      AI Generate
+                    </span>
+                  </button>
+                  <SavePatchButton
+                    patches={patches}
+                    hasCaptures={hasCaptures}
+                    showToast={showToast}
+                  />
+                  <RecordControls recorder={recorder} />
+                  <MyPatchesDrawer
+                    patches={patches}
+                    onLoad={patches.loadPatch}
+                    showToast={showToast}
+                  />
+                  <MyRecordings ref={recordingsRef} showToast={showToast} />
+                </>
+              )}
+            </>
+          )}
+
+          {/* Play/Pause Button is cross-mode */}
+          <button
+            data-tour="play"
+            onClick={() => (isPlaying ? stopSession() : startSession())}
+            className="group flex items-center gap-3 rounded-full px-5 py-2.5 transition-all cursor-pointer"
+            style={{
+              background: isPlaying
+                ? 'rgba(245, 158, 11, 0.10)'
+                : 'rgba(245, 158, 11, 0.04)',
+              border: '1px solid #44403c',
+              color: '#fef3c7',
+            }}
+          >
+            {isPlaying ? (
+              <Pause size={14} strokeWidth={1.5} style={{ color: '#f59e0b' }} />
+            ) : (
+              <Play size={14} strokeWidth={1.5} style={{ color: '#f59e0b' }} />
+            )}
+            <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
+              {beginLabel}
+            </span>
+          </button>
+        </Header>
 
         <FirstTimeBanner />
 

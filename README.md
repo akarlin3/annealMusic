@@ -434,10 +434,9 @@ you've listened to, logged on completion (or with the real partial duration if y
 end early), with optional reflections. The summary is intentionally understated —
 _"12 sessions, 4.3 hours total this month"_ — with **no streaks, no goals, no
 reminders, ever**. It's account-only, cross-device, never public, never shared,
-and fully deletable. The privacy posture and the project's anti-engagement stance
-are documented in [`docs/HISTORY.md`](docs/HISTORY.md) and
-[`docs/CALM_BY_DESIGN.md`](docs/CALM_BY_DESIGN.md) — the latter enforced by a CI
-lexical gate.
+and fully deletable. The priva- **Clinical Study Export & Reproducibility (v7.5)** — To support clinical researchers and replicators, v7.5 introduces **fully reproducible study export bundles**. A study's entire context — including version locks, stimuli parameters, experimental protocols, anonymized subject records, and data-analysis scripts — can be packaged into a single self-contained archive (ZIP) for supplementary scientific publication or peer-review audits. See [`docs/STUDY_EXPORT.md`](docs/STUDY_EXPORT.md) and [`docs/REPRODUCIBILITY.md`](docs/REPRODUCIBILITY.md).
+
+- **Top-Level Modes (v9.0)** — Elevates "mode" to a first-class navigation primitive: **Meditation**, **Musician**, and **Researcher**. Stored stickily per-device using `appStorage` (localStorage + Capacitor Preferences), it shapes defaults and foregrounded tools (e.g. Drone views, loop pedals, Python REPLs, Zenodo studies) and dynamic lesson filters without imposing strict access gates. Includes a one-time landing picker and a global keyboard shortcut (`Shift+M` cycles modes). See [`docs/MODES.md`](docs/MODES.md) and [`docs/v9/MODE_AUDIT.md`](docs/v9/MODE_AUDIT.md).
 
 ## Clinical Study Export & Reproducibility (v7.5)
 

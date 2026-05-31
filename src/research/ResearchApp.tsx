@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { BridgeClient } from './bridge/BridgeClient';
+import { ModeSwitcher } from '@/mode/ModeSwitcher';
 import {
   Activity,
   Terminal,
@@ -325,7 +326,8 @@ export function ResearchApp() {
         </div>
 
         {/* Liveness Health Indicator */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 animate-fade-in">
+          <ModeSwitcher />
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-stone-900 bg-stone-900/30">
             <span
               className={`h-2 w-2 rounded-full ${healthStatus === 'ok' ? 'bg-emerald-500 shadow-md shadow-emerald-500/50 animate-ping' : 'bg-rose-500'}`}

@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import GalleryPage from '@/gallery/GalleryPage';
 import { galleryApi } from '@/gallery/api';
 import type { GalleryItem } from '@/gallery/types';
+import { ModeProvider } from '@/mode/ModeContext';
 
 vi.mock('@/auth/AuthProvider', () => ({
   useAuth: () => ({
@@ -38,9 +39,11 @@ function item(overrides: Partial<GalleryItem>): GalleryItem {
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/gallery" element={<GalleryPage />} />
-      </Routes>
+      <ModeProvider>
+        <Routes>
+          <Route path="/gallery" element={<GalleryPage />} />
+        </Routes>
+      </ModeProvider>
     </MemoryRouter>,
   );
 }

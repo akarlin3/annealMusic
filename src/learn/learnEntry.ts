@@ -4,6 +4,7 @@ import { LearnApp } from './LearnApp';
 import '@/styles/index.css';
 import './learn.css';
 import { initializeErrorReporter } from '@/observability/errorReporter';
+import { ModeProvider } from '@/mode/ModeContext';
 
 // Boot error reporter
 initializeErrorReporter();
@@ -13,4 +14,6 @@ if (!rootEl) {
   throw new Error('Root element #learn-root not found');
 }
 
-createRoot(rootEl).render(createElement(LearnApp));
+createRoot(rootEl).render(
+  createElement(ModeProvider, null, createElement(LearnApp)),
+);

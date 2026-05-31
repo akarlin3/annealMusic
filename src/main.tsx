@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import App from '@/pages/App';
 import { AuthProvider } from '@/auth/AuthProvider';
+import { ModeProvider } from '@/mode/ModeContext';
 import DeepLinkHandler from '@/components/DeepLinkHandler';
 import '@/styles/index.css';
 
@@ -83,40 +84,45 @@ createRoot(rootEl).render(
     <BrowserRouter>
       <DeepLinkHandler />
       <AuthProvider>
-        <JamProvider>
-          <Suspense fallback={null}>
-            <Routes>
-              <Route path="/" element={<App />} />
-              <Route path="/p/:slug" element={<App />} />
-              <Route path="/jam/:id" element={<App />} />
-              <Route path="/gallery" element={<GalleryPage />} />
-              <Route path="/midi" element={<MidiSettingsPage />} />
-              <Route path="/piece" element={<PiecePage />} />
-              <Route path="/piece/:slug" element={<PiecePage />} />
-              <Route
-                path="/listening/:slug"
-                element={<ListeningSessionPage />}
-              />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/r/:slug" element={<RecordingPage />} />
-              <Route path="/account" element={<AccountSettingsPage />} />
-              <Route path="/feed" element={<FeedPage />} />
-              <Route path="/u/:account_id" element={<ProfilePage />} />
-              <Route path="/legal/terms" element={<TermsPage />} />
-              <Route path="/legal/privacy" element={<PrivacyPage />} />
-              <Route path="/timer" element={<MeditationTimerPage />} />
-              <Route path="/me/sessions" element={<SessionHistoryPage />} />
-              <Route path="/listen" element={<LibraryPage />} />
-              <Route
-                path="/experiment/preview"
-                element={<ExperimentRunner isPreview={true} />}
-              />
-              <Route path="/experiment/:slug" element={<ExperimentRunner />} />
-              <Route path="/clinical/:slug" element={<SubjectRunner />} />
-              <Route path="/reproduce" element={<ReproducerPage />} />
-            </Routes>
-          </Suspense>
-        </JamProvider>
+        <ModeProvider>
+          <JamProvider>
+            <Suspense fallback={null}>
+              <Routes>
+                <Route path="/" element={<App />} />
+                <Route path="/p/:slug" element={<App />} />
+                <Route path="/jam/:id" element={<App />} />
+                <Route path="/gallery" element={<GalleryPage />} />
+                <Route path="/midi" element={<MidiSettingsPage />} />
+                <Route path="/piece" element={<PiecePage />} />
+                <Route path="/piece/:slug" element={<PiecePage />} />
+                <Route
+                  path="/listening/:slug"
+                  element={<ListeningSessionPage />}
+                />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/r/:slug" element={<RecordingPage />} />
+                <Route path="/account" element={<AccountSettingsPage />} />
+                <Route path="/feed" element={<FeedPage />} />
+                <Route path="/u/:account_id" element={<ProfilePage />} />
+                <Route path="/legal/terms" element={<TermsPage />} />
+                <Route path="/legal/privacy" element={<PrivacyPage />} />
+                <Route path="/timer" element={<MeditationTimerPage />} />
+                <Route path="/me/sessions" element={<SessionHistoryPage />} />
+                <Route path="/listen" element={<LibraryPage />} />
+                <Route
+                  path="/experiment/preview"
+                  element={<ExperimentRunner isPreview={true} />}
+                />
+                <Route
+                  path="/experiment/:slug"
+                  element={<ExperimentRunner />}
+                />
+                <Route path="/clinical/:slug" element={<SubjectRunner />} />
+                <Route path="/reproduce" element={<ReproducerPage />} />
+              </Routes>
+            </Suspense>
+          </JamProvider>
+        </ModeProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

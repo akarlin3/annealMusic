@@ -8,6 +8,7 @@ import {
   type LessonProgress,
 } from './progress/ProgressClient';
 import { NextLessonPicker } from './recommend/NextLessonPicker';
+import { useMode } from '@/mode/useMode';
 
 export interface LessonStep {
   id: string;
@@ -43,6 +44,59 @@ export interface Track {
 
 export function LearnApp() {
   const [tracks, setTracks] = useState<Track[]>([]);
+  const { mode } = useMode();
+
+  const filteredTracks = useMemo(() => {
+    if (!mode) return tracks;
+    return tracks
+      .map((track) => {
+        const filteredLessons = track.lessons.filter((lesson) => {
+          const description = (lesson.description || '').toLowerCase();
+          const title = (lesson.title || '').toLowerCase();
+          const trackSlug = (track.slug || '').toLowerCase();
+
+          if (mode === 'meditation') {
+            return (
+              description.includes('meditation') ||
+              description.includes('mindfulness') ||
+              description.includes('focus') ||
+              description.includes('breath') ||
+              description.includes('calm') ||
+              title.includes('meditation') ||
+              title.includes('breath') ||
+              title.includes('calm') ||
+              trackSlug.includes('meditation') ||
+              trackSlug.includes('breath')
+            );
+          }
+          if (mode === 'researcher') {
+            return (
+              description.includes('science') ||
+              description.includes('research') ||
+              description.includes('clinical') ||
+              description.includes('psychoacoustic') ||
+              description.includes('experiments') ||
+              description.includes('study') ||
+              description.includes('sonification') ||
+              title.includes('science') ||
+              title.includes('experiment') ||
+              title.includes('sonification') ||
+              trackSlug.includes('science') ||
+              trackSlug.includes('research')
+            );
+          }
+          // Musician mode shows standard creative paths
+          return (
+            !description.includes('science') &&
+            !description.includes('clinical') &&
+            !description.includes('experiments') &&
+            !description.includes('psychoacoustic')
+          );
+        });
+        return { ...track, lessons: filteredLessons };
+      })
+      .filter((track) => track.lessons.length > 0);
+  }, [tracks, mode]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -244,11 +298,11 @@ export function LearnApp() {
             authenticated={authenticated}
             context={justCompleted ? 'completion' : 'arrival'}
             justCompletedLessonId={justCompleted}
-            tracks={tracks}
+            tracks={filteredTracks}
             onPick={navigateToLesson}
           />
           <CurriculumBrowser
-            tracks={tracks}
+            tracks={filteredTracks}
             progress={progress}
             onSelectLesson={navigateToLesson}
           />

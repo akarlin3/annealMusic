@@ -11,6 +11,7 @@ import GallerySearch from '@/gallery/GallerySearch';
 import ReportDialog from '@/gallery/ReportDialog';
 import EmbedDialog from '@/embed/EmbedDialog';
 import { Sparkles, ChevronRight } from 'lucide-react';
+import { Header } from '@/components/Header';
 
 const SORTS: GallerySort[] = ['newest', 'oldest', 'most_loaded', 'most_liked'];
 
@@ -126,36 +127,17 @@ export default function GalleryPage() {
       style={{ background: '#0c0a09', color: '#f5f5f4' }}
     >
       <div className="mx-auto max-w-6xl px-6 py-10">
-        <header className="mb-8 flex items-baseline justify-between">
-          <div>
-            <h1
-              className="font-display text-4xl tracking-tight"
-              style={{ color: '#fef3c7' }}
-            >
-              <em>Gallery</em>
-            </h1>
-            <p className="mt-1 font-body text-sm" style={{ color: '#a8a29e' }}>
-              Public patches shared by the community. Preview, then load any
-              into the sandbox.
-            </p>
-          </div>
+        <Header subtitle="Public patches shared by the community. Preview, then load any into the sandbox.">
           <div className="flex items-center gap-4">
             <Link
-              to="/feed"
-              className="font-mono text-[11px] uppercase tracking-[0.2em] hover:text-stone-300 transition-colors"
-              style={{ color: '#a8a29e' }}
-            >
-              Feed
-            </Link>
-            <Link
               to="/"
-              className="font-mono text-[11px] uppercase tracking-[0.2em]"
+              className="font-mono text-[11px] uppercase tracking-[0.2em] cursor-pointer"
               style={{ color: '#f59e0b' }}
             >
               ← Sandbox
             </Link>
           </div>
-        </header>
+        </Header>
 
         {featuredPicks.length > 0 && (
           <div

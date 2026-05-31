@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ResearchApp } from './ResearchApp';
 import '@/styles/index.css';
 import { initializeErrorReporter } from '@/observability/errorReporter';
+import { ModeProvider } from '@/mode/ModeContext';
 
 // Boot error reporter
 initializeErrorReporter();
@@ -13,5 +14,9 @@ if (!rootEl) {
 }
 
 createRoot(rootEl).render(
-  createElement(StrictMode, null, createElement(ResearchApp)),
+  createElement(
+    StrictMode,
+    null,
+    createElement(ModeProvider, null, createElement(ResearchApp)),
+  ),
 );
