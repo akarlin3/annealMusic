@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.2.0] - 2026-05-31
+
+**Clinical Stimulus-Grade Audio.** v7.2 shifts AnnealMusic from basic behavioral studies (v5.6) to clinical research level rigor: precisely calibrated levels, cryptographically randomized double-blind/single-blind condition counterbalancing, sub-millisecond scheduled auditory onset timing, continuous breathing pacing feedback, and IRB-compliant withdrawals disposition audits.
+
+### Added
+
+- **Physical SPL Level Calibration.** Investigator calibration dashboard play tool playing a 1kHz sine reference tone at -20 dBFS, logging measured decibel values from headphones/speakers using physical SPL meters, and automatically multiplying subsequent participant stimulus playback gain parameters by $G_{cal} = 10^{(G_{offset}/20)}$ safely without digital clipping.
+- **Williams Latin Square Randomization.** Seeded Counterbalancing engine deterministic mapping row distribution mathematically to enrollment counters on the server (`enroll_subject`), completely removing researcher selection bias in double-blind protocols. Supports simple cryptographic hashes and permuted block configurations of treatment sizes $2N$.
+- **Time-Locked Onset Scheduling.** Web Audio `AudioContext.currentTime` scheduling of comfortable audio comfort safeguard signals and tone playbacks, monitoring event loop callbacks vs thread clock times to compile real-time latency and onset callback jitter reports.
+- **Symptom Capture & Adverse Events.** Float overlay trigger allowing subjects to halt audio playbacks instantly, report category descriptors of discomfort (hearing strain, ringing, anxiety, headache), and log absolute timestamps with sub-second offsets relative to stimulus starts.
+- **IRB-Compliant Telemetry Withdrawal.** If a subject terminates participation early, the console halts audio instantly and presents a clear post-withdrawal data choice: Discard All Telemetry (completely shreds subjective inputs, survey values, and physical level recordings from the database, retaining only secure consent/withdrawal audit logs for human-subjects ethics verification) or Retain Partial Data.
+- **Stimulus Integrity Hashing.** Computes browser SHA-256 validation proof over active condition parameter arrays, registering the cryptographic checksum within the session record's `stimulus_sha256` column.
+- **Outfitted Minimalist Glassmorphic UI.** Isolated, distraction-free clinical runner console (`src/clinical/SubjectRunner.tsx`) served at `/clinical/:slug` removing all standard app headers, footers, and menu navigations, styled with stone-dark backdrops, Outfit/Inter typography, and visual breathing pulse ring.
+- **Documentation.** Created `docs/CLINICAL_DEFAULTS.md` and `docs/CLINICAL_TIMING.md` references outlining browser/driver hardware latency ceilings and IRB-approved default screening templates.
+
 ## [7.0.0] - 2026-05-31
 
 **The v7 research-collaboration arc opens.** v7.0 ships the shared substrate that the clinical-research (v7.2/v7.4/v7.5) and sonification (v7.1) tracks build on: a multi-investigator **Study** model with provenance, immutable snapshots, and per-study Zenodo DOIs. No clinical or sonification features yet — only the collaboration primitives.

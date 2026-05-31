@@ -17,6 +17,7 @@ import MeditationTimerPage from '@/pages/MeditationTimerPage';
 import SessionHistoryPage from '@/history/SessionHistoryPage';
 import LibraryPage from '@/library/LibraryPage';
 import { ExperimentRunner } from '@/experiment/ExperimentRunner';
+import { SubjectRunner } from '@/clinical/SubjectRunner';
 import '@/styles/index.css';
 import { BridgeServer } from '@/research/bridge/BridgeServer';
 
@@ -71,6 +72,7 @@ createRoot(rootEl).render(
               element={<ExperimentRunner isPreview={true} />}
             />
             <Route path="/experiment/:slug" element={<ExperimentRunner />} />
+            <Route path="/clinical/:slug" element={<SubjectRunner />} />
           </Routes>
         </JamProvider>
       </AuthProvider>
