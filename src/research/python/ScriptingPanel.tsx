@@ -4,7 +4,7 @@ import { REPL } from './REPL';
 import { PyodideWorker, WorkerInitStatus } from './PyodideWorker';
 import { JSBridgeSync } from './bridge';
 import { BridgeClient } from '../bridge/BridgeClient';
-import { FileText, Code2, CloudLightning, Save, FileImage } from 'lucide-react';
+import { FileText, Code2, Save, FileImage } from 'lucide-react';
 import { VFSPanel } from './vfsPanel';
 
 const DEFAULT_SCRIPT = `import anneal
@@ -207,6 +207,7 @@ export const ScriptingPanel: React.FC = () => {
   const workerRef = useRef<PyodideWorker | null>(null);
   const syncRef = useRef<JSBridgeSync | null>(null);
   const clientRef = useRef<BridgeClient | null>(null);
+  const pendingRunRef = useRef<boolean>(false);
 
   useEffect(() => {
     clientRef.current = new BridgeClient();
@@ -244,8 +245,12 @@ export const ScriptingPanel: React.FC = () => {
     }
   };
 
-  const handleInitializeWorker = () => {
+  const handleInitializeWorker = (runOnReady = false) => {
     if (isInitializing || isWorkerReady) return;
+
+    if (runOnReady) {
+      pendingRunRef.current = true;
+    }
 
     setIsInitializing(true);
     setInitStatus({ stage: 'loading', progress: 0.1 });
@@ -280,8 +285,17 @@ export const ScriptingPanel: React.FC = () => {
             window.open('/experiment/preview', '_blank');
           }
         });
+
+        // Trigger pending run if requested
+        if (pendingRunRef.current) {
+          pendingRunRef.current = false;
+          setTimeout(() => {
+            handleRunScript();
+          }, 50);
+        }
       } else if (status.stage === 'error') {
         setIsInitializing(false);
+        pendingRunRef.current = false;
       }
     }, preloadScientific);
   };
@@ -289,8 +303,7 @@ export const ScriptingPanel: React.FC = () => {
   const handleRunScript = async () => {
     // 1. Lazy initialize worker if not ready
     if (!isWorkerReady) {
-      handleInitializeWorker();
-      // Block run until initialization completes
+      handleInitializeWorker(true);
       return;
     }
 
@@ -376,8 +389,8 @@ export const ScriptingPanel: React.FC = () => {
 
   const handleExecuteRepl = async (command: string) => {
     if (!isWorkerReady) {
-      // Lazy load
-      handleInitializeWorker();
+      // Lazy load but don't auto-trigger a full script run
+      handleInitializeWorker(false);
       return {
         success: false,
         error: 'Python environment is cold. Starting boot sequence...',
@@ -395,76 +408,8 @@ export const ScriptingPanel: React.FC = () => {
     <div className="flex-1 flex flex-col md:flex-row gap-6 overflow-hidden max-h-[85vh]">
       {/* Workspace Panel (Editor + Terminal Console) */}
       <div className="flex-1 flex flex-col gap-6 overflow-hidden">
-        {/* Cold initialization layer */}
-        {!isWorkerReady && !isInitializing ? (
-          <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 text-center backdrop-blur-md">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4 animate-bounce">
-              <Code2 size={24} />
-            </div>
-            <h2 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-200">
-              Cold Python Environment
-            </h2>
-            <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm">
-              Pyodide loads standard scientific runtimes in WebAssembly locally.
-              Boots in ~3 seconds on first execution.
-            </p>
-            <button
-              onClick={handleInitializeWorker}
-              className="mt-4 px-4 py-2 rounded-lg bg-amber-500 text-stone-950 font-mono text-xs uppercase tracking-wider font-semibold hover:bg-amber-400 transition-all flex items-center gap-2 shadow-lg shadow-amber-500/10"
-            >
-              <CloudLightning size={14} />
-              Initialize Python
-            </button>
-            <div className="flex items-center gap-2 mt-4 select-none">
-              <input
-                id="preload-scientific-toggle"
-                type="checkbox"
-                checked={preloadScientific}
-                onChange={(e) => {
-                  const val = e.target.checked;
-                  setPreloadScientific(val);
-                  localStorage.setItem(
-                    'am_scientific_env_preload',
-                    String(val),
-                  );
-                }}
-                className="w-4 h-4 rounded border-stone-850 bg-stone-950 text-amber-500 focus:ring-amber-500/20 focus:ring-2 focus:ring-offset-0 cursor-pointer"
-              />
-              <label
-                htmlFor="preload-scientific-toggle"
-                className="text-[10px] text-stone-400 font-mono tracking-wider cursor-pointer hover:text-stone-300 transition-colors uppercase"
-              >
-                Preload Scientific Environment (SciPy, Matplotlib, Pandas)
-              </label>
-            </div>
-          </div>
-        ) : isInitializing ? (
-          <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 text-center backdrop-blur-md">
-            <div className="relative flex items-center justify-center mb-6">
-              <div className="h-16 w-16 rounded-full border-2 border-stone-850 border-t-amber-500 animate-spin" />
-              <Code2
-                size={20}
-                className="absolute text-amber-500 animate-pulse"
-              />
-            </div>
-            <h2 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-300">
-              Initializing Python Environment...
-            </h2>
-            <div className="w-48 bg-stone-900 h-1 rounded-full overflow-hidden mt-3 border border-stone-850">
-              <div
-                className="bg-amber-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${(initStatus.progress || 0.1) * 100}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-stone-500 font-mono mt-2 uppercase tracking-widest">
-              {initStatus.progress &&
-              initStatus.progress > 0.5 &&
-              preloadScientific
-                ? 'loading scipy + pandas + matplotlib + sklearn from CDN...'
-                : 'loading wasm runtime + numpy from CDN...'}
-            </p>
-          </div>
-        ) : (
+        {/* Editor Container with Overlay */}
+        <div className="flex-1 relative flex flex-col overflow-hidden">
           <ScriptEditor
             code={code}
             onChange={setCode}
@@ -477,7 +422,73 @@ export const ScriptingPanel: React.FC = () => {
             scriptName={scriptName}
             onScriptNameChange={setScriptName}
           />
-        )}
+
+          {isInitializing && (
+            <div className="absolute inset-0 bg-stone-950/85 backdrop-blur-md flex flex-col items-center justify-center rounded-xl z-20 p-8 text-center">
+              <div className="relative flex items-center justify-center mb-6">
+                <div className="h-16 w-16 rounded-full border-2 border-stone-850 border-t-amber-500 animate-spin" />
+                <Code2
+                  size={20}
+                  className="absolute text-amber-500 animate-pulse"
+                />
+              </div>
+              <h2 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-300">
+                Initializing Python Environment...
+              </h2>
+              <div className="w-48 bg-stone-900 h-1 rounded-full overflow-hidden mt-3 border border-stone-850">
+                <div
+                  className="bg-amber-500 h-full rounded-full transition-all duration-300"
+                  style={{ width: `${(initStatus.progress || 0.1) * 100}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-stone-500 font-mono mt-2 uppercase tracking-widest">
+                {initStatus.progress &&
+                initStatus.progress > 0.5 &&
+                preloadScientific
+                  ? 'loading scipy + pandas + matplotlib + sklearn from CDN...'
+                  : 'loading wasm runtime + numpy from CDN...'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Environment Status & Preferences Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2.5 border border-stone-900 bg-stone-900/10 rounded-xl select-none">
+          <div className="flex items-center gap-2">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                isWorkerReady
+                  ? 'bg-emerald-500 shadow-md shadow-emerald-500/50'
+                  : 'bg-amber-500 animate-pulse'
+              }`}
+            />
+            <span className="text-[10px] font-mono text-stone-400 uppercase tracking-wider">
+              {isWorkerReady
+                ? 'Environment: Ready (SciPy + NumPy loaded)'
+                : 'Environment: Cold (Will initialize on first run)'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="preload-scientific-toggle"
+              type="checkbox"
+              checked={preloadScientific}
+              onChange={(e) => {
+                const val = e.target.checked;
+                setPreloadScientific(val);
+                localStorage.setItem('am_scientific_env_preload', String(val));
+              }}
+              className="w-4.5 h-4.5 rounded border-stone-850 bg-stone-950 text-amber-500 focus:ring-amber-500/20 focus:ring-2 focus:ring-offset-0 cursor-pointer"
+            />
+            <label
+              htmlFor="preload-scientific-toggle"
+              className="text-[10px] text-stone-400 font-mono tracking-wider cursor-pointer hover:text-stone-300 transition-colors uppercase"
+            >
+              Preload Scientific Environment
+            </label>
+          </div>
+        </div>
 
         {/* Stdout Console Stream Output */}
         <div className="h-40 flex flex-col border border-stone-900 bg-stone-950/20 rounded-xl overflow-hidden shadow-xl">

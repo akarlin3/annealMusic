@@ -1,10 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { BridgeClient } from './bridge/BridgeClient';
-import { OSCPanel } from './osc/OSCPanel';
-import { DataloggerPanel } from '@/datalog/DataloggerPanel';
-import { ScriptingPanel } from './python/ScriptingPanel';
-import { StudiesPanel } from '@/studies/StudiesPanel';
 import {
   Activity,
   Terminal,
@@ -19,7 +15,29 @@ import {
   FlaskConical,
   Music,
 } from 'lucide-react';
-import { SonificationPanel } from '@/sonification/SonificationPanel';
+
+// Lazy load heavy panel workspaces for on-demand bundle splitting
+const OSCPanel = lazy(() =>
+  import('./osc/OSCPanel').then((m) => ({ default: m.OSCPanel })),
+);
+const DataloggerPanel = lazy(() =>
+  import('@/datalog/DataloggerPanel').then((m) => ({
+    default: m.DataloggerPanel,
+  })),
+);
+const ScriptingPanel = lazy(() =>
+  import('./python/ScriptingPanel').then((m) => ({
+    default: m.ScriptingPanel,
+  })),
+);
+const StudiesPanel = lazy(() =>
+  import('@/studies/StudiesPanel').then((m) => ({ default: m.StudiesPanel })),
+);
+const SonificationPanel = lazy(() =>
+  import('@/sonification/SonificationPanel').then((m) => ({
+    default: m.SonificationPanel,
+  })),
+);
 
 interface RpcLog {
   id: string;
@@ -417,361 +435,372 @@ export function ResearchApp() {
 
         {/* Content Pane */}
         <main className="flex-1 overflow-hidden flex flex-col p-6 gap-6 bg-stone-950">
-          {activeTab === 'telemetry' && (
-            <div className="flex-1 overflow-hidden flex flex-col md:flex-row gap-6">
-              {/* Telemetry Log panel */}
-              <div className="flex-1 flex flex-col border border-stone-900 bg-stone-900/10 rounded-xl overflow-hidden shadow-xl">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-stone-900 bg-stone-900/20">
-                  <span className="text-xs font-mono uppercase tracking-wider text-stone-400">
-                    Live RPC Stream ({logs.length} logs captured)
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={clearLogs}
-                      className="p-1.5 rounded bg-stone-900 border border-stone-800 text-stone-400 hover:text-stone-200 transition-colors"
-                      title="Clear console log history"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                    <button
-                      onClick={exportLogs}
-                      className="p-1.5 rounded bg-stone-900 border border-stone-800 text-stone-400 hover:text-stone-200 transition-colors"
-                      title="Export logs to JSON"
-                    >
-                      <RefreshCw size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1 p-4 overflow-y-auto font-mono text-[11px] leading-relaxed flex flex-col gap-2 scrollbar-thin">
-                  {logs.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-stone-600 select-none">
-                      WAITING FOR RPC TRAFFIC OVER BROADCASTCHANNEL...
-                    </div>
-                  ) : (
-                    logs.map((log) => {
-                      let color = 'text-stone-400';
-                      let label = '';
-                      if (log.type === 'request') {
-                        color = 'text-amber-400 bg-amber-950/20';
-                        label = '→ REQ';
-                      } else if (log.type === 'response') {
-                        color = 'text-emerald-400 bg-emerald-950/20';
-                        label = '← RES';
-                      } else if (log.type === 'notification') {
-                        color = 'text-sky-400 bg-sky-950/20';
-                        label = '📡 NTF';
-                      } else if (log.type === 'error') {
-                        color = 'text-rose-400 bg-rose-950/20';
-                        label = '✖ ERR';
-                      }
-
-                      return (
-                        <div
-                          key={log.id}
-                          className={`p-2.5 rounded border border-stone-900/50 flex flex-col gap-1 transition-all ${color}`}
-                        >
-                          <div className="flex items-center justify-between border-b border-stone-900/30 pb-1">
-                            <span className="font-semibold">
-                              {label}: {log.method}
-                            </span>
-                            <div className="flex items-center gap-2 text-[9px] text-stone-500">
-                              {log.durationMs !== undefined && (
-                                <span className="bg-stone-900 px-1 py-0.5 rounded text-[10px] text-stone-400">
-                                  {log.durationMs.toFixed(1)}ms
-                                </span>
-                              )}
-                              <span>{log.timestamp}</span>
-                            </div>
-                          </div>
-                          <pre className="overflow-x-auto whitespace-pre-wrap break-all text-[10px]">
-                            {JSON.stringify(log.payload, null, 2)}
-                          </pre>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+          <Suspense
+            fallback={
+              <div className="flex-1 flex flex-col items-center justify-center font-mono text-stone-500 text-xs animate-pulse">
+                LOADING RESEARCH PANEL...
               </div>
-
-              {/* State quick sculpt panel */}
-              <div className="w-full md:w-80 flex flex-col gap-6">
-                {/* Visualizer FFT signal panel */}
-                <div className="border border-stone-900 bg-stone-900/10 rounded-xl p-4 flex flex-col gap-3 shadow-lg">
-                  <span className="text-xs font-mono uppercase tracking-wider text-stone-400 flex items-center gap-2">
-                    <Activity size={14} className="text-amber-500" />
-                    Emergent spectrum bridge
-                  </span>
-                  <canvas
-                    ref={canvasRef}
-                    width={280}
-                    height={100}
-                    className="w-full h-[100px] bg-stone-950 rounded-lg border border-stone-900"
-                  />
-                </div>
-
-                <div className="border border-stone-900 bg-stone-900/10 rounded-xl p-4 flex flex-col gap-4 shadow-lg">
-                  <span className="text-xs font-mono uppercase tracking-wider text-stone-400 flex items-center gap-2">
-                    <Cpu size={14} className="text-amber-500" />
-                    Quick Sculpt Actions
-                  </span>
-
-                  {/* Engine lifecycle */}
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-                      Session state ({sessionStatus})
+            }
+          >
+            {activeTab === 'telemetry' && (
+              <div className="flex-1 overflow-hidden flex flex-col md:flex-row gap-6">
+                {/* Telemetry Log panel */}
+                <div className="flex-1 flex flex-col border border-stone-900 bg-stone-900/10 rounded-xl overflow-hidden shadow-xl">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-stone-900 bg-stone-900/20">
+                    <span className="text-xs font-mono uppercase tracking-wider text-stone-400">
+                      Live RPC Stream ({logs.length} logs captured)
                     </span>
                     <div className="flex gap-2">
                       <button
-                        onClick={handleStartSession}
-                        disabled={sessionStatus !== 'idle'}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-mono uppercase bg-amber-500 text-stone-950 hover:bg-amber-400 font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        onClick={clearLogs}
+                        className="p-1.5 rounded bg-stone-900 border border-stone-800 text-stone-400 hover:text-stone-200 transition-colors"
+                        title="Clear console log history"
                       >
-                        <Play size={12} fill="currentColor" />
-                        Start
+                        <Trash2 size={14} />
                       </button>
                       <button
-                        onClick={handleStopSession}
-                        disabled={sessionStatus === 'idle'}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-mono uppercase bg-stone-900 border border-stone-850 hover:bg-stone-850 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        onClick={exportLogs}
+                        className="p-1.5 rounded bg-stone-900 border border-stone-800 text-stone-400 hover:text-stone-200 transition-colors"
+                        title="Export logs to JSON"
                       >
-                        <Square size={12} fill="currentColor" />
-                        Stop
+                        <RefreshCw size={14} />
                       </button>
                     </div>
                   </div>
 
-                  {/* Engine Id selector */}
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-                      Active synthesizer
+                  <div className="flex-1 p-4 overflow-y-auto font-mono text-[11px] leading-relaxed flex flex-col gap-2 scrollbar-thin">
+                    {logs.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-stone-600 select-none">
+                        WAITING FOR RPC TRAFFIC OVER BROADCASTCHANNEL...
+                      </div>
+                    ) : (
+                      logs.map((log) => {
+                        let color = 'text-stone-400';
+                        let label = '';
+                        if (log.type === 'request') {
+                          color = 'text-amber-400 bg-amber-950/20';
+                          label = '→ REQ';
+                        } else if (log.type === 'response') {
+                          color = 'text-emerald-400 bg-emerald-950/20';
+                          label = '← RES';
+                        } else if (log.type === 'notification') {
+                          color = 'text-sky-400 bg-sky-950/20';
+                          label = '📡 NTF';
+                        } else if (log.type === 'error') {
+                          color = 'text-rose-400 bg-rose-950/20';
+                          label = '✖ ERR';
+                        }
+
+                        return (
+                          <div
+                            key={log.id}
+                            className={`p-2.5 rounded border border-stone-900/50 flex flex-col gap-1 transition-all ${color}`}
+                          >
+                            <div className="flex items-center justify-between border-b border-stone-900/30 pb-1">
+                              <span className="font-semibold">
+                                {label}: {log.method}
+                              </span>
+                              <div className="flex items-center gap-2 text-[9px] text-stone-500">
+                                {log.durationMs !== undefined && (
+                                  <span className="bg-stone-900 px-1 py-0.5 rounded text-[10px] text-stone-400">
+                                    {log.durationMs.toFixed(1)}ms
+                                  </span>
+                                )}
+                                <span>{log.timestamp}</span>
+                              </div>
+                            </div>
+                            <pre className="overflow-x-auto whitespace-pre-wrap break-all text-[10px]">
+                              {JSON.stringify(log.payload, null, 2)}
+                            </pre>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* State quick sculpt panel */}
+                <div className="w-full md:w-80 flex flex-col gap-6">
+                  {/* Visualizer FFT signal panel */}
+                  <div className="border border-stone-900 bg-stone-900/10 rounded-xl p-4 flex flex-col gap-3 shadow-lg">
+                    <span className="text-xs font-mono uppercase tracking-wider text-stone-400 flex items-center gap-2">
+                      <Activity size={14} className="text-amber-500" />
+                      Emergent spectrum bridge
                     </span>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {['sine', 'waveguide', 'bowed', 'pulse'].map((id) => (
+                    <canvas
+                      ref={canvasRef}
+                      width={280}
+                      height={100}
+                      className="w-full h-[100px] bg-stone-950 rounded-lg border border-stone-900"
+                    />
+                  </div>
+
+                  <div className="border border-stone-900 bg-stone-900/10 rounded-xl p-4 flex flex-col gap-4 shadow-lg">
+                    <span className="text-xs font-mono uppercase tracking-wider text-stone-400 flex items-center gap-2">
+                      <Cpu size={14} className="text-amber-500" />
+                      Quick Sculpt Actions
+                    </span>
+
+                    {/* Engine lifecycle */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
+                        Session state ({sessionStatus})
+                      </span>
+                      <div className="flex gap-2">
                         <button
-                          key={id}
-                          onClick={() => handleSetEngine(id)}
-                          className={`py-1.5 rounded font-mono text-[10px] uppercase transition-all ${
-                            engineId === id
-                              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold'
-                              : 'bg-stone-900 border border-stone-900 text-stone-400 hover:text-stone-200'
-                          }`}
+                          onClick={handleStartSession}
+                          disabled={sessionStatus !== 'idle'}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-mono uppercase bg-amber-500 text-stone-950 hover:bg-amber-400 font-semibold disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                         >
-                          {id}
+                          <Play size={12} fill="currentColor" />
+                          Start
                         </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Scopes */}
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-between text-[10px] font-mono">
-                        <span className="text-stone-400">Root Frequency</span>
-                        <span className="text-amber-500">{rootFreq} Hz</span>
+                        <button
+                          onClick={handleStopSession}
+                          disabled={sessionStatus === 'idle'}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-mono uppercase bg-stone-900 border border-stone-850 hover:bg-stone-850 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <Square size={12} fill="currentColor" />
+                          Stop
+                        </button>
                       </div>
-                      <input
-                        type="range"
-                        min="50"
-                        max="400"
-                        step="1"
-                        value={rootFreq}
-                        onChange={(e) =>
-                          handleParamChange('rootFreq', Number(e.target.value))
-                        }
-                        className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
-                      />
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-between text-[10px] font-mono">
-                        <span className="text-stone-400">Brightness</span>
-                        <span className="text-amber-500">
-                          {(brightness * 100).toFixed(0)}%
-                        </span>
+                    {/* Engine Id selector */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
+                        Active synthesizer
+                      </span>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {['sine', 'waveguide', 'bowed', 'pulse'].map((id) => (
+                          <button
+                            key={id}
+                            onClick={() => handleSetEngine(id)}
+                            className={`py-1.5 rounded font-mono text-[10px] uppercase transition-all ${
+                              engineId === id
+                                ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold'
+                                : 'bg-stone-900 border border-stone-900 text-stone-400 hover:text-stone-200'
+                            }`}
+                          >
+                            {id}
+                          </button>
+                        ))}
                       </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={brightness}
-                        onChange={(e) =>
-                          handleParamChange(
-                            'brightness',
-                            Number(e.target.value),
-                          )
-                        }
-                        className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
-                      />
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                      <div className="flex justify-between text-[10px] font-mono">
-                        <span className="text-stone-400">Reverb Space</span>
-                        <span className="text-amber-500">
-                          {(space * 100).toFixed(0)}%
-                        </span>
+                    {/* Scopes */}
+                    <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-[10px] font-mono">
+                          <span className="text-stone-400">Root Frequency</span>
+                          <span className="text-amber-500">{rootFreq} Hz</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="50"
+                          max="400"
+                          step="1"
+                          value={rootFreq}
+                          onChange={(e) =>
+                            handleParamChange(
+                              'rootFreq',
+                              Number(e.target.value),
+                            )
+                          }
+                          className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.01"
-                        value={space}
-                        onChange={(e) =>
-                          handleParamChange('space', Number(e.target.value))
-                        }
-                        className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
-                      />
+
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-[10px] font-mono">
+                          <span className="text-stone-400">Brightness</span>
+                          <span className="text-amber-500">
+                            {(brightness * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={brightness}
+                          onChange={(e) =>
+                            handleParamChange(
+                              'brightness',
+                              Number(e.target.value),
+                            )
+                          }
+                          className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <div className="flex justify-between text-[10px] font-mono">
+                          <span className="text-stone-400">Reverb Space</span>
+                          <span className="text-amber-500">
+                            {(space * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={space}
+                          onChange={(e) =>
+                            handleParamChange('space', Number(e.target.value))
+                          }
+                          className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'osc' && clientRef.current && (
-            <OSCPanel client={clientRef.current} />
-          )}
+            {activeTab === 'osc' && clientRef.current && (
+              <OSCPanel client={clientRef.current} />
+            )}
 
-          {activeTab === 'datalogger' && (
-            <div className="max-w-2xl mx-auto w-full mt-4">
-              <DataloggerPanel />
-            </div>
-          )}
-
-          {activeTab === 'scripting' && <ScriptingPanel />}
-
-          {activeTab === 'studies' && <StudiesPanel />}
-
-          {activeTab === 'experiments' && (
-            <div className="flex-1 flex flex-col gap-6 overflow-hidden">
-              <div className="flex flex-col gap-1 select-none">
-                <h2 className="text-lg font-mono uppercase tracking-wider font-semibold text-stone-200">
-                  Experiments Console
-                </h2>
-                <p className="text-xs text-stone-500 font-mono">
-                  Define, preview, and deploy psychoacoustic and cognitive music
-                  perception studies.
-                </p>
+            {activeTab === 'datalogger' && (
+              <div className="max-w-2xl mx-auto w-full mt-4">
+                <DataloggerPanel />
               </div>
+            )}
 
-              {loadingExps ? (
-                <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 text-center backdrop-blur-md">
-                  <RefreshCw
-                    size={24}
-                    className="animate-spin text-amber-500 mb-4"
-                  />
-                  <span className="text-xs uppercase tracking-widest text-stone-500 font-mono">
-                    Loading saved experiment configurations...
-                  </span>
-                </div>
-              ) : experiments.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 text-center backdrop-blur-md select-none">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4 animate-pulse">
-                    <Shield size={24} />
-                  </div>
-                  <h3 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-200">
-                    No active experiments found
-                  </h3>
-                  <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm leading-relaxed">
-                    Perceptual studies are defined programmatically using Python
-                    scripts. Boot up the
-                    <button
-                      onClick={() => setActiveTab('scripting')}
-                      className="text-amber-500 underline mx-1 hover:text-amber-400"
-                    >
-                      Scripting Console
-                    </button>
-                    and execute one of the pre-curated template scripts to
-                    compile your first experiment!
+            {activeTab === 'scripting' && <ScriptingPanel />}
+
+            {activeTab === 'studies' && <StudiesPanel />}
+
+            {activeTab === 'experiments' && (
+              <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+                <div className="flex flex-col gap-1 select-none">
+                  <h2 className="text-lg font-mono uppercase tracking-wider font-semibold text-stone-200">
+                    Experiments Console
+                  </h2>
+                  <p className="text-xs text-stone-500 font-mono">
+                    Define, preview, and deploy psychoacoustic and cognitive
+                    music perception studies.
                   </p>
                 </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 pr-2 scrollbar-thin">
-                  {experiments.map((exp) => (
-                    <div
-                      key={exp.id}
-                      className="border border-stone-900 bg-stone-900/10 rounded-xl p-5 shadow-lg backdrop-blur-md hover:border-amber-500/20 transition-all flex flex-col justify-between gap-4"
-                    >
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex justify-between items-start gap-2">
-                          <h3 className="text-sm font-mono font-semibold text-stone-200 uppercase tracking-wide">
-                            {exp.title}
-                          </h3>
-                          <span className="text-[9px] font-mono bg-stone-900 border border-stone-850 px-2 py-0.5 rounded text-stone-400">
-                            v5.6.0
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-stone-400 font-mono leading-relaxed line-clamp-3">
-                          {exp.description || 'No description provided.'}
-                        </p>
-                      </div>
 
-                      <div className="flex flex-col gap-3 pt-2 border-t border-stone-900">
-                        <div className="flex justify-between text-[10px] font-mono text-stone-500">
-                          <span>
-                            Slug: {exp.short_slug || exp.id.substring(0, 8)}
-                          </span>
-                          <span>
-                            Created:{' '}
-                            {new Date(exp.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-
-                        <div className="flex gap-2.5">
-                          <button
-                            onClick={() => {
-                              localStorage.setItem(
-                                'am_preview_experiment',
-                                JSON.stringify(exp.definition),
-                              );
-                              window.open('/experiment/preview', '_blank');
-                            }}
-                            className="flex-1 py-2 px-3 rounded-lg text-xs font-mono uppercase bg-amber-500 text-stone-950 hover:bg-amber-400 font-semibold transition-all text-center shadow-md shadow-amber-500/5"
-                          >
-                            Preview Runner
-                          </button>
-                          <button
-                            onClick={() => {
-                              const path = `/experiment/${exp.short_slug || exp.id}`;
-                              navigator.clipboard.writeText(
-                                window.location.origin + path,
-                              );
-                              alert(
-                                'Participant study link copied to clipboard!',
-                              );
-                            }}
-                            className="flex-1 py-2 px-3 rounded-lg text-xs font-mono uppercase bg-stone-900 border border-stone-850 text-stone-400 hover:text-stone-200 transition-all"
-                          >
-                            Copy Study Link
-                          </button>
-                        </div>
-                      </div>
+                {loadingExps ? (
+                  <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 text-center backdrop-blur-md">
+                    <RefreshCw
+                      size={24}
+                      className="animate-spin text-amber-500 mb-4"
+                    />
+                    <span className="text-xs uppercase tracking-widest text-stone-500 font-mono">
+                      Loading saved experiment configurations...
+                    </span>
+                  </div>
+                ) : experiments.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 text-center backdrop-blur-md select-none">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4 animate-pulse">
+                      <Shield size={24} />
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                    <h3 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-200">
+                      No active experiments found
+                    </h3>
+                    <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm leading-relaxed">
+                      Perceptual studies are defined programmatically using
+                      Python scripts. Boot up the
+                      <button
+                        onClick={() => setActiveTab('scripting')}
+                        className="text-amber-500 underline mx-1 hover:text-amber-400"
+                      >
+                        Scripting Console
+                      </button>
+                      and execute one of the pre-curated template scripts to
+                      compile your first experiment!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 pr-2 scrollbar-thin">
+                    {experiments.map((exp) => (
+                      <div
+                        key={exp.id}
+                        className="border border-stone-900 bg-stone-900/10 rounded-xl p-5 shadow-lg backdrop-blur-md hover:border-amber-500/20 transition-all flex flex-col justify-between gap-4"
+                      >
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex justify-between items-start gap-2">
+                            <h3 className="text-sm font-mono font-semibold text-stone-200 uppercase tracking-wide">
+                              {exp.title}
+                            </h3>
+                            <span className="text-[9px] font-mono bg-stone-900 border border-stone-850 px-2 py-0.5 rounded text-stone-400">
+                              v5.6.0
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-stone-400 font-mono leading-relaxed line-clamp-3">
+                            {exp.description || 'No description provided.'}
+                          </p>
+                        </div>
 
-          {activeTab === 'cli' && (
-            <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 shadow-xl text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4">
-                <Terminal size={24} />
+                        <div className="flex flex-col gap-3 pt-2 border-t border-stone-900">
+                          <div className="flex justify-between text-[10px] font-mono text-stone-500">
+                            <span>
+                              Slug: {exp.short_slug || exp.id.substring(0, 8)}
+                            </span>
+                            <span>
+                              Created:{' '}
+                              {new Date(exp.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          <div className="flex gap-2.5">
+                            <button
+                              onClick={() => {
+                                localStorage.setItem(
+                                  'am_preview_experiment',
+                                  JSON.stringify(exp.definition),
+                                );
+                                window.open('/experiment/preview', '_blank');
+                              }}
+                              className="flex-1 py-2 px-3 rounded-lg text-xs font-mono uppercase bg-amber-500 text-stone-950 hover:bg-amber-400 font-semibold transition-all text-center shadow-md shadow-amber-500/5"
+                            >
+                              Preview Runner
+                            </button>
+                            <button
+                              onClick={() => {
+                                const path = `/experiment/${exp.short_slug || exp.id}`;
+                                navigator.clipboard.writeText(
+                                  window.location.origin + path,
+                                );
+                                alert(
+                                  'Participant study link copied to clipboard!',
+                                );
+                              }}
+                              className="flex-1 py-2 px-3 rounded-lg text-xs font-mono uppercase bg-stone-900 border border-stone-850 text-stone-400 hover:text-stone-200 transition-all"
+                            >
+                              Copy Study Link
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <h2 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-300">
-                CLI Helper Panel
-              </h2>
-              <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm">
-                Infrastructure foundation is ready. This panel is scheduled for
-                implementation in a later v5 milestone sweep.
-              </p>
-            </div>
-          )}
+            )}
 
-          {activeTab === 'sonification' && <SonificationPanel />}
+            {activeTab === 'cli' && (
+              <div className="flex-1 flex flex-col items-center justify-center border border-stone-900 bg-stone-900/10 rounded-xl p-8 shadow-xl text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/5 text-amber-500/40 ring-1 ring-amber-500/10 mb-4">
+                  <Terminal size={24} />
+                </div>
+                <h2 className="text-sm font-mono uppercase tracking-wider font-semibold text-stone-300">
+                  CLI Helper Panel
+                </h2>
+                <p className="text-xs text-stone-500 font-mono mt-1 max-w-sm">
+                  Infrastructure foundation is ready. This panel is scheduled
+                  for implementation in a later v5 milestone sweep.
+                </p>
+              </div>
+            )}
+
+            {activeTab === 'sonification' && <SonificationPanel />}
+          </Suspense>
         </main>
       </div>
     </div>
