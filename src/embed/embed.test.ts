@@ -48,6 +48,7 @@ describe('mountEmbed', () => {
 
     await mountEmbed(root, {
       slug: 'abc',
+      kind: 'standard',
       theme: 'dark',
       apiBase: '',
       origin: 'https://annealmusic.app',
@@ -70,6 +71,7 @@ describe('mountEmbed', () => {
 
     await mountEmbed(root, {
       slug: 'abc',
+      kind: 'standard',
       theme: 'dark',
       apiBase: '',
       origin: 'https://annealmusic.app',
@@ -88,6 +90,7 @@ describe('mountEmbed', () => {
 
     await mountEmbed(root, {
       slug: 'nope',
+      kind: 'standard',
       theme: 'light',
       apiBase: '',
       origin: 'https://annealmusic.app',

@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.6.0] - 2026-05-31
+
+**Scientific Communication Tools.** v7.6 empowers researchers to publish, embed, and disseminate their sonifications and listening sessions as rich, accessible, and citable academic outputs alongside traditional figures and tables.
+
+### Added
+
+- **Headless Video & Image Render Services.** Built Playwright off-screen Chromium viewport orchestrations in `api/app/services/video_render.py` capturing synchronized visualizer canvas streams and Web Audio destinations. Includes non-blocking FFmpeg subprocess transcoding of WebM to standard H.264/AAC MP4.
+- **Ultra-Compact Figure Embed Widget.** Developed a high-performance, plain Vanilla TypeScript iframe player route (`/embed-figure/:slugOrId`) under a strict `< 30 KB` gzipped bundle budget. Integrates real-time AudioContext waveform drawing, custom speed/tempo selectors, high-contrast visualizer options, and BibTeX/DOI citation modal overlays.
+- **Presenter Slide Mode.** Designed a distraction-free Beamer-ready presentation route (`/talk/:slugOrId`) with a spacebar-triggered orbits visualizer, auto-hidden hover HUD controls, and robust pre-cached offline audio fallback resilience.
+- **Accessibility Database & Audited Transcripts.** Implemented PostgreSQL/SQLite schemas (`AccessibilityDescription`) and auto-description engines parsing raw mapping specifications into textual descriptions, with a secure React `AccessibilityEditor` panel workspace for manual PI curations.
+- **Social Card Packs (Outreach Cards).** Packaged CC-BY 15-second looping video abstracts, pinned citations, and descriptive summaries carrying dynamic Open Graph tags (`og:video`, `og:image`) for elegant Slack, Discord, and Twitter/X previews.
+- **Comprehensive Documentation Guides.** Authored detailed researcher publishing guide `docs/PUBLISHING.md` and inclusive accessibility systems reference `docs/ACCESSIBILITY.md`.
+
 ## [7.5.0] - 2026-05-31
 
 **Clinical Study Export & Reproducibility.** v7.5 enables clinical and sonification studies to be fully reproducible from a single self-contained export bundle. It bundles everything needed for peer review or replication — version locks, stimuli states, clinical protocols, optional anonymized participant logs with differential privacy, analysis scripts, sample data, and BibTeX citations — into a single archive with sufficient metadata to reproduce results months or years later.

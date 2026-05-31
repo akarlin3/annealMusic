@@ -35,6 +35,8 @@ import {
   type SessionPlayList,
   type SessionStats,
   type LibraryList,
+  type RenderedArtifactOut,
+  type AccessibilityDescriptionOut,
 } from '@/api/types';
 import type { GalleryList } from '@/gallery/types';
 import type { CustomTuning } from '@/audio/tuning/types';
@@ -793,6 +795,72 @@ export const api = {
 
   async getLibraryPicks(): Promise<LibraryList> {
     return request<LibraryList>('/api/v1/library/picks');
+  },
+
+  // --- renders & accessibility (v7.6) --------------------------------------
+  async queueVideoRender(body: {
+    source_kind: 'patch' | 'piece' | 'sonification' | 'listening_session';
+    source_id: string;
+    resolution?: string;
+    duration_ms?: number;
+  }): Promise<RenderedArtifactOut> {
+    return request<RenderedArtifactOut>('/api/v1/renders/video', {
+      method: 'POST',
+      body: { ...body, render_kind: 'video' },
+    });
+  },
+
+  async renderImage(body: {
+    source_kind: 'patch' | 'piece' | 'sonification' | 'listening_session';
+    source_id: string;
+    resolution?: string;
+  }): Promise<RenderedArtifactOut> {
+    return request<RenderedArtifactOut>('/api/v1/renders/image', {
+      method: 'POST',
+      body: { ...body, render_kind: 'image' },
+    });
+  },
+
+  async generateOutreachCard(body: {
+    source_kind: 'patch' | 'piece' | 'sonification' | 'listening_session';
+    source_id: string;
+    resolution?: string;
+  }): Promise<RenderedArtifactOut> {
+    return request<RenderedArtifactOut>('/api/v1/renders/outreach-card', {
+      method: 'POST',
+      body: { ...body, render_kind: 'outreach-card' },
+    });
+  },
+
+  async getRenderStatus(id: string): Promise<RenderedArtifactOut> {
+    return request<RenderedArtifactOut>(
+      `/api/v1/renders/${encodeURIComponent(id)}`,
+    );
+  },
+
+  async getAccessibilityDescription(
+    kind: 'patch' | 'piece' | 'sonification' | 'listening_session',
+    id: string,
+  ): Promise<AccessibilityDescriptionOut> {
+    return request<AccessibilityDescriptionOut>(
+      `/api/v1/accessibility-descriptions/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`,
+    );
+  },
+
+  async saveAccessibilityDescription(body: {
+    artifact_kind: 'patch' | 'piece' | 'sonification' | 'listening_session';
+    artifact_id: string;
+    description: string;
+    language: string;
+    source: 'auto' | 'manual' | 'reviewed';
+  }): Promise<AccessibilityDescriptionOut> {
+    return request<AccessibilityDescriptionOut>(
+      '/api/v1/accessibility-descriptions',
+      {
+        method: 'POST',
+        body,
+      },
+    );
   },
 };
 

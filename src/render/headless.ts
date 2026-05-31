@@ -34,7 +34,7 @@ import { CanvasRenderer } from '@/visual/canvas/CanvasRenderer';
 import { HARMONICS } from '@/types/audio';
 import { SLOT_IDS } from '@/loop/types';
 import { readRms } from '@/input/meter';
-import type { VisualState, LoopRing } from '@/visual/types';
+import type { VisualState, LoopRing, VisualRenderer } from '@/visual/types';
 
 interface RenderOptions {
   durationSec: number;
@@ -189,7 +189,7 @@ async function videoRender(
   canvas.style.background = '#0c0a09';
   document.body.appendChild(canvas);
 
-  const renderer = new CanvasRenderer();
+  const renderer: VisualRenderer = new CanvasRenderer();
   renderer.mount(canvas);
   renderer.resize(width, height, 1);
 
@@ -222,12 +222,14 @@ async function videoRender(
     const dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
 
-    let spectrum: Uint8Array | null = null;
+    let spectrum: Uint8Array<ArrayBuffer> | null = null;
     let fftSize = 1024;
     let sampleRate = 48000;
     const liveAnalyser = orch.getAnalyser();
     if (liveAnalyser) {
-      spectrum = new Uint8Array(liveAnalyser.frequencyBinCount);
+      spectrum = new Uint8Array(
+        liveAnalyser.frequencyBinCount,
+      ) as unknown as Uint8Array<ArrayBuffer>;
       liveAnalyser.getByteFrequencyData(spectrum);
       fftSize = liveAnalyser.fftSize;
       sampleRate = liveAnalyser.context.sampleRate;

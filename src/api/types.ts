@@ -450,3 +450,30 @@ export interface LibraryListing {
 export interface LibraryList {
   items: LibraryListing[];
 }
+
+// --- v7.6 Scientific Communication Tools ------------------------------------
+
+export interface RenderedArtifactOut {
+  id: string;
+  user_id: string;
+  source_kind: 'patch' | 'piece' | 'sonification' | 'listening_session';
+  source_id: string;
+  source_version: string | null;
+  render_kind: 'image' | 'audio' | 'video' | 'outreach-card';
+  storage_key: string;
+  bytes: number | null; // null if rendering is in progress
+  resolution: string | null;
+  duration_ms: number | null;
+  citation_bibtex: string | null;
+  doi: string | null;
+  created_at: string;
+}
+
+export interface AccessibilityDescriptionOut {
+  artifact_kind: 'patch' | 'piece' | 'sonification' | 'listening_session';
+  artifact_id: string;
+  description: string;
+  language: string;
+  source: 'auto' | 'manual' | 'reviewed';
+  updated_at: string;
+}
