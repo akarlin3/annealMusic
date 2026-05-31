@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.0] - 2026-05-31
+
+**The v7 research-collaboration arc opens.** v7.0 ships the shared substrate that the clinical-research (v7.2/v7.4/v7.5) and sonification (v7.1) tracks build on: a multi-investigator **Study** model with provenance, immutable snapshots, and per-study Zenodo DOIs. No clinical or sonification features yet — only the collaboration primitives.
+
+### Added
+
+- **Studies — the unit of scientific work.** A **Study** (`/research` → **Studies** panel) is a versioned, citable bundle of investigators + linked resources (stimuli, protocols, datasets, analysis scripts) with full provenance. New tables (migration `0025_v7_0_studies`): `studies`, `study_investigators`, `study_resources`, `study_versions`, `study_audit_log`, plus `accounts.orcid` / `accounts.affiliation_ror`.
+- **Multi-investigator workflows.** Roles `pi` / `co-investigator` / `analyst` / `viewer` with a strict permission matrix enforced by a single `require_study_role` helper: only a PI adds/removes investigators or publishes; co-investigators edit the study + link/unlink resources; analysts read everything and may add `analysis` resources only; viewers are read-only. A study always retains at least one PI (`409 last_pi`).
+- **Provenance.** Every mutation is written to `study_audit_log` `(timestamp, account_id, action, before, after)` through one write-path (`app/study_provenance.py`) — the heuristic-drift guard. A per-study **audit sidebar** surfaces the trail; reads are never logged.
+- **Snapshots & versions.** `POST /studies/:id/snapshot` freezes the study + investigators + **resolved resource metadata and content hashes** into an immutable `study_versions` row (binary payloads are never copied, so snapshots stay KB-scale and survive later deletion of a source resource). Versions are append-only and immutable.
+- **Citations.** `GET /studies/:id/citation?format=bibtex|apa|chicago` renders citations server-side (`app/services/citation.py`, pure + unit-tested), PI-first author ordering with ORCID. Unpublished studies cite via their `/s/<slug>` URL. The CLI `annealmusic cite` gained a `--format` flag and `tools/cite/` gained APA + Chicago generators alongside BibTeX.
+- **Zenodo DOI minting.** `POST /studies/:id/publish` (PI-only) runs a pre-flight checklist (abstract, ethics statement, ≥1 PI, every investigator has an ORCID) then mints a **concept DOI** (per study) + **version DOI** (per snapshot) via `app/services/zenodo.py`. Robust HTTP: bounded exponential backoff on 5xx/429/network errors (honoring `Retry-After`), no retry on 4xx. Defaults to the Zenodo **sandbox**; with no token configured it runs a deterministic **stub** so publish flows are testable offline/in CI.
+- **Researcher identity.** `PATCH /api/v1/account/me` now accepts `orcid` (format-validated) and `affiliation_ror` (a `https://ror.org/<id>` URL); both flow into citations and Zenodo deposition metadata.
+- **Studies UI** (`src/studies/`): `StudiesPanel` (list + create), `StudyView` (metadata editor + versions + audit sidebar), `InvestigatorManager`, `ResourceLinker` (multi-kind picker), `SnapshotDialog`, and `PublishFlow` (pre-flight checklist → DOI), wired in as a new **Studies** tab in the research console.
+
+### IRB-friendly framing
+
+- **Anonymous-first preserved.** Studies require an authenticated account, but a study marked `visibility='public'` (plus its citation) is readable by anyone, anonymously. Private studies return **404** (not 403) to non-investigators, so their existence is never leaked. The public study **gallery UI** is deferred (v7.6); the `visibility` flag + public read/cite ship now.
+- **Controlled lifecycle.** `published` is reachable only via the publish flow (which mints the DOI) and `archived` only via `DELETE`; a direct `PATCH` cannot fake either state. AnnealMusic remains **not a data processor by default** — v7.0 ships the collaboration framework; subject-data instantiation lands in v7.2/v7.4/v7.5.
+
+### Docs & release
+
+- **`docs/STUDIES.md`** — multi-investigator workflow guide (roles, snapshots, publishing).
+- **`docs/CITATION.md`** — per-study/per-version DOIs and the three citation formats, extended from the v5.7 project-citation tooling.
+- `docs/v7.0-PLAN.md` — the CP0 design (data model, permission matrix, snapshot semantics, audit scope, Zenodo design, risks).
+- `README.md` Studies subsection; `docs/ROADMAP.md` marks **v7.0 ✅**.
+
 ## [6.5.0] - 2026-05-31
 
 **The v6 education arc closes.** v6.5 adds the admin analytics that let the curriculum be iterated, the in-app discoverability that lets lessons be found, and the retrospective + release that close v6.0–v6.5.

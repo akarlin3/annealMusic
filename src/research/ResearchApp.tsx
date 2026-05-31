@@ -4,6 +4,7 @@ import { BridgeClient } from './bridge/BridgeClient';
 import { OSCPanel } from './osc/OSCPanel';
 import { DataloggerPanel } from '@/datalog/DataloggerPanel';
 import { ScriptingPanel } from './python/ScriptingPanel';
+import { StudiesPanel } from '@/studies/StudiesPanel';
 import {
   Activity,
   Terminal,
@@ -15,6 +16,7 @@ import {
   RefreshCw,
   Trash2,
   Award,
+  FlaskConical,
 } from 'lucide-react';
 
 interface RpcLog {
@@ -29,7 +31,13 @@ interface RpcLog {
 
 export function ResearchApp() {
   const [activeTab, setActiveTab] = useState<
-    'telemetry' | 'osc' | 'cli' | 'datalogger' | 'scripting' | 'experiments'
+    | 'telemetry'
+    | 'osc'
+    | 'cli'
+    | 'datalogger'
+    | 'scripting'
+    | 'experiments'
+    | 'studies'
   >('telemetry');
   const [logs, setLogs] = useState<RpcLog[]>([]);
   const [healthStatus, setHealthStatus] = useState<'ok' | 'offline'>('offline');
@@ -367,6 +375,17 @@ export function ResearchApp() {
             <Shield size={16} />
             Experiments
           </button>
+          <button
+            onClick={() => setActiveTab('studies')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-mono tracking-wider transition-all ${
+              activeTab === 'studies'
+                ? 'bg-amber-500/10 text-amber-400 border-l-2 border-amber-500'
+                : 'text-stone-400 hover:bg-stone-900/50 hover:text-stone-200'
+            }`}
+          >
+            <FlaskConical size={16} />
+            Studies
+          </button>
         </nav>
 
         {/* Content Pane */}
@@ -596,6 +615,8 @@ export function ResearchApp() {
           )}
 
           {activeTab === 'scripting' && <ScriptingPanel />}
+
+          {activeTab === 'studies' && <StudiesPanel />}
 
           {activeTab === 'experiments' && (
             <div className="flex-1 flex flex-col gap-6 overflow-hidden">
