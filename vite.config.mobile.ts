@@ -2,9 +2,19 @@
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    visualizer({
+      filename: 'docs/v8/measurements/bundle-mobile.html',
+      title: 'AnnealMusic Mobile Bundle Map',
+      template: 'treemap',
+      gzipSize: true,
+      brotliSize: true,
+    }),
+  ],
   base: './', // CRITICAL: ensures assets are loaded via relative paths in WebView (file:// or capacitor://)
   resolve: {
     alias: {

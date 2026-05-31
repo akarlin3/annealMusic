@@ -21,8 +21,33 @@ import { SubjectRunner } from '@/clinical/SubjectRunner';
 import ReproducerPage from '@/studies/export/ReproducerPage';
 import '@/styles/index.css';
 import { BridgeServer } from '@/research/bridge/BridgeServer';
+import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals';
 
+// Performance mark for boot start
 if (typeof window !== 'undefined') {
+  performance.mark('app-init-start');
+
+  // Setup global web-vitals capture for audits
+  const win = window as typeof window & {
+    __web_vitals__?: Record<string, number>;
+  };
+  win.__web_vitals__ = {};
+  const saveVital = (metric: { name: string; value: number }) => {
+    if (win.__web_vitals__) {
+      win.__web_vitals__[metric.name] = metric.value;
+    }
+    console.log(`[Web Vitals] ${metric.name}:`, metric.value);
+  };
+  try {
+    onCLS(saveVital);
+    onFCP(saveVital);
+    onINP(saveVital);
+    onLCP(saveVital);
+    onTTFB(saveVital);
+  } catch (e) {
+    console.error('Failed to initialize web-vitals:', e);
+  }
+
   BridgeServer.start();
 }
 
@@ -81,3 +106,16 @@ createRoot(rootEl).render(
     </BrowserRouter>
   </StrictMode>,
 );
+
+if (typeof window !== 'undefined') {
+  requestAnimationFrame(() => {
+    performance.mark('app-init-end');
+    performance.measure('app-bootstrap', 'app-init-start', 'app-init-end');
+    const measure = performance.getEntriesByName('app-bootstrap')[0];
+    if (measure) {
+      console.log(
+        `[Performance] Bootstrapped App in ${measure.duration.toFixed(2)}ms`,
+      );
+    }
+  });
+}
