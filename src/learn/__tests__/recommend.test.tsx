@@ -8,6 +8,11 @@ import {
 } from '@testing-library/react';
 import { NextLessonPicker } from '../recommend/NextLessonPicker';
 import type { Track } from '../LearnApp';
+import { useMode } from '@/mode/useMode';
+
+vi.mock('@/mode/useMode', () => ({
+  useMode: vi.fn(),
+}));
 
 const TRACKS: Track[] = [
   {
@@ -43,6 +48,13 @@ function mockRecsOnce(body: unknown) {
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
+  (useMode as any).mockReturnValue({
+    mode: 'musician',
+    loading: false,
+    setMode: vi.fn(),
+    showPicker: false,
+    setShowPicker: vi.fn(),
+  });
 });
 
 afterEach(() => {
@@ -163,5 +175,71 @@ describe('NextLessonPicker', () => {
     );
     fireEvent.click(await screen.findByText('Dismiss'));
     expect(screen.queryByText('FM Ratios')).toBeNull();
+  });
+
+  it('renders cross-mode relevance badge if lesson modes mismatch active mode', async () => {
+    (useMode as any).mockReturnValue({
+      mode: 'meditation',
+      loading: false,
+      setMode: vi.fn(),
+      showPicker: false,
+      setShowPicker: vi.fn(),
+    });
+
+    const crossModeTracks: Track[] = [
+      {
+        id: 't1',
+        slug: 'synthesis-fundamentals',
+        title: 'Synthesis Fundamentals',
+        description: 'Engines',
+        position: 0,
+        color: '#f59e0b',
+        lessons: [
+          {
+            id: 'l2',
+            track_id: 't1',
+            slug: 'fm',
+            title: 'FM Ratios',
+            description: '',
+            difficulty: 'intro',
+            estimated_minutes: 8,
+            position: 0,
+            prerequisites: [],
+            steps: [],
+            modes: ['musician'],
+          },
+        ],
+      },
+    ];
+
+    mockRecsOnce({
+      source: 'llm',
+      items: [
+        {
+          lesson_id: 'l2',
+          slug: 'fm',
+          title: 'FM Ratios',
+          difficulty: 'intro',
+          track_slug: 'synthesis-fundamentals',
+          rationale: 'Deepen your acoustic intuition.',
+        },
+      ],
+    });
+
+    render(
+      <NextLessonPicker
+        apiBase=""
+        authenticated
+        context="completion"
+        justCompletedLessonId="l1"
+        tracks={crossModeTracks}
+        onPick={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText('FM Ratios')).toBeInTheDocument();
+    expect(
+      screen.getByText('This lesson is also relevant to Musician mode'),
+    ).toBeInTheDocument();
   });
 });

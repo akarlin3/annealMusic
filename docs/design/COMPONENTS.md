@@ -36,3 +36,18 @@ Structured containers for lessons, studies, and tracks:
 
 - Support for hover states (glow, scale, borders).
 - Interactive mode shifts borders slightly on hover.
+
+### E. Input (`Input.tsx`)
+
+Unified text input and text area fields:
+
+- Scaped styling adapting to standard, multiline, and placeholder layouts.
+- Built-in theme-driven labels, borders, and high-visibility focus indicators.
+- Transition timings scale automatically based on motion speed multiplier.
+
+### F. Select (`Select.tsx`)
+
+Sleek, customizable dropdown picker primitive:
+
+- Completely hides generic browser select UI using standard token aesthetics.
+- Supports native-aligned drop indicators, dynamic list options, and robust accessibility targets.

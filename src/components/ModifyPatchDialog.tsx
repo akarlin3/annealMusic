@@ -4,16 +4,13 @@ import { api, getErrorMessage } from '@/api/client';
 import { decodeState, encodeState } from '@/share/encode';
 import { applyDecodedToStore } from '@/share/hydrate';
 import { useParamStore } from '@/state/params';
+import { Input } from '@/design/components/Input';
 
 interface ModifyPatchDialogProps {
   isOpen: boolean;
   onClose: () => void;
   showToast: (msg: string) => void;
 }
-
-const fieldClass =
-  'w-full rounded-md bg-transparent px-3 py-2 font-body text-sm outline-none transition-all resize-none';
-const fieldStyle = { border: '1px solid #44403c', color: '#f5f5f4' };
 
 const SUGGESTIONS = [
   'Darker',
@@ -45,9 +42,9 @@ export default function ModifyPatchDialog({
     }
   }, [isOpen]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -190,24 +187,16 @@ export default function ModifyPatchDialog({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-            <div>
-              <label
-                htmlFor="ai-direction-input"
-                className="mb-2 block text-[9px] uppercase tracking-[0.18em] text-stone-500 font-mono"
-              >
-                Direction or Mood
-              </label>
-              <textarea
-                id="ai-direction-input"
-                required
-                rows={2}
-                placeholder="Make it darker, add organic shifts, sparser..."
-                value={direction}
-                onChange={(e) => setDirection(e.target.value)}
-                className={fieldClass}
-                style={fieldStyle}
-              />
-            </div>
+            <Input
+              id="ai-direction-input"
+              label="Direction or Mood"
+              multiline
+              rows={2}
+              required
+              placeholder="Make it darker, add organic shifts, sparser..."
+              value={direction}
+              onChange={(e) => setDirection(e.target.value)}
+            />
 
             <div className="space-y-2">
               <span className="block text-[9px] uppercase tracking-[0.18em] text-stone-500 font-mono">

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthProvider';
 import { X, Mail } from 'lucide-react';
+import { Input } from '@/design/components/Input';
 
 const ChromeIcon = ({ size = 12 }: { size?: number }) => (
   <svg
@@ -43,10 +44,6 @@ interface LoginDialogProps {
   onClose: () => void;
   intent?: 'login' | 'signup' | 'add-email-to-account';
 }
-
-const fieldClass =
-  'w-full rounded-md bg-transparent px-3 py-2 font-mono text-xs outline-none transition-all';
-const fieldStyle = { border: '1px solid #44403c', color: '#f5f5f4' };
 
 export default function LoginDialog({
   isOpen,
@@ -158,25 +155,16 @@ export default function LoginDialog({
         ) : (
           <div className="space-y-6">
             <form onSubmit={submitMagicLink} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="auth-email-input"
-                  className="mb-2 block text-[9px] uppercase tracking-[0.18em] text-stone-500"
-                >
-                  Email address
-                </label>
-                <input
-                  id="auth-email-input"
-                  type="email"
-                  required
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={fieldClass}
-                  style={fieldStyle}
-                  disabled={loading}
-                />
-              </div>
+              <Input
+                id="auth-email-input"
+                label="Email address"
+                type="email"
+                required
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
 
               {error && (
                 <div className="rounded px-3 py-2 text-[10px] uppercase tracking-wider text-red-400 bg-red-950/20 border border-red-900/30">
