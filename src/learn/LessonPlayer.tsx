@@ -3,7 +3,7 @@ import type { Track, Lesson } from './LearnApp';
 import { StepContainer } from './stepTypes/StepContainer';
 import { BridgeClient } from '../research/bridge/BridgeClient';
 import { PostMessageTransport } from '../research/bridge/transport/postmessage';
-import type { ProgressClient } from './progress/ProgressClient';
+import type { ProgressClient, StepAction } from './progress/ProgressClient';
 import {
   resumeLesson,
   applyScrollRatio,
@@ -212,6 +212,17 @@ export function LessonPlayer({
     }));
   };
 
+  // v6.5 — additive per-step engagement signals (clip play/replay, prompt
+  // tried). Persisted as a delta; the bounded log is capped server-side. Feeds
+  // the aggregate admin analytics surface only — never per-user-exposed.
+  const handleStepAction = (action: StepAction['action']) => {
+    void progressClient.save(lesson.id, {
+      state: 'in_progress',
+      current_step_position: currentStepIndex,
+      step_actions: [{ step_position: currentStepIndex, action, ms: 0 }],
+    });
+  };
+
   const activeStep = !isSummaryStep ? lesson.steps[currentStepIndex] : null;
 
   return (
@@ -306,6 +317,7 @@ export function LessonPlayer({
               onChangeReflection={(val) =>
                 handleReflectionChange(activeStep.id, val)
               }
+              onStepAction={handleStepAction}
             />
           ) : (
             <div className="empty-player">

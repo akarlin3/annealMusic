@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import Toast, { type ToastMessage } from '@/components/Toast';
 import HealthSettings from '@/health/HealthSettings';
+import LearningHintsSettings from '@/components/LearningHintsSettings';
 
 const fieldClass =
   'w-full rounded-md bg-transparent px-3 py-2 font-mono text-xs outline-none transition-all';
@@ -474,6 +475,8 @@ export default function AccountSettingsPage() {
           </section>
 
           <HealthSettings showToast={showToast} />
+
+          <LearningHintsSettings showToast={showToast} />
 
           <section
             className="rounded-xl p-6 border border-stone-850"

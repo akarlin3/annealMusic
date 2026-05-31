@@ -1070,10 +1070,24 @@ LessonProgressState = Literal["not_started", "in_progress", "completed", "abando
 
 
 class StepActionIn(BaseModel):
-    """A single per-step signal. Metadata only — no free text, no PII."""
+    """A single per-step signal. Metadata only — no free text, no PII.
+
+    Navigation actions (``started`` / ``completed`` / ``skipped``) carry the
+    time-on-step in ``ms``. v6.5 adds, additively, the engagement-signal actions
+    the admin analytics surface reads: ``clip_play`` / ``clip_replay`` (audio-clip
+    steps) and ``prompt_tried`` / ``prompt_skipped`` (prompt steps). These remain
+    aggregate, anonymized signals — never per-user-exposed."""
 
     step_position: int = Field(ge=0)
-    action: Literal["started", "completed", "skipped"]
+    action: Literal[
+        "started",
+        "completed",
+        "skipped",
+        "clip_play",
+        "clip_replay",
+        "prompt_tried",
+        "prompt_skipped",
+    ]
     ms: int = Field(default=0, ge=0)  # time-on-step in milliseconds
     at: datetime | None = None  # defaults to server now() when absent
 

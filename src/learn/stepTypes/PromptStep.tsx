@@ -1,17 +1,20 @@
 import { useEffect } from 'react';
 import type { LessonStep } from '../LearnApp';
 import type { BridgeClient } from '../../research/bridge/BridgeClient';
+import type { StepActionType } from '../progress/ProgressClient';
 
 interface PromptStepProps {
   step: LessonStep;
   bridgeClient: BridgeClient | null;
   onComplete: () => void;
+  onStepAction?: (action: StepActionType) => void;
 }
 
 export function PromptStep({
   step,
   bridgeClient,
   onComplete,
+  onStepAction,
 }: PromptStepProps) {
   const { title, prompt, constraints, hint } = step.config || {};
 
@@ -87,6 +90,9 @@ export function PromptStep({
         <button
           className="learn-primary-btn"
           onClick={() => {
+            // "I tried it" — an explicit engagement signal, distinct from
+            // silently skipping the prompt via the footer Next button.
+            onStepAction?.('prompt_tried');
             onComplete();
           }}
         >

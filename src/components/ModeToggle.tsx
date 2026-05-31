@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useParamStore } from '@/state/params';
+import LessonHintLink from '@/components/LessonHintLink';
+import { MODE_TRACKS } from '@/components/lessonHints';
 
 export type CreativeMode = 'sketch' | 'compose' | 'drone';
 
@@ -128,6 +130,12 @@ export default function ModeToggle({ disabled = false }: ModeToggleProps) {
                 {label} Mode
               </div>
               <div className="text-[#a8a29e]">{description}</div>
+              <div className="mt-2">
+                <LessonHintLink
+                  lessonPath={`${MODE_TRACKS[id]}/intro`}
+                  label={`Learn the ${label} track →`}
+                />
+              </div>
               <div className="absolute top-full left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 border-b border-r border-[#292524] bg-[#0c0a09]" />
             </div>
           </div>

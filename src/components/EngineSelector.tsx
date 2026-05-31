@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { ENGINE_LABELS, ENGINE_ORDER } from '@/audio/engines/index';
 import type { EngineId } from '@/audio/engines/types';
+import LessonHintLink from '@/components/LessonHintLink';
+import { ENGINE_LESSONS } from '@/components/lessonHints';
 
 interface EngineSelectorProps {
   engineId: EngineId;
@@ -15,7 +17,8 @@ const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
     'Splices acoustic and synthetic source files into micro-grains. Generates lush, atmospheric, and cloud-like textures.',
   physical:
     'Digital waveguides and modal resonators (string, tube, plate, membrane, bowed, mallet, edge, bell) excited continuously. Recreates acoustic instrument physics.',
-  pulse: 'Percussive physical resonators excited by brief noise bursts. Synthesizes tempo-locked acoustic ticks, clicks, and bells.',
+  pulse:
+    'Percussive physical resonators excited by brief noise bursts. Synthesizes tempo-locked acoustic ticks, clicks, and bells.',
 };
 
 /**
@@ -95,6 +98,12 @@ export default function EngineSelector({
                 {label} Engine
               </div>
               <div className="text-[#a8a29e]">{description}</div>
+              <div className="mt-2">
+                <LessonHintLink
+                  lessonPath={ENGINE_LESSONS[id]}
+                  label="Learn more about this engine →"
+                />
+              </div>
               <div className="absolute top-full left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1 rotate-45 border-b border-r border-[#292524] bg-[#0c0a09]" />
             </div>
           </div>
