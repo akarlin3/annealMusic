@@ -47,6 +47,7 @@ from app.routers import (
     lesson_progress,
     recommendations,
     studies,
+    clinical,
 )
 
 
@@ -135,6 +136,7 @@ def create_app() -> FastAPI:
     app.include_router(studies.router)
     app.include_router(learn.html_router)
     app.include_router(sonifications.router)
+    app.include_router(clinical.router)
 
     return app
 

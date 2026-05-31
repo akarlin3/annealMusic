@@ -849,6 +849,12 @@ class Sonification(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
 
 class AudioClip(Base):
@@ -1083,7 +1089,64 @@ class StudyAuditLog(Base):
     action: Mapped[str] = mapped_column(String, nullable=False)
     before: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
     after: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
->>>>>>> main
+
+
+class ClinicalProtocol(Base):
+    __tablename__ = "clinical_protocols"
+    __table_args__ = (
+        CheckConstraint(
+            "randomization_scheme IN ('simple', 'latin-square', 'block-random', 'custom')",
+            name="ck_randomization_scheme",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    study_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("studies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    experiment_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("experiments.id", ondelete="SET NULL"), nullable=True
+    )
+    conditions: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
+    calibration_history: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
+    randomization_scheme: Mapped[str] = mapped_column(String, nullable=False, default="simple")
+    randomization_seed: Mapped[str] = mapped_column(String, nullable=False)
+    calibration_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    target_lufs: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=-23.0)
+    adverse_event_capture: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    ct_gov_nct: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+class ClinicalSessionRecord(Base):
+    __tablename__ = "clinical_session_records"
+    __table_args__ = (
+        Index("idx_clinical_sessions_protocol", "protocol_id", "started_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    protocol_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("clinical_protocols.id", ondelete="CASCADE"), nullable=False
+    )
+    subject_id: Mapped[str] = mapped_column(String, nullable=False)
+    condition_id: Mapped[str] = mapped_column(String, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    stimulus_sha256: Mapped[str | None] = mapped_column(String, nullable=True)
+    calibration_record: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
+    timing_report: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
+    adverse_events: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
+    withdrew: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    partial_data_disposition: Mapped[str | None] = mapped_column(String, nullable=True)
+    client_audit_log: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
 
 
 # SQLite trigger events for tests/local development when using SQLite

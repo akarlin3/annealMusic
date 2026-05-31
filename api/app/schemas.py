@@ -1408,7 +1408,84 @@ class AccountResearchUpdate(BaseModel):
     orcid: str | None = Field(default=None, max_length=64)
     affiliation_ror: str | None = Field(default=None, max_length=200)
 
->>>>>>> main
+
+# --- v7.2 Clinical Stimulus-Grade Audio Schemas -------------------------------
+
+class ClinicalProtocolCreate(BaseModel):
+    study_id: uuid.UUID
+    experiment_id: uuid.UUID | None = None
+    conditions: list[dict] = Field(default_factory=list)
+    randomization_scheme: Literal["simple", "latin-square", "block-random", "custom"] = "simple"
+    calibration_required: bool = True
+    target_lufs: float = -23.0
+    adverse_event_capture: bool = True
+    ct_gov_nct: str | None = Field(default=None, max_length=64)
+
+
+class ClinicalProtocolUpdate(BaseModel):
+    experiment_id: uuid.UUID | None = None
+    conditions: list[dict] | None = None
+    randomization_scheme: Literal["simple", "latin-square", "block-random", "custom"] | None = None
+    calibration_required: bool | None = None
+    target_lufs: float | None = None
+    adverse_event_capture: bool | None = None
+    ct_gov_nct: str | None = Field(default=None, max_length=64)
+
+
+class ClinicalProtocolOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    study_id: uuid.UUID
+    experiment_id: uuid.UUID | None
+    conditions: list[dict]
+    calibration_history: list[dict] = []
+    randomization_scheme: str
+    randomization_seed: str
+    calibration_required: bool
+    target_lufs: float
+    adverse_event_capture: bool
+    ct_gov_nct: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ClinicalSessionRecordEnroll(BaseModel):
+    subject_id: str = Field(..., min_length=1, max_length=120)
+
+
+class ClinicalSessionRecordCreate(BaseModel):
+    id: uuid.UUID
+    subject_id: str = Field(..., min_length=1, max_length=120)
+    condition_id: str
+    started_at: datetime
+    completed_at: datetime | None = None
+    stimulus_sha256: str | None = None
+    calibration_record: dict | None = None
+    timing_report: dict | None = None
+    adverse_events: list[dict] = Field(default_factory=list)
+    withdrew: bool = False
+    partial_data_disposition: str | None = None
+    client_audit_log: list[dict] = Field(default_factory=list)
+
+
+class ClinicalSessionRecordOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    protocol_id: uuid.UUID
+    subject_id: str
+    condition_id: str
+    started_at: datetime
+    completed_at: datetime | None
+    stimulus_sha256: str | None
+    calibration_record: dict | None
+    timing_report: dict | None
+    adverse_events: list[dict]
+    withdrew: bool
+    partial_data_disposition: str | None
+    client_audit_log: list[dict]
+
 
 
 
