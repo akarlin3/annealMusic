@@ -1,0 +1,17 @@
+.bottom-drawer {
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-4);
+  padding-bottom: calc(var(--space-4) + var(--safe-bottom));
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.bottom-drawer h2 {
+  margin: 0 0 var(--space-3);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
