@@ -17,7 +17,7 @@ function makeLinearMapping(
 }
 
 // Ableton Push 2 Encoders
-export const PUSH2_DEFAULTS: Record<number, MidiMapping> = {
+const PUSH2_DEFAULTS: Record<number, MidiMapping> = {
   71: makeLinearMapping('rootFreq', 20, 2200),
   72: makeLinearMapping('spread', 0.7, 1.3),
   73: makeLinearMapping('density', 2, 8),
@@ -29,7 +29,7 @@ export const PUSH2_DEFAULTS: Record<number, MidiMapping> = {
 };
 
 // Novation Launch Control XL (Factory template 1 / standard CCs)
-export const LAUNCH_CONTROL_XL_DEFAULTS: Record<number, MidiMapping> = {
+const LAUNCH_CONTROL_XL_DEFAULTS: Record<number, MidiMapping> = {
   77: makeLinearMapping('rootFreq', 20, 2200),
   78: makeLinearMapping('spread', 0.7, 1.3),
   79: makeLinearMapping('density', 2, 8),
@@ -41,7 +41,7 @@ export const LAUNCH_CONTROL_XL_DEFAULTS: Record<number, MidiMapping> = {
 };
 
 // Akai MIDI Mix (Knob row 1-3, Faders)
-export const AKAI_MIDIMIX_DEFAULTS: Record<number, MidiMapping> = {
+const AKAI_MIDIMIX_DEFAULTS: Record<number, MidiMapping> = {
   16: makeLinearMapping('rootFreq', 20, 2200),
   17: makeLinearMapping('spread', 0.7, 1.3),
   18: makeLinearMapping('density', 2, 8),
@@ -53,7 +53,7 @@ export const AKAI_MIDIMIX_DEFAULTS: Record<number, MidiMapping> = {
 };
 
 // Korg nanoKONTROL2 (Knobs 1..8)
-export const KORG_NANOKONTROL2_DEFAULTS: Record<number, MidiMapping> = {
+const KORG_NANOKONTROL2_DEFAULTS: Record<number, MidiMapping> = {
   16: makeLinearMapping('rootFreq', 20, 2200),
   17: makeLinearMapping('spread', 0.7, 1.3),
   18: makeLinearMapping('density', 2, 8),
@@ -65,7 +65,7 @@ export const KORG_NANOKONTROL2_DEFAULTS: Record<number, MidiMapping> = {
 };
 
 // Generic 8-Fader Fallback
-export const GENERIC_8FADER_DEFAULTS: Record<number, MidiMapping> = {
+const GENERIC_8FADER_DEFAULTS: Record<number, MidiMapping> = {
   16: makeLinearMapping('rootFreq', 20, 2200),
   17: makeLinearMapping('spread', 0.7, 1.3),
   18: makeLinearMapping('density', 2, 8),

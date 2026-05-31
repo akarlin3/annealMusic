@@ -110,7 +110,7 @@ function ensureModule(ctx: AudioContext): Promise<void> {
 }
 
 /** True when this browser can capture loops (AudioWorklet present). */
-export function isCaptureSupported(ctx: AudioContext): boolean {
+function isCaptureSupported(ctx: AudioContext): boolean {
   return typeof ctx.audioWorklet?.addModule === 'function';
 }
 

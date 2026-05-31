@@ -37,10 +37,6 @@ export function setAdminKey(key: string): void {
   sessionStorage.setItem(KEY_STORAGE, key);
 }
 
-export function clearAdminKey(): void {
-  sessionStorage.removeItem(KEY_STORAGE);
-}
-
 async function adminFetch(path: string, init?: RequestInit): Promise<unknown> {
   const key = getAdminKey() ?? '';
   const res = await fetch(`${API_BASE}${path}`, {

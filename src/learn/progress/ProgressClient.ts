@@ -62,13 +62,6 @@ export interface ProgressPatch {
   reflection_text?: string | null;
 }
 
-const STATE_RANK: Record<string, number> = {
-  not_started: 0,
-  in_progress: 1,
-  completed: 2,
-  abandoned: 1,
-};
-
 function anonHeader(): Record<string, string> {
   const id =
     typeof localStorage !== 'undefined'
@@ -239,11 +232,6 @@ export class ProgressClient {
     }
     return readLocal();
   }
-}
-
-/** True if the more-advanced of two states is `completed`. */
-export function isMoreAdvanced(a: ProgressState, b: ProgressState): boolean {
-  return (STATE_RANK[a] ?? 0) >= (STATE_RANK[b] ?? 0);
 }
 
 /**

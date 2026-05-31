@@ -512,4 +512,3 @@ export const ExperimentRunner: React.FC<ExperimentRunnerProps> = ({
     </div>
   );
 };
-export default ExperimentRunner;

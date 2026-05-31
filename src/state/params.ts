@@ -264,7 +264,7 @@ export const useParamStore = create<ParamStore>((set) => ({
   mode: 'sketch',
   constraints: null,
   setParam: (key, value) =>
-    set((state) => {
+    set((state: ParamStore) => {
       if (state.constraints && !state.constraints.includes(key)) {
         return {};
       }
@@ -273,7 +273,7 @@ export const useParamStore = create<ParamStore>((set) => ({
       };
     }),
   setMany: (partial) =>
-    set((state) => {
+    set((state: ParamStore) => {
       const next = { ...state.params };
       for (const key of Object.keys(partial) as ParamKey[]) {
         const value = partial[key];
@@ -287,14 +287,14 @@ export const useParamStore = create<ParamStore>((set) => ({
       return { params: next };
     }),
   setEngine: (id) =>
-    set((state) => {
+    set((state: ParamStore) => {
       if (state.constraints && !state.constraints.includes('engineId')) {
         return {};
       }
       return { engineId: id };
     }),
   setEngineParam: (id, key, value) =>
-    set((state) => {
+    set((state: ParamStore) => {
       if (
         state.constraints &&
         !state.constraints.includes(key) &&
@@ -316,7 +316,7 @@ export const useParamStore = create<ParamStore>((set) => ({
   setArcId: (id) => set({ arcId: id }),
   setArcDurationSec: (sec) => set({ arcDurationSec: clampArcDuration(sec) }),
   setLoopConfig: (id, config) =>
-    set((state) => ({ loops: { ...state.loops, [id]: config } })),
+    set((state: ParamStore) => ({ loops: { ...state.loops, [id]: config } })),
   setTuning: (ref) => set({ tuning: ref }),
   setCustomScales: (scales) => set({ customScales: scales }),
   setMode: (mode) => set({ mode }),

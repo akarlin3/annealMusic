@@ -1,17 +1,17 @@
 import * as Y from 'yjs';
 import { useParamStore } from '@/state/params';
-import type { ParamKey } from '@/state/params';
+import type { ParamKey, ParamStore } from '@/state/params';
 import type { EngineId } from '@/audio/engines/types';
-import type { SlotId } from '@/loop/types';
+import type { SlotId, SlotConfig } from '@/loop/types';
+import type { SessionMode } from '@/session/types';
 
 export const doc = new Y.Doc();
 
 export const sculptParamsMap = doc.getMap<number>('sculpt_params');
 export const engineIdText = doc.getText('engine_id');
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const engineParamsMap = doc.getMap<Y.Map<any>>('engine_params');
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const sessionConfigMap = doc.getMap<any>('session_config');
+export const engineParamsMap =
+  doc.getMap<Y.Map<number | string>>('engine_params');
+export const sessionConfigMap = doc.getMap<string | number>('session_config');
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const loopSlotsMap = doc.getMap<Y.Map<any>>('loop_slots');
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,13 +30,16 @@ export function getApplyingRemote() {
 }
 
 // Bind Zustand store mutations to Yjs CRDT
-useParamStore.subscribe((state, prevState) => {
+useParamStore.subscribe((state: ParamStore, prevState: ParamStore) => {
   if (isApplyingRemote) return;
 
   doc.transact(() => {
     // 1. Sync standard parameters
-    for (const [k, val] of Object.entries(state.params)) {
-      const prevVal = prevState.params[k as ParamKey];
+    for (const [k, val] of Object.entries(state.params) as [
+      ParamKey,
+      number,
+    ][]) {
+      const prevVal = prevState.params[k];
       if (val !== prevVal) {
         sculptParamsMap.set(k, val);
       }
@@ -51,17 +54,23 @@ useParamStore.subscribe((state, prevState) => {
     }
 
     // 3. Sync engine specific params
-    for (const [engId, engParams] of Object.entries(state.engineParams)) {
+    for (const [engId, engParams] of Object.entries(state.engineParams) as [
+      EngineId,
+      Record<string, number | string>,
+    ][]) {
       if (!engParams) continue;
-      const prevEngParams = prevState.engineParams[engId as EngineId] || {};
+      const prevEngParams = prevState.engineParams[engId] || {};
 
       let engMap = engineParamsMap.get(engId);
       if (!engMap) {
-        engMap = new Y.Map();
+        engMap = new Y.Map<number | string>();
         engineParamsMap.set(engId, engMap);
       }
 
-      for (const [paramKey, val] of Object.entries(engParams)) {
+      for (const [paramKey, val] of Object.entries(engParams) as [
+        string,
+        number | string,
+      ][]) {
         if (val !== prevEngParams[paramKey]) {
           engMap.set(paramKey, val);
         }
@@ -80,12 +89,16 @@ useParamStore.subscribe((state, prevState) => {
     }
 
     // 5. Sync loop configurations
-    for (const [slotId, slotConfig] of Object.entries(state.loops)) {
-      const prevSlotConfig = prevState.loops[slotId as SlotId];
+    for (const [slotId, slotConfig] of Object.entries(state.loops) as [
+      SlotId,
+      SlotConfig,
+    ][]) {
+      const prevSlotConfig = prevState.loops[slotId];
       if (slotConfig !== prevSlotConfig) {
         let slotMap = loopSlotsMap.get(slotId);
         if (!slotMap) {
-          slotMap = new Y.Map();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          slotMap = new Y.Map<any>();
           loopSlotsMap.set(slotId, slotMap);
         }
 
@@ -104,12 +117,15 @@ useParamStore.subscribe((state, prevState) => {
 
         // Sync grain params if changed
         if (!prevSlotConfig || slotConfig.grain !== prevSlotConfig.grain) {
-          let grainMap = slotMap.get('grain');
+          let grainMap = slotMap.get('grain') as Y.Map<number> | undefined;
           if (!grainMap) {
-            grainMap = new Y.Map();
+            grainMap = new Y.Map<number>();
             slotMap.set('grain', grainMap);
           }
-          for (const [gKey, gVal] of Object.entries(slotConfig.grain)) {
+          for (const [gKey, gVal] of Object.entries(slotConfig.grain) as [
+            string,
+            number,
+          ][]) {
             if (
               !prevSlotConfig ||
               gVal !==
@@ -129,7 +145,10 @@ export function initializeCrdtSync() {
 
   // Seed initial Y.Doc values from the current Zustand state
   doc.transact(() => {
-    for (const [k, val] of Object.entries(initial.params)) {
+    for (const [k, val] of Object.entries(initial.params) as [
+      ParamKey,
+      number,
+    ][]) {
       sculptParamsMap.set(k, val);
     }
 
@@ -138,10 +157,16 @@ export function initializeCrdtSync() {
       engineIdText.insert(0, initial.engineId);
     }
 
-    for (const [engId, engParams] of Object.entries(initial.engineParams)) {
+    for (const [engId, engParams] of Object.entries(initial.engineParams) as [
+      EngineId,
+      Record<string, number | string>,
+    ][]) {
       if (!engParams) continue;
-      const engMap = new Y.Map();
-      for (const [paramKey, val] of Object.entries(engParams)) {
+      const engMap = new Y.Map<number | string>();
+      for (const [paramKey, val] of Object.entries(engParams) as [
+        string,
+        number | string,
+      ][]) {
         engMap.set(paramKey, val);
       }
       engineParamsMap.set(engId, engMap);
@@ -151,14 +176,21 @@ export function initializeCrdtSync() {
     sessionConfigMap.set('arcId', initial.arcId);
     sessionConfigMap.set('arcDurationSec', initial.arcDurationSec);
 
-    for (const [slotId, slotConfig] of Object.entries(initial.loops)) {
-      const slotMap = new Y.Map();
+    for (const [slotId, slotConfig] of Object.entries(initial.loops) as [
+      SlotId,
+      SlotConfig,
+    ][]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const slotMap = new Y.Map<any>();
       slotMap.set('muted', slotConfig.muted);
       slotMap.set('frozen', slotConfig.frozen);
       slotMap.set('driftCoupled', slotConfig.driftCoupled);
 
-      const grainMap = new Y.Map();
-      for (const [gKey, gVal] of Object.entries(slotConfig.grain)) {
+      const grainMap = new Y.Map<number>();
+      for (const [gKey, gVal] of Object.entries(slotConfig.grain) as [
+        string,
+        number,
+      ][]) {
         grainMap.set(gKey, gVal);
       }
       slotMap.set('grain', grainMap);
@@ -177,7 +209,7 @@ export function initializeCrdtSync() {
       // 1. Standard parameters
       const nextParams = { ...store.params };
       let paramsChanged = false;
-      sculptParamsMap.forEach((val, key) => {
+      sculptParamsMap.forEach((val: number, key: string) => {
         if (nextParams[key as ParamKey] !== val) {
           nextParams[key as ParamKey] = val;
           paramsChanged = true;
@@ -194,25 +226,32 @@ export function initializeCrdtSync() {
       }
 
       // 3. Engine specific parameters
-      engineParamsMap.forEach((engMap, engId) => {
-        engMap.forEach((val, paramKey) => {
-          const currentVal = store.engineParams[engId as EngineId]?.[paramKey];
-          if (currentVal !== val) {
-            store.setEngineParam(engId as EngineId, paramKey, val);
-          }
-        });
-      });
+      engineParamsMap.forEach(
+        (engMap: Y.Map<number | string>, engId: string) => {
+          engMap.forEach((val: number | string, paramKey: string) => {
+            const currentVal =
+              store.engineParams[engId as EngineId]?.[paramKey];
+            if (currentVal !== val) {
+              store.setEngineParam(engId as EngineId, paramKey, val);
+            }
+          });
+        },
+      );
 
       // 4. Session Configuration
-      const remoteSessionMode = sessionConfigMap.get('sessionMode');
+      const remoteSessionMode = sessionConfigMap.get('sessionMode') as
+        | SessionMode
+        | undefined;
       if (remoteSessionMode && store.sessionMode !== remoteSessionMode) {
         store.setSessionMode(remoteSessionMode);
       }
-      const remoteArcId = sessionConfigMap.get('arcId');
+      const remoteArcId = sessionConfigMap.get('arcId') as string | undefined;
       if (remoteArcId && store.arcId !== remoteArcId) {
         store.setArcId(remoteArcId);
       }
-      const remoteArcDurationSec = sessionConfigMap.get('arcDurationSec');
+      const remoteArcDurationSec = sessionConfigMap.get('arcDurationSec') as
+        | number
+        | undefined;
       if (
         remoteArcDurationSec &&
         store.arcDurationSec !== remoteArcDurationSec
@@ -221,26 +260,27 @@ export function initializeCrdtSync() {
       }
 
       // 5. Loops configuration
-      loopSlotsMap.forEach((slotMap, slotId) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      loopSlotsMap.forEach((slotMap: Y.Map<any>, slotId: string) => {
         const currentSlotConfig = store.loops[slotId as SlotId];
         if (!currentSlotConfig) return;
 
         const nextSlotConfig = { ...currentSlotConfig };
         let slotChanged = false;
 
-        const muted = slotMap.get('muted');
+        const muted = slotMap.get('muted') as boolean | undefined;
         if (muted !== undefined && muted !== nextSlotConfig.muted) {
           nextSlotConfig.muted = muted;
           slotChanged = true;
         }
 
-        const frozen = slotMap.get('frozen');
+        const frozen = slotMap.get('frozen') as boolean | undefined;
         if (frozen !== undefined && frozen !== nextSlotConfig.frozen) {
           nextSlotConfig.frozen = frozen;
           slotChanged = true;
         }
 
-        const driftCoupled = slotMap.get('driftCoupled');
+        const driftCoupled = slotMap.get('driftCoupled') as boolean | undefined;
         if (
           driftCoupled !== undefined &&
           driftCoupled !== nextSlotConfig.driftCoupled
@@ -253,7 +293,7 @@ export function initializeCrdtSync() {
         if (grainMap instanceof Y.Map) {
           const nextGrain = { ...nextSlotConfig.grain };
           let grainChanged = false;
-          grainMap.forEach((val, gKey) => {
+          (grainMap as Y.Map<number>).forEach((val: number, gKey: string) => {
             if (nextGrain[gKey as keyof typeof nextSlotConfig.grain] !== val) {
               nextGrain[gKey as keyof typeof nextSlotConfig.grain] = val;
               grainChanged = true;

@@ -125,4 +125,3 @@ export function writeCSV(
 
   return lines.join('\n') + '\n';
 }
-export default writeCSV;

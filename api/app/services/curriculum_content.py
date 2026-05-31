@@ -623,8 +623,3 @@ PREREQ_EDGES: list[tuple[str, str]] = [
 ]
 
 
-def lessons_by_track() -> dict[str, list[dict[str, Any]]]:
-    out: dict[str, list[dict[str, Any]]] = {}
-    for lesson in LESSONS:
-        out.setdefault(lesson["track"], []).append(lesson)
-    return out

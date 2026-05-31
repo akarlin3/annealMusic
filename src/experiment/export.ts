@@ -66,4 +66,3 @@ export function exportExperimentData(
 
   return zip.build();
 }
-export default exportExperimentData;

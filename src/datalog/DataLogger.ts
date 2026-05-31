@@ -357,4 +357,3 @@ export class DataLogger {
     }
   }
 }
-export default DataLogger;

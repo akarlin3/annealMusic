@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   AnnealEngine,
   AnnealEngineCapabilities,
@@ -92,7 +91,35 @@ const PARAM_DEFS: readonly EngineParamDef[] = [
   },
 ];
 
-const defaultFactory: WorkletNodeFactory = (ctx, processor) => {
+export type PulseParam =
+  | 'f0'
+  | 'spread'
+  | 'densityVal'
+  | 'detune'
+  | 'density'
+  | 'accent'
+  | 'tone'
+  | 'swing'
+  | 'humanize'
+  | 'tempoSet'
+  | 'tempoBpm';
+
+export interface PulseVoiceNode {
+  readonly node: AudioNode;
+  setParam(
+    name: PulseParam,
+    value: number,
+    targetTime?: number,
+    instant?: boolean,
+  ): void;
+  post(message: unknown): void;
+  dispose(): void;
+}
+
+const defaultFactory: WorkletNodeFactory = (
+  ctx: AudioContext,
+  processor: string,
+): PhysicalVoiceNode => {
   const node = new AudioWorkletNode(ctx, processor, {
     numberOfInputs: 0,
     numberOfOutputs: 1,
@@ -100,7 +127,12 @@ const defaultFactory: WorkletNodeFactory = (ctx, processor) => {
   });
   return {
     node,
-    setParam(name, value, targetTime, instant) {
+    setParam(
+      name: string,
+      value: number,
+      targetTime?: number,
+      instant?: boolean,
+    ) {
       const p = node.parameters.get(name);
       if (p) {
         if (instant) {
@@ -111,7 +143,7 @@ const defaultFactory: WorkletNodeFactory = (ctx, processor) => {
         }
       }
     },
-    post(message) {
+    post(message: unknown) {
       node.port.postMessage(message);
     },
     dispose() {
@@ -121,7 +153,7 @@ const defaultFactory: WorkletNodeFactory = (ctx, processor) => {
         // already detached
       }
     },
-  };
+  } as unknown as PhysicalVoiceNode;
 };
 
 export class PulseEngine implements AnnealEngine {
@@ -151,6 +183,10 @@ export class PulseEngine implements AnnealEngine {
     private readonly supported: SupportProbe = isPhysicalSupported,
   ) {}
 
+  private get pulseVoice(): PulseVoiceNode | null {
+    return this.voice as unknown as PulseVoiceNode | null;
+  }
+
   start(ctx: AudioContext, shared: SharedParams, engine: EngineParams): void {
     if (this.ctx) {
       throw new Error('PulseEngine.start called while already started');
@@ -161,12 +197,13 @@ export class PulseEngine implements AnnealEngine {
 
     this.ctx = ctx;
     this.shared = { ...shared };
-    this.params = { ...DEFAULTS, ...(engine as any) };
+    const parsedEngine = engine as unknown as Partial<PulseNumericParams>;
+    this.params = { ...DEFAULTS, ...parsedEngine };
     this.stopped = false;
 
     // Use current orchestrator piece tempo if available
     const tempoVal =
-      (ctx as any)._tempoBpm !== undefined ? (ctx as any)._tempoBpm : null;
+      (ctx as AudioContext & { _tempoBpm?: number })._tempoBpm ?? null;
     this.tempoBpm = tempoVal;
 
     const out = ctx.createGain();
@@ -191,24 +228,26 @@ export class PulseEngine implements AnnealEngine {
         const voice = this.factory(ctx, processor);
         voice.node.connect(out);
 
+        const pVoice = voice as unknown as PulseVoiceNode;
+
         // Apply parameters to the worklet node
-        (voice as any).setParam('f0', this.shared?.rootFreq ?? 110);
-        (voice as any).setParam('spread', this.shared?.spread ?? 1.0);
-        (voice as any).setParam('densityVal', this.shared?.density ?? 6);
-        (voice as any).setParam('detune', 0);
+        pVoice.setParam('f0', this.shared?.rootFreq ?? 110);
+        pVoice.setParam('spread', this.shared?.spread ?? 1.0);
+        pVoice.setParam('densityVal', this.shared?.density ?? 6);
+        pVoice.setParam('detune', 0);
 
         // Set pulse-specific parameters
-        (voice as any).setParam('density', this.params.density);
-        (voice as any).setParam('accent', this.params.accent);
-        (voice as any).setParam('tone', this.params.tone);
-        (voice as any).setParam('swing', this.params.swing);
-        (voice as any).setParam('humanize', this.params.humanize);
+        pVoice.setParam('density', this.params.density);
+        pVoice.setParam('accent', this.params.accent);
+        pVoice.setParam('tone', this.params.tone);
+        pVoice.setParam('swing', this.params.swing);
+        pVoice.setParam('humanize', this.params.humanize);
 
         // Apply tempo
         const isTempoSet = this.tempoBpm !== null ? 1 : 0;
         const bpm = this.tempoBpm !== null ? this.tempoBpm : 60;
-        (voice as any).setParam('tempoSet', isTempoSet);
-        (voice as any).setParam('tempoBpm', bpm);
+        pVoice.setParam('tempoSet', isTempoSet);
+        pVoice.setParam('tempoBpm', bpm);
 
         this.voice = voice;
       })
@@ -256,21 +295,16 @@ export class PulseEngine implements AnnealEngine {
   ): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
-    if (!this.voice) return;
+    if (!this.pulseVoice) return;
 
     if (partial.rootFreq !== undefined) {
-      (this.voice as any).setParam('f0', partial.rootFreq, targetTime, instant);
+      this.pulseVoice.setParam('f0', partial.rootFreq, targetTime, instant);
     }
     if (partial.spread !== undefined) {
-      (this.voice as any).setParam(
-        'spread',
-        partial.spread,
-        targetTime,
-        instant,
-      );
+      this.pulseVoice.setParam('spread', partial.spread, targetTime, instant);
     }
     if (partial.density !== undefined) {
-      (this.voice as any).setParam(
+      this.pulseVoice.setParam(
         'densityVal',
         partial.density,
         targetTime,
@@ -280,33 +314,34 @@ export class PulseEngine implements AnnealEngine {
   }
 
   setEngineParams(partial: Partial<EngineParams>): void {
+    const parsedPartial = partial as unknown as Partial<PulseNumericParams>;
     this.params = {
       ...this.params,
-      ...(partial as any),
+      ...parsedPartial,
     };
-    if (!this.voice) return;
+    if (!this.pulseVoice) return;
 
     if (partial.density !== undefined) {
-      (this.voice as any).setParam('density', Number(partial.density));
+      this.pulseVoice.setParam('density', Number(partial.density));
     }
     if (partial.accent !== undefined) {
-      (this.voice as any).setParam('accent', Number(partial.accent));
+      this.pulseVoice.setParam('accent', Number(partial.accent));
     }
     if (partial.tone !== undefined) {
-      (this.voice as any).setParam('tone', Number(partial.tone));
+      this.pulseVoice.setParam('tone', Number(partial.tone));
     }
     if (partial.swing !== undefined) {
-      (this.voice as any).setParam('swing', Number(partial.swing));
+      this.pulseVoice.setParam('swing', Number(partial.swing));
     }
     if (partial.humanize !== undefined) {
-      (this.voice as any).setParam('humanize', Number(partial.humanize));
+      this.pulseVoice.setParam('humanize', Number(partial.humanize));
     }
   }
 
   setPartialDetune(index: number, cents: number): void {
     // Pulse engine modulates detune globally or on partial index 0 for simplicity
-    if (index === 0 && this.voice) {
-      (this.voice as any).setParam('detune', cents);
+    if (index === 0 && this.pulseVoice) {
+      this.pulseVoice.setParam('detune', cents);
     }
   }
 
@@ -336,10 +371,10 @@ export class PulseEngine implements AnnealEngine {
   /** Setter to update piece tempo dynamically on the engine */
   setTempo(bpm: number | null): void {
     this.tempoBpm = bpm;
-    if (!this.voice) return;
+    if (!this.pulseVoice) return;
     const isTempoSet = bpm !== null ? 1 : 0;
     const bpmVal = bpm !== null ? bpm : 60;
-    (this.voice as any).setParam('tempoSet', isTempoSet);
-    (this.voice as any).setParam('tempoBpm', bpmVal);
+    this.pulseVoice.setParam('tempoSet', isTempoSet);
+    this.pulseVoice.setParam('tempoBpm', bpmVal);
   }
 }

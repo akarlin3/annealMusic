@@ -16,7 +16,7 @@ export interface GlobalMidiConfig {
   notesVelocityTarget: string; // param key or "none" / "excitationLevel"
 }
 
-export const DEFAULT_GLOBAL_CONFIG: GlobalMidiConfig = {
+const DEFAULT_GLOBAL_CONFIG: GlobalMidiConfig = {
   channelFilter: 0, // Omni
   outputDeviceId: 'none',
   outputChannel: 16,
