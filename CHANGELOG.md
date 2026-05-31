@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.0.0] - 2026-05-31
+
+**v9.0 Mode Foundation & Audit.** Elevates the concept of "Focus" from a nested toggle inside the Sketch UI to a first-class, top-level navigation primitive: **Meditation Focus Mode** (🧘), **Musician Sandbox Mode** (🎹), and **Research Interface Console** (🔬). This release establishes the core mode-aware routing, layout, and metadata filtering foundations, with sticky per-device storage synchronization and strict adherence to a "soft gating" layout policy where direct bookmarks and URLs remain completely functional.
+
+### Added
+
+- **Sleek Segmented Switcher UI:** Built `ModeSwitcher.tsx` offering a responsive switcher displaying emojis (🧘 / 🎹 / 🔬) with absolute sliding-pill animations.
+- **Onboarding Mode Picker:** Designed `FirstTimeModePicker.tsx`, a premium glassmorphic onboarding overlay showing glowing card layouts to direct new arrivals smoothly into their preferred focus mode.
+- **Global Key Cycle Shortcut:** Registered a global `Shift+M` window keyboard listener to sequentially cycle focus modes with elegant transient toast feedback and landing redirects.
+- **Unified Responsive Header:** Integrated `Header.tsx` to centralize logo, switcher, and account widgets, synchronizing layout visibility seamlessly across SPA boundaries.
+- **Dynamic Curriculum Lesson Filters:** Configured `LearnApp.tsx` lesson lists with dynamic filters, instantly organizing curriculum items by track affinity tags matching the user's active focus.
+- **State and Submode Enforcement:** Enforces the ambient visualizer to default strictly to `drone` mode when in Meditation Mode to keep visual and auditory elements calm.
+- **Robust Integration Testing:** Delivered `src/mode/__tests__/mode.test.tsx` achieving complete automated test coverage of switcher transitions, mock storage persistence, cycle shortcuts, and picker events.
+
+### Changed
+
+- **Platform-Synchronized Storage:** Bound mode state to the `am_app_mode` persistence key, utilizing native Capacitor Preferences on iOS/Android and localStorage on web.
+- **Soft Gated Route Redirects:** Initial root arrivals at `/` redirect Meditation to `/listen` and Researcher to `/research.html`, while bookmarking direct sub-paths (e.g. `/gallery`) preserves exact routing navigation.
+
 ## [8.5.0] - 2026-05-31
 
 **v8.5 Test Coverage, CI Hardening, and v8 Release Closeout.** The final version 8 closeout milestone. Hardened validation and release infrastructure across all domains. Achieved and verified strict target test coverage metrics (>85% statement coverage on Audio Engine Core, >95% on Schema / State Management, and >80% on Server API endpoints). Automated the complete 10-flow E2E smoke test matrix into a robust Playwright suite, ensuring zero flakiness. Enforced a tight <8 minute PR runtime budget in CI through dynamic thread optimization, node/pip caching, and sharded nightly builds. Formulated the complete v8 Retrospective, finalized all v8 audit and threat model documentation, updated Contributing instructions with strict quality disciplines, consolidated multi-version Stability Commitments, and tagged the final `v8.5.0` release.

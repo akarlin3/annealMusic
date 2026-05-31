@@ -38,6 +38,7 @@ New here? Press the **Help (?)** button in the app for a plain-language guide to
 - **Share links** — copy a link that reopens your exact sound for anyone you send it to.
 - **[Learn](learn.html) (v6.0 · v6.1 · v6.2 · v6.3 · v6.4)** — an interactive pedagogical surface (`/learn`) designed to teach ambient synthesis, phase-coupling, and tuning physics through structured lessons, sandboxed parameter constraints, and visual cues. In v6.1, lesson content is **LLM-generated from authored specs**: an admin writes a spec (topic, objectives, step outline) and Claude generates the validated step sequence — markdown with sanitized SVG/mermaid diagrams, schema-valid demo patches, prompts, and reflections — cached immutably so the whole curriculum costs ~$1–2 to generate once. v6.2 adds an **audio clip library**: 49 short reference examples that lessons play through a dedicated `audio-clip` step (the embedded engine pauses so clips don't fight the live audio), with a shared embedding+tag+affinity retrieval the generator uses to anchor a concept in sound. v6.3 adds **progress tracking + a next-lesson picker**: private, cross-device lesson progress with pause/resume of your exact step and scroll position, and a calm 1–3 card "where to go next" suggestion (deterministic candidate filter → Haiku ranking) shown after a lesson or on `/learn` arrival — no streaks, no percentages, no nudges. **v6.4 ships the actual curriculum: five tracks, 55 lessons, with a prerequisite DAG, an LLM-assisted spec generator + batch generation + review dashboard + prerequisite-graph editor + a quality-check pipeline, and discoverability (search, track/difficulty filters, "Start here").** See [docs/CURRICULUM.md](docs/CURRICULUM.md), [docs/LESSON_GENERATION.md](docs/LESSON_GENERATION.md), [docs/AUDIO_CLIPS.md](docs/AUDIO_CLIPS.md), and [docs/LEARN.md](docs/LEARN.md).
 - **Session Datalogging (v5.3)** — record high-resolution session observations (sculpt states, Kuramoto coupling order parameter, partial details, and audio features like RMS, ZCR, spectral centroid, and flux) to scientific formats (CSV, JSONL, Parquet, and HDF5) at configurable sample rates for ingestion into Python, MATLAB, Julia, or R.
+- **Top-Level Focus Modes (v9.0)** — Elevates focus from a within-Sketch toggle to a first-class, top-level navigation primitive: **Meditation Focus Mode** (🧘), **Musician Sandbox Mode** (🎹), and **Research Interface Console** (🔬). Persisted stickily per device (via Capacitor Preferences and localStorage), features a gorgeous one-time glassmorphic picker on first launch, a premium segmented header switcher, a global `Shift+M` cycle keyboard shortcut, and mode-dependent navigation gating, while fully preserving direct URL bookmark access.
 
 ---
 
@@ -47,14 +48,14 @@ Everything below is the engineering reference: stack, architecture, engine inter
 
 ## Tech stack
 
-- **React 18** + **TypeScript** (strict, `noUncheckedIndexedAccess`)
-- **Vite 5** build / dev server
-- **Tailwind CSS 3**
+- **React 19** + **TypeScript** (strict, `noUncheckedIndexedAccess`)
+- **Vite 8** build / dev server
+- **Tailwind CSS 4**
 - **Zustand** for the parameter store
 - **Web Audio API** for synthesis (swappable engines + Ornstein–Uhlenbeck drift)
 - **Canvas 2D** for the visualizer
 - **Vitest** + jsdom for tests, **ESLint** + **Prettier** for quality
-- **Capacitor 6** for native iOS & Android shells
+- **Capacitor 8** for native iOS & Android shells
 
 ## Dev commands
 
