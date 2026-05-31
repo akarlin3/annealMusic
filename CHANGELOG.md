@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.5.0] - 2026-05-31
+
+**The v6 education arc closes.** v6.5 adds the admin analytics that let the curriculum be iterated, the in-app discoverability that lets lessons be found, and the retrospective + release that close v6.0–v6.5.
+
+### Added
+
+- **Lesson analytics (admin-only, aggregate, anonymized).** A new **Analytics** tab in the `#admin` console (`src/learn/admin/AnalyticsPage.tsx`), backed by `GET /api/v1/admin/analytics/lessons`, `/lessons/{id}`, `/tracks`, `/clips` and `POST /api/v1/admin/analytics/refresh` — all behind the existing `x-admin-key` gate.
+  - **Per-lesson:** view count, completion rate, average time-to-complete, a step-by-step **drop-off curve**, per-step time-on-step distribution, prompt "I tried it" vs skip ratio, and reflection-presence rate.
+  - **Per-track:** aggregate completion + **path popularity** — the lesson sequences learners actually walk, flagged on/off the curated prerequisite graph.
+  - **Per-clip:** play / replay / skip / exposure counts.
+  - **CSV export** for the lesson and clip tables.
+- **Analytics service** (`api/app/services/analytics.py`): portable `GROUP BY` rollups + pure, unit-tested drop-off / time-on-step / prompt / clip helpers, computed from the existing `lesson_progress` data — **no new tracking**. A Postgres `lesson_analytics` **materialized view** (migration `0024_v6_5_lesson_analytics`, refreshed nightly + on demand) is the production performance / BI rollup; the endpoints compute live so there is one portable, tested code path (the test harness runs SQLite without migrations).
+- **Additive engagement signals.** The lesson player now emits, additively, `clip_play` / `clip_replay` (audio-clip steps) and `prompt_tried` / `prompt_skipped` (prompt steps) into the existing bounded `step_actions` log, so per-clip and prompt analytics begin to flow. The `StepActionIn` action set was widened additively — no schema or public-API break.
+- **In-app discoverability** built from one primitive, `LessonHintLink` (`src/components/LessonHintLink.tsx`): a muted "learn more" link or `?` icon that opens the relevant `/learn` lesson in a **new tab**. Wired into the **engine selector** ("Learn more about this engine →"), the **mode toggle** (links to the relevant track), and a single dismissable **first-time banner** ("New to AnnealMusic? Start with the intro lesson →"). The engine/param/mode→lesson maps live once in `src/components/lessonHints.ts` (the heuristic-drift guard).
+- **Global "Show learning hints" toggle** in Account Settings (`src/components/LearningHintsSettings.tsx`), default **on** (opt-out). Flipping it off suppresses every hint and the banner reactively; the first-time banner's dismissal persists independently.
+
+### Calm-by-design
+
+- **No per-user analytics — for anyone, including the user about themselves.** Every analytics query aggregates before returning; no `user_id` or PII ever crosses the boundary (a server test asserts it). Analytics are admin-only and never linked from `/learn`. Surfacing a learner's own completion stats back at them stays on the permanent "never" list.
+- **Discoverability is opt-out and understated:** one quiet primitive, a single dismissable banner, hints that open in a new tab and carry no counts/badges/urgency, and one global hide toggle. No outbound nudges ship or are stubbed. The `src/learn` calm-by-design CI gate stays green; the v6.5 checklist is recorded in `docs/CALM_BY_DESIGN.md`.
+
+### Docs & release
+
+- **`docs/V6_RETROSPECTIVE.md`** — the v6 education-arc retrospective (original thesis, what shipped v6.0–v6.5, LLM-generation cost reality vs forecast, an honest "known so far" on pedagogical effectiveness, where the LLM honored vs drifted on framing discipline, what was harder than expected, and the post-v6 thesis space).
+- `docs/LEARN.md`, `docs/PRIVACY.md`, and `docs/CALM_BY_DESIGN.md` finalized for v6 (discoverability + analytics sections; aggregate-analytics privacy section; v6.5 calm checklist).
+
+### Stability commitments (v6 close)
+
+- Lesson schema → **stable**. Curriculum content → **versioned / seeded** in `curriculum_content.py`. Public lesson + progress APIs → **stable, additive-only** (v6.5 widened `step_actions` actions and added admin-only analytics routes without changing any existing contract).
+
 ## [6.4.0] - 2026-05-30
 
 ### Added

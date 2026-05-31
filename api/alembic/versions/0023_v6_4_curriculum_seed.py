@@ -95,8 +95,8 @@ def upgrade() -> None:
 
     lessons_table = sa.table(
         "lessons",
-        sa.column("id", sa.String()),
-        sa.column("track_id", sa.String()),
+        sa.column("id", postgresql.UUID(as_uuid=False) if is_pg else sa.String()),
+        sa.column("track_id", postgresql.UUID(as_uuid=False) if is_pg else sa.String()),
         sa.column("slug", sa.String()),
         sa.column("title", sa.String()),
         sa.column("description", sa.String()),

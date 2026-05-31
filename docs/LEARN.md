@@ -147,3 +147,27 @@ A 5-minute per-process TTL cache keyed on a hash of the compact progress state r
 ### 6.4 Privacy
 
 The ranker reads only `step_actions` metadata; `reflection_text` is never included in the prompt (a unit test asserts this), and the payload carries no PII.
+
+---
+
+## 7. Discoverability in the Main App (v6.5)
+
+The main instrument surfaces relevant lessons in context, so a learner who wonders "how does this engine work?" can reach the matching lesson without hunting for `/learn`. Discoverability is **opt-out, understated, and built from a single primitive**.
+
+- **`LessonHintLink` (`src/components/LessonHintLink.tsx`)** is the one component used everywhere. It renders either a muted "learn more" link or a small `?` icon, opens `/learn#lesson/<track>/<lesson>` in a **new tab** (so it never interrupts what you're making), and renders nothing when hints are hidden.
+- **The maps live once** in `src/components/lessonHints.ts`: engine → lesson, `data-lesson-hint` id → concept lesson, and creative-mode → track. This is the heuristic-drift guard — there is exactly one place that decides "which lesson explains this surface."
+- **Touchpoints:** the **engine selector** tooltip gains "Learn more about this engine →"; the **mode toggle** tooltips link to the relevant track; **controls** with a `data-lesson-hint` can show a `?` icon; and a single dismissable **first-time banner** ("New to AnnealMusic? Start with the intro lesson →") appears once for new users.
+- **The global opt-out** is a "Show learning hints" switch in Account Settings (default on). Flipping it off suppresses every hint and the banner reactively, via the small external store in `lessonHints.ts`. The banner's dismissal persists independently in `localStorage`.
+
+## 8. Lesson Analytics (admin-only, v6.5)
+
+For curriculum iteration, the admin console gains an **Analytics** tab (`src/learn/admin/AnalyticsPage.tsx`) backed by `GET /api/v1/admin/analytics/{lessons,lessons/{id},tracks,clips}` and `POST /api/v1/admin/analytics/refresh` (all `x-admin-key`-gated).
+
+- **Per-lesson:** view count, completion rate, average time-to-complete, a step-by-step **drop-off curve**, per-step time-on-step distribution, prompt "I tried it" vs skip ratio, and reflection-presence rate.
+- **Per-track:** aggregate completion + **path popularity** (the lesson sequences learners actually walk, flagged on/off the prerequisite graph).
+- **Per-clip:** play / replay / skip / exposure counts.
+- **CSV export** for the lesson and clip tables.
+
+The metrics are computed (`api/app/services/analytics.py`) from the existing `lesson_progress` data. The v6.3 navigation actions (`started`/`completed`) feed views and drop-off; v6.5 **additively** emits `clip_play` / `clip_replay` (audio-clip steps) and `prompt_tried` / `prompt_skipped` (prompt steps) so play/replay and tried/skip counts begin to flow without any schema break. A Postgres `lesson_analytics` materialized view (migration `0024`, refreshed nightly + on demand) is the production performance / BI rollup; the endpoints compute live so there is a single, portable, tested code path.
+
+**Everything here is aggregate and admin-only** — no per-user data is ever returned (see `docs/PRIVACY.md` §5). There is deliberately no per-user analytics view, for anyone.

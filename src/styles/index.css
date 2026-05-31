@@ -65,3 +65,35 @@ input[type='range'].am-range:disabled::-webkit-slider-thumb {
   );
   height: 1px;
 }
+
+/* v6.5 — discoverability hints (understated, opt-out; LessonHintLink). */
+.lesson-hint-link {
+  color: #d6a14a;
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(214, 161, 74, 0.5);
+  transition: color 0.15s ease;
+}
+.lesson-hint-link:hover,
+.lesson-hint-link:focus-visible {
+  color: #fbbf24;
+}
+.lesson-hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 0.25rem;
+  border-radius: 9999px;
+  border: 1px solid #44403c;
+  color: #a8a29e;
+  font-size: 9px;
+  line-height: 1;
+  text-decoration: none;
+  vertical-align: middle;
+}
+.lesson-hint-icon:hover,
+.lesson-hint-icon:focus-visible {
+  color: #fbbf24;
+  border-color: #d6a14a;
+}

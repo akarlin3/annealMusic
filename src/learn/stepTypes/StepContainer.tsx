@@ -5,6 +5,7 @@ import { PromptStep } from './PromptStep';
 import { ReflectionStep } from './ReflectionStep';
 import { AudioClipStep } from './AudioClipStep';
 import type { BridgeClient } from '../../research/bridge/BridgeClient';
+import type { StepActionType } from '../progress/ProgressClient';
 
 interface StepContainerProps {
   step: LessonStep;
@@ -12,6 +13,8 @@ interface StepContainerProps {
   onStepComplete: () => void;
   reflectionValue?: string;
   onChangeReflection?: (val: string) => void;
+  /** Additive v6.5 engagement signals (clip play/replay, prompt tried). */
+  onStepAction?: (action: StepActionType) => void;
 }
 
 export function StepContainer({
@@ -20,6 +23,7 @@ export function StepContainer({
   onStepComplete,
   reflectionValue = '',
   onChangeReflection,
+  onStepAction,
 }: StepContainerProps) {
   switch (step.type) {
     case 'text':
@@ -38,6 +42,7 @@ export function StepContainer({
           step={step}
           bridgeClient={bridgeClient}
           onComplete={onStepComplete}
+          onStepAction={onStepAction}
         />
       );
     case 'reflection':
@@ -55,6 +60,7 @@ export function StepContainer({
           step={step}
           bridgeClient={bridgeClient}
           onComplete={onStepComplete}
+          onStepAction={onStepAction}
         />
       );
     default:

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LessonStep } from '../LearnApp';
 import type { BridgeClient } from '../../research/bridge/BridgeClient';
+import type { StepActionType } from '../progress/ProgressClient';
 
 interface AudioClipStepProps {
   step: LessonStep;
   bridgeClient: BridgeClient | null;
   onComplete: () => void;
+  onStepAction?: (action: StepActionType) => void;
 }
 
 interface ClipMeta {
@@ -30,6 +32,7 @@ export function AudioClipStep({
   step,
   bridgeClient,
   onComplete,
+  onStepAction,
 }: AudioClipStepProps) {
   const {
     clip_id,
@@ -107,6 +110,9 @@ export function AudioClipStep({
     const a = audioRef.current;
     if (!a) return;
     if (a.paused) {
+      // First start is a play; any later start (user already heard it) is a
+      // replay — the distinction the per-clip analytics surfaces.
+      onStepAction?.(played ? 'clip_replay' : 'clip_play');
       setPlayed(true);
       void a.play();
     } else {

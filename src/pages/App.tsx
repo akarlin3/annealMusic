@@ -16,6 +16,7 @@ import LoopPedal from '@/components/LoopPedal';
 import EngineSelector from '@/components/EngineSelector';
 import ModeToggle from '@/components/ModeToggle';
 import SessionModeToggle from '@/components/SessionModeToggle';
+import FirstTimeBanner from '@/components/FirstTimeBanner';
 import DroneView from '@/drone/DroneView';
 import ArcPanel from '@/components/ArcPanel';
 import PresetsPanel from '@/components/PresetsPanel';
@@ -540,6 +541,8 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        <FirstTimeBanner />
 
         {mode === 'drone' ? (
           <DroneView engineRef={engineRef} isPlaying={isPlaying} />

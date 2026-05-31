@@ -23,9 +23,21 @@ export type ProgressState =
   | 'completed'
   | 'abandoned';
 
+// Navigation actions carry time-on-step; v6.5 adds (additively) the
+// engagement-signal actions the admin analytics surface reads. All are
+// aggregate, anonymized signals — never per-user-exposed.
+export type StepActionType =
+  | 'started'
+  | 'completed'
+  | 'skipped'
+  | 'clip_play'
+  | 'clip_replay'
+  | 'prompt_tried'
+  | 'prompt_skipped';
+
 export interface StepAction {
   step_position: number;
-  action: 'started' | 'completed' | 'skipped';
+  action: StepActionType;
   ms: number;
   at?: string;
 }

@@ -102,3 +102,16 @@ A lexical test (`src/test/calm-by-design.test.ts`) scans the UI source for banne
 - [x] **Progress data is private.** Account-scoped, never public, no share button, no profile display. Anonymous progress stays client-side (localStorage) and is only ever uploaded by the explicit, user-triggered sign-in import.
 - [x] **Reflection text never reaches the LLM.** The recommendation ranker reads only step-action metadata; a server test asserts no reflection content appears in the prompt, and the payload carries no PII.
 - [x] **CI lexical gate extended to `src/learn`.** `src/test/calm-by-design.test.ts` now scans the Learn surface (progress + recommendation UI included), matching banned terms as whole words and ignoring CSS/code identifiers so it flags engagement-loop _copy_ only.
+
+### v6.5 — Lesson Analytics & Discoverability (v6 closeout)
+
+> v6.5 adds two surfaces with distinct calm risks: an **admin analytics** view (the temptation to surface per-user funnels) and **in-app discoverability hints** (the temptation to nag the user toward lessons). Both are constrained below.
+
+- [x] **Analytics are aggregate-only and admin-only.** The analytics endpoints aggregate (`GROUP BY` / `COUNT`) before returning; no `user_id` or PII ever crosses the boundary (a server test asserts it). They sit behind the `x-admin-key` gate, are never linked from `/learn`, and are never shown to a normal user.
+- [x] **No per-user analytics — not even for the user themselves.** We deliberately ship no per-user analytics view. Surfacing a learner's own completion stats back at them invites self-measurement pressure; it is on the permanent "never" list (alongside user lesson-ratings).
+- [x] **Analytics add no new tracking.** They are derived from the existing private `lesson_progress` data; the per-step action log stays bounded, text-free, and PII-free. `reflection_text` is never read by analytics (only its presence contributes to an aggregate rate).
+- [x] **Discoverability is opt-out and understated.** Learning hints are a single quiet primitive (`LessonHintLink`) — a muted "learn more" link / `?` icon and one dismissable first-time banner. They open the relevant lesson in a **new tab** (never interrupting what the user is making), carry no counts/badges/urgency, and are not animated.
+- [x] **A global "hide learning hints" toggle.** One Account-Settings switch (default on) suppresses every hint and the banner reactively. The first-time banner's dismissal also persists forever. No hint ever recurs as a nag.
+- [x] **No outbound nudges from any of it.** Analytics and discoverability add no emails, push, or reminders — none ship, none are stubbed. The only in-app prompt is the single dismissable banner.
+- [x] **One primitive, one map (heuristic-drift guard).** Every hint is the same `LessonHintLink` component, and the engine/param/mode→lesson mapping lives once in `src/components/lessonHints.ts`, so the discoverability heuristic can't drift between surfaces.
+- [x] **CI lexical gate stays green** over the new `src/learn` analytics UI and the new `src/components` discoverability primitives.

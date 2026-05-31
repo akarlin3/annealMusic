@@ -41,6 +41,7 @@ from app.routers import (
     learn,
     lesson_admin,
     curriculum_admin,
+    analytics_admin,
     clips,
     lesson_progress,
     recommendations,
@@ -124,6 +125,7 @@ def create_app() -> FastAPI:
     app.include_router(learn.router)
     app.include_router(lesson_admin.router)
     app.include_router(curriculum_admin.router)
+    app.include_router(analytics_admin.router)
     app.include_router(clips.router)
     app.include_router(clips.admin_router)
     app.include_router(lesson_progress.router)

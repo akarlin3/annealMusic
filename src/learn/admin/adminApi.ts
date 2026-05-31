@@ -297,6 +297,110 @@ export function putPrereqs(edges: PrereqEdge[]): Promise<PrereqGraph> {
   }) as Promise<PrereqGraph>;
 }
 
+// --- v6.5 lesson analytics (admin-only, aggregate) --------------------------
+
+export interface LessonAnalyticsRow {
+  lesson_id: string;
+  slug: string | null;
+  title: string | null;
+  track_id: string | null;
+  views: number;
+  completions: number;
+  completion_rate: number;
+  avg_completion_ms: number;
+  abandonments: number;
+  reflections: number;
+  reflection_rate: number;
+}
+
+export interface StepTimeRow {
+  step_position: number;
+  count: number;
+  mean_ms: number;
+  median_ms: number;
+  p90_ms: number;
+}
+
+export interface PromptStats {
+  prompt_steps: number[];
+  tried: number;
+  skipped: number;
+  tried_ratio: number;
+  per_step: Array<{ step_position: number; tried: number; skipped: number }>;
+}
+
+export interface ClipStatsRow {
+  clip_slug: string;
+  exposures: number;
+  plays: number;
+  replays: number;
+  skips: number;
+  skip_rate: number;
+}
+
+export interface LessonAnalyticsDetail {
+  rollup: LessonAnalyticsRow;
+  total_steps: number;
+  dropoff: number[];
+  step_times: StepTimeRow[];
+  prompt_stats: PromptStats;
+  clip_stats: ClipStatsRow[];
+}
+
+export interface TrackPath {
+  from: string | null;
+  to: string | null;
+  count: number;
+  on_graph: boolean;
+}
+
+export interface TrackAnalyticsRow {
+  track_id: string;
+  slug: string;
+  title: string;
+  lessons: number;
+  starts: number;
+  completions: number;
+  completion_rate: number;
+  top_paths: TrackPath[];
+  off_graph_paths: TrackPath[];
+}
+
+export function getLessonAnalytics(): Promise<{ items: LessonAnalyticsRow[] }> {
+  return adminFetch('/api/v1/admin/analytics/lessons') as Promise<{
+    items: LessonAnalyticsRow[];
+  }>;
+}
+
+export function getLessonAnalyticsDetail(
+  lessonId: string,
+): Promise<LessonAnalyticsDetail> {
+  return adminFetch(
+    `/api/v1/admin/analytics/lessons/${lessonId}`,
+  ) as Promise<LessonAnalyticsDetail>;
+}
+
+export function getTrackAnalytics(): Promise<{ items: TrackAnalyticsRow[] }> {
+  return adminFetch('/api/v1/admin/analytics/tracks') as Promise<{
+    items: TrackAnalyticsRow[];
+  }>;
+}
+
+export function getClipAnalytics(): Promise<{ items: ClipStatsRow[] }> {
+  return adminFetch('/api/v1/admin/analytics/clips') as Promise<{
+    items: ClipStatsRow[];
+  }>;
+}
+
+export function refreshAnalytics(): Promise<{
+  refreshed: boolean;
+  refreshed_at: string;
+}> {
+  return adminFetch('/api/v1/admin/analytics/refresh', {
+    method: 'POST',
+  }) as Promise<{ refreshed: boolean; refreshed_at: string }>;
+}
+
 export const EXAMPLE_SPEC = `{
   "id": "synthesis-fundamentals/karplus-strong",
   "track": "synthesis-fundamentals",
