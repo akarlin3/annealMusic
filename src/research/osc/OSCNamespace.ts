@@ -7,7 +7,7 @@ export interface OscMessage {
   args: any[];
 }
 
-// Maps ParamKey to their expected value types
+// OSC_PARAM_TYPES_START
 export const OSC_PARAM_TYPES: Record<ParamKey, 'f' | 'i'> = {
   rootFreq: 'f',
   spread: 'f',
@@ -18,6 +18,7 @@ export const OSC_PARAM_TYPES: Record<ParamKey, 'f' | 'i'> = {
   space: 'f',
   volume: 'f',
 };
+// OSC_PARAM_TYPES_END
 
 /**
  * Bidirectional mapper for OSC Addresses

@@ -5,10 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const manifestPath = path.resolve(
-  __dirname,
-  '../../../schema/manifest.v20.json',
-);
+const manifestPath = path.resolve(__dirname, '../../../schema/manifest.json');
 
 export interface ValidationResult {
   valid: boolean;
