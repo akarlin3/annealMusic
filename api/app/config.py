@@ -115,6 +115,15 @@ class Settings(BaseSettings):
     # Observability.
     sentry_dsn: str | None = None
 
+    # --- v7.0 studies / research collaboration --------------------------------
+    # Public-facing base URL used to build study citation URLs (`/s/<slug>`).
+    public_base_url: str = "https://anneal.averykarlin.org"
+    # Zenodo DOI minting. Defaults to the *sandbox* so dev/CI never touch the
+    # production registry. When no token is set the ZenodoService runs in a
+    # deterministic stub mode (no network) so publish flows are testable offline.
+    zenodo_api_url: str = "https://sandbox.zenodo.org/api"
+    zenodo_token: str | None = None
+
     # AI Features
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None

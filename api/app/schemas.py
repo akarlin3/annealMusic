@@ -1312,6 +1312,58 @@ class AuditListOut(BaseModel):
     items: list[AuditEntryOut]
 
 
+class SnapshotIn(BaseModel):
+    version_label: str = Field(..., min_length=1, max_length=120)
+
+
+class VersionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    study_id: uuid.UUID
+    version_label: str
+    doi: str | None
+    created_by: uuid.UUID | None
+    created_at: datetime
+
+
+class VersionDetailOut(VersionOut):
+    snapshot_json: dict
+
+
+class VersionListOut(BaseModel):
+    items: list[VersionOut]
+
+
+class PublishIn(BaseModel):
+    # Publish an existing version by id, or create + publish a new one by label.
+    version_id: uuid.UUID | None = None
+    version_label: str | None = Field(default=None, min_length=1, max_length=120)
+
+    @model_validator(mode="after")
+    def _one_target(self) -> "PublishIn":
+        if (self.version_id is None) == (self.version_label is None):
+            raise ValueError("Provide exactly one of version_id or version_label.")
+        return self
+
+
+class PublishOut(BaseModel):
+    version_id: uuid.UUID
+    doi: str
+    concept_doi: str
+    stub: bool
+
+
+class CitationOut(BaseModel):
+    format: Literal["bibtex", "apa", "chicago"]
+    citation: str
+
+
+class AccountResearchUpdate(BaseModel):
+    orcid: str | None = Field(default=None, max_length=64)
+    affiliation_ror: str | None = Field(default=None, max_length=200)
+
+
 
 
 

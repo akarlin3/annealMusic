@@ -30,25 +30,35 @@ from app.models import (
     StudyAuditLog,
     StudyInvestigator,
     StudyResource,
+    StudyVersion,
     User,
     UserScript,
 )
 from app.schemas import (
     AuditEntryOut,
     AuditListOut,
+    CitationOut,
     InvestigatorAdd,
     InvestigatorOut,
     InvestigatorRoleUpdate,
+    PublishIn,
+    PublishOut,
     ResourceLinkIn,
     ResourceListOut,
     ResourceOut,
+    SnapshotIn,
     StudyCreate,
     StudyListOut,
     StudyOut,
     StudyUpdate,
+    VersionDetailOut,
+    VersionListOut,
+    VersionOut,
 )
+from app.services.citation import Author, CitationContext, render as render_citation
+from app.services.zenodo import ZenodoError, get_zenodo_service
 from app.slug import new_slug
-from app.study_provenance import record_audit
+from app.study_provenance import build_snapshot, record_audit
 
 router = APIRouter(prefix="/api/v1/studies", tags=["studies"])
 
@@ -633,3 +643,234 @@ async def get_audit_log(
     ).scalars().all()
     await session.commit()
     return AuditListOut(items=[AuditEntryOut.model_validate(r) for r in rows])
+
+
+# ── snapshots / versions (CP2) ───────────────────────────────────────────────────
+
+@router.post(
+    "/{id}/snapshot",
+    response_model=VersionDetailOut,
+    status_code=201,
+    dependencies=[Depends(rate_limit("scripts"))],
+)
+async def create_snapshot(
+    id: uuid.UUID,
+    body: SnapshotIn,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
+) -> VersionDetailOut:
+    study = await session.get(Study, id)
+    if study is None:
+        raise not_found("study")
+    await require_study_role(session, study, identity, "co-investigator")
+
+    # Version labels are unique within a study.
+    dup = (
+        await session.execute(
+            select(StudyVersion).where(
+                StudyVersion.study_id == study.id,
+                StudyVersion.version_label == body.version_label,
+            )
+        )
+    ).scalar_one_or_none()
+    if dup is not None:
+        raise ApiError(409, "duplicate_version_label")
+
+    snapshot = await build_snapshot(session, study, body.version_label)
+    version = StudyVersion(
+        study_id=study.id,
+        version_label=body.version_label,
+        snapshot_json=snapshot,
+        created_by=identity.account_id,
+    )
+    session.add(version)
+    record_audit(
+        session,
+        study_id=study.id,
+        account_id=identity.account_id,
+        action="snapshot.create",
+        after={"version_label": body.version_label},
+    )
+    await session.commit()
+    await session.refresh(version)
+    return VersionDetailOut.model_validate(version)
+
+
+@router.get("/{id}/versions", response_model=VersionListOut, dependencies=[Depends(rate_limit("get"))])
+async def list_versions(
+    id: uuid.UUID,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
+) -> VersionListOut:
+    study = await session.get(Study, id)
+    if study is None:
+        raise not_found("study")
+    inv = await _get_investigator(session, study.id, identity.account_id)
+    if inv is None and study.visibility != "public":
+        raise not_found("study")
+
+    rows = (
+        await session.execute(
+            select(StudyVersion)
+            .where(StudyVersion.study_id == study.id)
+            .order_by(StudyVersion.created_at.desc())
+        )
+    ).scalars().all()
+    await session.commit()
+    return VersionListOut(items=[VersionOut.model_validate(v) for v in rows])
+
+
+@router.get(
+    "/{id}/versions/{version_id}",
+    response_model=VersionDetailOut,
+    dependencies=[Depends(rate_limit("get"))],
+)
+async def get_version(
+    id: uuid.UUID,
+    version_id: uuid.UUID,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
+) -> VersionDetailOut:
+    study = await session.get(Study, id)
+    if study is None:
+        raise not_found("study")
+    inv = await _get_investigator(session, study.id, identity.account_id)
+    if inv is None and study.visibility != "public":
+        raise not_found("study")
+
+    version = await session.get(StudyVersion, version_id)
+    if version is None or version.study_id != study.id:
+        raise not_found("version")
+    await session.commit()
+    return VersionDetailOut.model_validate(version)
+
+
+# ── publish (DOI mint) — PI only ──────────────────────────────────────────────────
+
+def _preflight(study: Study, investigators: list[InvestigatorOut]) -> list[str]:
+    """Publication readiness — mirrors the UI checklist (docs/v7.0-PLAN.md §7)."""
+    missing: list[str] = []
+    if not (study.abstract or "").strip():
+        missing.append("abstract")
+    if not (study.ethics_statement or "").strip():
+        missing.append("ethics_statement")
+    if not any(i.role == "pi" for i in investigators):
+        missing.append("principal_investigator")
+    if any(not i.orcid for i in investigators):
+        missing.append("investigator_orcid")
+    return missing
+
+
+@router.post("/{id}/publish", response_model=PublishOut, dependencies=[Depends(rate_limit("scripts"))])
+async def publish_study(
+    id: uuid.UUID,
+    body: PublishIn,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
+) -> PublishOut:
+    study = await session.get(Study, id)
+    if study is None:
+        raise not_found("study")
+    await require_study_role(session, study, identity, "pi")
+
+    investigators = await _investigator_outs(session, study.id)
+    missing = _preflight(study, investigators)
+    if missing:
+        raise ApiError(422, "preflight_failed", missing=missing)
+
+    # Resolve (or create) the version to publish.
+    if body.version_id is not None:
+        version = await session.get(StudyVersion, body.version_id)
+        if version is None or version.study_id != study.id:
+            raise not_found("version")
+    else:
+        dup = (
+            await session.execute(
+                select(StudyVersion).where(
+                    StudyVersion.study_id == study.id,
+                    StudyVersion.version_label == body.version_label,
+                )
+            )
+        ).scalar_one_or_none()
+        if dup is not None:
+            raise ApiError(409, "duplicate_version_label")
+        snapshot = await build_snapshot(session, study, body.version_label or "published")
+        version = StudyVersion(
+            study_id=study.id,
+            version_label=body.version_label or "published",
+            snapshot_json=snapshot,
+            created_by=identity.account_id,
+        )
+        session.add(version)
+        record_audit(
+            session,
+            study_id=study.id,
+            account_id=identity.account_id,
+            action="snapshot.create",
+            after={"version_label": version.version_label},
+        )
+        await session.flush()
+
+    try:
+        result = await get_zenodo_service().mint(version.snapshot_json)
+    except ZenodoError as exc:
+        # Leave the study un-published on failure (no partial state).
+        raise ApiError(502, "zenodo_error", message=str(exc)[:200])
+
+    version.doi = result.doi
+    study.concept_doi = result.concept_doi
+    study.status = "published"
+    record_audit(
+        session,
+        study_id=study.id,
+        account_id=identity.account_id,
+        action="study.publish",
+        before={"status": "analysis", "version_id": str(version.id)},
+        after={"status": "published", "doi": result.doi},
+    )
+    await session.commit()
+    return PublishOut(
+        version_id=version.id, doi=result.doi, concept_doi=result.concept_doi, stub=result.stub
+    )
+
+
+# ── citation ──────────────────────────────────────────────────────────────────────
+
+@router.get("/{id_or_slug}/citation", response_model=CitationOut, dependencies=[Depends(rate_limit("get"))])
+async def get_citation(
+    id_or_slug: str,
+    session: SessionDep,
+    identity: Identity = Depends(get_identity),
+    format: str = Query(default="bibtex"),
+) -> CitationOut:
+    if format not in ("bibtex", "apa", "chicago"):
+        raise ApiError(422, "invalid_format", message="format must be bibtex|apa|chicago")
+    study = await _resolve_study(session, id_or_slug)
+    if study is None:
+        raise not_found("study")
+    inv = await _get_investigator(session, study.id, identity.account_id)
+    if inv is None and study.visibility != "public":
+        raise not_found("study")
+
+    investigators = await _investigator_outs(session, study.id)
+    authors = [
+        Author(
+            name=i.display_name or "Anonymous",
+            orcid=i.orcid,
+            affiliation_ror=i.affiliation_ror,
+        )
+        for i in investigators
+    ]
+    base = get_settings().public_base_url.rstrip("/")
+    ctx = CitationContext(
+        title=study.title,
+        authors=authors,
+        year=study.created_at.year,
+        month=study.created_at.month,
+        doi=study.concept_doi,
+        url=(f"https://doi.org/{study.concept_doi}" if study.concept_doi else f"{base}/s/{study.slug}"),
+        version_label=None,
+        publisher="Zenodo" if study.concept_doi else "AnnealMusic (unpublished)",
+    )
+    await session.commit()
+    return CitationOut(format=format, citation=render_citation(ctx, format))

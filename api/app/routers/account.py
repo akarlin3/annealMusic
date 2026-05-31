@@ -23,6 +23,23 @@ class ProfileUpdate(BaseModel):
     bio: str | None = Field(default=None, max_length=280)
     likes_public: bool | None = Field(default=None)
     follows_public: bool | None = Field(default=None)
+    # v7.0 researcher identity (for study citations). Empty string clears.
+    orcid: str | None = Field(default=None, max_length=64)
+    affiliation_ror: str | None = Field(default=None, max_length=200)
+
+
+_ORCID_RE = re.compile(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
+_ROR_RE = re.compile(r"^https://ror\.org/[0-9a-z]+$")
+
+
+def validate_orcid(value: str) -> None:
+    if not _ORCID_RE.match(value):
+        raise bad_request("ORCID must look like 0000-0002-1825-0097.")
+
+
+def validate_ror(value: str) -> None:
+    if not _ROR_RE.match(value):
+        raise bad_request("Affiliation ROR must be a https://ror.org/<id> URL.")
 
 
 class ConfirmDelete(BaseModel):
@@ -51,6 +68,22 @@ async def require_auth(identity: Identity) -> uuid.UUID:
     return identity.account_id
 
 
+def _account_profile_dict(account: Account) -> dict:
+    return {
+        "id": str(account.id),
+        "email": account.email,
+        "display_name": account.display_name,
+        "avatar_seed": account.avatar_seed,
+        "bio": account.bio,
+        "likes_public": account.likes_public,
+        "follows_public": account.follows_public,
+        "orcid": account.orcid,
+        "affiliation_ror": account.affiliation_ror,
+        "created_at": account.created_at.isoformat(),
+        "last_login_at": account.last_login_at.isoformat() if account.last_login_at else None,
+    }
+
+
 @router.get("/me")
 async def get_my_profile(
     session: SessionDep,
@@ -61,17 +94,7 @@ async def get_my_profile(
     res = await session.execute(stmt)
     account = res.scalar_one()
 
-    return {
-        "id": str(account.id),
-        "email": account.email,
-        "display_name": account.display_name,
-        "avatar_seed": account.avatar_seed,
-        "bio": account.bio,
-        "likes_public": account.likes_public,
-        "follows_public": account.follows_public,
-        "created_at": account.created_at.isoformat(),
-        "last_login_at": account.last_login_at.isoformat() if account.last_login_at else None,
-    }
+    return _account_profile_dict(account)
 
 
 @router.patch("/me")
@@ -105,20 +128,22 @@ async def update_my_profile(
     if body.follows_public is not None:
         account.follows_public = body.follows_public
 
+    if body.orcid is not None:
+        orcid = body.orcid.strip()
+        if orcid:
+            validate_orcid(orcid)
+        account.orcid = orcid or None
+
+    if body.affiliation_ror is not None:
+        ror = body.affiliation_ror.strip()
+        if ror:
+            validate_ror(ror)
+        account.affiliation_ror = ror or None
+
     await session.commit()
     await session.refresh(account)
 
-    return {
-        "id": str(account.id),
-        "email": account.email,
-        "display_name": account.display_name,
-        "avatar_seed": account.avatar_seed,
-        "bio": account.bio,
-        "likes_public": account.likes_public,
-        "follows_public": account.follows_public,
-        "created_at": account.created_at.isoformat(),
-        "last_login_at": account.last_login_at.isoformat() if account.last_login_at else None,
-    }
+    return _account_profile_dict(account)
 
 
 @router.delete("/me", status_code=204)
