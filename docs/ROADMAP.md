@@ -78,6 +78,7 @@ A generative ambient meditation sandbox where physics-driven sound design meets 
 | v8.5 ✅ | Testing & CI Hardening                  | Achieved >85% statement coverage on Audio Engine Core and >95% on Schema / State Management, automated E2E smoke matrix using hermetic Playwright mocks, optimized CI runtime under 8 minutes, finalized v8 Retrospective and Stability Commitments, and released `v8.5.0` closing the version 8 maintenance arc. |
 | v9.1 ✅ | Aesthetic System                        | Establishes a unified design tokens system with dynamic per-mode CSS overrides, canonical Button, Slider, Panel, and Card components, prefers-reduced-motion accessibility safeguards, and high-performance WebGL/Canvas visualizer presets. |
 | v9.2 ✅ | Tutorial Gaps & Onboarding              | Conducted a full educational surface audit across v0.1–v8.5, filled 6 key learning gaps with rich lessons, authored quiet and skippable mode-specific onboarding flows for meditation, musician, and researcher views, implemented active-mode tagging and "Show all lessons" UI filters, and added inline parameter "?" sliding side-drawers. |
+| v9.3 ✅ | Polish & Closeout                       | Completes the v9 multi-mode arc. Migrated rare-use and admin components to token primitives (Input, Select), resolved multi-mode notifications and mid-task state persistence, completed WCAG contrast and keyboard audits, and tagged release v9.3.0. |
 
 ## Shipped notes
 

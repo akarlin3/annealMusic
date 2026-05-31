@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.3.0] - 2026-05-31
+
+**v9.3 Polish & Closeout.** This release completes the v9 multi-mode arc. It migrates all remaining deferred tail components (login dialogues, patch generation and modification dialogues, and admin moderation and curation surfaces) to dynamic design-system token primitives (`Input`, `Select`). It resolves key edge cases across modes: suppressing technical/sonification notifications under Meditation mode, persisting unsaved patch parameters and creative sub-modes (`sketch` vs. `drone`) during mode switches, and adding cross-mode relevance badges to recommended lessons in `NextLessonPicker`. Finally, it completes a comprehensive WCAG 2.1 AA accessibility and contrast review across all theme modes, checking prefers-reduced-motion triggers, and tags the final `v9.3.0` release.
+
+### Added
+
+- **Design System Primitives:** Shipped dynamic, token-based `Input.tsx` and `Select.tsx` primitives supporting dynamic colors and prefers-reduced-motion multiplier overrides.
+- **Form Migrations:** Refactored `AccountSettingsPage.tsx`, `LoginDialog.tsx`, `GeneratePatchDialog.tsx`, `ModifyPatchDialog.tsx`, `LibraryCuration.tsx`, `MappingTemplateEditor.tsx`, and `AdminPage.tsx` to utilize the new primitives.
+- **Cross-Mode Notification Filtering:** Updates the global toast listener inside `App.tsx` to automatically suppress technical render, MIDI, and AI notifications under Meditation mode.
+- **Mid-Task Parameter Persistence:** Automatically caches active patch parameters to `am_unsaved_patch_state` in `localStorage` on parameter changes and hydrates on load if no URL hash exists.
+- **Sub-Mode State Recovery:** Caches and recovers active creative sub-mode settings (`sketch` vs. `drone`) during transitions between Musician and Meditation modes.
+- **Cross-Mode Lesson Relevance Badges:** Integrated mode-mismatch checks into `NextLessonPicker.tsx` to render a gentle helper badge explaining relevance across modes.
+- **Accessibility & Contrast Audit:** Verified WCAG AA contrast ratio compliance (>= 4.5:1), visible keyboard focus rings, and prefers-reduced-motion media query transition disables.
+- **Release Documentation:** Authored `docs/V9_RETROSPECTIVE.md`, finalized `docs/MODES.md` and the `docs/design/` catalog, updated `docs/ROADMAP.md` and created `docs/v9/TUTORIAL_AUDIT.md`.
+
 ## [9.2.0] - 2026-05-31
 
 **v9.2 Tutorial Gap Audit + Authoring.** This release delivers a comprehensive educational surface audit and resolves tutorial coverage gaps across the entire platform. It introduces a database-backed, mode-aware curriculum filter, immersive skippable onboarding flows per focus mode, modular sliding parameter help drawers, and expanded scientific documentation.
