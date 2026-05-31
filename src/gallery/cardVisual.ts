@@ -7,7 +7,7 @@
 import { drawFrame } from '@/visual/canvas/draw';
 import type { LoopRing } from '@/visual';
 import { HARMONICS } from '@/types/audio';
-import { decodeState } from '@/share/encode';
+import { decodeState, type DecodedState } from '@/share/encode';
 import { DEFAULT_PARAMS } from '@/state/params';
 import { SCHEMA_VERSION } from '@/share/schema';
 import { SLOT_IDS } from '@/loop/types';
@@ -28,7 +28,10 @@ export function drawCardFrame(
   w: number,
   h: number,
 ): void {
-  const decoded = decodeState(SCHEMA_VERSION, payload) as any;
+  const decoded = decodeState(SCHEMA_VERSION, payload) as Extract<
+    DecodedState,
+    { kind: 'patch' }
+  >;
   const params = { ...DEFAULT_PARAMS, ...decoded.params };
   const count = Math.max(2, Math.round(params.density));
 

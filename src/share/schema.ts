@@ -1,7 +1,7 @@
 import { CONTROL_DEFS, type ParamKey } from '@/state/params';
 
 /** Schema version embedded in shared URLs as `#s=<version>:<payload>`. */
-export const SCHEMA_VERSION = 20;
+export const SCHEMA_VERSION = 21;
 
 /**
  * Schema versions this build can still decode. v1 predates engine state; v2
@@ -13,9 +13,10 @@ export const SCHEMA_VERSION = 20;
  * the additive + wavetable engines (`ad.*` / `wt.*`). A v6 `ph.model` of 0..2
  * still loads identically. v19 predates the optional breath-pacing pattern on
  * listening sessions (v20); a v19 session loads with no breath overlay.
+ * v20 predates sonifications (v21).
  */
 export const SUPPORTED_SCHEMA_VERSIONS: readonly number[] = [
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
 ];
 
 /** Param keys carried in shared URLs — everything sculptable except volume. */

@@ -26,7 +26,7 @@ export function getLatinSquareRow(N: number, subjectIndex: number): number[] {
   }
 
   for (let i = 0; i < N; i++) {
-    row.push((baseSequence[i] + shift) % N);
+    row.push((baseSequence[i]! + shift) % N);
   }
 
   return row;

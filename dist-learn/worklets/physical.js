@@ -1,0 +1,995 @@
+var It = Object.defineProperty;
+var Lt = (d, p, k) =>
+  p in d
+    ? It(d, p, { enumerable: !0, configurable: !0, writable: !0, value: k })
+    : (d[p] = k);
+var n = (d, p, k) => Lt(d, typeof p != 'symbol' ? p + '' : p, k);
+(function () {
+  'use strict';
+  class d {
+    constructor(t, s = 0.5, a = 0.5, e = Math.random) {
+      n(this, 'sampleRate');
+      n(this, 'lp', 0);
+      n(this, 'level');
+      n(this, 'coef');
+      n(this, 'rng');
+      ((this.sampleRate = t),
+        (this.level = s),
+        (this.coef = p(a, t)),
+        (this.rng = e));
+    }
+    setLevel(t) {
+      this.level = Math.max(0, t);
+    }
+    setBrightness(t) {
+      this.coef = p(t, this.sampleRate);
+    }
+    next() {
+      const t = this.rng() * 2 - 1;
+      return ((this.lp += this.coef * (t - this.lp)), this.lp * this.level);
+    }
+  }
+  function p(i, t) {
+    const s = Math.max(0, Math.min(1, i)),
+      a = 80 * Math.pow(160, s),
+      e = (2 * Math.PI * a) / t;
+    return Math.max(5e-4, Math.min(0.999, e / (e + 1)));
+  }
+  class k {
+    constructor(t, s = 110, a = 0.5, e = 0.5, o = 0.5, r = Math.random) {
+      n(this, 'sampleRate');
+      n(this, 'buf');
+      n(this, 'idx', 0);
+      n(this, 'delay');
+      n(this, 'lp', 0);
+      n(this, 'fb');
+      n(this, 'loopCoef');
+      n(this, 'exciter');
+      n(this, 'detuneCents', 0);
+      n(this, 'baseFreq');
+      ((this.sampleRate = t),
+        (this.baseFreq = s),
+        (this.buf = new Float32Array(Math.ceil(t / 20) + 4)),
+        (this.fb = y(a)),
+        (this.loopCoef = V(e)),
+        (this.delay = this.computeDelay()),
+        (this.exciter = new d(t, o, e, r)));
+    }
+    computeDelay() {
+      const t = this.baseFreq * Math.pow(2, this.detuneCents / 1200),
+        s = this.sampleRate / Math.max(20, t),
+        a = (2 * Math.PI * t) / this.sampleRate,
+        e = this.loopCoef,
+        o = Math.atan2((1 - e) * Math.sin(a), 1 - (1 - e) * Math.cos(a)),
+        r = a > 0 ? o / a : (1 - e) / e,
+        h = s - r;
+      return Math.max(2, Math.min(this.buf.length - 3, h));
+    }
+    setFrequency(t) {
+      ((this.baseFreq = t), (this.delay = this.computeDelay()));
+    }
+    setDetuneCents(t) {
+      ((this.detuneCents = t), (this.delay = this.computeDelay()));
+    }
+    setDamping(t) {
+      this.fb = y(t);
+    }
+    setBrightness(t) {
+      ((this.loopCoef = V(t)),
+        this.exciter.setBrightness(t),
+        (this.delay = this.computeDelay()));
+    }
+    setExcitation(t) {
+      this.exciter.setLevel(t);
+    }
+    next() {
+      const t = this.buf.length,
+        s = (this.idx - this.delay + t) % t,
+        a = Math.floor(s),
+        e = s - a,
+        o = this.buf[(a - 1 + t) % t] ?? 0,
+        r = this.buf[a] ?? 0,
+        h = this.buf[(a + 1) % t] ?? 0,
+        c = this.buf[(a + 2) % t] ?? 0,
+        u = (-e * (e - 1) * (e - 2)) / 6,
+        f = ((e + 1) * (e - 1) * (e - 2)) / 2,
+        m = (-(e + 1) * e * (e - 2)) / 2,
+        g = ((e + 1) * e * (e - 1)) / 6,
+        b = u * o + f * r + m * h + g * c;
+      this.lp += this.loopCoef * (b - this.lp);
+      const R = this.lp * this.fb;
+      return (
+        (this.buf[this.idx] = R + this.exciter.next()),
+        (this.idx = (this.idx + 1) % t),
+        b
+      );
+    }
+    render(t) {
+      for (let s = 0; s < t.length; s++) t[s] = this.next();
+    }
+  }
+  function y(i) {
+    return 0.999 - Math.max(0, Math.min(1, i)) * 0.06;
+  }
+  function V(i) {
+    return 0.2 + Math.max(0, Math.min(1, i)) * 0.79;
+  }
+  class X extends AudioWorkletProcessor {
+    constructor() {
+      super(...arguments);
+      n(this, 'dsp', new k(sampleRate));
+    }
+    static get parameterDescriptors() {
+      return [
+        { name: 'f0', defaultValue: 110, automationRate: 'k-rate' },
+        { name: 'excitation', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'damping', defaultValue: 0.4, automationRate: 'k-rate' },
+        { name: 'brightness', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+      ];
+    }
+    process(s, a, e) {
+      const o = a[0]?.[0];
+      return (
+        o &&
+          (this.dsp.setFrequency(e.f0?.[0] ?? 110),
+          this.dsp.setDetuneCents(e.detune?.[0] ?? 0),
+          this.dsp.setDamping(e.damping?.[0] ?? 0.4),
+          this.dsp.setBrightness(e.brightness?.[0] ?? 0.5),
+          this.dsp.setExcitation(e.excitation?.[0] ?? 0.5),
+          this.dsp.render(o)),
+        !0
+      );
+    }
+  }
+  registerProcessor('string-processor', X);
+  class Z {
+    constructor(
+      t,
+      s = 110,
+      a = 0.5,
+      e = 0.5,
+      o = 0.5,
+      r = 0.5,
+      h = Math.random,
+    ) {
+      n(this, 'sampleRate');
+      n(this, 'fwd');
+      n(this, 'bwd');
+      n(this, 'idx', 0);
+      n(this, 'len');
+      n(this, 'bore', 0);
+      n(this, 'loopCoef');
+      n(this, 'fb');
+      n(this, 'reedK');
+      n(this, 'breath');
+      n(this, 'baseFreq');
+      n(this, 'detuneCents', 0);
+      n(this, 'cap');
+      ((this.sampleRate = t),
+        (this.baseFreq = s),
+        (this.cap = Math.ceil(t / (2 * 20)) + 4),
+        (this.fwd = new Float32Array(this.cap)),
+        (this.bwd = new Float32Array(this.cap)),
+        (this.len = this.computeLen()),
+        (this.fb = F(a)),
+        (this.loopCoef = D(e)),
+        (this.reedK = A(r)),
+        (this.breath = new d(t, o, e, h)));
+    }
+    computeLen() {
+      const t = this.baseFreq * Math.pow(2, this.detuneCents / 1200),
+        s = this.sampleRate / (2 * Math.max(20, t));
+      return Math.max(2, Math.min(this.cap - 1, Math.floor(s)));
+    }
+    setFrequency(t) {
+      ((this.baseFreq = t), (this.len = this.computeLen()));
+    }
+    setDetuneCents(t) {
+      ((this.detuneCents = t), (this.len = this.computeLen()));
+    }
+    setDamping(t) {
+      this.fb = F(t);
+    }
+    setBrightness(t) {
+      ((this.loopCoef = D(t)), this.breath.setBrightness(t));
+    }
+    setExcitation(t) {
+      this.breath.setLevel(t);
+    }
+    setReed(t) {
+      this.reedK = A(t);
+    }
+    next() {
+      const t = (this.idx - this.len + this.cap) % this.cap,
+        s = this.idx % this.cap,
+        a = this.fwd[t] ?? 0,
+        e = this.bwd[s] ?? 0,
+        r = 0.3 + this.breath.next() - e,
+        h = Math.max(0, Math.min(1, 1 - this.reedK * r)),
+        c = e + r * h;
+      this.bore += this.loopCoef * (a - this.bore);
+      const u = -this.bore * this.fb;
+      return (
+        (this.fwd[this.idx % this.cap] = c),
+        (this.bwd[t] = u),
+        (this.idx = (this.idx + 1) % this.cap),
+        (a + e) * 0.5
+      );
+    }
+    render(t) {
+      for (let s = 0; s < t.length; s++) t[s] = this.next();
+    }
+  }
+  function F(i) {
+    return 0.995 - Math.max(0, Math.min(1, i)) * 0.08;
+  }
+  function D(i) {
+    return 0.15 + Math.max(0, Math.min(1, i)) * 0.8;
+  }
+  function A(i) {
+    return 0.5 + Math.max(0, Math.min(1, i)) * 2.5;
+  }
+  class tt extends AudioWorkletProcessor {
+    constructor() {
+      super(...arguments);
+      n(this, 'dsp', new Z(sampleRate));
+    }
+    static get parameterDescriptors() {
+      return [
+        { name: 'f0', defaultValue: 110, automationRate: 'k-rate' },
+        { name: 'excitation', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'damping', defaultValue: 0.4, automationRate: 'k-rate' },
+        { name: 'brightness', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'reed', defaultValue: 0.5, automationRate: 'k-rate' },
+      ];
+    }
+    process(s, a, e) {
+      const o = a[0]?.[0];
+      return (
+        o &&
+          (this.dsp.setFrequency(e.f0?.[0] ?? 110),
+          this.dsp.setDetuneCents(e.detune?.[0] ?? 0),
+          this.dsp.setDamping(e.damping?.[0] ?? 0.4),
+          this.dsp.setBrightness(e.brightness?.[0] ?? 0.5),
+          this.dsp.setExcitation(e.excitation?.[0] ?? 0.5),
+          this.dsp.setReed(e.reed?.[0] ?? 0.5),
+          this.dsp.render(o)),
+        !0
+      );
+    }
+  }
+  registerProcessor('tube-processor', tt);
+  const I = (i) => Math.max(0, Math.min(1, i)),
+    L = (i, t, s, a) => Math.pow(1 - 0.9 * (1 - I(a)), i);
+  class w {
+    constructor(t) {
+      n(this, 'sampleRate');
+      n(this, 'modes');
+      n(this, 'exciter');
+      n(this, 'eigen');
+      n(this, 'gainFn');
+      n(this, 'count');
+      n(this, 'baseFreq');
+      n(this, 'detuneCents', 0);
+      n(this, 'damping');
+      n(this, 'brightness');
+      n(this, 'shape1');
+      n(this, 'shape2');
+      const {
+        sampleRate: s,
+        eigen: a,
+        f0: e = 110,
+        damping: o = 0.5,
+        brightness: r = 0.5,
+        excitation: h = 0.5,
+        shape1: c = 0.5,
+        shape2: u = 0.5,
+        rng: f = Math.random,
+        modeCount: m,
+        exciter: g,
+        gainFn: b = L,
+      } = t;
+      ((this.sampleRate = s),
+        (this.eigen = a),
+        (this.gainFn = b),
+        (this.baseFreq = e),
+        (this.damping = o),
+        (this.brightness = r),
+        (this.shape1 = c),
+        (this.shape2 = u),
+        (this.count = Math.max(1, m)),
+        (this.exciter = g ?? new d(s, h, r, f)),
+        (this.modes = Array.from({ length: this.count }, () => ({
+          b0: 0,
+          b1: 0,
+          b2: 0,
+          a1: 0,
+          a2: 0,
+          z1: 0,
+          z2: 0,
+          gain: 1,
+        }))),
+        this.retune(),
+        this.recomputeGains());
+    }
+    eigenFreq(t) {
+      return (
+        this.baseFreq *
+        Math.pow(2, this.detuneCents / 1200) *
+        this.eigen(t, this.shape1, this.shape2)
+      );
+    }
+    retune() {
+      const t = 8 + (1 - I(this.damping)) * 240;
+      for (let s = 0; s < this.count; s++) {
+        const a = this.modes[s];
+        a && et(a, this.eigenFreq(s), t, this.sampleRate);
+      }
+    }
+    recomputeGains() {
+      for (let t = 0; t < this.count; t++) {
+        const s = this.modes[t];
+        s &&
+          (s.gain = this.gainFn(t, this.shape1, this.shape2, this.brightness));
+      }
+    }
+    setFrequency(t) {
+      ((this.baseFreq = t), this.retune());
+    }
+    setDetuneCents(t) {
+      ((this.detuneCents = t), this.retune());
+    }
+    setDamping(t) {
+      ((this.damping = t), this.retune());
+    }
+    setBrightness(t) {
+      ((this.brightness = t),
+        this.exciter.setBrightness(t),
+        this.recomputeGains());
+    }
+    setExcitation(t) {
+      this.exciter.setLevel(t);
+    }
+    setShape1(t) {
+      ((this.shape1 = t), this.retune(), this.recomputeGains());
+    }
+    setShape2(t) {
+      ((this.shape2 = t), this.retune(), this.recomputeGains());
+    }
+    next() {
+      const t = this.exciter.next();
+      let s = 0;
+      for (let a = 0; a < this.count; a++) {
+        const e = this.modes[a];
+        if (!e) continue;
+        const o = e.b0 * t + e.z1;
+        ((e.z1 = e.b1 * t - e.a1 * o + e.z2),
+          (e.z2 = e.b2 * t - e.a2 * o),
+          (s += o * e.gain));
+      }
+      return s / Math.sqrt(this.count);
+    }
+    render(t) {
+      for (let s = 0; s < t.length; s++) t[s] = this.next();
+    }
+  }
+  function et(i, t, s, a) {
+    const e = Math.max(20, Math.min(a * 0.45, t)),
+      o = (2 * Math.PI * e) / a,
+      r = Math.sin(o) / (2 * s),
+      h = Math.cos(o),
+      c = 1 + r;
+    ((i.b0 = r / c),
+      (i.b1 = 0),
+      (i.b2 = -r / c),
+      (i.a1 = (-2 * h) / c),
+      (i.a2 = (1 - r) / c));
+  }
+  const st = 20,
+    T = (i, t) => Math.sqrt(1 + Math.max(0, Math.min(1, t)) * 0.12 * i * i);
+  class at extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      n(this, 'dsp', new w({ sampleRate, eigen: T, modeCount: st }));
+      this.port.onmessage = (s) => {
+        const a = s.data;
+        typeof a?.modes == 'number' &&
+          (this.dsp = new w({ sampleRate, eigen: T, modeCount: a.modes }));
+      };
+    }
+    static get parameterDescriptors() {
+      return [
+        { name: 'f0', defaultValue: 110, automationRate: 'k-rate' },
+        { name: 'excitation', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'damping', defaultValue: 0.4, automationRate: 'k-rate' },
+        { name: 'brightness', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'inharm', defaultValue: 0.5, automationRate: 'k-rate' },
+      ];
+    }
+    process(s, a, e) {
+      const o = a[0]?.[0];
+      return (
+        o &&
+          (this.dsp.setFrequency(e.f0?.[0] ?? 110),
+          this.dsp.setDetuneCents(e.detune?.[0] ?? 0),
+          this.dsp.setDamping(e.damping?.[0] ?? 0.4),
+          this.dsp.setBrightness(e.brightness?.[0] ?? 0.5),
+          this.dsp.setExcitation(e.excitation?.[0] ?? 0.5),
+          this.dsp.setShape1(e.inharm?.[0] ?? 0.5),
+          this.dsp.render(o)),
+        !0
+      );
+    }
+  }
+  registerProcessor('plate-processor', at);
+  const nt = 12,
+    it = [
+      1, 1.594, 2.136, 2.296, 2.653, 2.918, 3.156, 3.501, 3.6, 3.652, 4.06,
+      4.154,
+    ],
+    j = (i) => Math.max(0, Math.min(1, i)),
+    ot = (i, t, s) => {
+      const a = it[i] ?? i + 1,
+        e = 0.5 + j(t) * 1.5,
+        o = 1 + (a - 1) * e,
+        r = i + 1,
+        h = j(s);
+      return o * (1 - h) + r * h;
+    };
+  function N(i, t = nt) {
+    return new w({ sampleRate: i, eigen: ot, modeCount: t });
+  }
+  class rt extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      n(this, 'dsp', N(sampleRate));
+      this.port.onmessage = (s) => {
+        const a = s.data;
+        typeof a?.modes == 'number' && (this.dsp = N(sampleRate, a.modes));
+      };
+    }
+    static get parameterDescriptors() {
+      return [
+        { name: 'f0', defaultValue: 110, automationRate: 'k-rate' },
+        { name: 'excitation', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'damping', defaultValue: 0.4, automationRate: 'k-rate' },
+        { name: 'brightness', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'reed', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'inharm', defaultValue: 0.5, automationRate: 'k-rate' },
+      ];
+    }
+    process(s, a, e) {
+      const o = a[0]?.[0];
+      return (
+        o &&
+          (this.dsp.setFrequency(e.f0?.[0] ?? 110),
+          this.dsp.setDetuneCents(e.detune?.[0] ?? 0),
+          this.dsp.setDamping(e.damping?.[0] ?? 0.4),
+          this.dsp.setBrightness(e.brightness?.[0] ?? 0.5),
+          this.dsp.setExcitation(e.excitation?.[0] ?? 0.5),
+          this.dsp.setShape1(e.reed?.[0] ?? 0.5),
+          this.dsp.setShape2(e.inharm?.[0] ?? 0.5),
+          this.dsp.render(o)),
+        !0
+      );
+    }
+  }
+  registerProcessor('membrane-processor', rt);
+  const O = (i) => Math.max(0, Math.min(1, i));
+  class ht {
+    constructor(t, s = 110, a = 0.5, e = 0.5, o = 0.5, r = 0.5, h = 0.5) {
+      n(this, 'sampleRate');
+      n(this, 'buf');
+      n(this, 'idx', 0);
+      n(this, 'delay');
+      n(this, 'lp', 0);
+      n(this, 'fb');
+      n(this, 'loopCoef');
+      n(this, 'baseFreq');
+      n(this, 'detuneCents', 0);
+      n(this, 'level');
+      n(this, 'knee');
+      n(this, 'vb');
+      ((this.sampleRate = t),
+        (this.baseFreq = s),
+        (this.buf = new Float32Array(Math.ceil(t / 20) + 4)),
+        (this.fb = y(a)),
+        (this.loopCoef = V(e)),
+        (this.delay = this.computeDelay()),
+        (this.level = Math.max(0, o)),
+        (this.knee = G(r)),
+        (this.vb = W(h)));
+    }
+    computeDelay() {
+      const t = this.baseFreq * Math.pow(2, this.detuneCents / 1200),
+        s = this.sampleRate / Math.max(20, t),
+        a = (2 * Math.PI * t) / this.sampleRate,
+        e = this.loopCoef,
+        o = Math.atan2((1 - e) * Math.sin(a), 1 - (1 - e) * Math.cos(a)),
+        r = a > 0 ? o / a : (1 - e) / e,
+        h = s - r;
+      return Math.max(2, Math.min(this.buf.length - 3, h));
+    }
+    setFrequency(t) {
+      ((this.baseFreq = t), (this.delay = this.computeDelay()));
+    }
+    setDetuneCents(t) {
+      ((this.detuneCents = t), (this.delay = this.computeDelay()));
+    }
+    setDamping(t) {
+      this.fb = y(t);
+    }
+    setBrightness(t) {
+      ((this.loopCoef = V(t)), (this.delay = this.computeDelay()));
+    }
+    setExcitation(t) {
+      this.level = Math.max(0, t);
+    }
+    setBowPressure(t) {
+      this.knee = G(t);
+    }
+    setBowVelocity(t) {
+      this.vb = W(t);
+    }
+    next() {
+      const t = this.buf.length,
+        s = (this.idx - this.delay + t) % t,
+        a = Math.floor(s),
+        e = s - a,
+        o = this.buf[(a - 1 + t) % t] ?? 0,
+        r = this.buf[a] ?? 0,
+        h = this.buf[(a + 1) % t] ?? 0,
+        c = this.buf[(a + 2) % t] ?? 0,
+        u = (-e * (e - 1) * (e - 2)) / 6,
+        f = ((e + 1) * (e - 1) * (e - 2)) / 2,
+        m = (-(e + 1) * e * (e - 2)) / 2,
+        g = ((e + 1) * e * (e - 1)) / 6,
+        b = u * o + f * r + m * h + g * c,
+        R = this.vb - b,
+        P = (R >= 0 ? 1 : -1) * (this.knee / (this.knee + Math.abs(R))),
+        C = this.level * P * 0.5;
+      return (
+        (this.lp += this.loopCoef * (b + C - this.lp)),
+        (this.buf[this.idx] = Math.tanh(this.lp * this.fb)),
+        (this.idx = (this.idx + 1) % t),
+        b
+      );
+    }
+    render(t) {
+      for (let s = 0; s < t.length; s++) t[s] = this.next();
+    }
+  }
+  function G(i) {
+    return 0.1 + O(i) * 0.6;
+  }
+  function W(i) {
+    return 0.05 + O(i) * 0.35;
+  }
+  class ct extends AudioWorkletProcessor {
+    constructor() {
+      super(...arguments);
+      n(this, 'dsp', new ht(sampleRate));
+    }
+    static get parameterDescriptors() {
+      return [
+        { name: 'f0', defaultValue: 110, automationRate: 'k-rate' },
+        { name: 'excitation', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'damping', defaultValue: 0.4, automationRate: 'k-rate' },
+        { name: 'brightness', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'reed', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'inharm', defaultValue: 0.5, automationRate: 'k-rate' },
+      ];
+    }
+    process(s, a, e) {
+      const o = a[0]?.[0];
+      return (
+        o &&
+          (this.dsp.setFrequency(e.f0?.[0] ?? 110),
+          this.dsp.setDetuneCents(e.detune?.[0] ?? 0),
+          this.dsp.setDamping(e.damping?.[0] ?? 0.4),
+          this.dsp.setBrightness(e.brightness?.[0] ?? 0.5),
+          this.dsp.setExcitation(e.excitation?.[0] ?? 0.5),
+          this.dsp.setBowPressure(e.reed?.[0] ?? 0.5),
+          this.dsp.setBowVelocity(e.inharm?.[0] ?? 0.5),
+          this.dsp.render(o)),
+        !0
+      );
+    }
+  }
+  registerProcessor('bowed-processor', ct);
+  const ut = 6,
+    lt = [1, 3.984, 9.41, 15.6, 22, 29],
+    z = (i) => Math.max(0, Math.min(1, i)),
+    dt = (i, t) => {
+      const s = lt[i] ?? i + 1,
+        a = 0.85 + z(t) * 0.3;
+      return Math.pow(s, a);
+    };
+  function mt(i) {
+    return 1 + z(i) * 7;
+  }
+  class pt {
+    constructor(t, s = 0.5, a = 0.5, e = Math.random) {
+      n(this, 'noise');
+      n(this, 'sampleRate');
+      n(this, 'phase', 0);
+      n(this, 'rate', 4);
+      n(this, 'floor', 0.25);
+      ((this.sampleRate = t), (this.noise = new d(t, s, a, e)));
+    }
+    setRate(t) {
+      this.rate = Math.max(0.1, t);
+    }
+    setLevel(t) {
+      this.noise.setLevel(t);
+    }
+    setBrightness(t) {
+      this.noise.setBrightness(t);
+    }
+    next() {
+      ((this.phase += (2 * Math.PI * this.rate) / this.sampleRate),
+        this.phase > 2 * Math.PI && (this.phase -= 2 * Math.PI));
+      const t =
+        this.floor + (1 - this.floor) * (0.5 + 0.5 * Math.sin(this.phase));
+      return this.noise.next() * t;
+    }
+  }
+  function J(i, t = ut) {
+    const s = new pt(i);
+    return {
+      bank: new w({ sampleRate: i, eigen: dt, exciter: s, modeCount: t }),
+      exciter: s,
+    };
+  }
+  class ft extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      n(this, 'bank');
+      n(this, 'exciter');
+      const s = J(sampleRate);
+      ((this.bank = s.bank),
+        (this.exciter = s.exciter),
+        (this.port.onmessage = (a) => {
+          const e = a.data;
+          if (typeof e?.modes == 'number') {
+            const o = J(sampleRate, e.modes);
+            ((this.bank = o.bank), (this.exciter = o.exciter));
+          }
+        }));
+    }
+    static get parameterDescriptors() {
+      return [
+        { name: 'f0', defaultValue: 110, automationRate: 'k-rate' },
+        { name: 'excitation', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'damping', defaultValue: 0.4, automationRate: 'k-rate' },
+        { name: 'brightness', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'reed', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'inharm', defaultValue: 0.5, automationRate: 'k-rate' },
+      ];
+    }
+    process(s, a, e) {
+      const o = a[0]?.[0];
+      return (
+        o &&
+          (this.bank.setFrequency(e.f0?.[0] ?? 110),
+          this.bank.setDetuneCents(e.detune?.[0] ?? 0),
+          this.bank.setDamping(e.damping?.[0] ?? 0.4),
+          this.bank.setBrightness(e.brightness?.[0] ?? 0.5),
+          this.bank.setExcitation(e.excitation?.[0] ?? 0.5),
+          this.bank.setShape1(e.inharm?.[0] ?? 0.5),
+          this.exciter.setRate(mt(e.reed?.[0] ?? 0.5)),
+          this.bank.render(o)),
+        !0
+      );
+    }
+  }
+  registerProcessor('mallet-processor', ft);
+  const B = (i) => Math.max(0, Math.min(1, i)),
+    bt = 3;
+  class gt {
+    constructor(
+      t,
+      s = 110,
+      a = 0.5,
+      e = 0.5,
+      o = 0.5,
+      r = 0.5,
+      h = 0.5,
+      c = Math.random,
+    ) {
+      n(this, 'sampleRate');
+      n(this, 'cap');
+      n(this, 'fwd');
+      n(this, 'bwd');
+      n(this, 'jetBuf');
+      n(this, 'idx', 0);
+      n(this, 'jetIdx', 0);
+      n(this, 'jetLen', 1);
+      n(this, 'len');
+      n(this, 'bore', 0);
+      n(this, 'loopCoef');
+      n(this, 'fb');
+      n(this, 'vj');
+      n(this, 'breathiness');
+      n(this, 'level');
+      n(this, 'breath');
+      n(this, 'baseFreq');
+      n(this, 'detuneCents', 0);
+      ((this.sampleRate = t),
+        (this.baseFreq = s),
+        (this.cap = Math.ceil(t / (2 * 20)) + 4),
+        (this.fwd = new Float32Array(this.cap)),
+        (this.bwd = new Float32Array(this.cap)),
+        (this.jetBuf = new Float32Array(this.cap)),
+        (this.len = this.computeLen()),
+        (this.loopCoef = D(e)),
+        (this.fb = F(a)),
+        (this.vj = K(r)),
+        (this.breathiness = B(h)),
+        (this.level = Math.max(0, o)),
+        (this.breath = new d(t, o, e, c)),
+        this.updateJetDelay(r));
+    }
+    computeLen() {
+      const t = this.baseFreq * Math.pow(2, this.detuneCents / 1200),
+        s = this.sampleRate / (2 * Math.max(20, t));
+      return Math.max(2, Math.min(this.cap - 1, Math.floor(s)));
+    }
+    updateJetDelay(t) {
+      const s = 0.5 - B(t) * 0.4;
+      this.jetLen = Math.max(
+        1,
+        Math.min(this.cap - 1, Math.floor(this.len * s)),
+      );
+    }
+    setFrequency(t) {
+      ((this.baseFreq = t), (this.len = this.computeLen()));
+    }
+    setDetuneCents(t) {
+      ((this.detuneCents = t), (this.len = this.computeLen()));
+    }
+    setDamping(t) {
+      this.fb = F(t);
+    }
+    setBrightness(t) {
+      ((this.loopCoef = D(t)), this.breath.setBrightness(t));
+    }
+    setExcitation(t) {
+      ((this.level = Math.max(0, t)), this.breath.setLevel(t));
+    }
+    setJetVelocity(t) {
+      ((this.vj = K(t)), this.updateJetDelay(t));
+    }
+    setBreathiness(t) {
+      this.breathiness = B(t);
+    }
+    next() {
+      const t = (this.idx - this.len + this.cap) % this.cap,
+        s = this.fwd[t] ?? 0,
+        a = this.bwd[this.idx] ?? 0,
+        e = this.jetBuf[this.jetIdx] ?? 0;
+      ((this.jetBuf[this.jetIdx] = a),
+        (this.jetIdx = (this.jetIdx + 1) % this.jetLen));
+      const o = this.level * this.vj * Math.tanh(bt * e),
+        r = this.breath.next() * this.breathiness,
+        h = a * 0.5 + o + r;
+      this.bore += this.loopCoef * (s - this.bore);
+      const c = -this.bore * this.fb;
+      return (
+        (this.fwd[this.idx % this.cap] = h),
+        (this.bwd[t] = c),
+        (this.idx = (this.idx + 1) % this.cap),
+        (s + a) * 0.5
+      );
+    }
+    render(t) {
+      for (let s = 0; s < t.length; s++) t[s] = this.next();
+    }
+  }
+  function K(i) {
+    return 0.1 + B(i) * 0.9;
+  }
+  class xt extends AudioWorkletProcessor {
+    constructor() {
+      super(...arguments);
+      n(this, 'dsp', new gt(sampleRate));
+    }
+    static get parameterDescriptors() {
+      return [
+        { name: 'f0', defaultValue: 110, automationRate: 'k-rate' },
+        { name: 'excitation', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'damping', defaultValue: 0.4, automationRate: 'k-rate' },
+        { name: 'brightness', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'reed', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'inharm', defaultValue: 0.5, automationRate: 'k-rate' },
+      ];
+    }
+    process(s, a, e) {
+      const o = a[0]?.[0];
+      return (
+        o &&
+          (this.dsp.setFrequency(e.f0?.[0] ?? 110),
+          this.dsp.setDetuneCents(e.detune?.[0] ?? 0),
+          this.dsp.setDamping(e.damping?.[0] ?? 0.4),
+          this.dsp.setBrightness(e.brightness?.[0] ?? 0.5),
+          this.dsp.setExcitation(e.excitation?.[0] ?? 0.5),
+          this.dsp.setJetVelocity(e.reed?.[0] ?? 0.5),
+          this.dsp.setBreathiness(e.inharm?.[0] ?? 0.5),
+          this.dsp.render(o)),
+        !0
+      );
+    }
+  }
+  registerProcessor('edge-processor', xt);
+  const Mt = 9,
+    kt = [0.5, 1, 1.2, 1.5, 2, 2.5, 2.6, 3, 4.2],
+    $ = (i) => Math.max(0, Math.min(1, i)),
+    Rt = (i, t) => {
+      const s = kt[i] ?? i + 1,
+        a = 1 + $(t) * 0.3;
+      return Math.pow(s, a);
+    },
+    wt = (i, t, s, a) => L(i, t, s, a) * Math.pow(0.6, i * $(s));
+  function Y(i, t = Mt) {
+    return new w({ sampleRate: i, eigen: Rt, gainFn: wt, modeCount: t });
+  }
+  class yt extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      n(this, 'dsp', Y(sampleRate));
+      this.port.onmessage = (s) => {
+        const a = s.data;
+        typeof a?.modes == 'number' && (this.dsp = Y(sampleRate, a.modes));
+      };
+    }
+    static get parameterDescriptors() {
+      return [
+        { name: 'f0', defaultValue: 110, automationRate: 'k-rate' },
+        { name: 'excitation', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'damping', defaultValue: 0.4, automationRate: 'k-rate' },
+        { name: 'brightness', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'reed', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'inharm', defaultValue: 0.5, automationRate: 'k-rate' },
+      ];
+    }
+    process(s, a, e) {
+      const o = a[0]?.[0];
+      return (
+        o &&
+          (this.dsp.setFrequency(e.f0?.[0] ?? 110),
+          this.dsp.setDetuneCents(e.detune?.[0] ?? 0),
+          this.dsp.setDamping(e.damping?.[0] ?? 0.4),
+          this.dsp.setBrightness(e.brightness?.[0] ?? 0.5),
+          this.dsp.setExcitation(e.excitation?.[0] ?? 0.5),
+          this.dsp.setShape1(e.inharm?.[0] ?? 0.5),
+          this.dsp.setShape2(e.reed?.[0] ?? 0.5),
+          this.dsp.render(o)),
+        !0
+      );
+    }
+  }
+  registerProcessor('bell-processor', yt);
+  const Vt = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5],
+    Ft = [0.25, 0.5, 1, 2, 4, 3],
+    Dt = [1, 2, 4, 8, 16, 12];
+  class Bt extends AudioWorkletProcessor {
+    constructor() {
+      super();
+      n(this, 'currentSampleCount', 0);
+      n(this, 'nextStrikeSample', 0);
+      n(this, 'strikeIndex', 0);
+      n(this, 'phases', new Float32Array(8));
+      n(this, 'envelopes', new Float32Array(8));
+      n(this, 'partialGains', new Float32Array(8));
+      n(this, 'noiseEnvelope', 0);
+      n(this, 'noiseFilterState', 0);
+      for (let s = 0; s < 8; s++) this.partialGains[s] = 1 / (s + 1);
+    }
+    static get parameterDescriptors() {
+      return [
+        { name: 'f0', defaultValue: 110, automationRate: 'k-rate' },
+        { name: 'tempoBpm', defaultValue: 60, automationRate: 'k-rate' },
+        { name: 'tempoSet', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'density', defaultValue: 2, automationRate: 'k-rate' },
+        { name: 'accent', defaultValue: 1, automationRate: 'k-rate' },
+        { name: 'tone', defaultValue: 0.5, automationRate: 'k-rate' },
+        { name: 'swing', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'humanize', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'detune', defaultValue: 0, automationRate: 'k-rate' },
+        { name: 'spread', defaultValue: 1, automationRate: 'k-rate' },
+        { name: 'densityVal', defaultValue: 6, automationRate: 'k-rate' },
+      ];
+    }
+    triggerStrike(s, a) {
+      const e = s ? 1.6 : 0.8;
+      for (let o = 0; o < 8; o++)
+        if (o < a) {
+          const r = this.partialGains[o] ?? 0;
+          this.envelopes[o] = r * e;
+        } else this.envelopes[o] = 0;
+      this.noiseEnvelope = 0.5 * e;
+    }
+    calculateNextStrike(s, a, e, o) {
+      const r = Ft[Math.max(0, Math.min(5, Math.round(a)))] ?? 1,
+        c = (sampleRate * (60 / Math.max(10, s))) / r,
+        u = this.strikeIndex * c;
+      let f = 0;
+      r >= 2 && this.strikeIndex % 2 === 1 && (f = e * (c / 3));
+      const m = sampleRate * 0.015,
+        g = (Math.random() * 2 - 1) * o * m;
+      this.nextStrikeSample = Math.round(u + f + g);
+    }
+    process(s, a, e) {
+      const o = a[0]?.[0];
+      if (!o) return !0;
+      const r = e.f0?.[0] ?? 110,
+        h = e.tempoBpm?.[0] ?? 60,
+        c = e.tempoSet?.[0] ?? 0,
+        u = e.density?.[0] ?? 2,
+        f = e.accent?.[0] ?? 1,
+        m = e.tone?.[0] ?? 0.5,
+        g = e.swing?.[0] ?? 0,
+        b = e.humanize?.[0] ?? 0,
+        R = e.detune?.[0] ?? 0,
+        P = e.spread?.[0] ?? 1,
+        C = Math.round(e.densityVal?.[0] ?? 6),
+        Ct = o.length,
+        St = (1 - m * 0.8) * 0.35,
+        Pt = (1 - m * 0.5) * 0.06,
+        vt = 150 + m * 7350,
+        qt = (2 * Math.PI * vt) / sampleRate,
+        H = new Float32Array(8),
+        Q = new Float32Array(8);
+      for (let x = 0; x < 8; x++) {
+        const v = Vt[x] ?? 1,
+          S = r * Math.pow(v, P) * Math.pow(2, R / 1200);
+        H[x] = S;
+        const E = St * (1 / v);
+        Q[x] = Math.exp(-1 / (sampleRate * Math.max(0.01, E)));
+      }
+      const Et = Math.exp(-1 / (sampleRate * Math.max(0.005, Pt)));
+      for (let x = 0; x < Ct; x++) {
+        if (this.currentSampleCount >= this.nextStrikeSample) {
+          const l = Dt[Math.max(0, Math.min(5, Math.round(u)))] ?? 4,
+            M = this.strikeIndex % l === 0;
+          (this.triggerStrike(M && f === 1, C),
+            this.strikeIndex++,
+            this.calculateNextStrike(h, u, g, b));
+        }
+        let q = 0;
+        for (let l = 0; l < 8; l++)
+          if (l < C) {
+            const M = this.envelopes[l] ?? 0;
+            if (M > 1e-4) {
+              const U = this.phases[l] ?? 0,
+                _t = H[l] ?? 0;
+              q += Math.sin(U) * M;
+              let _ = U + (2 * Math.PI * _t) / sampleRate;
+              (_ > 2 * Math.PI && (_ -= 2 * Math.PI), (this.phases[l] = _));
+              const At = Q[l] ?? 0.99;
+              this.envelopes[l] = M * At;
+            }
+          }
+        let S = 0;
+        if (this.noiseEnvelope > 1e-4) {
+          const M = (Math.random() * 2 - 1) * this.noiseEnvelope;
+          ((this.noiseFilterState += qt * (M - this.noiseFilterState)),
+            (S = this.noiseFilterState),
+            (this.noiseEnvelope *= Et));
+        }
+        const E = c === 1 ? 1 : 0;
+        ((o[x] = (q * 0.35 + S * 0.2) * E), this.currentSampleCount++);
+      }
+      return !0;
+    }
+  }
+  registerProcessor('pulse-processor', Bt);
+})();

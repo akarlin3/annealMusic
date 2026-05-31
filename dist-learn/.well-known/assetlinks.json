@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "org.averykarlin.anneal",
+      "sha256_cert_fingerprints": [
+        "FA:C6:17:45:DC:9B:03:7E:21:56:88:B3:26:FA:C6:17:45:DC:9B:03:7E:21:56:88:B3:26:FA:C6:17:45"
+      ]
+    }
+  }
+]

@@ -16,6 +16,7 @@ export default tseslint.config(
       'ios',
       'android',
       'node_modules',
+      'tools/cli/dist',
     ],
   },
   {

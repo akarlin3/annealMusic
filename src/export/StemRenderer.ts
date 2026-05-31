@@ -32,7 +32,8 @@ import {
 } from '@/audio/analysis/spectrum';
 import { writeJSONL } from '@/datalog/writers/jsonl';
 import { writeCSV } from '@/datalog/writers/csv';
-import * as path from 'node:path';
+import { SonificationPlayer } from '@/sonification/SonificationPlayer';
+import type { MappingSpec } from '@/sonification/types';
 
 function resolveNestedConfigVariations(
   config: Record<string, any>,
@@ -83,9 +84,10 @@ export interface StemRenderConfig {
   loopConfig: LoopConfigMap;
   loopBuffers: Record<SlotId, AudioBuffer | null>;
   loopStates: Record<SlotId, SlotState>;
-  mode: 'open' | 'arc' | 'piece' | 'listening-session';
+  mode: 'open' | 'arc' | 'piece' | 'listening-session' | 'sonification';
   piece?: Piece;
   arcId?: string;
+  sonificationSpec?: MappingSpec;
   listeningSession?: {
     settleInMs: number;
     integrationMs: number;
@@ -702,6 +704,17 @@ export async function renderStemsOffline(
         );
       }
     }
+
+    let sonificationPlayer: SonificationPlayer | null = null;
+    if (config.mode === 'sonification' && config.sonificationSpec) {
+      sonificationPlayer = new SonificationPlayer(
+        config.sonificationSpec,
+        config.durationSec * 1000,
+        1.0,
+        false,
+      );
+    }
+
     const live: SharedParams = { ...config.params };
 
     // Register offline suspensions
@@ -752,6 +765,20 @@ export async function renderStemsOffline(
           if (stem.isFx && stemOutputNode) {
             const filter = stemOutputNode as BiquadFilterNode;
             filter.frequency.setValueAtTime(cutoffFor(live.brightness), t);
+          }
+        } else if (config.mode === 'sonification' && sonificationPlayer) {
+          const stateFrame = sonificationPlayer.resolveStateAt(t);
+          if (Object.keys(stateFrame.params).length > 0) {
+            Object.assign(live, stateFrame.params);
+            activeEngine?.setSharedParams(stateFrame.params);
+            if (stem.isFx && stemOutputNode) {
+              const filter = stemOutputNode as BiquadFilterNode;
+              filter.frequency.setValueAtTime(cutoffFor(live.brightness), t);
+            }
+          }
+          const engineUpdates = stateFrame.engineParams[config.engineId];
+          if (engineUpdates && activeEngine) {
+            activeEngine.setEngineParams(engineUpdates);
           }
         }
 
@@ -993,6 +1020,7 @@ export async function renderStemsOffline(
 
       if (typeof process !== 'undefined') {
         const fs = await import('node:fs');
+        const path = await import('node:path');
         const dir = path.dirname(config.logOut);
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });

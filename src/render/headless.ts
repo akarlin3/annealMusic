@@ -18,7 +18,7 @@ import { SCHEMA_VERSION } from '@/share/schema';
 import { decodeState } from '@/share/encode';
 import { applyDecodedToStore, captureSlotsFromPayload } from '@/share/hydrate';
 import { useParamStore } from '@/state/params';
-import type { SlotId } from '@/loop/types';
+import { makeDefaultLoopConfig, type SlotId } from '@/loop/types';
 import { PiecePlayer } from '@/piece/PiecePlayer';
 import { hashStringToInt } from '@/piece/resolver';
 import type { Piece } from '@/piece/types';
@@ -346,6 +346,26 @@ async function stemsRender(
       includePartials: opts.perPartial ?? false,
       seed: opts.seed ?? 42,
       patchTitle: ls.title ?? 'Listening Session',
+      patchHash: 'headless',
+    };
+  } else if (decoded.kind === 'sonification') {
+    const son = decoded.sonification;
+    config = {
+      params: DEFAULT_PARAMS,
+      engineId: 'sine' as const,
+      engineParams: {},
+      loopConfig: makeDefaultLoopConfig(),
+      loopBuffers: { A: null, B: null, C: null },
+      loopStates: { A: 'empty', B: 'empty', C: 'empty' },
+      mode: 'sonification' as const,
+      sonificationSpec: son.mappingSpec,
+      durationSec: opts.durationSec,
+      sampleRate: opts.sampleRate ?? 48000,
+      bitDepth: opts.bitDepth ?? 24,
+      includeFx: opts.withFx ?? true,
+      includePartials: opts.perPartial ?? false,
+      seed: opts.seed ?? 42,
+      patchTitle: son.title ?? 'Sonification',
       patchHash: 'headless',
     };
   } else {

@@ -354,4 +354,64 @@ describe('StemRenderer', () => {
     expect(Object.keys(results)).toEqual(['master']);
     expect(results.master).toBeInstanceOf(ArrayBuffer);
   });
+
+  it('renders a Sonification cleanly', async () => {
+    const sonificationSpec = {
+      sources: [
+        {
+          id: 'src1',
+          type: 'file' as const,
+          columns: ['timestamp', 'val1'],
+          data: [
+            { timestamp: 0, val1: 10 },
+            { timestamp: 4, val1: 20 },
+          ],
+        },
+      ],
+      rules: [
+        {
+          sourceId: 'src1',
+          column: 'val1',
+          targetType: 'param' as const,
+          targetKey: 'brightness',
+          transform: {
+            type: 'linear' as const,
+            rawMin: 10,
+            rawMax: 20,
+            outMin: 0.1,
+            outMax: 0.9,
+          },
+        },
+      ],
+    };
+
+    const config = {
+      params: DEFAULT_PARAMS,
+      engineId: 'sine' as const,
+      engineParams: {},
+      loopConfig: makeDefaultLoopConfig(),
+      loopBuffers: { A: null, B: null, C: null },
+      loopStates: { A: 'empty', B: 'empty', C: 'empty' },
+      mode: 'sonification' as const,
+      sonificationSpec,
+      durationSec: 4,
+      sampleRate: 48000,
+      bitDepth: 24 as const,
+      includeFx: true,
+      includePartials: false,
+      seed: 123,
+      patchTitle: 'Test Sonification Render',
+      patchHash: 'hsonification',
+    } as any;
+
+    const cancelSignal = { aborted: false };
+    const results = await renderStemsOffline(
+      config,
+      () => {},
+      cancelSignal,
+      mockOfflineContext,
+    );
+
+    expect(results.master).toBeInstanceOf(ArrayBuffer);
+  });
 });

@@ -314,12 +314,7 @@ export class GranularEngine implements AnnealEngine {
     return this.out;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setSharedParams(
-    partial: Partial<SharedParams>,
-    _targetTime?: number,
-    _instant?: boolean,
-  ): void {
+  setSharedParams(partial: Partial<SharedParams>): void {
     if (!this.shared) return;
     this.shared = { ...this.shared, ...partial };
     if (

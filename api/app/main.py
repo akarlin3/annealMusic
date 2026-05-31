@@ -39,6 +39,7 @@ from app.routers import (
     user_scripts,
     experiments,
     learn,
+    sonifications,
 )
 
 
@@ -118,6 +119,7 @@ def create_app() -> FastAPI:
     app.include_router(experiments.router)
     app.include_router(learn.router)
     app.include_router(learn.html_router)
+    app.include_router(sonifications.router)
 
     return app
 

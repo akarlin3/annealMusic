@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { clampParam, type AnnealMusicParams } from '@/state/params';
+import type { SonificationState } from '@/sonification/types';
 import {
   KEY_BOUNDS,
   SHARED_KEYS,
@@ -262,6 +263,11 @@ export type DecodedState =
   | {
       kind: 'listening-session';
       listeningSession: DecodedListeningSession;
+      warnings: string[];
+    }
+  | {
+      kind: 'sonification';
+      sonification: SonificationState;
       warnings: string[];
     };
 
@@ -1058,12 +1064,13 @@ export function decodeState(version: number, payload: string): DecodedState {
 
   // Version 8+
   const pairs = payload.split('&');
-  let kind: 'patch' | 'piece' | 'listening-session' = 'patch';
+  let kind: 'patch' | 'piece' | 'listening-session' | 'sonification' = 'patch';
   for (const pair of pairs) {
     if (pair.startsWith('kind=')) {
       const val = pair.slice(5);
       if (val === 'piece') kind = 'piece';
       else if (val === 'listening-session') kind = 'listening-session';
+      else if (val === 'sonification') kind = 'sonification';
       break;
     }
   }
@@ -1078,6 +1085,12 @@ export function decodeState(version: number, payload: string): DecodedState {
     return {
       kind: 'listening-session',
       listeningSession: decodeListeningSessionPayload(payload),
+      warnings: [],
+    };
+  } else if (kind === 'sonification') {
+    return {
+      kind: 'sonification',
+      sonification: decodeSonificationPayload(payload),
       warnings: [],
     };
   } else {
@@ -1240,4 +1253,34 @@ export function encodeListeningSession(
     }
   }
   return parts.join('&');
+}
+
+export function encodeSonification(sonification: SonificationState): string {
+  const payload = encodeURIComponent(JSON.stringify(sonification));
+  return `kind=sonification&data=${payload}`;
+}
+
+export function decodeSonificationPayload(payload: string): SonificationState {
+  const pairs = payload.split('&');
+  let dataStr = '';
+  for (const pair of pairs) {
+    if (pair.startsWith('data=')) {
+      dataStr = pair.slice(5);
+      break;
+    }
+  }
+
+  try {
+    const decoded = JSON.parse(decodeURIComponent(dataStr));
+    return decoded;
+  } catch (e) {
+    console.warn('Failed to parse sonification payload:', e);
+    return {
+      title: 'New Sonification',
+      mappingSpec: { sources: [], rules: [] },
+      durationMs: 10000,
+      playbackSpeed: 1.0,
+      loop: true,
+    };
+  }
 }

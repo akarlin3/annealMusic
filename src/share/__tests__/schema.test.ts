@@ -7,15 +7,20 @@ import {
   SUPPORTED_SCHEMA_VERSIONS,
   decimalsForStep,
 } from '@/share/schema';
+import {
+  encodeSonification,
+  decodeSonificationPayload,
+  decodeState,
+} from '@/share/encode';
 
 describe('schema', () => {
-  it('ships schema version 20', () => {
-    expect(SCHEMA_VERSION).toBe(20);
+  it('ships schema version 21', () => {
+    expect(SCHEMA_VERSION).toBe(21);
   });
 
-  it('still decodes legacy schema versions 1 through 19', () => {
+  it('still decodes legacy schema versions 1 through 20', () => {
     expect(SUPPORTED_SCHEMA_VERSIONS).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
     ]);
   });
 
@@ -44,6 +49,56 @@ describe('schema', () => {
       expect(bound.decimals, `${def.key} decimals`).toBe(
         decimalsForStep(def.step),
       );
+    }
+  });
+
+  it('encodes and decodes a sonification state perfectly', () => {
+    const state = {
+      title: 'Ocean Temperature Sonification',
+      description: 'Mapping sea surface temperatures from 1990-2020',
+      mappingSpec: {
+        sources: [
+          {
+            id: 'sst',
+            type: 'file' as const,
+            columns: ['time', 'temp'],
+            data: [],
+          },
+        ],
+        rules: [
+          {
+            sourceId: 'sst',
+            column: 'temp',
+            targetType: 'param' as const,
+            targetKey: 'brightness',
+            transform: {
+              type: 'linear' as const,
+              rawMin: 15,
+              rawMax: 25,
+              outMin: 0.2,
+              outMax: 0.8,
+            },
+          },
+        ],
+      },
+      durationMs: 30000,
+      playbackSpeed: 1.2,
+      loop: false,
+    };
+
+    const encoded = encodeSonification(state);
+    expect(encoded).toContain('kind=sonification');
+    expect(encoded).toContain('data=');
+
+    const decoded = decodeSonificationPayload(encoded);
+    expect(decoded.title).toBe(state.title);
+    expect(decoded.durationMs).toBe(state.durationMs);
+    expect(decoded.mappingSpec.rules[0]?.column).toBe('temp');
+
+    const decodedState = decodeState(21, encoded);
+    expect(decodedState.kind).toBe('sonification');
+    if (decodedState.kind === 'sonification') {
+      expect(decodedState.sonification.title).toBe(state.title);
     }
   });
 });

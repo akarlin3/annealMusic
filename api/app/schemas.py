@@ -848,6 +848,52 @@ class TrackListOut(BaseModel):
     items: list[TrackOut]
 
 
+# --- v7.1 Sonification Schemas -----------------------------------------------
+
+class SonificationCreate(BaseModel):
+    schema_ver: int
+    title: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    base_state: dict
+    mapping_spec: dict
+    source_files: list[dict] = Field(default_factory=list)
+    duration_ms: int | None = None
+    visibility: Visibility = "unlisted"
+
+
+class SonificationUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=2000)
+    mapping_spec: dict | None = None
+    source_files: list[dict] | None = None
+    duration_ms: int | None = None
+    visibility: Visibility | None = None
+
+
+class SonificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    schema_ver: int
+    title: str | None
+    description: str | None
+    base_state: dict
+    mapping_spec: dict
+    source_files: list[dict]
+    duration_ms: int | None
+    visibility: str
+    short_slug: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class SonificationListOut(BaseModel):
+    items: list[SonificationOut]
+    next_cursor: str | None = None
+
+
+
 
 
 

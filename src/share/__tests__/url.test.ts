@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_PARAMS } from '@/state/params';
 import { encodeState } from '@/share/encode';

@@ -233,7 +233,13 @@ export const ExperimentRunner: React.FC<ExperimentRunnerProps> = ({
       if (trial.stimulus.patch) {
         Object.entries(trial.stimulus.patch).forEach(([k, v]) => {
           if (k === 'engine') {
-            am.setEngine(v as 'sine' | 'waveguide' | 'bowed' | 'pulse');
+            if (v === 'waveguide' || v === 'bowed') {
+              am.setEngine('physical');
+            } else {
+              am.setEngine(
+                v as 'sine' | 'fm' | 'granular' | 'physical' | 'pulse',
+              );
+            }
           } else {
             am.setParam(
               k as
