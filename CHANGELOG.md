@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.7.0] - 2026-05-31
+
+**v7 Closeout & Collaboration Infrastructure.** v7.7 closes the v7 research-collaboration arc by establishing comprehensive onboarding, publishing guides, legal partnership templates, legal postures, retrospectives, stability commitments, and tag v7.7.0.
+
+### Added
+
+- **ICAD & Clinical Community Manuals.** Authored domain-specific onboarding and publishing guides for sonification researchers (`docs/community/icad/`) and clinical investigators (`docs/community/clinical/`), complete with recipes and case studies (physics coordinate sweeps, rainforest canopy, SecOps sync, HRV biofeedback, auditory fatigue).
+- **Five Partnership Templates.** Formulated drop-in legal templates (`docs/templates/`): IRB Consent forms (physio opt-ins, GDPR data shredding), NSF/NIH Data Management Plan (DMP) boilerplates, secure Software Collaboration Agreements establishing a zero-strings infrastructure posture, Citation Guide, and peer-review Supplementary Materials Checklists.
+- **Academic Legal Posture & Disclaimers.** Shipped a transparent legal posture document (`docs/LEGAL_POSTURE.md`) defining data ownership boundaries and co-authorship policies.
+- **v7 Retrospective & Stability Commitments.** Published the v7 arc retrospective (`docs/V7_RETROSPECTIVE.md`) and API/Schema stability commitments (`docs/STABILITY.md`) covering relational database schemas, Pyodide worker environments, datalogger structures, and OSC namespaces.
+
 ## [7.6.0] - 2026-05-31
 
 **Scientific Communication Tools.** v7.6 empowers researchers to publish, embed, and disseminate their sonifications and listening sessions as rich, accessible, and citable academic outputs alongside traditional figures and tables.
