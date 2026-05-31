@@ -232,22 +232,47 @@ export function LessonPlayer({
         <header className="player-header">
           <button
             className="exit-btn"
-            onClick={onClose}
-            aria-label="Exit lesson"
+            onClick={() => {
+              if (lesson.onboarding_mode) {
+                localStorage.setItem(
+                  `anneal_onboarding_dismissed_${lesson.onboarding_mode}`,
+                  'true',
+                );
+              }
+              onClose();
+            }}
+            aria-label={lesson.onboarding_mode ? 'Skip Intro' : 'Exit lesson'}
+            style={
+              lesson.onboarding_mode
+                ? { width: 'auto', padding: '0 8px', borderRadius: '4px' }
+                : {}
+            }
           >
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+            {lesson.onboarding_mode ? (
+              <span
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  color: 'var(--color-muted)',
+                }}
+              >
+                Skip Intro
+              </span>
+            ) : (
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            )}
           </button>
           <div className="player-title-block">
             <span className="player-track-tag" style={{ color: track.color }}>
@@ -303,8 +328,21 @@ export function LessonPlayer({
               </div>
 
               <div className="step-footer-actions">
-                <button className="learn-primary-btn" onClick={onClose}>
-                  Finish & Return to Curriculum
+                <button
+                  className="learn-primary-btn"
+                  onClick={() => {
+                    if (lesson.onboarding_mode) {
+                      localStorage.setItem(
+                        `anneal_onboarding_dismissed_${lesson.onboarding_mode}`,
+                        'true',
+                      );
+                    }
+                    onClose();
+                  }}
+                >
+                  {lesson.onboarding_mode
+                    ? 'Finish & Explore Mode'
+                    : 'Finish & Return to Curriculum'}
                 </button>
               </div>
             </div>

@@ -64,6 +64,8 @@ async def lesson_to_out(session: AsyncSession, lesson: Lesson) -> LessonOut:
         estimated_minutes=lesson.estimated_minutes,
         position=lesson.position,
         prerequisites=lesson.prerequisites,
+        modes=lesson.modes,
+        onboarding_mode=lesson.onboarding_mode,
         created_at=lesson.created_at,
         updated_at=lesson.updated_at,
         steps=steps_out,
@@ -74,7 +76,7 @@ async def lesson_to_out(session: AsyncSession, lesson: Lesson) -> LessonOut:
 async def track_to_out(session: AsyncSession, track: Track) -> TrackOut:
     lessons_stmt = (
         select(Lesson)
-        .where(Lesson.track_id == track.id, Lesson.archived_at.is_(None))
+        .where(Lesson.track_id == track.id, Lesson.archived_at.is_(None), Lesson.onboarding_mode.is_(None))
         .order_by(Lesson.position.asc())
     )
     lessons = (await session.execute(lessons_stmt)).scalars().all()
@@ -145,6 +147,22 @@ async def get_lesson(track_slug: str, lesson_slug: str, session: SessionDep) -> 
     if lesson is None or not _lesson_is_visible(lesson):
         raise not_found("lesson")
 
+    return await lesson_to_out(session, lesson)
+
+
+@router.get("/onboarding/{mode}", response_model=LessonOut, dependencies=[Depends(rate_limit("get"))])
+async def get_onboarding_lesson(mode: str, session: SessionDep) -> LessonOut:
+    """Fetch the single onboarding lesson for a specific focus mode."""
+    stmt = (
+        select(Lesson)
+        .where(
+            Lesson.onboarding_mode == mode,
+            Lesson.archived_at.is_(None),
+        )
+    )
+    lesson = (await session.execute(stmt)).scalar_one_or_none()
+    if lesson is None or not _lesson_is_visible(lesson):
+        raise not_found("onboarding lesson")
     return await lesson_to_out(session, lesson)
 
 

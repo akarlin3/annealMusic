@@ -67,6 +67,8 @@ def _lesson(
     minutes: int = 12,
     constraints: list[str] | None = None,
     description: str | None = None,
+    modes: list[str] | None = None,
+    onboarding_mode: str | None = None,
 ) -> dict[str, Any]:
     return {
         "id": f"{track}/{slug}",
@@ -79,6 +81,8 @@ def _lesson(
         "constraints_during_prompts": constraints or [],
         "estimated_minutes": minutes,
         "description": description,
+        "modes": modes or ["musician"],
+        "onboarding_mode": onboarding_mode,
     }
 
 
@@ -215,6 +219,14 @@ SYNTHESIS: list[dict[str, Any]] = [
          _prompt("change the pulse rate against the grid"),
          _reflect("how rhythm emerges from a pulse")],
         constraints=["speed", "brightness"]),
+    _lesson(_T1, "onboarding-musician", "Your First Sound: Slider Mechanics",
+        ["Adjust fundamental levels", "Observe parameter coupling", "Save your first custom patch"],
+        "intro",
+        [_text("synthesis sliders: continuous parameters, tactile hit-targets, and coupling effects", "svg"),
+         _demo("a raw, resonant FM soundscape ripe for sculpting"),
+         _prompt("slowly drag the brightness and space faders to expand the field"),
+         _reflect("how fader interaction shapes the tone")],
+        onboarding_mode="musician"),
 ]
 
 
@@ -311,6 +323,29 @@ COMPOSITION: list[dict[str, Any]] = [
          _demo("a procedural patch left to evolve"),
          _prompt("set the rules, then let the piece run"),
          _reflect("authorship when the system improvises")]),
+    _lesson(_T2, "gallery-sharing", "Sharing in the Gallery",
+        ["Browse the public gallery", "Share your patches with the community", "Load and learn from others' patches"],
+        "intro",
+        [_text("the public gallery: how creators share, preview, and load generative states", "svg"),
+         _demo("a highly detailed, organic shareable pad"),
+         _prompt("simulate copying the share URL or loading a preview"),
+         _reflect("how learning from others' patches accelerates sound design")]),
+    _lesson(_T2, "mindfulness-practice", "Mindfulness Timers & History",
+        ["Configure custom breath and bell pacing schedules", "Track mindful minutes via Health integrations", "Write silent reflection logs"],
+        "intro",
+        [_text("mindfulness practice tools: settle-in timers, breath pacers, health logs, and reflections", "svg"),
+         _demo("a calming breath-paced meditation drone"),
+         _prompt("close your eyes and synchronize breathing with the slow bell timeline"),
+         _reflect("how writing reflections supports daily mindful practice")]),
+    _lesson(_T2, "onboarding-meditation", "Welcome to Your Meditation Space",
+        ["Understand dynamic breathing pacers", "Learn mindfulness gongs", "Experience Drone Mode"],
+        "intro",
+        [_text("breathing visual pacing: silent box, coherent, or custom rhythmic overlays", "svg"),
+         _clip("ref-tibetan-bowl-acoustic"),
+         _demo("a deeply calming wind-like organic drone with breathing pacing enabled"),
+         _prompt("follow the soft expanding sphere and sync your breath to it"),
+         _reflect("how visual breath pacing alters your focus")],
+        onboarding_mode="meditation"),
 ]
 
 
@@ -451,6 +486,21 @@ PRODUCTION: list[dict[str, Any]] = [
         [_text("OSC: high-resolution, networked control"),
          _demo("a patch driven by an external OSC source"),
          _reflect("when OSC's resolution matters")]),
+    _lesson(_T4, "midi-input-mapping", "Hands-On Control (MIDI Input)",
+        ["Map MIDI CC messages to synthesis sliders", "Configure note-to-root keyboard mapping", "Select linear, exponential, or logarithmic CC response curves"],
+        "intermediate",
+        [_text("MIDI input: faders, knobs, keyboard notes, CC mappings, and response curves", "svg"),
+         _clip("a smooth filter sweep driven by hardware MIDI CC input emulation"),
+         _demo("a highly responsive synthesizer pad with pre-mapped MIDI controls"),
+         _prompt("simulate moving a hardware fader to sweep the filter cut-off"),
+         _reflect("how tactile physical control transforms ambient performance")]),
+    _lesson(_T4, "research-telemetry", "Networked Telemetry & OSC",
+        ["Enable OSC network bridging", "Configure datalogger parameters", "Record real-time telemetry into Parquet/HDF5"],
+        "advanced",
+        [_text("research networking: datalogging, ring buffers, Parquet storage, and OSC state routing", "svg"),
+         _demo("a calibrated patch broadcasting highly detailed state telemetry"),
+         _prompt("simulate starting a datalogger run at 50Hz and inspecting raw centroid streams"),
+         _reflect("how real-time parameter sweeps and telemetry support psychoacoustic research")]),
 ]
 
 
@@ -538,12 +588,107 @@ SCIENCE: list[dict[str, Any]] = [
          _demo("a patch in a strongly resonant space"),
          _reflect("how a space becomes part of the instrument")],
         constraints=["space"]),
+    _lesson(_T5, "python-sandbox", "Coding Sound (Python REPL)",
+        ["Execute CPython code inside the sandboxed Pyodide Worker REPL", "Query real-time parameter states programmatically using the anneal module", "Render matplotlib data plots to the scientific MEMFS browser"],
+        "advanced",
+        [_text("the Python REPL sandbox: Pyodide Workers, CodeMirror editors, and Agg figure renderers", "svg"),
+         _demo("a highly mathematical, coupling-driven harmonic lattice patch"),
+         _prompt("simulate loading pandas and plotting a 10-second frequency parameter sweep"),
+         _reflect("how writing code to sculpt a soundscape differs from dragging sliders")]),
+    _lesson(_T5, "psychoacoustic-studies", "Psychoacoustic Studies & Calibration",
+        ["Counterbalance blocks using Williams Latin Square randomization", "Run SPL LUFS level calibration sweeps", "Collect continuous 30Hz participant feedback ratings", "Export citable IRB-reproducible study ZIPs"],
+        "advanced",
+        [_text("clinical research runner: SPL calibration, Latin Square counterbalancing, and reproducible exports", "svg"),
+         _clip("a sequence of three counterbalanced stimulus blocks separated by silence"),
+         _demo("a calibrated, bit-identical clinical trial reference drone"),
+         _prompt("simulate completing a target LUFS calibration sweep and recording rating coordinates"),
+         _reflect("why calibration and cryptographic reproducibility are crucial for acoustic science")]),
+    _lesson(_T5, "onboarding-researcher", "Getting Started in the Research Lab",
+        ["Verify BroadcastChannel transport synchronization", "Interact with the JSON-RPC bridge", "Execute a script inside the Pyodide Web Worker"],
+        "intro",
+        [_text("research console: high-speed dataloggers, OSC namespaces, and CPython runtimes", "svg"),
+         _demo("a calibrated 440 Hz reference sine partial stack"),
+         _prompt("type state.get('brightness') in the CodeMirror REPL prompt"),
+         _reflect("what parameters you plan to automate using Python scripts")],
+        onboarding_mode="researcher"),
 ]
 
 
-LESSONS: list[dict[str, Any]] = (
-    SYNTHESIS + COMPOSITION + HISTORY + PRODUCTION + SCIENCE
-)
+# Apply mode tags dynamically to preserve existing specifications and keep files maintainable.
+def _tag_lesson_modes(l: dict[str, Any]) -> None:
+    if l.get("onboarding_mode"):
+        l["modes"] = [l["onboarding_mode"]]
+        return
+
+    lid = l["id"]
+    track = l["track"]
+    
+    # 1. Meditation-appropriate lessons
+    meditation_ids = {
+        "synthesis-fundamentals/intro",
+        "synthesis-fundamentals/physical-bell-glass",
+        "composition-technique/listening-sessions",
+        "composition-technique/drone-mode",
+        "ambient-history-listening/origins",
+        "ambient-history-listening/eno-ambient-1",
+        "ambient-history-listening/drone-slow",
+        "ambient-history-listening/japanese-ambient",
+        "ambient-history-listening/field-recording",
+        "ambient-history-listening/new-age-vs-ambient",
+        "music-science-crossover/432-solfeggio",
+        "music-science-crossover/music-cognition",
+    }
+    
+    # 2. Researcher-appropriate lessons
+    researcher_ids = {
+        "synthesis-fundamentals/intro",
+        "synthesis-fundamentals/sculpt-model",
+        "synthesis-fundamentals/sine-engine",
+        "synthesis-fundamentals/fm-engine",
+        "synthesis-fundamentals/granular-engine",
+        "synthesis-fundamentals/physical-string",
+        "synthesis-fundamentals/physical-tube",
+        "synthesis-fundamentals/physical-plate",
+        "synthesis-fundamentals/physical-bowed",
+        "synthesis-fundamentals/physical-edge-tone",
+        "synthesis-fundamentals/physical-mallet-membrane",
+        "synthesis-fundamentals/additive-engine",
+        "synthesis-fundamentals/wavetable-engine",
+        "synthesis-fundamentals/pulse-engine",
+        
+        "ambient-history-listening/origins",
+        "ambient-history-listening/eno-ambient-1",
+        "ambient-history-listening/minimalism",
+        "ambient-history-listening/field-recording",
+        
+        "production-daw/stem-export",
+        "production-daw/osc-basics",
+    }
+    
+    modes = []
+    if lid in meditation_ids:
+        modes.append("meditation")
+    
+    # Almost all lessons are relevant for musicians (standard creative sandbox)
+    # except strictly researcher clinical trials ones
+    if track != "music-science-crossover" or lid in {"music-science-crossover/harmonic-series", "music-science-crossover/432-solfeggio"}:
+        modes.append("musician")
+        
+    if lid in researcher_ids or track == "music-science-crossover":
+        modes.append("researcher")
+        
+    if not modes:
+        modes = ["musician"]
+        
+    l["modes"] = modes
+    l["onboarding_mode"] = None
+
+
+_RAW_LESSONS = SYNTHESIS + COMPOSITION + HISTORY + PRODUCTION + SCIENCE
+for _l in _RAW_LESSONS:
+    _tag_lesson_modes(_l)
+
+LESSONS: list[dict[str, Any]] = _RAW_LESSONS
 
 
 # --- Prerequisite edges (prerequisite_id -> lesson_id), spec ids -------------
@@ -620,6 +765,14 @@ PREREQ_EDGES: list[tuple[str, str]] = [
     (f"{_T1}/intro", f"{_T5}/432-solfeggio"),
     (f"{_T5}/432-solfeggio", f"{_T5}/music-cognition"),
     (f"{_T5}/vibrating-strings", f"{_T5}/resonance-modes"),
+
+    # Gap-fill additions:
+    (f"{_T2}/patches-vs-pieces", f"{_T2}/gallery-sharing"),
+    (f"{_T2}/listening-sessions", f"{_T2}/mindfulness-practice"),
+    (f"{_T4}/daw-integration", f"{_T4}/midi-input-mapping"),
+    (f"{_T4}/osc-basics", f"{_T4}/research-telemetry"),
+    (f"{_T5}/harmonic-series", f"{_T5}/python-sandbox"),
+    (f"{_T5}/pitch-jnd", f"{_T5}/psychoacoustic-studies"),
 ]
 
 

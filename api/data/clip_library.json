@@ -677,6 +677,62 @@
       ],
       "license": "original-by-you",
       "attribution": null
+    },
+    {
+      "slug": "ref-solfeggio-528",
+      "title": "Solfeggio 528 Hz Reference",
+      "description": "A pure sine tone tuned to exactly 528 Hz, compared with standard A=440 Hz equal temperament to demonstrate raw timbral differences without overclaiming.",
+      "duration_ms": 12000,
+      "file": "clips/ref-solfeggio-528.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": ["solfeggio", "528hz", "reference", "sine", "tuning"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "ref-midi-sweep",
+      "title": "MIDI CC Filter Sweep",
+      "description": "A smooth low-pass filter sweep driven by hardware MIDI CC input emulation, illustrating control parameter resolution.",
+      "duration_ms": 15000,
+      "file": "clips/ref-midi-sweep.opus",
+      "track_affinity": ["production-daw"],
+      "concept_tags": ["midi", "cc", "sweep", "filter", "tactile"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "ref-heart-pulse",
+      "title": "Heart-rate Biofeedback Sonification",
+      "description": "A biofeedback-driven sonification where partial frequencies and envelopes modulate rhythmically to simulate Polar BLE heart rate data.",
+      "duration_ms": 15000,
+      "file": "clips/ref-heart-pulse.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": [
+        "biofeedback",
+        "heart-rate",
+        "ble",
+        "sonification",
+        "polar"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "ref-latin-square",
+      "title": "Williams Latin Square Block Counterbalancing",
+      "description": "A sequence of three counterbalanced stimulus blocks separated by silence, illustrating Williams Latin Square ordering.",
+      "duration_ms": 20000,
+      "file": "clips/ref-latin-square.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": [
+        "counterbalance",
+        "latin-square",
+        "stimulus",
+        "clinical",
+        "research"
+      ],
+      "license": "original-by-you",
+      "attribution": null
     }
   ]
 }

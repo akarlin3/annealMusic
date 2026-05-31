@@ -102,5 +102,9 @@ def test_reachability_from_root():
             out |= roots_of(p, seen)
         return out
 
+    onboarding_ids = {l["id"] for l in cc.LESSONS if l.get("onboarding_mode") is not None}
+
     for lesson_id in _ALL_IDS:
+        if lesson_id in onboarding_ids:
+            continue
         assert root in roots_of(lesson_id, set()), f"{lesson_id} not rooted at intro"

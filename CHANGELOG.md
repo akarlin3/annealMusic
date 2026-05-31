@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.2.0] - 2026-05-31
+
+**v9.2 Tutorial Gap Audit + Authoring.** This release delivers a comprehensive educational surface audit and resolves tutorial coverage gaps across the entire platform. It introduces a database-backed, mode-aware curriculum filter, immersive skippable onboarding flows per focus mode, modular sliding parameter help drawers, and expanded scientific documentation.
+
+### Added
+
+- **Pedagogical Surface Audit:** Executed a systematic coverage audit across every user-facing surface (v0.1–v8.5) spanning discoverability, onboarding clarity, and tutorial availability. Documented findings and matrices in `docs/v9.2-PLAN.md`.
+- **Database Schema & Alembic Migration:** Added SQLite and PostgreSQL compatible `modes` text array and `onboarding_mode` columns to the `lessons` table (`0030_v9_2_lesson_modes.py`).
+- **Targeted Gap-Fill Lessons:** Seeded 6 detailed gap-fill lessons (`gallery-sharing`, `mindfulness-practice`, `midi-input-mapping`, `research-telemetry`, `python-sandbox`, `psychoacoustic-studies`) and 3 onboarding lessons to the curriculum database.
+- **Original Audio Clips:** Expanded the audio library with 4 new original clips (`ref-solfeggio-528`, `ref-midi-sweep`, `ref-heart-pulse`, `ref-latin-square`) to support audio-clip steps in the new lessons.
+- **Quiet, Skippable Onboarding:** Built elegant, non-intrusive onboarding lessons for Meditation (🧘), Musician (🎹), and Researcher (🔬) modes that play automatically upon first mode activation and persist dismissal state stickily to `localStorage`.
+- **Active-Mode Curriculum Filters:** Integrated dynamic active-mode badge filters into the curriculum browser with an override toggle to display all lessons.
+- **Inline "?" Help Tooltips & Sliding Drawers:** Authored a modular, glassmorphic Help drawer system and integrated it into synthesis coupling, target LUFS, and segment duration parameters.
+- **Scientific API & Roadmap Updates:** Formalized detailed documentation for GATT biofeedback services, Williams Latin Square counterbalancing, reproducibility validation, and mode onboarding inside `docs/API.md`. Marked `v9.2` as successfully completed in `docs/ROADMAP.md`.
+
 ## [9.1.0] - 2026-05-31
 
 **v9.1 Aesthetic System.** Establishes a comprehensive, unified design system with per-mode aesthetic variations. The warm-amber-dark identity is preserved across all modes, while color saturation, background depth, spacing density, motion duration, typography weight, and ornamentation scale dynamically based on the active mode (Meditation deeper dark, Musician standard, Researcher clinical). Features a complete canonical component library (`Button`, `Slider`, `Panel`, `Card`), automated prefers-reduced-motion transitions, minimum 44px touch-target bounds, customized WebGL/Canvas visualizer presets, and 2D text telemetry overlays.

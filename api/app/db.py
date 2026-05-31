@@ -90,6 +90,36 @@ class UUIDArray(TypeDecorator[list[uuid.UUID]]):
         return [uuid.UUID(v) for v in json.loads(value)]
 
 
+class StringArray(TypeDecorator[list[str]]):
+    """String[] on Postgres; JSON-encoded list of strings elsewhere."""
+
+    impl = String
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect: Any) -> Any:
+        if dialect.name == "postgresql":
+            from sqlalchemy.dialects.postgresql import ARRAY
+            return dialect.type_descriptor(ARRAY(String()))
+        return dialect.type_descriptor(String())
+
+    def process_bind_param(self, value: Any, dialect: Any) -> Any:
+        if value is None:
+            return [] if dialect.name == "postgresql" else "[]"
+        if dialect.name == "postgresql":
+            return list(value)
+        return json.dumps(list(value))
+
+    def process_result_value(self, value: Any, dialect: Any) -> list[str]:
+        if value is None:
+            return []
+        if dialect.name == "postgresql":
+            return list(value)
+        try:
+            return [str(v) for v in json.loads(value)]
+        except Exception:
+            return []
+
+
 class VectorType(TypeDecorator[list[float]]):
     """pgvector Vector on Postgres; JSON-encoded list of floats elsewhere."""
 

@@ -30,6 +30,8 @@ export interface Lesson {
   position: number;
   prerequisites: string[];
   steps: LessonStep[];
+  modes: string[];
+  onboarding_mode: string | null;
 }
 
 export interface Track {
@@ -45,58 +47,22 @@ export interface Track {
 export function LearnApp() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const { mode } = useMode();
+  const [showAll, setShowAll] = useState(false);
 
   const filteredTracks = useMemo(() => {
-    if (!mode) return tracks;
+    if (showAll || !mode) return tracks;
     return tracks
       .map((track) => {
         const filteredLessons = track.lessons.filter((lesson) => {
-          const description = (lesson.description || '').toLowerCase();
-          const title = (lesson.title || '').toLowerCase();
-          const trackSlug = (track.slug || '').toLowerCase();
-
-          if (mode === 'meditation') {
-            return (
-              description.includes('meditation') ||
-              description.includes('mindfulness') ||
-              description.includes('focus') ||
-              description.includes('breath') ||
-              description.includes('calm') ||
-              title.includes('meditation') ||
-              title.includes('breath') ||
-              title.includes('calm') ||
-              trackSlug.includes('meditation') ||
-              trackSlug.includes('breath')
-            );
+          if (lesson.modes && lesson.modes.length > 0) {
+            return lesson.modes.includes(mode);
           }
-          if (mode === 'researcher') {
-            return (
-              description.includes('science') ||
-              description.includes('research') ||
-              description.includes('clinical') ||
-              description.includes('psychoacoustic') ||
-              description.includes('experiments') ||
-              description.includes('study') ||
-              description.includes('sonification') ||
-              title.includes('science') ||
-              title.includes('experiment') ||
-              title.includes('sonification') ||
-              trackSlug.includes('science') ||
-              trackSlug.includes('research')
-            );
-          }
-          // Musician mode shows standard creative paths
-          return (
-            !description.includes('science') &&
-            !description.includes('clinical') &&
-            !description.includes('experiments') &&
-            !description.includes('psychoacoustic')
-          );
+          return mode === 'musician';
         });
         return { ...track, lessons: filteredLessons };
       })
       .filter((track) => track.lessons.length > 0);
-  }, [tracks, mode]);
+  }, [tracks, mode, showAll]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,6 +204,37 @@ export function LearnApp() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  // Onboarding trigger
+  useEffect(() => {
+    if (!mode || loading || error || activeLesson) return;
+    const dismissed = localStorage.getItem(
+      `anneal_onboarding_dismissed_${mode}`,
+    );
+    if (dismissed === 'true') return;
+
+    void (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/onboarding/${mode}`);
+        if (res.ok) {
+          const onboardingLesson: Lesson = await res.json();
+          const onboardingTrack: Track = {
+            id: 'onboarding-track',
+            slug: 'onboarding',
+            title: 'Onboarding',
+            description: 'Mode Onboarding Flow',
+            position: -1,
+            color: '#f59e0b',
+            lessons: [onboardingLesson],
+          };
+          setActiveTrack(onboardingTrack);
+          setActiveLesson(onboardingLesson);
+        }
+      } catch (err) {
+        console.warn('Failed to load onboarding lesson:', mode, err);
+      }
+    })();
+  }, [mode, loading, error, activeLesson, API_BASE]);
+
   const navigateToHome = () => {
     window.location.hash = '';
   };
@@ -305,6 +302,8 @@ export function LearnApp() {
             tracks={filteredTracks}
             progress={progress}
             onSelectLesson={navigateToLesson}
+            showAll={showAll}
+            onToggleShowAll={() => setShowAll((prev) => !prev)}
           />
         </>
       )}

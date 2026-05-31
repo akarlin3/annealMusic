@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useRef, useEffect, useState } from 'react';
+import { HelpTooltip } from '@/components/HelpTooltip';
 import type { PieceSegment, VariationPoint } from '@/piece/types';
 import { PRESET_ARCS } from '@/session/arcs';
 import { generateMetaArc } from '@/piece/generators';
@@ -408,8 +409,13 @@ export const SegmentProperties: React.FC<SegmentPropertiesProps> = ({
 
           {segment.type !== 'open' && (
             <div>
-              <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-medium text-white/60 uppercase tracking-wider mb-2 flex items-center">
                 Duration (Seconds)
+                <HelpTooltip
+                  title="Timeline Segment Duration"
+                  description="Sets the duration in seconds for this timeline segment block. During dynamic transitions and procedural arcs, this duration determines the speed of change and overall composition pacing."
+                  tips="A short duration (e.g. 5-15s) creates fast, active changes, while a longer duration (e.g. 30-60s) allows ambient layers to build and unfold slowly."
+                />
               </label>
               <div className="flex items-center space-x-3">
                 <input

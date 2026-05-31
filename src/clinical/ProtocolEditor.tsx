@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { clinicalApi } from './api';
+import { HelpTooltip } from '../components/HelpTooltip';
 import { studiesApi } from '../studies/api';
 import { ROLE_RANK } from '../studies/types';
 import type { Study, StudyResourceLink } from '../studies/types';
@@ -356,8 +357,13 @@ export function ProtocolEditor({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-stone-400">
+              <label className="text-stone-400 flex items-center gap-1">
                 Target Loudness Level (LUFS target dBFS):
+                <HelpTooltip
+                  title="Target Loudness Level (LUFS)"
+                  description="LUFS (Loudness Units relative to Full Scale) is an international standard for measuring audio loudness. Clinical research protocols require highly precise loudness normalization to ensure consistent stimulative intensity across different subjects and playback devices."
+                  tips="A standard baseline is -23.0 LUFS. Lower values (like -26.0) are softer, whereas higher values (like -18.0) are significantly louder."
+                />
               </label>
               <input
                 type="number"

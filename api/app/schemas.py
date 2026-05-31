@@ -787,6 +787,8 @@ class LessonCreate(BaseModel):
     estimated_minutes: int = Field(default=10, ge=1)
     position: int = 0
     prerequisites: list[uuid.UUID] = Field(default_factory=list)
+    modes: list[str] = Field(default_factory=lambda: ["musician"])
+    onboarding_mode: str | None = None
 
 
 class LessonUpdate(BaseModel):
@@ -797,6 +799,8 @@ class LessonUpdate(BaseModel):
     estimated_minutes: int | None = Field(default=None, ge=1)
     position: int | None = None
     prerequisites: list[uuid.UUID] | None = None
+    modes: list[str] | None = None
+    onboarding_mode: str | None = None
 
 
 class LessonOut(BaseModel):
@@ -811,6 +815,8 @@ class LessonOut(BaseModel):
     estimated_minutes: int
     position: int
     prerequisites: list[uuid.UUID]
+    modes: list[str] = Field(default_factory=list)
+    onboarding_mode: str | None = None
     created_at: datetime
     updated_at: datetime
     steps: list[LessonStepOut] = Field(default_factory=list)
@@ -923,6 +929,8 @@ class LessonSpec(BaseModel):
     estimated_minutes: int = Field(default=10, ge=1)
     position: int = 0
     description: str | None = Field(default=None, max_length=2000)
+    modes: list[str] = Field(default_factory=list)
+    onboarding_mode: str | None = None
 
 
 class LessonGenStepOut(BaseModel):

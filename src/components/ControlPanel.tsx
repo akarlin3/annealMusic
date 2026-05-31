@@ -19,6 +19,7 @@ import type { EngineId, EngineParams } from '@/audio/engines/types';
 import SourcePicker from '@/components/SourcePicker';
 import { PHYSICAL_MODELS } from '@/audio/engines/physical';
 import InfoTip from '@/components/InfoTip';
+import { HelpTooltip } from '@/components/HelpTooltip';
 import ControlCaption from '@/components/ControlCaption';
 import { Wand2, Trash2 } from 'lucide-react';
 import { parseScl } from '@/audio/tuning/sclParser';
@@ -202,6 +203,13 @@ function Slider({
             )}
           </label>
           {explainId && <InfoTip id={explainId} label={def.label} />}
+          {explainId === 'coupling' && (
+            <HelpTooltip
+              title="Phase Coupling Factor"
+              description="Controls the synchronization strength between independent frequency loops. High coupling locks the phase loops into clean harmonic intervals, while low coupling allows organic, microtonal drifts."
+              tips="Increase to lock phase loops together for clean harmonic intervals; decrease for organic drifts."
+            />
+          )}
         </span>
         <span
           className="font-mono text-[11px] tabular-nums"

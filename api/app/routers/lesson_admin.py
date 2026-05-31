@@ -111,6 +111,8 @@ async def _upsert_lesson(session: AsyncSession, spec: LessonSpec, slug: str) -> 
             description=spec.description, difficulty=spec.difficulty,
             estimated_minutes=spec.estimated_minutes, position=spec.position,
             prerequisites=prereqs,
+            modes=spec.modes or ["musician"],
+            onboarding_mode=spec.onboarding_mode,
         )
         session.add(lesson)
         await session.flush()
@@ -121,6 +123,9 @@ async def _upsert_lesson(session: AsyncSession, spec: LessonSpec, slug: str) -> 
         lesson.estimated_minutes = spec.estimated_minutes
         lesson.position = spec.position
         lesson.prerequisites = prereqs
+        if spec.modes:
+            lesson.modes = spec.modes
+        lesson.onboarding_mode = spec.onboarding_mode
 
     lesson.spec = spec_dict
     lesson.generation_status = "pending"

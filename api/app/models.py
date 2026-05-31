@@ -23,7 +23,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db import GUID, Base, JSONType, UUIDArray, VectorType
+from app.db import GUID, Base, JSONType, UUIDArray, VectorType, StringArray
 
 
 def _uuid() -> uuid.UUID:
@@ -782,6 +782,8 @@ class Lesson(Base):
     estimated_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     prerequisites: Mapped[list[uuid.UUID]] = mapped_column(UUIDArray(), nullable=False, default=list)
+    modes: Mapped[list[str]] = mapped_column(StringArray(), nullable=False, default=lambda: ["musician"])
+    onboarding_mode: Mapped[str | None] = mapped_column(String, nullable=True, unique=True)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

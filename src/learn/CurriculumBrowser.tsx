@@ -7,6 +7,8 @@ interface CurriculumBrowserProps {
   onSelectLesson: (trackSlug: string, lessonSlug: string) => void;
   /** Lesson-id → progress, for a quiet completed checkmark + per-track count. */
   progress?: Record<string, LessonProgress>;
+  showAll: boolean;
+  onToggleShowAll: () => void;
 }
 
 type DifficultyFilter = 'all' | 'intro' | 'intermediate' | 'advanced';
@@ -15,6 +17,8 @@ export function CurriculumBrowser({
   tracks,
   onSelectLesson,
   progress = {},
+  showAll,
+  onToggleShowAll,
 }: CurriculumBrowserProps) {
   const [query, setQuery] = useState('');
   const [trackFilter, setTrackFilter] = useState<string>('all');
@@ -151,6 +155,25 @@ export function CurriculumBrowser({
           <option value="intermediate">Intermediate</option>
           <option value="advanced">Advanced</option>
         </select>
+        <button
+          type="button"
+          className={`curriculum-filter show-all-btn ${showAll ? 'active' : ''}`}
+          onClick={onToggleShowAll}
+          style={{
+            cursor: 'pointer',
+            fontWeight: 600,
+            background: showAll
+              ? 'rgba(99, 102, 241, 0.25)'
+              : 'rgba(15, 23, 42, 0.5)',
+            borderColor: showAll
+              ? 'rgba(99, 102, 241, 0.5)'
+              : 'rgba(148, 163, 184, 0.25)',
+            color: showAll ? '#a5b4fc' : '#e2e8f0',
+            transition: 'all 0.2s ease-in-out',
+          }}
+        >
+          {showAll ? 'Show Mode Lessons' : 'Show All Lessons'}
+        </button>
       </div>
 
       {q && (
@@ -253,6 +276,50 @@ export function CurriculumBrowser({
                               >
                                 {lesson.difficulty}
                               </span>
+                              {lesson.modes &&
+                                lesson.modes.map((m) => {
+                                  const label =
+                                    m.charAt(0).toUpperCase() + m.slice(1);
+                                  const colorMap: Record<
+                                    string,
+                                    { bg: string; text: string }
+                                  > = {
+                                    meditation: {
+                                      bg: 'rgba(245, 158, 11, 0.15)',
+                                      text: '#f59e0b',
+                                    },
+                                    musician: {
+                                      bg: 'rgba(139, 92, 246, 0.15)',
+                                      text: '#a78bfa',
+                                    },
+                                    researcher: {
+                                      bg: 'rgba(20, 184, 166, 0.15)',
+                                      text: '#2dd4bf',
+                                    },
+                                  };
+                                  const theme = colorMap[m] || {
+                                    bg: 'rgba(255, 255, 255, 0.1)',
+                                    text: '#fff',
+                                  };
+                                  return (
+                                    <span
+                                      key={m}
+                                      className="mode-tag-badge"
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em',
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        background: theme.bg,
+                                        color: theme.text,
+                                      }}
+                                    >
+                                      {label}
+                                    </span>
+                                  );
+                                })}
                               <span className="duration-badge">
                                 <svg
                                   viewBox="0 0 24 24"

@@ -165,3 +165,29 @@ Endpoints for real-time collaborative sculpting sessions.
 - `WS /api/v1/jam-sessions/ws/:sessionId?userId=` — The real-time messaging WebSocket gateway.
   - Relays WebRTC signaling SDP handshake objects (offers, answers, ICE candidates) between peers.
   - Acts as a reliable fallback relay for binary Yjs CRDT update frames if direct P2P NAT negotiation fails.
+
+## Research & Clinical Framework (v5.7 / v7.7 / v9.2)
+
+Endpoints for biofeedback ingestion, clinical study protocols, counterbalanced randomization, reproducible packaging, and mode onboarding.
+
+### Live Biofeedback Ingestion (v5.7)
+
+- **Polar BLE Heart Rate GATT Integration**: Ingests real-time heart rate (HR) and heart rate variability (HRV / R-R intervals) from physical Bluetooth Low Energy (BLE) Polar heart-rate sensors.
+- `POST /api/v1/biofeedback/heart-rate` — Body `{ heart_rate, rr_intervals_ms[], signal_quality }`. Relays live values to the active session audio-engine and logs observations to the datalogger.
+
+### Clinical Protocols & Studies (v7.7)
+
+- `GET /api/v1/clinical/protocols/:studyId` — Retrieves all clinical protocols registered under a specific IRB-approved study.
+- `POST /api/v1/clinical/protocols` — Creates a new protocol. Body `{ study_id, experiment_id?, ct_gov_nct?, randomization_scheme, calibration_required, target_lufs, adverse_event_capture }`.
+  - **Randomization Schemes**: Supports `simple` (cryptographic CSPRNG), `latin-square` (Williams Latin Square for carryover balance), and `block-random` (Permuted Block Randomization).
+- `GET /api/v1/clinical/sessions/:id` — Fetches a blinded or unblinded participant session record.
+- `POST /api/v1/clinical/sessions/enroll` — Enrolls a subject and returns a counterbalanced condition assignment.
+
+### Study Export & Reproducibility (v7.7)
+
+- `POST /api/v1/studies/:id/export` — Generates a unified, citable study export bundle (`.zip`). Packages metadata registers, stimuli parameters, IRB protocol, anonymized participant session records (stripping absolute timestamps, masking IDs with UUIDs, and applying optional Laplace Differential Privacy), calibration hashes, research analysis Python scripts, and formatted BibTeX citations.
+- `POST /api/v1/studies/reproduce/validate` — Uploads a ZIP bundle and validates it against metadata schemas, checks stimulus rendering integrity (calculating bit-identical, perceptual, or statistical parity hashes), and executes sandboxed Python validation code.
+
+### Education & Onboarding (v9.2)
+
+- `GET /api/v1/onboarding/:mode` — Fetches the single onboarding lesson for a specific focus mode (`meditation`, `musician`, `researcher`).
