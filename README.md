@@ -110,6 +110,34 @@ Refer to the complete guides in:
 - [docs/DATALOG_SCHEMA.md](docs/DATALOG_SCHEMA.md) — JSON Schema and data specifications.
 - [docs/OSC.md](docs/OSC.md) — Bidirectional OSC specifications.
 
+### Studies — multi-investigator research collaboration (v7.0)
+
+The `/research` console includes a **Studies** panel: the unit of scientific
+work in AnnealMusic. A **Study** is a versioned, citable bundle that organizes
+resources (stimuli, protocols, datasets, analysis scripts) into a reproducible
+package, edited by multiple authenticated investigators with full provenance.
+
+- **Investigators & roles** — `pi` / `co-investigator` / `analyst` / `viewer`
+  with a strict permission matrix (only a PI manages investigators or publishes;
+  analysts write analyses only; viewers are read-only). A study always keeps at
+  least one PI.
+- **Linked resources** — attach patches, pieces, listening sessions,
+  experiments, and scripts owned by any investigator, tagged by role
+  (stimulus / protocol / data / analysis).
+- **Provenance** — every mutation is recorded to an immutable `study_audit_log`
+  via a single write-path; the per-study **audit sidebar** shows the full trail.
+- **Snapshots & versions** — freeze the study + resolved resource metadata +
+  content hashes into an immutable version (deletion-proof; binary payloads are
+  never copied).
+- **Citation & DOIs** — generate **BibTeX / APA / Chicago** citations, link
+  **ORCID** + **ROR** on your account, and **publish** a version to mint a
+  **Zenodo DOI** (concept + per-version), behind a pre-flight checklist.
+- **Anonymous-first** — studies require an account, but anyone can browse and
+  cite a study marked `public`.
+
+See [docs/STUDIES.md](docs/STUDIES.md) for the multi-investigator workflow guide
+and [docs/CITATION.md](docs/CITATION.md) for study DOIs and citation formats.
+
 ## Project structure
 
 ```
