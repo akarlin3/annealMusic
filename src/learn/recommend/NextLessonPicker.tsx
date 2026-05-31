@@ -13,6 +13,7 @@ import {
   shouldShowSyncNudge,
   markSyncNudgeShown,
 } from '../progress/ProgressClient';
+import { useMode } from '@/mode/useMode';
 
 interface RecommendationItem {
   lesson_id: string;
@@ -56,6 +57,7 @@ export function NextLessonPicker({
   const [recs, setRecs] = useState<RecommendationsOut | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [showNudge, setShowNudge] = useState(false);
+  const { mode: appMode } = useMode();
 
   useEffect(() => {
     setDismissed(false);
@@ -137,21 +139,46 @@ export function NextLessonPicker({
           </div>
 
           <div className="picker-cards">
-            {recs!.items.map((item) => (
-              <button
-                key={item.lesson_id}
-                className="picker-card"
-                onClick={() => onPick(item.track_slug, item.slug)}
-              >
-                <span
-                  className={`difficulty-badge difficulty-${item.difficulty}`}
+            {recs!.items.map((item) => {
+              const lesson = tracks
+                .flatMap((t) => t.lessons)
+                .find((l) => l.id === item.lesson_id || l.slug === item.slug);
+              const isCrossMode =
+                lesson &&
+                appMode &&
+                lesson.modes &&
+                lesson.modes.length > 0 &&
+                !lesson.modes.includes(appMode);
+              const getRelevanceLabel = () => {
+                if (!lesson || !lesson.modes || lesson.modes.length === 0)
+                  return null;
+                const relevant = lesson.modes
+                  .map((m) => m.charAt(0).toUpperCase() + m.slice(1))
+                  .join(', ');
+                return `This lesson is also relevant to ${relevant} mode`;
+              };
+
+              return (
+                <button
+                  key={item.lesson_id}
+                  className="picker-card"
+                  onClick={() => onPick(item.track_slug, item.slug)}
                 >
-                  {item.difficulty}
-                </span>
-                <h3 className="picker-card-title">{item.title}</h3>
-                <p className="picker-card-why">{item.rationale}</p>
-              </button>
-            ))}
+                  <span
+                    className={`difficulty-badge difficulty-${item.difficulty}`}
+                  >
+                    {item.difficulty}
+                  </span>
+                  <h3 className="picker-card-title">{item.title}</h3>
+                  <p className="picker-card-why">{item.rationale}</p>
+                  {isCrossMode && (
+                    <span className="text-[9px] uppercase tracking-wider text-amber-500/80 mt-2 font-mono block text-left">
+                      {getRelevanceLabel()}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {isOnboarding && tracks.length > 0 && (

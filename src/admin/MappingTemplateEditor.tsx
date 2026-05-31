@@ -1,6 +1,8 @@
 /* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { Trash2, Plus, Save } from 'lucide-react';
+import { Input } from '@/design/components/Input';
+import { Select } from '@/design/components/Select';
 
 interface MappingTemplate {
   id: string;
@@ -231,126 +233,83 @@ export const MappingTemplateEditor: React.FC = () => {
         {/* Right Side: Form workspace */}
         <main className="border border-stone-800 bg-stone-900/10 rounded-xl p-6 flex flex-col gap-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5 select-none">
-              <label className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-                Slug ID
-              </label>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="single-scalar-drift"
-                className="bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-xs font-mono text-stone-300 focus:outline-none"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5 select-none">
-              <label className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-                Title
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Single Scalar Drift"
-                className="bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-xs font-mono text-stone-300 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5 select-none">
-            <label className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-              Short Description
-            </label>
-            <input
+            <Input
+              label="Slug ID"
               type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Soothe or inform researchers about this mapping template"
-              className="bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-xs font-mono text-stone-300 focus:outline-none"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="single-scalar-drift"
+            />
+
+            <Input
+              label="Title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Single Scalar Drift"
             />
           </div>
+
+          <Input
+            label="Short Description"
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Soothe or inform researchers about this mapping template"
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5 select-none">
-              <label className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-                Domain Family
-              </label>
-              <select
-                value={domainFamily}
-                onChange={(e) => setDomainFamily(e.target.value as any)}
-                className="bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-xs font-mono text-stone-300 focus:outline-none"
-              >
-                <option value="time-series">Time Series</option>
-                <option value="scalar-field">Scalar Field</option>
-                <option value="network">Network & Graph</option>
-                <option value="structured-event">Structured Event</option>
-              </select>
-            </div>
+            <Select
+              label="Domain Family"
+              value={domainFamily}
+              onChange={(e) => setDomainFamily(e.target.value as any)}
+            >
+              <option value="time-series">Time Series</option>
+              <option value="scalar-field">Scalar Field</option>
+              <option value="network">Network & Graph</option>
+              <option value="structured-event">Structured Event</option>
+            </Select>
 
-            <div className="flex flex-col gap-1.5 select-none">
-              <label className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-                Source Schema Columns
-              </label>
-              <input
-                type="text"
-                value={columnsInput}
-                onChange={(e) => setColumnsInput(e.target.value)}
-                placeholder="value, threshold"
-                className="bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-xs font-mono text-stone-300 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5 select-none">
-            <label className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-              Calibration recommendations
-            </label>
-            <input
+            <Input
+              label="Source Schema Columns"
               type="text"
-              value={calibrationRec}
-              onChange={(e) => setCalibrationRec(e.target.value)}
-              placeholder="Outlier percentiles recommendation"
-              className="bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-xs font-mono text-stone-300 focus:outline-none"
+              value={columnsInput}
+              onChange={(e) => setColumnsInput(e.target.value)}
+              placeholder="value, threshold"
             />
           </div>
 
-          <div className="flex flex-col gap-1.5 select-none">
-            <label className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-              Academic Citation
-            </label>
-            <input
-              type="text"
-              value={citation}
-              onChange={(e) => setCitation(e.target.value)}
-              placeholder="Primary Author, Year, Book/Journal"
-              className="bg-stone-950 border border-stone-800 rounded-lg px-3 py-1.5 text-xs font-mono text-stone-300 focus:outline-none"
-            />
-          </div>
+          <Input
+            label="Calibration recommendations"
+            type="text"
+            value={calibrationRec}
+            onChange={(e) => setCalibrationRec(e.target.value)}
+            placeholder="Outlier percentiles recommendation"
+          />
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-              Default Mapping Spec (JSON)
-            </label>
-            <textarea
-              rows={6}
-              value={specInput}
-              onChange={(e) => setSpecInput(e.target.value)}
-              className="w-full bg-stone-950 border border-stone-800 rounded-lg p-3 text-[11px] font-mono text-stone-300 focus:outline-none scrollbar-thin"
-            />
-          </div>
+          <Input
+            label="Academic Citation"
+            type="text"
+            value={citation}
+            onChange={(e) => setCitation(e.target.value)}
+            placeholder="Primary Author, Year, Book/Journal"
+          />
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-              Recipe Markdown Content
-            </label>
-            <textarea
-              rows={8}
-              value={recipeContent}
-              onChange={(e) => setRecipeContent(e.target.value)}
-              className="w-full bg-stone-950 border border-stone-800 rounded-lg p-3 text-[11px] font-mono text-stone-300 focus:outline-none scrollbar-thin"
-            />
-          </div>
+          <Input
+            label="Default Mapping Spec (JSON)"
+            multiline
+            rows={6}
+            value={specInput}
+            onChange={(e) => setSpecInput(e.target.value)}
+          />
+
+          <Input
+            label="Recipe Markdown Content"
+            multiline
+            rows={8}
+            value={recipeContent}
+            onChange={(e) => setRecipeContent(e.target.value)}
+          />
 
           <button
             onClick={handleSave}

@@ -4,6 +4,8 @@ import { api, getErrorMessage } from '@/api/client';
 import { ApiError } from '@/api/types';
 import { ShieldAlert, Trash2, Star } from 'lucide-react';
 import LibraryCuration from '@/admin/LibraryCuration';
+import { Input } from '@/design/components/Input';
+import { Select } from '@/design/components/Select';
 
 const KEY_STORAGE = 'am_admin_key';
 
@@ -140,19 +142,15 @@ export default function AdminPage() {
           >
             Admin
           </h1>
-          <input
+          <Input
+            id="admin-key-input"
             type="password"
             aria-label="Admin key"
             placeholder="Admin key"
             value={keyInput}
             onChange={(e) => setKeyInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submitKey()}
-            className="mb-3 w-full rounded-md p-2 text-sm outline-none"
-            style={{
-              background: '#1c1917',
-              border: '1px solid #44403c',
-              color: '#e7e5e4',
-            }}
+            className="mb-3"
           />
           {error && (
             <p className="mb-3 text-sm" style={{ color: '#fca5a5' }}>
@@ -336,48 +334,38 @@ export default function AdminPage() {
                 Add Curated Patch
               </h3>
 
-              <div>
-                <label className="mb-1 block text-[9px] uppercase tracking-wider text-stone-500">
-                  Patch ID (UUID)
-                </label>
-                <input
-                  type="text"
-                  placeholder="3fa85f64-5717-4562-b3fc-2c963f66afa6"
-                  value={newPickId}
-                  onChange={(e) => setNewPickId(e.target.value)}
-                  className="w-full rounded bg-stone-900 p-2 font-mono text-[11px] outline-none border border-stone-800 text-stone-200"
-                />
-              </div>
+              <Input
+                id="new-pick-id"
+                label="Patch ID (UUID)"
+                type="text"
+                placeholder="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                value={newPickId}
+                onChange={(e) => setNewPickId(e.target.value)}
+                className="w-full"
+              />
 
-              <div>
-                <label className="mb-1 block text-[9px] uppercase tracking-wider text-stone-500">
-                  Curator Note (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="A tranquil, evolving resonance..."
-                  value={newPickNote}
-                  onChange={(e) => setNewPickNote(e.target.value)}
-                  className="w-full rounded bg-stone-900 p-2 font-mono text-[11px] outline-none border border-stone-800 text-stone-200"
-                />
-              </div>
+              <Input
+                id="new-pick-note"
+                label="Curator Note (Optional)"
+                type="text"
+                placeholder="A tranquil, evolving resonance..."
+                value={newPickNote}
+                onChange={(e) => setNewPickNote(e.target.value)}
+                className="w-full"
+              />
 
-              <div>
-                <label className="mb-1 block text-[9px] uppercase tracking-wider text-stone-500">
-                  Position (1-8)
-                </label>
-                <select
-                  value={newPickPos}
-                  onChange={(e) => setNewPickPos(Number(e.target.value))}
-                  className="w-full rounded bg-stone-900 p-2 font-mono text-[11px] outline-none border border-stone-800 text-stone-200"
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                    <option key={n} value={n}>
-                      Position #{n}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                label="Position (1-8)"
+                value={newPickPos}
+                onChange={(e) => setNewPickPos(Number(e.target.value))}
+                className="w-full"
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                  <option key={n} value={n}>
+                    Position #{n}
+                  </option>
+                ))}
+              </Select>
 
               <button
                 type="button"
@@ -412,15 +400,14 @@ export default function AdminPage() {
 
           <div className="space-y-4 max-w-md">
             <div>
-              <label className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500">
-                Account ID (UUID)
-              </label>
-              <input
+              <Input
+                id="suspend-account-id"
+                label="Account ID (UUID)"
                 type="text"
                 placeholder="3fa85f64-5717-4562-b3fc-2c963f66afa6"
                 value={suspendAccountId}
                 onChange={(e) => setSuspendAccountId(e.target.value)}
-                className="w-full rounded bg-stone-900/60 p-2 font-mono text-[11px] outline-none border border-red-900/30 text-stone-200"
+                className="w-full border-red-950/40 focus:border-red-500"
               />
             </div>
 

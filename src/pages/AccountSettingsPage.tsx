@@ -21,10 +21,7 @@ import Toast, { type ToastMessage } from '@/components/Toast';
 import { getOptInStatus, setOptInStatus } from '@/observability/errorReporter';
 import HealthSettings from '@/health/HealthSettings';
 import LearningHintsSettings from '@/components/LearningHintsSettings';
-
-const fieldClass =
-  'w-full rounded-md bg-transparent px-3 py-2 font-mono text-xs outline-none transition-all';
-const fieldStyle = { border: '1px solid #44403c', color: '#f5f5f4' };
+import { Input } from '@/design/components/Input';
 
 export default function AccountSettingsPage() {
   const {
@@ -280,47 +277,27 @@ export default function AccountSettingsPage() {
                     </div>
                   </div>
                   <div>
-                    <label
-                      htmlFor="avatar-seed-input"
-                      className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500"
-                    >
-                      Avatar Resonator Seed
-                    </label>
-                    <input
+                    <Input
                       id="avatar-seed-input"
                       type="text"
                       value={avatarSeed}
                       onChange={(e) => setAvatarSeed(e.target.value)}
-                      className={fieldClass}
-                      style={fieldStyle}
                     />
                   </div>
                 </div>
               </div>
 
-              <div>
-                <label
-                  htmlFor="display-name-input"
-                  className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500"
-                >
-                  Display Name
-                </label>
-                <input
-                  id="display-name-input"
-                  type="text"
-                  placeholder="Anonymous Sculptor"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className={fieldClass}
-                  style={fieldStyle}
-                />
-              </div>
+              <Input
+                id="display-name-input"
+                type="text"
+                label="Display Name"
+                placeholder="Anonymous Sculptor"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+              />
 
               <div>
-                <label
-                  htmlFor="bio-input"
-                  className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500 flex justify-between"
-                >
+                <div className="flex justify-between mb-1.5 font-mono text-[9px] uppercase tracking-wider text-stone-500">
                   <span>Biography</span>
                   <span
                     className={
@@ -329,15 +306,15 @@ export default function AccountSettingsPage() {
                   >
                     {bio.length}/280
                   </span>
-                </label>
-                <textarea
+                </div>
+                <Input
                   id="bio-input"
+                  multiline
+                  rows={3}
                   placeholder="Sound designer, meditator, human..."
                   value={bio}
                   maxLength={280}
                   onChange={(e) => setBio(e.target.value)}
-                  className={`${fieldClass} resize-none`}
-                  style={{ ...fieldStyle, minHeight: '60px' }}
                 />
               </div>
 
@@ -667,24 +644,13 @@ export default function AccountSettingsPage() {
 
             <form onSubmit={handleDeleteAccount} className="space-y-4">
               <div>
-                <label
-                  htmlFor="confirm-email-input"
-                  className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500"
-                >
-                  Type{' '}
-                  <span className="text-stone-300 font-semibold">
-                    {account.email}
-                  </span>{' '}
-                  to confirm deletion
-                </label>
-                <input
+                <Input
                   id="confirm-email-input"
                   type="text"
                   placeholder={account.email}
                   value={confirmEmail}
                   onChange={(e) => setConfirmEmail(e.target.value)}
-                  className={fieldClass}
-                  style={{ ...fieldStyle, borderColor: '#7f1d1d' }}
+                  className="!border-red-950 focus:!border-red-500"
                 />
               </div>
 

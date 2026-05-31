@@ -93,8 +93,20 @@ export default function App() {
   const setSubMode = useParamStore((s) => s.setMode);
 
   useEffect(() => {
-    if (appMode === 'meditation' && mode !== 'drone') {
-      setSubMode('drone');
+    if (appMode === 'meditation') {
+      if (mode !== 'drone') {
+        localStorage.setItem('am_previous_sub_mode', mode);
+        setSubMode('drone');
+      }
+    } else if (appMode === 'musician') {
+      const prevSub = localStorage.getItem('am_previous_sub_mode') as
+        | 'sketch'
+        | 'drone'
+        | null;
+      if (prevSub && mode !== prevSub) {
+        setSubMode(prevSub);
+        localStorage.removeItem('am_previous_sub_mode');
+      }
     }
   }, [appMode, mode, setSubMode]);
 
@@ -143,10 +155,32 @@ export default function App() {
 
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const toastId = useRef(0);
-  const showToast = useCallback((text: string) => {
-    toastId.current += 1;
-    setToast({ id: toastId.current, text });
-  }, []);
+  const showToast = useCallback(
+    (text: string) => {
+      if (appMode === 'meditation') {
+        const suppressedKeywords = [
+          'export',
+          'sonification',
+          'midi',
+          'collab',
+          'ai modified',
+          'patch',
+          'jam',
+        ];
+        const textLower = text.toLowerCase();
+        if (suppressedKeywords.some((kw) => textLower.includes(kw))) {
+          console.info(
+            '[meditation-mode] Suppressed cross-mode technical notification:',
+            text,
+          );
+          return;
+        }
+      }
+      toastId.current += 1;
+      setToast({ id: toastId.current, text });
+    },
+    [appMode],
+  );
   const dismissToast = useCallback(() => setToast(null), []);
 
   // Initialize error reporter on app mount
@@ -271,10 +305,57 @@ export default function App() {
       }
     } else if (hasFragment) {
       showToast("Link from a newer version — can't load it");
+    } else {
+      try {
+        const saved = localStorage.getItem('am_unsaved_patch_state');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.params) {
+            applyDecodedToStore({
+              kind: 'patch',
+              params: parsed.params || {},
+              engineId: parsed.engineId || 'sine',
+              engineParams: parsed.engineParams || {},
+              loops: parsed.loops || {},
+              tuning: parsed.tuning,
+              mode: parsed.mode || 'open',
+              warnings: [],
+            });
+            showToast('Resumed unsaved session');
+          }
+        }
+      } catch (err) {
+        console.error(
+          'Failed to load unsaved patch state from localStorage:',
+          err,
+        );
+      }
     }
 
     return subscribeStoreToHash(useParamStore);
   }, [showToast]);
+
+  // Synchronize parameter store to localStorage for persistence across reloads/switches
+  useEffect(() => {
+    return useParamStore.subscribe((state) => {
+      try {
+        const payload = {
+          params: state.params,
+          engineId: state.engineId,
+          engineParams: state.engineParams,
+          loops: state.loops,
+          tuning: state.tuning,
+          mode: state.sessionMode,
+        };
+        localStorage.setItem('am_unsaved_patch_state', JSON.stringify(payload));
+      } catch (err) {
+        console.error(
+          'Failed to save unsaved patch state to localStorage:',
+          err,
+        );
+      }
+    });
+  }, []);
 
   const [aiGenerateOpen, setAiGenerateOpen] = useState(false);
 

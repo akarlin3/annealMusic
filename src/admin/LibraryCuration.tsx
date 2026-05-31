@@ -10,6 +10,8 @@ import {
   labelForIntention,
   labelForLength,
 } from '@/library/taxonomy';
+import { Input } from '@/design/components/Input';
+import { Select } from '@/design/components/Select';
 
 /**
  * v4.5 — admin curation for the `/listen` library. Add a listening session,
@@ -103,28 +105,21 @@ export default function LibraryCuration({ adminKey }: { adminKey: string }) {
 
       {/* Add form */}
       <div className="mb-8 space-y-4 max-w-xl">
-        <div>
-          <label className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500">
-            Listening Session ID or slug
-          </label>
-          <input
-            type="text"
-            value={sessionId}
-            onChange={(e) => setSessionId(e.target.value)}
-            placeholder="evenslug"
-            className="w-full rounded bg-stone-900/60 p-2 font-mono text-[11px] outline-none border border-stone-800 text-stone-200"
-          />
-        </div>
+        <Input
+          id="curation-session-id"
+          type="text"
+          label="Listening Session ID or slug"
+          value={sessionId}
+          onChange={(e) => setSessionId(e.target.value)}
+          placeholder="evenslug"
+        />
 
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500">
-              Intention
-            </label>
-            <select
+            <Select
+              label="Intention"
               value={intention}
               onChange={(e) => setIntention(e.target.value)}
-              className="w-full rounded bg-stone-900/60 p-2 text-[11px] outline-none border border-stone-800 text-stone-200"
             >
               <option value="">—</option>
               {INTENTIONS.map((i) => (
@@ -132,16 +127,13 @@ export default function LibraryCuration({ adminKey }: { adminKey: string }) {
                   {i.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="flex-1">
-            <label className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500">
-              Length
-            </label>
-            <select
+            <Select
+              label="Length"
               value={length}
               onChange={(e) => setLength(e.target.value)}
-              className="w-full rounded bg-stone-900/60 p-2 text-[11px] outline-none border border-stone-800 text-stone-200"
             >
               <option value="">—</option>
               {LENGTH_CATEGORIES.map((l) => (
@@ -149,7 +141,7 @@ export default function LibraryCuration({ adminKey }: { adminKey: string }) {
                   {l.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -175,17 +167,13 @@ export default function LibraryCuration({ adminKey }: { adminKey: string }) {
           </div>
         </div>
 
-        <div>
-          <label className="mb-1.5 block text-[9px] uppercase tracking-wider text-stone-500">
-            Curator note (optional)
-          </label>
-          <input
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="w-full rounded bg-stone-900/60 p-2 text-[11px] outline-none border border-stone-800 text-stone-200"
-          />
-        </div>
+        <Input
+          id="curation-note"
+          type="text"
+          label="Curator note (optional)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
 
         <button
           type="button"

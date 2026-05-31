@@ -4,16 +4,13 @@ import { api, getErrorMessage } from '@/api/client';
 import { decodeState } from '@/share/encode';
 import { applyDecodedToStore } from '@/share/hydrate';
 import type { AIQuota } from '@/api/types';
+import { Input } from '@/design/components/Input';
 
 interface GeneratePatchDialogProps {
   isOpen: boolean;
   onClose: () => void;
   showToast: (msg: string) => void;
 }
-
-const fieldClass =
-  'w-full rounded-md bg-transparent px-3 py-2 font-body text-sm outline-none transition-all resize-none';
-const fieldStyle = { border: '1px solid #44403c', color: '#f5f5f4' };
 
 const SUGGESTIONS = [
   'A slow dawn over a frozen lake, glass bells in the distance',
@@ -160,24 +157,16 @@ export default function GeneratePatchDialog({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-            <div>
-              <label
-                htmlFor="ai-prompt-input"
-                className="mb-2 block text-[9px] uppercase tracking-[0.18em] text-stone-500 font-mono"
-              >
-                Describe the sound you want
-              </label>
-              <textarea
-                id="ai-prompt-input"
-                required
-                rows={3}
-                placeholder="A deep foggy fjord, low humming drone in the background..."
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                className={fieldClass}
-                style={fieldStyle}
-              />
-            </div>
+            <Input
+              id="ai-prompt-input"
+              label="Describe the sound you want"
+              multiline
+              rows={3}
+              required
+              placeholder="A deep foggy fjord, low humming drone in the background..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
 
             <div className="space-y-2">
               <span className="block text-[9px] uppercase tracking-[0.18em] text-stone-500 font-mono">
