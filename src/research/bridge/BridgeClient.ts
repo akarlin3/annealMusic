@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BroadcastTransport } from './transport/broadcast';
-import { PostMessageTransport } from './transport/postmessage';
-import type { JsonRpcRequest } from './types';
+import type { JsonRpcRequest, Transport } from './types';
 
 export class BridgeClient {
-  private transport: BroadcastTransport | PostMessageTransport;
+  private transport: Transport;
   private nextId = 1;
   private pendingRequests: Map<
     string | number,
@@ -12,7 +11,7 @@ export class BridgeClient {
   > = new Map();
   private subscriptionCallbacks: Map<string, (val: any) => void> = new Map();
 
-  constructor(transport?: BroadcastTransport | PostMessageTransport) {
+  constructor(transport?: Transport) {
     this.transport = transport || new BroadcastTransport();
     this.transport.onMessage((msg) => this.handleMessage(msg));
   }

@@ -2,9 +2,10 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
   JsonRpcNotification,
+  Transport,
 } from '../types';
 
-export class BroadcastTransport {
+export class BroadcastTransport implements Transport {
   private channel: BroadcastChannel;
   private onMessageCallback: (
     message: JsonRpcRequest | JsonRpcResponse | JsonRpcNotification,

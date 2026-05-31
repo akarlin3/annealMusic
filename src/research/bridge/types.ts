@@ -6,6 +6,16 @@ export interface JsonRpcRequest {
   id: string | number | null;
 }
 
+export interface Transport {
+  send(message: JsonRpcRequest | JsonRpcResponse | JsonRpcNotification): void;
+  onMessage(
+    callback: (
+      message: JsonRpcRequest | JsonRpcResponse | JsonRpcNotification,
+    ) => void,
+  ): void;
+  close(): void;
+}
+
 export interface JsonRpcResponse {
   jsonrpc: '2.0';
   result?: any;

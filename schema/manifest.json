@@ -191,5 +191,30 @@
       }
     },
     "maxCaptureSec": 60
+  },
+  "polymorphicSchemas": {
+    "sonificationMapping": {
+      "sourceTypes": ["file", "live", "synthetic", "live-biosignal"],
+      "transformTypes": ["linear", "log", "exp", "discrete", "quantile"],
+      "targetTypes": ["param", "engineParam"]
+    },
+    "studyExport": {
+      "reproducibilityLevels": [
+        "bytes-identical",
+        "perceptually-identical",
+        "statistically-equivalent"
+      ]
+    },
+    "lessonStep": {
+      "stepTypes": ["text", "demo", "prompt", "reflection", "audio-clip"]
+    },
+    "experimentResponse": {
+      "randomizationSchemes": [
+        "simple",
+        "latin-square",
+        "block-random",
+        "custom"
+      ]
+    }
   }
 }

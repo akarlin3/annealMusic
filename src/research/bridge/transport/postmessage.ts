@@ -2,9 +2,10 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
   JsonRpcNotification,
+  Transport,
 } from '../types';
 
-export class PostMessageTransport {
+export class PostMessageTransport implements Transport {
   private onMessageCallback: (
     message: JsonRpcRequest | JsonRpcResponse | JsonRpcNotification,
   ) => void;

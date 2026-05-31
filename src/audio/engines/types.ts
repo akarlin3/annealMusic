@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AnnealMusicParams } from '@/state/params';
 import type { TuningRef } from '@/audio/tuning/types';
 
@@ -92,6 +93,39 @@ export interface AnnealEngine {
 
   /** [Optional] Expose individual partial output nodes for stem capture. */
   getPartialOutputs?(): AudioNode[];
+}
+
+export interface StemExportableEngine {
+  getPartialOutputs(): AudioNode[];
+}
+
+export interface AssetLoadableEngine {
+  setErrorHandler(fn: (error: Error) => void): void;
+}
+
+export interface DynamicModulatableEngine {
+  setPartialDetune(index: number, cents: number): void;
+  getPartialCount(): number;
+  getPartialFrequencies(): number[];
+}
+
+export function isStemExportable(engine: any): engine is StemExportableEngine {
+  return engine && typeof engine.getPartialOutputs === 'function';
+}
+
+export function isAssetLoadable(engine: any): engine is AssetLoadableEngine {
+  return engine && typeof engine.setErrorHandler === 'function';
+}
+
+export function isDynamicModulatable(
+  engine: any,
+): engine is DynamicModulatableEngine {
+  return (
+    engine &&
+    typeof engine.setPartialDetune === 'function' &&
+    typeof engine.getPartialCount === 'function' &&
+    typeof engine.getPartialFrequencies === 'function'
+  );
 }
 
 /** Build the default engine-param bag for a set of param defs. */

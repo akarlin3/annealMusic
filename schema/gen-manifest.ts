@@ -51,6 +51,22 @@ interface SchemaManifest {
     grainFields: Record<string, NumBound & { key: string }>;
     maxCaptureSec: number;
   };
+  polymorphicSchemas: {
+    sonificationMapping: {
+      sourceTypes: string[];
+      transformTypes: string[];
+      targetTypes: string[];
+    };
+    studyExport: {
+      reproducibilityLevels: string[];
+    };
+    lessonStep: {
+      stepTypes: string[];
+    };
+    experimentResponse: {
+      randomizationSchemes: string[];
+    };
+  };
 }
 
 function buildManifest(): SchemaManifest {
@@ -106,6 +122,31 @@ function buildManifest(): SchemaManifest {
       flags: ['m', 'f', 'c', 'cap'],
       grainFields,
       maxCaptureSec: MAX_CAPTURE_SEC,
+    },
+    polymorphicSchemas: {
+      sonificationMapping: {
+        sourceTypes: ['file', 'live', 'synthetic', 'live-biosignal'],
+        transformTypes: ['linear', 'log', 'exp', 'discrete', 'quantile'],
+        targetTypes: ['param', 'engineParam'],
+      },
+      studyExport: {
+        reproducibilityLevels: [
+          'bytes-identical',
+          'perceptually-identical',
+          'statistically-equivalent',
+        ],
+      },
+      lessonStep: {
+        stepTypes: ['text', 'demo', 'prompt', 'reflection', 'audio-clip'],
+      },
+      experimentResponse: {
+        randomizationSchemes: [
+          'simple',
+          'latin-square',
+          'block-random',
+          'custom',
+        ],
+      },
     },
   };
 }

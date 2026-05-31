@@ -5,7 +5,7 @@ import { useParamStore } from '../../state/params';
 import { METHOD_SCHEMAS, BRIDGE_VERSION, SCHEMA_VERSION } from './schema';
 import type { Orchestrator } from '../../audio/orchestrator';
 import { DataLogger } from '@/datalog/DataLogger';
-import { BridgeError } from './types';
+import { BridgeError, type Transport } from './types';
 import { renderOffline } from '@/record/OfflineRenderer';
 import { encodeWavBuffer } from '@/api/wav';
 import type {
@@ -23,7 +23,7 @@ interface Subscription {
 }
 
 export class BridgeServer {
-  private transports: (BroadcastTransport | PostMessageTransport)[] = [];
+  private transports: Transport[] = [];
   private subscriptions: Map<string, Subscription> = new Map();
   private storeUnsubscribe: (() => void) | null = null;
   private datalogSubscriptions: Map<string, () => void> = new Map();
@@ -90,10 +90,7 @@ export class BridgeServer {
     });
   }
 
-  private async handleMessage(
-    msg: any,
-    transport: BroadcastTransport | PostMessageTransport,
-  ): Promise<void> {
+  private async handleMessage(msg: any, transport: Transport): Promise<void> {
     // We only process requests that have a method and an id
     if (!msg || typeof msg.method !== 'string' || msg.id === undefined) {
       return;
