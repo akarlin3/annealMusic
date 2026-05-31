@@ -3,7 +3,10 @@ import { PulseEngine } from '@/audio/engines/pulse';
 import { DEFAULT_PARAMS } from '@/state/params';
 import { MockAudioContext, MockNode } from '@/test/audioMock';
 import type { SharedParams } from '@/audio/engines/types';
-import type { PhysicalVoiceNode, WorkletNodeFactory } from '@/audio/engines/physical';
+import type {
+  PhysicalVoiceNode,
+  WorkletNodeFactory,
+} from '@/audio/engines/physical';
 
 function shared(overrides: Partial<SharedParams> = {}): SharedParams {
   return { ...DEFAULT_PARAMS, ...overrides };
@@ -115,6 +118,21 @@ describe('PulseEngine — parameter mapping', () => {
     expect(voice.params.get('density')).toBe(4);
     expect(voice.params.get('tone')).toBe(0.2);
     expect(voice.params.get('swing')).toBe(0.8);
+  });
+
+  it('supports dynamic setSharedParams and setPartialDetune', async () => {
+    const { eng, voices } = makeEngine();
+    eng.start(ctxOf(), shared({ density: 4 }), {});
+    await flush();
+
+    const voice = voices[0]!;
+    eng.setSharedParams({ rootFreq: 120, spread: 1.2, density: 5 });
+    expect(voice.params.get('f0')).toBe(120);
+    expect(voice.params.get('spread')).toBe(1.2);
+    expect(voice.params.get('densityVal')).toBe(5);
+
+    eng.setPartialDetune(0, 15);
+    expect(voice.params.get('detune')).toBe(15);
   });
 
   it('calculates harmonic frequencies correctly', async () => {

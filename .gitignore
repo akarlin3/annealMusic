@@ -48,3 +48,8 @@ api/.env
 *.db
 
 dist-learn/
+
+# Playwright & Coverage
+playwright-report/
+test-results/
+.coverage

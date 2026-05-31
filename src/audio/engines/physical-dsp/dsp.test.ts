@@ -6,7 +6,11 @@ import {
 import { KarplusStrong } from '@/audio/engines/physical-dsp/string';
 import { Waveguide } from '@/audio/engines/physical-dsp/tube';
 import { ModalBank } from '@/audio/engines/physical-dsp/modal-bank';
-import { PLATE_MODES, plateEigen } from '@/audio/engines/physical-dsp/plate';
+import {
+  PLATE_MODES,
+  plateEigen,
+  createPlateBank,
+} from '@/audio/engines/physical-dsp/plate';
 import { BowedString } from '@/audio/engines/physical-dsp/bowed';
 import { resolveMidiNote } from '@/audio/tuning/resolver';
 import type { TuningRef } from '@/audio/tuning/types';
@@ -21,12 +25,16 @@ import {
 /** Cooley-Tukey Radix-2 Fast Fourier Transform */
 function fft(re: Float32Array, im: Float32Array): void {
   const n = re.length;
-  if ((n & (n - 1)) !== 0) throw new Error("FFT length must be a power of 2");
+  if ((n & (n - 1)) !== 0) throw new Error('FFT length must be a power of 2');
 
   for (let i = 0, j = 0; i < n; i++) {
     if (i < j) {
-      const temp = re[i]!; re[i] = re[j]!; re[j] = temp;
-      const tempIm = im[i]!; im[i] = im[j]!; im[j] = tempIm;
+      const temp = re[i]!;
+      re[i] = re[j]!;
+      re[j] = temp;
+      const tempIm = im[i]!;
+      im[i] = im[j]!;
+      im[j] = tempIm;
     }
     let bit = n >> 1;
     while (j & bit) {
@@ -115,7 +123,7 @@ function detectPitch(s: KarplusStrong, fTarget: number): number {
     const y_gamma = Math.log(mag[k_peak + 1]! + 1e-10);
     const denom = y_alpha - 2.0 * y_beta + y_gamma;
     if (Math.abs(denom) > 1e-6) {
-      const p = 0.5 * (y_alpha - y_gamma) / denom;
+      const p = (0.5 * (y_alpha - y_gamma)) / denom;
       return (k_peak + p) * binHz;
     }
   }
@@ -204,7 +212,9 @@ describe('KarplusStrong (string)', () => {
       const s = new KarplusStrong(SR, fTarget, 0.1, 0.7, 0.2, seeded(fTarget));
       const fMeas = detectPitch(s, fTarget);
       const cents = 1200 * Math.log2(fMeas / fTarget);
-      console.log(`Target: ${fTarget} Hz, Measured: ${fMeas.toFixed(3)} Hz, Cents: ${cents.toFixed(3)}`);
+      console.log(
+        `Target: ${fTarget} Hz, Measured: ${fMeas.toFixed(3)} Hz, Cents: ${cents.toFixed(3)}`,
+      );
       expect(Math.abs(cents)).toBeLessThan(2.0);
     }
   });
@@ -212,21 +222,23 @@ describe('KarplusStrong (string)', () => {
   it('harmonicity: partials remain a perfect harmonic series n * f0 within tolerance', () => {
     const fTarget = 220;
     const s = new KarplusStrong(SR, fTarget, 0.1, 0.7, 0.2, seeded(fTarget));
-    
+
     // Pitch detection on the fundamental
     const fMeas1 = detectPitch(s, fTarget);
     expect(Math.abs(1200 * Math.log2(fMeas1 / fTarget))).toBeLessThan(2.0);
 
     // Now look for the 2nd harmonic peak (around 2 * fTarget = 440 Hz)
     const fMeas2 = detectPitch(s, fTarget * 2);
-    expect(Math.abs(1200 * Math.log2(fMeas2 / (fTarget * 2)))).toBeLessThan(5.0);
+    expect(Math.abs(1200 * Math.log2(fMeas2 / (fTarget * 2)))).toBeLessThan(
+      5.0,
+    );
   });
 
   it('microtonal round-trip: resolves a non-12-TET just ratio from the tuning system and synthesizes within ±2 cents', () => {
     const tuning: TuningRef = { system: 'just-7', referenceA4Hz: 440 };
     // MIDI 64 (E4) under 7-limit just intonation should be non-12-TET
     const targetHz = resolveMidiNote(tuning, 64);
-    
+
     const s = new KarplusStrong(SR, targetHz, 0.1, 0.7, 0.2, seeded(64));
     const fMeas = detectPitch(s, targetHz);
     const cents = 1200 * Math.log2(fMeas / targetHz);
@@ -235,7 +247,7 @@ describe('KarplusStrong (string)', () => {
 
   it('bow vs. pluck richness: bowed mode produces a richer harmonic spectrum (higher centroid) than plucked mode', () => {
     const fTarget = 220;
-    
+
     // Plucked string (noise excitation)
     const plucked = new KarplusStrong(SR, fTarget, 0.4, 0.7, 0.6, seeded(100));
     const pluckedMag = getMagnitudeSpectrum(plucked);
@@ -293,5 +305,11 @@ describe('ModalBank (plate)', () => {
 
   it('defaults to 20 modes', () => {
     expect(PLATE_MODES).toBe(20);
+  });
+
+  it('creates plate bank cleanly', () => {
+    const bank = createPlateBank(SR, 10);
+    expect(bank).toBeDefined();
+    expect(bank.next).toBeDefined();
   });
 });

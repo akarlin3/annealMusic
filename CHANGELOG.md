@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.5.0] - 2026-05-31
+
+**v8.5 Test Coverage, CI Hardening, and v8 Release Closeout.** The final version 8 closeout milestone. Hardened validation and release infrastructure across all domains. Achieved and verified strict target test coverage metrics (>85% statement coverage on Audio Engine Core, >95% on Schema / State Management, and >80% on Server API endpoints). Automated the complete 10-flow E2E smoke test matrix into a robust Playwright suite, ensuring zero flakiness. Enforced a tight <8 minute PR runtime budget in CI through dynamic thread optimization, node/pip caching, and sharded nightly builds. Formulated the complete v8 Retrospective, finalized all v8 audit and threat model documentation, updated Contributing instructions with strict quality disciplines, consolidated multi-version Stability Commitments, and tagged the final `v8.5.0` release.
+
 ## [8.4.0] - 2026-05-31
 
 **v8.4 Substantial Refactor.** A comprehensive structural optimization milestone consolidating redundant pathways and completing core interfaces. Successfully retired design debt across seven key target areas: consolidated six distinct render pathways into a single environment-agnostic `RenderEngine`, resolved all schema duplications with polymorphic validation in `schema/manifest.json`, unified all JSON-RPC 2.0 transport layers into a single `Transport` contract, modularized the audio engine interface via composition, shipped a shared native `CapacitorPluginBase` on iOS and Android, consolidated the session player modes into `SessionPlayer`, and introduced a robust `StorageBackend` abstraction layer.

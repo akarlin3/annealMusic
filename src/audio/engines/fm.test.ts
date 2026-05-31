@@ -72,6 +72,22 @@ describe('FmEngine — frequency tracking', () => {
     expect(eng.getPartialFrequencies()).toEqual([110, 165, 220]);
     expect(eng.getModulatorFrequencies()).toEqual([330, 495, 660]);
   });
+
+  it('respects instant and scheduled target times in parameter changes', () => {
+    const { as } = ctxOf();
+    const eng = new FmEngine();
+    eng.start(as, shared({ rootFreq: 110, spread: 1, density: 3 }), {
+      modRatio: 2,
+    });
+
+    // Instant update
+    eng.setSharedParams({ rootFreq: 150 }, undefined, true);
+    expect(eng.getPartialFrequencies()[0]).toBeCloseTo(150);
+
+    // Scheduled update
+    eng.setSharedParams({ rootFreq: 200 }, 5, false);
+    expect(eng.getPartialFrequencies()[0]).toBeCloseTo(200);
+  });
 });
 
 describe('FmEngine — detune', () => {
