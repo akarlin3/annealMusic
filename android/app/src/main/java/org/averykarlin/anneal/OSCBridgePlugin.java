@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @CapacitorPlugin(name = "OSCBridge")
-public class OSCBridgePlugin extends Plugin {
+public class OSCBridgePlugin extends CapacitorPluginBase {
     private static final String TAG = "OSCBridgePlugin";
     private DatagramSocket rxSocket;
     private ExecutorService rxExecutor;

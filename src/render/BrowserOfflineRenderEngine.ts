@@ -9,7 +9,7 @@ import type { RenderEngine, RenderOptions, RenderResult } from './types';
 
 export class BrowserOfflineRenderEngine implements RenderEngine {
   async render(payload: string, options: RenderOptions): Promise<RenderResult> {
-    const decoded = decodeState(SCHEMA_VERSION, payload);
+    const decoded = decodeState(SCHEMA_VERSION, payload) as any;
 
     // Resolve basic parameters
     const baseParams =

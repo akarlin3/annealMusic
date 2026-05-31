@@ -7,7 +7,6 @@ if (typeof globalThis.window === 'undefined') {
   (globalThis as any).window = globalThis;
 }
 
-import { OfflineAudioContext } from 'node-web-audio-api';
 import { renderStemsOffline } from '@/export/StemRenderer';
 import type { StemRenderConfig } from '@/export/StemRenderer';
 import { decodeState } from '@/share/encode';
@@ -17,13 +16,15 @@ import type { SlotId, SlotState } from '@/loop/types';
 import type { RenderEngine, RenderOptions, RenderResult } from './types';
 
 export class NodeOfflineRenderEngine implements RenderEngine {
+  private OfflineAudioContextClass: any = null;
+
   private createSafeOfflineContext(
     channels: number,
     frames: number,
     sampleRate: number,
     durationSec: number,
-  ): OfflineAudioContext {
-    const ctx = new OfflineAudioContext(channels, frames, sampleRate);
+  ): any {
+    const ctx = new this.OfflineAudioContextClass(channels, frames, sampleRate);
     const originalSuspend = ctx.suspend;
     ctx.suspend = function (suspendTime: number) {
       // If the suspension is too close to the end, ignore it safely to avoid Node crash
@@ -36,7 +37,12 @@ export class NodeOfflineRenderEngine implements RenderEngine {
   }
 
   async render(payload: string, options: RenderOptions): Promise<RenderResult> {
-    const decoded = decodeState(SCHEMA_VERSION, payload);
+    if (!this.OfflineAudioContextClass) {
+      const moduleName = 'node-web-audio-api';
+      const mod = (await import(moduleName)) as any;
+      this.OfflineAudioContextClass = mod.OfflineAudioContext;
+    }
+    const decoded = decodeState(SCHEMA_VERSION, payload) as any;
 
     let baseParams: any;
     let engineId: any;

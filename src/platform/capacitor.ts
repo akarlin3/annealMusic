@@ -1,6 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { PlatformBridge } from './types';
+import { FEATURE_FLAGS } from '../config/flags';
+import { appStorage } from './storage';
 
 const STORAGE_KEY = 'am_anon_id';
 
@@ -8,6 +10,9 @@ export const capacitorBridge: PlatformBridge = {
   getPlatform: () => (Capacitor.getPlatform() === 'ios' ? 'ios' : 'android'),
 
   getPersistedAnonId: async () => {
+    if (FEATURE_FLAGS.USE_STORAGE_ABSTRACTION) {
+      return appStorage.get(STORAGE_KEY);
+    }
     try {
       const { value } = await Preferences.get({ key: STORAGE_KEY });
       return value;
@@ -17,6 +22,10 @@ export const capacitorBridge: PlatformBridge = {
   },
 
   setPersistedAnonId: async (id) => {
+    if (FEATURE_FLAGS.USE_STORAGE_ABSTRACTION) {
+      await appStorage.set(STORAGE_KEY, id);
+      return;
+    }
     try {
       await Preferences.set({ key: STORAGE_KEY, value: id });
     } catch (e) {
@@ -25,6 +34,10 @@ export const capacitorBridge: PlatformBridge = {
   },
 
   clearPersistedAnonId: async () => {
+    if (FEATURE_FLAGS.USE_STORAGE_ABSTRACTION) {
+      await appStorage.remove(STORAGE_KEY);
+      return;
+    }
     try {
       await Preferences.remove({ key: STORAGE_KEY });
     } catch (e) {

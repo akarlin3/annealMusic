@@ -3,7 +3,6 @@ import * as http from 'node:http';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
 import type { RenderEngine, RenderOptions, RenderResult } from './types';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -81,6 +80,8 @@ export class BrowserPlaywrightRenderEngine implements RenderEngine {
   }
 
   async render(payload: string, options: RenderOptions): Promise<RenderResult> {
+    const moduleName = 'playwright';
+    const { chromium } = (await import(moduleName)) as any;
     const rootDirs = this.getRootDirs();
     const { port, close } = await startStaticServer(rootDirs);
     const renderUrl = `http://127.0.0.1:${port}/render.html`;
@@ -102,7 +103,7 @@ export class BrowserPlaywrightRenderEngine implements RenderEngine {
         );
 
         const result: { b64: string; mime: string } = await page.evaluate(
-          async ([payloadStr, opts]) => {
+          async ([payloadStr, opts]: [any, any]) => {
             return await (window as any).__annealVideoRender(payloadStr, opts);
           },
           [
@@ -131,7 +132,7 @@ export class BrowserPlaywrightRenderEngine implements RenderEngine {
         );
 
         const results: Record<string, string> = await page.evaluate(
-          async ([payloadStr, opts]) => {
+          async ([payloadStr, opts]: [any, any]) => {
             return await (window as any).__annealStemsRender(payloadStr, opts);
           },
           [
@@ -160,7 +161,7 @@ export class BrowserPlaywrightRenderEngine implements RenderEngine {
         );
 
         const result: { b64: string; mime: string } = await page.evaluate(
-          async ([payloadStr, opts]) => {
+          async ([payloadStr, opts]: [any, any]) => {
             return await (window as any).__annealRender(payloadStr, opts);
           },
           [

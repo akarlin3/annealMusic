@@ -3,7 +3,7 @@ import Capacitor
 import CoreBluetooth
 
 @objc(BiofeedbackBridgePlugin)
-public class BiofeedbackBridgePlugin: CAPPlugin, CAPBridgedPlugin {
+public class BiofeedbackBridgePlugin: CapacitorPluginBase, CAPBridgedPlugin {
     public let identifier = "BiofeedbackBridgePlugin"
     public let jsName = "BiofeedbackBridge"
     public let pluginMethods: [CAPPluginMethod] = [

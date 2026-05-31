@@ -3,7 +3,7 @@ import Capacitor
 import HealthKit
 
 @objc(HealthBridgePlugin)
-public class HealthBridgePlugin: CAPPlugin, CAPBridgedPlugin {
+public class HealthBridgePlugin: CapacitorPluginBase, CAPBridgedPlugin {
     public let identifier = "HealthBridgePlugin"
     public let jsName = "HealthBridge"
     public let pluginMethods: [CAPPluginMethod] = [

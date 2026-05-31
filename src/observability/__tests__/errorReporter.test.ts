@@ -120,7 +120,11 @@ describe('Error Reporter Consent and Anonymization', () => {
       await reportError(new Error('Fatal synth failure'), 'synth-mount');
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      const [url, options] = fetchSpy.mock.calls[0];
+      const firstCall = fetchSpy.mock.calls[0] as [
+        string | URL,
+        RequestInit | undefined,
+      ];
+      const [url, options] = firstCall;
       expect(url).toContain('/api/v1/observability/crash-reports');
       expect(options?.method).toBe('POST');
 

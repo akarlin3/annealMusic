@@ -9,7 +9,7 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 @CapacitorPlugin(name = "HealthBridge")
-public class HealthBridgePlugin extends Plugin {
+public class HealthBridgePlugin extends CapacitorPluginBase {
 
     @PluginMethod
     public void requestPermission(PluginCall call) {

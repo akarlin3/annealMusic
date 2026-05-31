@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.4.0] - 2026-05-31
+
+**v8.4 Substantial Refactor.** A comprehensive structural optimization milestone consolidating redundant pathways and completing core interfaces. Successfully retired design debt across seven key target areas: consolidated six distinct render pathways into a single environment-agnostic `RenderEngine`, resolved all schema duplications with polymorphic validation in `schema/manifest.json`, unified all JSON-RPC 2.0 transport layers into a single `Transport` contract, modularized the audio engine interface via composition, shipped a shared native `CapacitorPluginBase` on iOS and Android, consolidated the session player modes into `SessionPlayer`, and introduced a robust `StorageBackend` abstraction layer.
+
+### Added
+
+- **Unified Render Paths:** Defined a core `RenderEngine` interface with concrete adapters for Browser-Offline (`BrowserOfflineRenderEngine`), Node-Offline (`NodeOfflineRenderEngine` using `node-web-audio-api`), and Playwright-Browser (`BrowserPlaywrightRenderEngine`).
+- **Polymorphic Schema Centralization:** Centralized polymorphic schemas (sonification mappings, study export manifests, lesson steps, clinical responses) directly in `schema/manifest.json`.
+- **JSON-RPC Bridge Transport Unification:** Built a unified `Transport` interface on top of `BroadcastTransport`, `PostMessageTransport`, `WebSocketTransport`, and `StdioTransport`.
+- **Modular Audio Engines:** Modularized `AnnealEngine` through composable typeguards (`isStemExportable`, `isAssetLoadable`, `isDynamicModulatable`).
+- **Capacitor Plugin Base:** Authored native mobile `CapacitorPluginBase` on iOS (Swift) and Android (Java) and migrated `BiofeedbackBridgePlugin`, `HealthBridgePlugin`, and `OSCBridgePlugin` to extend it.
+- **Unified Session Player:** Created a single `SessionPlayer` that manages all playback and tick timelines, delegating custom modes to adapters.
+- **Storage Abstraction:** Introduced `StorageBackend` contract with concrete `LocalStorageBackend`, `CapacitorPreferencesBackend`, and `HybridStorageBackend` adapters.
+
+### Changed
+
+- **Zero-Drift Sync Script:** Extended `scripts/sync-schemas.mjs` to auto-compile models and fail builds on schema drift.
+- **Robust Storage Rehydration:** Awaits platform-specific storage rehydration on anonymous ID cookie recovery to prevent microtask race conditions.
+
 ## [8.3.0] - 2026-05-31
 
 **v8.3 Observability & Safety.** Shipped a privacy-first diagnostics and safety hardening pass, implementing zero-telemetry first-run glassmorphic consent modals, client-side PII scrubbing, dynamic URL path filters, and self-hosted server error collection. Hardened security boundaries with strict route rate limiting, selective HTML Content-Security-Policy (CSP) headers, and Unix sandboxed execution memory limits (MAX_MEM = 512MB) with graceful cross-platform ValueError support.

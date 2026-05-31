@@ -13,7 +13,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import java.util.Random;
 
 @CapacitorPlugin(name = "BiofeedbackBridge")
-public class BiofeedbackBridgePlugin extends Plugin {
+public class BiofeedbackBridgePlugin extends CapacitorPluginBase {
     private static final String TAG = "BiofeedbackBridgePlugin";
     private Handler mockHandler;
     private Runnable mockRunnable;

@@ -51,7 +51,7 @@ export async function initAnonId(): Promise<string | null> {
   const cookie = readCookie(COOKIE_NAME);
   if (cookie && isUuid(cookie)) {
     cachedAnonId = cookie;
-    void platform.setPersistedAnonId(cookie);
+    await platform.setPersistedAnonId(cookie);
     isInitialized = true;
     return cachedAnonId;
   }

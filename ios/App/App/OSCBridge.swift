@@ -3,7 +3,7 @@ import Capacitor
 import Network
 
 @objc(OSCBridgePlugin)
-public class OSCBridgePlugin: CAPPlugin, CAPBridgedPlugin {
+public class OSCBridgePlugin: CapacitorPluginBase, CAPBridgedPlugin {
     public let identifier = "OSCBridgePlugin"
     public let jsName = "OSCBridge"
     public let pluginMethods: [CAPPluginMethod] = [
