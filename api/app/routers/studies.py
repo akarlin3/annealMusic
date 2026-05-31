@@ -923,6 +923,23 @@ async def export_study(
     return db_export
 
 
+from pydantic import BaseModel
+import re
+
+class OrcidVerifyIn(BaseModel):
+    orcid: str
+
+class OrcidVerifyOut(BaseModel):
+    orcid: str
+    valid: bool
+
+@router.post("/orcid-verify", response_model=OrcidVerifyOut, dependencies=[Depends(rate_limit("orcid_verify"))])
+async def verify_orcid_endpoint(body: OrcidVerifyIn) -> OrcidVerifyOut:
+    orcid = body.orcid.strip()
+    match = re.match(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$", orcid)
+    return OrcidVerifyOut(orcid=orcid, valid=bool(match))
+
+
 study_exports_router = APIRouter(prefix="/api/v1/study-exports", tags=["studies"])
 
 @study_exports_router.get("/{id}", response_model=StudyExportOut, dependencies=[Depends(rate_limit("get"))])

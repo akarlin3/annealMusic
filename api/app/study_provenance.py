@@ -54,12 +54,17 @@ ACTIONS = {
     "study.update",
     "study.archive",
     "study.publish",
+    "study.export",
     "investigator.add",
     "investigator.role_change",
     "investigator.remove",
     "resource.link",
     "resource.unlink",
     "snapshot.create",
+    "account.magic_link",
+    "account.oauth_link",
+    "account.oauth_unlink",
+    "account.consent_change",
 }
 
 

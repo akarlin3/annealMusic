@@ -52,6 +52,7 @@ from app.routers import (
     biofeedback,
     renders,
     accessibility,
+    observability,
 )
 
 
@@ -150,6 +151,7 @@ def create_app() -> FastAPI:
     app.include_router(mapping_templates.instantiate_router)
     app.include_router(renders.router)
     app.include_router(accessibility.router)
+    app.include_router(observability.router)
 
     return app
 

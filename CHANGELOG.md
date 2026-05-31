@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.3.0] - 2026-05-31
+
+**v8.3 Observability & Safety.** Shipped a privacy-first diagnostics and safety hardening pass, implementing zero-telemetry first-run glassmorphic consent modals, client-side PII scrubbing, dynamic URL path filters, and self-hosted server error collection. Hardened security boundaries with strict route rate limiting, selective HTML Content-Security-Policy (CSP) headers, and Unix sandboxed execution memory limits (MAX_MEM = 512MB) with graceful cross-platform ValueError support.
+
+### Added
+
+- **Privacy-First Client Telemetry:** Created a centralized browser error reporting system (`errorReporter.ts`) that listens to unhandled exceptions, promise rejections, Web Audio dropouts, and WebSocket disconnects.
+- **Glassmorphic Consent Prompt:** Implemented a premium, responsive first-run consent dialog (`consentDialog.tsx`) and added an easily accessible toggle in the Account Settings.
+- **Self-Hosted Crash Reports:** Designed a dedicated, secure server route (`/api/v1/observability/crash-reports`) to capture and aggregate anonymized diagnostic reports.
+- **SLO Latency Tracking & Alerting:** Instrumented FastAPI request middleware to track target API latencies and check breach durations, triggering out-of-band operator alerts.
+- **Grafana & Prometheus Infrastructure:** Defined Grafana dashboards as code and Prometheus Alertmanager alerting rules as code.
+- **STRIDE Architectural Threat Model:** Authored a formal threat assessment at `docs/v8/THREAT_MODEL.md`.
+- **Responsible Disclosure & Policy:** Created RFC 9116 security contact (`security.txt`), a public disclosure policy (`SECURITY.md`), and researcher credits (`SECURITY_ACKNOWLEDGMENTS.md`).
+
+### Changed
+
+- **Client-Side Data Scrubbing:** Automatically strips email addresses, user IDs, and auth tokens, and replaces dynamic slugs with `:slug` or `:id` before sending crash reports.
+- **SlowAPI Route Rate Limiting:** Applied strict IP-based rate-limiting decorators to sensitive ORCID verification (5/min) and gallery search (15/min) endpoints.
+- **Selective CSP Headers:** Hardened HTML-serving routes (`/embed`, `/learn`, `/research`) with strict script boundaries, mixed content blocking, and frame-ancestors limits, while preserving standard JSON responses.
+- **Sandboxed Execution Memory Caps:** Enforced a `MAX_MEM = 512MB` limit on custom Python validation runs using Unix `resource.setrlimit`, with a cross-platform ValueError exception wrapper.
+- **Extended Study Audit Log:** Added Magic Link requests, OAuth link/unlink events, and explicit telemetry consent changes to the immutable `StudyAuditLog`.
+
 ## [8.2.0] - 2026-05-31
 
 **v8.2 Performance Pass.** Shipped a comprehensive performance sweep across initial app boot latency, runtime CPU consumption, mobile BLE power thermals, and active memory retention. Route-level lazy loading and dynamic Yjs/CRDT code-splitting successfully reduced eagerly-loaded bundles by >250KB, beating all target budgets.

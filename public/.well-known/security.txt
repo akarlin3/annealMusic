@@ -1,0 +1,7 @@
+# AnnealMusic Security Disclosure Policy (RFC 9116)
+Contact: security@annealmusic.com
+Expires: 2027-05-30T23:59:59.000Z
+Acknowledgements: https://anneal.averykarlin.org/docs/SECURITY_ACKNOWLEDGMENTS.md
+Preferred-Languages: en
+Canonical: https://anneal.averykarlin.org/.well-known/security.txt
+Policy: https://github.com/akarlin3/annealMusic/blob/main/SECURITY.md

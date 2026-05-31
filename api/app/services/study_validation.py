@@ -148,6 +148,16 @@ def run_bundle_analysis_scripts(zip_bytes: bytes) -> dict[str, Any]:
         script_to_run = python_scripts[0]
         script_full_path = os.path.join(temp_dir, script_to_run)
 
+        # Enforce memory limit (MAX_MEM = 512MB) on Python executions
+        def limit_resources():
+            try:
+                import resource
+                # 512MB in bytes
+                max_bytes = 512 * 1024 * 1024
+                resource.setrlimit(resource.RLIMIT_AS, (max_bytes, max_bytes))
+            except Exception:
+                pass
+
         # Run script using subprocess CPython
         # Research data is at data/clinical_session_records.json
         # The script is run in the temp_dir working directory
@@ -158,6 +168,7 @@ def run_bundle_analysis_scripts(zip_bytes: bytes) -> dict[str, Any]:
             stderr=subprocess.PIPE,
             text=True,
             timeout=30.0,
+            preexec_fn=limit_resources,
         )
 
         report["analysis_script_output"] = result.stdout

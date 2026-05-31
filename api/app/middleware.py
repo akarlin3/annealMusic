@@ -14,6 +14,28 @@ from app.logging_config import get_logger
 logger = get_logger("request")
 
 
+def _resolve_slo_route(method: str, path: str) -> str | None:
+    # 1. Patch Save: POST to /api/v1/patches
+    if method == "POST" and path == "/api/v1/patches":
+        return "patch_save"
+    # 2. Patch Load: GET to /api/v1/patches/{slug}
+    if method == "GET" and path.startswith("/api/v1/patches/"):
+        return "patch_load"
+    # 3. Gallery List: GET to /api/v1/gallery
+    if method == "GET" and path == "/api/v1/gallery":
+        return "gallery_list"
+    # 4. Render Submit: POST to /api/v1/renders
+    if method == "POST" and path == "/api/v1/renders":
+        return "render_submit"
+    # 5. Render Complete: GET to /api/v1/renders/
+    if method == "GET" and path.startswith("/api/v1/renders/"):
+        return "render_complete"
+    # 6. LLM Generate: POST to /api/v1/ai/generate
+    if method == "POST" and path == "/api/v1/ai/generate":
+        return "llm_generate"
+    return None
+
+
 class RequestContextMiddleware(BaseHTTPMiddleware):
     """Assigns/propagates a request id, logs one structured line per request,
     and applies security headers."""
@@ -26,6 +48,17 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         elapsed_ms = round((time.monotonic() - start) * 1000, 1)
+
+        # Track Service Level Objectives (SLOs)
+        slo_route = _resolve_slo_route(request.method, request.url.path)
+        if slo_route:
+            from app.services.observability.metrics import tracker
+            from app.services.observability.alerting import check_slos_and_alert
+            import asyncio
+
+            tracker.record_latency(slo_route, elapsed_ms)
+            asyncio.create_task(check_slos_and_alert())
+
         response.headers["x-request-id"] = request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -35,9 +68,25 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         # DENY. X-Frame-Options has no allow-list modern browsers honor, so for
         # the embed we drop it and use CSP frame-ancestors instead.
         if request.url.path.startswith("/embed"):
-            response.headers["Content-Security-Policy"] = "frame-ancestors *"
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; "
+                "frame-ancestors *; "
+                "block-all-mixed-content;"
+            )
         else:
             response.headers["X-Frame-Options"] = "DENY"
+            if request.url.path.startswith(("/learn", "/research")):
+                response.headers["Content-Security-Policy"] = (
+                    "default-src 'self'; "
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
+                    "style-src 'self' 'unsafe-inline'; "
+                    "img-src 'self' data:; "
+                    "frame-ancestors 'none'; "
+                    "block-all-mixed-content;"
+                )
 
         if get_settings().is_prod:
             response.headers["Strict-Transport-Security"] = (

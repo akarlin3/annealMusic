@@ -1,6 +1,7 @@
 import { WebrtcProvider } from 'y-webrtc';
 import { WebsocketProvider } from 'y-websocket';
 import { doc } from './crdt';
+import { reportError } from '@/observability/errorReporter';
 
 export interface TransportState {
   status: 'connecting' | 'connected' | 'failed' | 'disconnected';
@@ -43,6 +44,10 @@ export function connectSession(
           onStateChange({ status: 'connected', mode: 'websocket' });
         } catch (wsErr) {
           console.error('[Jam] Fallback WebSocket relay setup failed:', wsErr);
+          void reportError(
+            wsErr,
+            'jam-fallback-websocket-relay-failed-timeout',
+          );
           onStateChange({ status: 'failed', mode: 'none' });
         }
       }
@@ -82,6 +87,7 @@ export function connectSession(
       '[Jam] WebRTC initialization failed. Immediate fallback to WebSocket relay:',
       webrtcErr,
     );
+    void reportError(webrtcErr, 'jam-webrtc-initialization-failed');
     if (fallbackTimeout) {
       clearTimeout(fallbackTimeout);
       fallbackTimeout = null;
@@ -92,6 +98,7 @@ export function connectSession(
       onStateChange({ status: 'connected', mode: 'websocket' });
     } catch (wsErr) {
       console.error('[Jam] Fallback WebSocket relay setup failed:', wsErr);
+      void reportError(wsErr, 'jam-fallback-websocket-relay-failed');
       onStateChange({ status: 'failed', mode: 'none' });
     }
   }

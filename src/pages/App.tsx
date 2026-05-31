@@ -32,6 +32,11 @@ import { usePatches } from '@/api/usePatches';
 import { useAuth } from '@/auth/AuthProvider';
 import { LissajousAvatar } from '@/components/LissajousAvatar';
 import LoginDialog from '@/components/LoginDialog';
+import { ConsentDialog } from '@/observability/consentDialog';
+import {
+  initializeErrorReporter,
+  reportError,
+} from '@/observability/errorReporter';
 import ClaimBanner from '@/components/ClaimBanner';
 import { Sparkles, User, Users } from 'lucide-react';
 import { useJam } from '@/jam/JamProvider';
@@ -123,9 +128,17 @@ export default function App() {
   }, []);
   const dismissToast = useCallback(() => setToast(null), []);
 
+  // Initialize error reporter on app mount
+  useEffect(() => {
+    initializeErrorReporter();
+  }, []);
+
   // Surface engine errors (e.g. physical worklet unsupported) as a toast.
   useEffect(() => {
-    setEngineErrorHandler((error) => showToast(error.message));
+    setEngineErrorHandler((error) => {
+      showToast(error.message);
+      void reportError(error, 'audio-engine-error');
+    });
   }, [setEngineErrorHandler, showToast]);
 
   // Listen for low-level toast events (such as custom source fallbacks).
@@ -714,6 +727,7 @@ export default function App() {
         </>
       )}
 
+      <ConsentDialog />
       <Toast toast={toast} onDismiss={dismissToast} />
       <JamIndicator />
       <ParticipantCursor />

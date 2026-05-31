@@ -2,6 +2,10 @@ import { createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ResearchApp } from './ResearchApp';
 import '@/styles/index.css';
+import { initializeErrorReporter } from '@/observability/errorReporter';
+
+// Boot error reporter
+initializeErrorReporter();
 
 const rootEl = document.getElementById('research-root');
 if (!rootEl) {

@@ -18,6 +18,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import Toast, { type ToastMessage } from '@/components/Toast';
+import { getOptInStatus, setOptInStatus } from '@/observability/errorReporter';
 import HealthSettings from '@/health/HealthSettings';
 import LearningHintsSettings from '@/components/LearningHintsSettings';
 
@@ -46,6 +47,9 @@ export default function AccountSettingsPage() {
   const [mutedUsers, setMutedUsers] = useState<RelationshipItem[]>([]);
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [errorReporting, setErrorReporting] = useState(
+    getOptInStatus() === true,
+  );
 
   const [providers, setProviders] = useState<string[]>([]);
   const [claimedDevices, setClaimedDevices] = useState<ClaimedAnonId[]>([]);
@@ -477,6 +481,50 @@ export default function AccountSettingsPage() {
           <HealthSettings showToast={showToast} />
 
           <LearningHintsSettings showToast={showToast} />
+
+          {/* Section: Observability / Error Reporting */}
+          <section
+            className="rounded-xl p-6 border border-stone-850"
+            style={{ background: '#141210', borderColor: '#292524' }}
+          >
+            <div className="flex items-center gap-2 mb-6">
+              <Shield size={14} className="text-amber-500" />
+              <h2 className="text-[11px] uppercase tracking-[0.2em] font-semibold text-stone-200">
+                Observability & Diagnostics
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={errorReporting}
+                  onChange={(e) => {
+                    const nextVal = e.target.checked;
+                    setErrorReporting(nextVal);
+                    setOptInStatus(nextVal);
+                    showToast(
+                      nextVal
+                        ? 'Anonymized error reporting enabled'
+                        : 'Error reporting disabled',
+                    );
+                  }}
+                  className="mt-0.5 rounded border-stone-800 bg-stone-900 text-amber-500 focus:ring-0 focus:ring-offset-0 focus:outline-none"
+                  style={{ borderColor: '#44403c' }}
+                />
+                <div>
+                  <span className="text-[10px] text-stone-300 font-semibold uppercase tracking-wider block">
+                    Share Anonymized Crash Reports
+                  </span>
+                  <span className="text-[9px] text-stone-500 leading-normal block mt-0.5">
+                    Help us locate and resolve engine failures, audio dropouts,
+                    and performance crashes. All reports are aggressively
+                    anonymized to protect your calm and digital privacy.
+                  </span>
+                </div>
+              </label>
+            </div>
+          </section>
 
           <section
             className="rounded-xl p-6 border border-stone-850"

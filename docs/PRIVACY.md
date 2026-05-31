@@ -104,3 +104,30 @@ To iterate on the curriculum, AnnealMusic computes **aggregate, anonymized** les
 - **No per-user analytics, ever.** We deliberately do **not** build a per-user analytics view — not for the maintainer, and not for you about yourself. Surfacing your own completion stats back at you is a calm-by-design tension (it invites self-measurement and habit-loop pressure), so it is on the permanent "never" list.
 
 The optional Postgres `lesson_analytics` materialized view is a performance/BI rollup of the same aggregate counts; it stores no per-user rows (it is `GROUP BY lesson_id`).
+
+---
+
+## 6. Privacy-First Client Telemetry & Error Reporting (v8.3)
+
+To ensure the reliability of AnnealMusic without compromising your privacy, v8.3 introduces a **privacy-first telemetry and error reporting system**.
+
+### 6.1 Strict Opt-in Consent
+
+- **Disabled by Default:** Telemetry collection is entirely opt-in. We do not gather diagnostic data unless you explicitly enable the setting.
+- **Explicit Consent Prompt:** On your first visit, a clean, glassmorphic modal asks for your permission. You can change your selection at any time via your **Account Settings** page.
+- **No Telemetry for Collaborators/Guests:** Anonymous or collabortive visitors who have not explicitly enabled telemetry will never have crash reports or diagnostics sent.
+
+### 6.2 Aggressive Client-Side Anonymization
+
+Before any error or crash report leaves your browser, the client-side reporter scrubs all sensitive fields:
+
+- **PII Stripping:** Any email addresses, user IDs, or system access tokens are completely removed.
+- **URL Path Scrubbing:** Dynamic resource identifiers and short slugs are replaced with generic markers (e.g., `/p/:slug` or `/api/v1/studies/:id`), ensuring your private patches and studies are never leaked in stack traces.
+- **Browser/OS Coarsening:** Specific, highly-identifiable User-Agent strings are mapped to broad classes (e.g., "macOS / Safari" or "Android / Chrome") to prevent browser fingerprinting.
+- **No Sensitive Payloads:** We never collect sensitive biosignals, custom sonification mappings, loop buffers, or reflection text. Only framework errors, unhandled exceptions, and AudioContext initialization failures are captured.
+
+### 6.3 Self-Hosted Server Logs
+
+- **No Third-Party Analytics Scripts:** We do not load external analytics, trackers, or commercial telemetry SDKs (such as Sentry, Datadog, or Mixpanel).
+- **Self-Hosted Backend:** All crash reports are sent directly to a secure, self-hosted API endpoint on our FastAPI backend (`/api/v1/observability/crash-reports`).
+- **Data Retention & Expiry:** Diagnostic logs are maintained only as long as necessary to debug active issues, and are automatically purged after 30 days.

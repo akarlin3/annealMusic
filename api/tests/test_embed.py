@@ -25,7 +25,7 @@ async def test_embed_shell_is_framable(client):
     r = await client.get(f"/embed/{patch['short_slug']}")
     assert r.status_code == 200
     # Framable: CSP allows any ancestor, and X-Frame-Options is NOT set.
-    assert r.headers.get("content-security-policy") == "frame-ancestors *"
+    assert "frame-ancestors *" in r.headers.get("content-security-policy", "")
     assert "x-frame-options" not in {k.lower() for k in r.headers}
     assert "embed-root" in r.text
     assert "/assets/embed.js" in r.text
@@ -42,7 +42,7 @@ async def test_embed_gated_for_unlisted(client):
     r = await client.get(f"/embed/{slug}")
     # Always 200 (the client renders the polite gated state), still framable.
     assert r.status_code == 200
-    assert r.headers.get("content-security-policy") == "frame-ancestors *"
+    assert "frame-ancestors *" in r.headers.get("content-security-policy", "")
     assert "not public" in r.text
 
 

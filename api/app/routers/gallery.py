@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Response, Request
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -130,9 +130,17 @@ def _search_clause(model: type[Patch] | type[Piece], q: str, dialect: str):
     )
 
 
+def _client_ip(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @router.get("", response_model=GalleryListOut,
             dependencies=[Depends(rate_limit("get"))])
 async def list_gallery(
+    request: Request,
     session: SessionDep,
     response: Response,
     user: OptionalUser,
@@ -147,6 +155,21 @@ async def list_gallery(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=PAGE_DEFAULT, ge=1, le=PAGE_MAX),
 ) -> GalleryListOut:
+    if q:
+        from app.config import get_settings
+        settings = get_settings()
+        if settings.rate_limit_enabled:
+            limiter = request.app.state.rate_limiter
+            anon_id = request.headers.get("x-anon-id")
+            ok = limiter.allow(
+                action="gallery_search",
+                anon_id=anon_id,
+                ip=_client_ip(request),
+            )
+            if not ok:
+                from app.errors import rate_limited
+                raise rate_limited()
+
     dialect = session.bind.dialect.name if session.bind is not None else "sqlite"
     from app.models import User, Account
 

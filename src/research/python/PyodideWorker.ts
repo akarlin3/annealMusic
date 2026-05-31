@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ANNEAL_PY_MODULE } from './annealPyModule';
+import { reportError } from '@/observability/errorReporter';
 
 export interface WorkerInitStatus {
   stage: 'loading' | 'ready' | 'error';
@@ -40,6 +41,12 @@ export class PyodideWorker {
         event.data;
 
       if (type === 'status') {
+        if (stage === 'error') {
+          void reportError(
+            error || 'Unknown Pyodide load failure',
+            'pyodide-load-failure',
+          );
+        }
         if (this.onStatusCallback) {
           this.onStatusCallback({ stage, progress, error });
         }
