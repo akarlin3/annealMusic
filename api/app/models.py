@@ -50,6 +50,10 @@ class Account(Base):
     follower_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     following_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
+    # v7.0 research-collaboration: researcher identity for citations.
+    orcid: Mapped[str | None] = mapped_column(String, nullable=True)
+    affiliation_ror: Mapped[str | None] = mapped_column(String, nullable=True)
+
 
 class AccountProvider(Base):
     __tablename__ = "account_providers"
@@ -903,6 +907,155 @@ class LessonProgress(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
+
+
+class Study(Base):
+    """v7.0 — a versioned, citable bundle of investigators + resources.
+
+    The unit of scientific work. A study requires authenticated ``accounts``
+    (via ``study_investigators``); its linked resources are owned by ``users``
+    (see ``StudyResource``). ``visibility='public'`` makes the study (and its
+    citation) readable anonymously; the public gallery UI itself is deferred
+    (v7.6). See docs/v7.0-PLAN.md.
+    """
+
+    __tablename__ = "studies"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('planning','pre-registered','active','data-collection',"
+            "'analysis','published','archived')",
+            name="ck_studies_status",
+        ),
+        CheckConstraint(
+            "visibility IN ('private','public')",
+            name="ck_studies_visibility",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    slug: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    abstract: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="planning")
+    visibility: Mapped[str] = mapped_column(String, nullable=False, default="private")
+    preregistration_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    ethics_statement: Mapped[str | None] = mapped_column(String, nullable=True)
+    # [{ source, grant_number, role }]
+    funding_sources: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
+    concept_doi: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class StudyInvestigator(Base):
+    __tablename__ = "study_investigators"
+    __table_args__ = (
+        PrimaryKeyConstraint("study_id", "account_id", name="pk_study_investigators"),
+        CheckConstraint(
+            "role IN ('pi','co-investigator','analyst','viewer')",
+            name="ck_study_investigators_role",
+        ),
+    )
+
+    study_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("studies.id", ondelete="CASCADE"), nullable=False
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class StudyResource(Base):
+    """A polymorphic link from a study to an owned resource. ``resource_id`` is
+    not a DB foreign key (it spans 8 owner tables); integrity is enforced at
+    link time and snapshots capture content so later deletion can't corrupt
+    history (see docs/v7.0-PLAN.md §4)."""
+
+    __tablename__ = "study_resources"
+    __table_args__ = (
+        UniqueConstraint(
+            "study_id", "resource_kind", "resource_id", name="uq_study_resources_link"
+        ),
+        CheckConstraint(
+            "resource_kind IN ('patch','piece','listening_session','audio_clip',"
+            "'experiment','user_script','dataset','sonification')",
+            name="ck_study_resources_kind",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    study_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("studies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    resource_kind: Mapped[str] = mapped_column(String, nullable=False)
+    resource_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False)
+    role: Mapped[str | None] = mapped_column(String, nullable=True)  # stimulus|protocol|data|analysis
+    added_by: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class StudyVersion(Base):
+    """An immutable point-in-time snapshot of a study + its resources. Never
+    edited or deleted after creation. ``doi`` is minted on publish (v7.0 CP2)."""
+
+    __tablename__ = "study_versions"
+    __table_args__ = (
+        UniqueConstraint("study_id", "version_label", name="uq_study_versions_label"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    study_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("studies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    version_label: Mapped[str] = mapped_column(String, nullable=False)
+    doi: Mapped[str | None] = mapped_column(String, nullable=True)
+    snapshot_json: Mapped[dict] = mapped_column(JSONType(), nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class StudyAuditLog(Base):
+    """Provenance: one row per study mutation (see docs/v7.0-PLAN.md §5).
+    Written only through ``app.study_provenance.record_audit`` — the single
+    write-path that makes provenance impossible to forget (heuristic-drift)."""
+
+    __tablename__ = "study_audit_log"
+    __table_args__ = (Index("idx_study_audit_study", "study_id", "timestamp"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    study_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("studies.id", ondelete="CASCADE"), nullable=False
+    )
+    account_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
+    )
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    action: Mapped[str] = mapped_column(String, nullable=False)
+    before: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
+    after: Mapped[dict | None] = mapped_column(JSONType(), nullable=True)
 
 
 # SQLite trigger events for tests/local development when using SQLite

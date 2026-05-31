@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     quota_user_sources: int = 20
     quota_scripts: int = 50
     quota_experiments: int = 50
+    # v7.0: studies an account may be the PI of.
+    quota_studies: int = 100
     quota_bytes: int = 1024 * 1024 * 1024  # 1 GiB
 
 

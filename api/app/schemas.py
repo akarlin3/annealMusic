@@ -1169,6 +1169,149 @@ class RecommendationsOut(BaseModel):
     source: Literal["llm", "deterministic", "onboarding", "empty"]
 
 
+# --- v7.0 Research Collaboration (Studies) Schemas ----------------------------
+
+StudyStatus = Literal[
+    "planning",
+    "pre-registered",
+    "active",
+    "data-collection",
+    "analysis",
+    "published",
+    "archived",
+]
+StudyVisibility = Literal["private", "public"]
+InvestigatorRole = Literal["pi", "co-investigator", "analyst", "viewer"]
+ResourceKind = Literal[
+    "patch",
+    "piece",
+    "listening_session",
+    "audio_clip",
+    "experiment",
+    "user_script",
+    "dataset",
+    "sonification",
+]
+ResourceRole = Literal["stimulus", "protocol", "data", "analysis"]
+
+
+class FundingSource(BaseModel):
+    source: str = Field(..., max_length=200)
+    grant_number: str | None = Field(default=None, max_length=120)
+    role: str | None = Field(default=None, max_length=120)
+
+
+class StudyCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    abstract: str | None = Field(default=None, max_length=8000)
+    preregistration_url: str | None = Field(default=None, max_length=500)
+    ethics_statement: str | None = Field(default=None, max_length=8000)
+    funding_sources: list[FundingSource] | None = None
+
+
+class StudyUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    abstract: str | None = Field(default=None, max_length=8000)
+    status: StudyStatus | None = None
+    visibility: StudyVisibility | None = None
+    preregistration_url: str | None = Field(default=None, max_length=500)
+    ethics_statement: str | None = Field(default=None, max_length=8000)
+    funding_sources: list[FundingSource] | None = None
+
+
+class InvestigatorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    account_id: uuid.UUID
+    role: InvestigatorRole
+    added_at: datetime
+    # Resolved (best-effort) from the account for display + citation.
+    display_name: str | None = None
+    orcid: str | None = None
+    affiliation_ror: str | None = None
+
+
+class StudyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    slug: str
+    title: str
+    description: str | None
+    abstract: str | None
+    status: StudyStatus
+    visibility: StudyVisibility
+    preregistration_url: str | None
+    ethics_statement: str | None
+    funding_sources: list[dict]
+    concept_doi: str | None
+    created_at: datetime
+    updated_at: datetime
+    archived_at: datetime | None
+    investigators: list[InvestigatorOut] = []
+    # The caller's role on this study, if any (None for public/anon readers).
+    my_role: InvestigatorRole | None = None
+
+
+class StudyListOut(BaseModel):
+    items: list[StudyOut]
+
+
+class InvestigatorAdd(BaseModel):
+    # Add by account id or by email (resolved server-side); exactly one required.
+    account_id: uuid.UUID | None = None
+    account_email: str | None = Field(default=None, max_length=320)
+    role: InvestigatorRole = "viewer"
+
+    @model_validator(mode="after")
+    def _one_identifier(self) -> "InvestigatorAdd":
+        if (self.account_id is None) == (self.account_email is None):
+            raise ValueError("Provide exactly one of account_id or account_email.")
+        return self
+
+
+class InvestigatorRoleUpdate(BaseModel):
+    role: InvestigatorRole
+
+
+class ResourceLinkIn(BaseModel):
+    resource_kind: ResourceKind
+    resource_id: uuid.UUID
+    role: ResourceRole | None = None
+
+
+class ResourceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    resource_kind: ResourceKind
+    resource_id: uuid.UUID
+    role: ResourceRole | None
+    added_by: uuid.UUID | None
+    added_at: datetime
+
+
+class ResourceListOut(BaseModel):
+    items: list[ResourceOut]
+
+
+class AuditEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    account_id: uuid.UUID | None
+    timestamp: datetime
+    action: str
+    before: dict | None
+    after: dict | None
+
+
+class AuditListOut(BaseModel):
+    items: list[AuditEntryOut]
+
+
 
 
 

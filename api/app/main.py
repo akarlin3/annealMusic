@@ -45,6 +45,7 @@ from app.routers import (
     clips,
     lesson_progress,
     recommendations,
+    studies,
 )
 
 
@@ -130,6 +131,7 @@ def create_app() -> FastAPI:
     app.include_router(clips.admin_router)
     app.include_router(lesson_progress.router)
     app.include_router(recommendations.router)
+    app.include_router(studies.router)
     app.include_router(learn.html_router)
 
     return app
