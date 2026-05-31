@@ -18,6 +18,16 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _seed_uuid(is_pg: bool):
+    """Bind type for id/fk columns in seed ``sa.table()`` helpers.
+
+    The real columns are ``uuid`` on Postgres; a bare ``sa.String()`` makes
+    asyncpg bind VARCHAR and Postgres rejects ``uuid = varchar``. Declaring the
+    proper type lets the same string literals bind cleanly on both dialects.
+    """
+    return postgresql.UUID(as_uuid=False) if is_pg else sa.String()
+
+
 def upgrade() -> None:
     bind = op.get_bind()
     is_pg = bind.dialect.name == "postgresql"
@@ -133,7 +143,7 @@ def upgrade() -> None:
     ]
     tracks_table = sa.table(
         "tracks",
-        sa.column("id", sa.String()),
+        sa.column("id", _seed_uuid(is_pg)),
         sa.column("slug", sa.String()),
         sa.column("title", sa.String()),
         sa.column("description", sa.String()),
@@ -180,15 +190,18 @@ def upgrade() -> None:
     ]
     lessons_table = sa.table(
         "lessons",
-        sa.column("id", sa.String()),
-        sa.column("track_id", sa.String()),
+        sa.column("id", _seed_uuid(is_pg)),
+        sa.column("track_id", _seed_uuid(is_pg)),
         sa.column("slug", sa.String()),
         sa.column("title", sa.String()),
         sa.column("description", sa.String()),
         sa.column("difficulty", sa.String()),
         sa.column("estimated_minutes", sa.Integer()),
         sa.column("position", sa.Integer()),
-        sa.column("prerequisites", sa.String() if not is_pg else sa.ARRAY(sa.String())),
+        sa.column(
+            "prerequisites",
+            postgresql.ARRAY(postgresql.UUID(as_uuid=False)) if is_pg else sa.String(),
+        ),
     )
     op.bulk_insert(lessons_table, lessons_data)
 
@@ -317,8 +330,8 @@ def upgrade() -> None:
 
     steps_table = sa.table(
         "lesson_steps",
-        sa.column("id", sa.String()),
-        sa.column("lesson_id", sa.String()),
+        sa.column("id", _seed_uuid(is_pg)),
+        sa.column("lesson_id", _seed_uuid(is_pg)),
         sa.column("position", sa.Integer()),
         sa.column("type", sa.String()),
         sa.column("config", json_type),

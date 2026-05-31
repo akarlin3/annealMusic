@@ -15,11 +15,17 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "0022_v6_4_curriculum_tracks"
 down_revision: str | None = "0021_v6_3_lesson_progress"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+
+def _seed_uuid(is_pg: bool):
+    """Bind ``uuid`` columns correctly for seed inserts (see 0018)."""
+    return postgresql.UUID(as_uuid=False) if is_pg else sa.String()
 
 
 _NEW_TRACKS = [
@@ -44,10 +50,11 @@ _NEW_TRACKS = [
 
 def upgrade() -> None:
     bind = op.get_bind()
+    is_pg = bind.dialect.name == "postgresql"
 
     tracks_table = sa.table(
         "tracks",
-        sa.column("id", sa.String()),
+        sa.column("id", _seed_uuid(is_pg)),
         sa.column("slug", sa.String()),
         sa.column("title", sa.String()),
         sa.column("description", sa.String()),

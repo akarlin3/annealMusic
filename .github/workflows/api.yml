@@ -37,8 +37,10 @@ jobs:
       run:
         working-directory: api
     services:
+      # pgvector image (not stock postgres) so migration 0020's
+      # `CREATE EXTENSION vector` succeeds against the real DB.
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
