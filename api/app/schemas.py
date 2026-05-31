@@ -1617,6 +1617,55 @@ class ReproduceReport(BaseModel):
     analysis_script_errors: str | None = None
 
 
+# --- v7.6 Scientific Communication Tools Schemas -------------------------------
+
+class RenderedArtifactOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    source_kind: str
+    source_id: uuid.UUID
+    source_version: str | None = None
+    render_kind: str
+    storage_key: str
+    bytes: int | None = None
+    resolution: str | None = None
+    duration_ms: int | None = None
+    citation_bibtex: str | None = None
+    doi: str | None = None
+    created_at: datetime
+
+
+class RenderedArtifactCreate(BaseModel):
+    source_kind: Literal["patch", "piece", "sonification", "listening_session"]
+    source_id: uuid.UUID
+    source_version: str | None = None
+    render_kind: Literal["image", "audio", "video", "outreach-card"]
+    resolution: str | None = None
+    duration_ms: int | None = None
+
+
+class AccessibilityDescriptionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    artifact_kind: str
+    artifact_id: uuid.UUID
+    description: str
+    language: str
+    source: str
+    updated_at: datetime
+
+
+class AccessibilityDescriptionCreate(BaseModel):
+    artifact_kind: Literal["patch", "piece", "sonification", "listening_session"]
+    artifact_id: uuid.UUID
+    description: str
+    language: str = "en"
+    source: Literal["auto", "manual", "reviewed"] = "manual"
+
+
+
 
 
 

@@ -1225,6 +1225,65 @@ class BiosignalStream(Base):
     )
 
 
+class RenderedArtifact(Base):
+    __tablename__ = "rendered_artifacts"
+    __table_args__ = (
+        CheckConstraint(
+            "source_kind IN ('patch', 'piece', 'sonification', 'listening_session')",
+            name="ck_rendered_artifacts_source_kind",
+        ),
+        CheckConstraint(
+            "render_kind IN ('image', 'audio', 'video', 'outreach-card')",
+            name="ck_rendered_artifacts_render_kind",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source_kind: Mapped[str] = mapped_column(String, nullable=False)
+    source_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False)
+    source_version: Mapped[str | None] = mapped_column(String, nullable=True)
+    render_kind: Mapped[str] = mapped_column(String, nullable=False)
+    storage_key: Mapped[str] = mapped_column(String, nullable=False)
+    bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resolution: Mapped[str | None] = mapped_column(String, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    citation_bibtex: Mapped[str | None] = mapped_column(String, nullable=True)
+    doi: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class AccessibilityDescription(Base):
+    __tablename__ = "accessibility_descriptions"
+    __table_args__ = (
+        PrimaryKeyConstraint("artifact_kind", "artifact_id", "language", name="pk_accessibility_descriptions"),
+        CheckConstraint(
+            "artifact_kind IN ('patch', 'piece', 'sonification', 'listening_session')",
+            name="ck_accessibility_descriptions_artifact_kind",
+        ),
+        CheckConstraint(
+            "source IN ('auto', 'manual', 'reviewed')",
+            name="ck_accessibility_descriptions_source",
+        ),
+    )
+
+    artifact_kind: Mapped[str] = mapped_column(String, nullable=False)
+    artifact_id: Mapped[uuid.UUID] = mapped_column(GUID(), nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
+    language: Mapped[str] = mapped_column(String, nullable=False, default="en")
+    source: Mapped[str] = mapped_column(String, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
 # SQLite trigger events for tests/local development when using SQLite
 @event.listens_for(Base.metadata, "after_create")
 

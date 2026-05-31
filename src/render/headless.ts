@@ -30,6 +30,11 @@ import type {
   EngineParams,
   SharedParams,
 } from '@/audio/engines/types';
+import { CanvasRenderer } from '@/visual/canvas/CanvasRenderer';
+import { HARMONICS } from '@/types/audio';
+import { SLOT_IDS } from '@/loop/types';
+import { readRms } from '@/input/meter';
+import type { VisualState, LoopRing } from '@/visual/types';
 
 interface RenderOptions {
   durationSec: number;
@@ -53,6 +58,7 @@ declare global {
       payload: string,
       opts: any,
     ) => Promise<Record<string, string>>;
+    __annealVideoRender: (payload: string, opts: any) => Promise<RenderResult>;
   }
 }
 
@@ -65,6 +71,248 @@ function bytesToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
   }
   return btoa(binary);
+}
+
+interface VideoRenderOptions {
+  durationSec: number;
+  width?: number;
+  height?: number;
+  fps?: number;
+  videoBitrate?: number;
+  captureUrls?: string[];
+  previewSliceStartMs?: number;
+  isCalm?: boolean;
+}
+
+async function videoRender(
+  payload: string,
+  opts: VideoRenderOptions,
+): Promise<RenderResult> {
+  const width = opts.width || 1920;
+  const height = opts.height || 1080;
+  const fps = opts.fps || 30;
+  const videoBitrate = opts.videoBitrate || 5000000;
+  const isCalm = opts.isCalm || false;
+
+  // Hydrate the store exactly as the client does on load.
+  useParamStore.getState().reset();
+  const decoded = decodeState(SCHEMA_VERSION, payload);
+
+  let customRatios: number[] | undefined;
+  let customEq: number | undefined;
+  let initialSharedParams: SharedParams;
+  let orch: Orchestrator;
+  let player: PiecePlayer | null = null;
+
+  if (decoded.kind === 'piece') {
+    const piece = decoded.piece;
+    if (piece.variationSeed === null || piece.variationSeed === undefined) {
+      piece.variationSeed = hashStringToInt(
+        piece.title || 'render-harness-seed',
+      );
+    }
+    const pieceTuning = (piece.defaultsState as any).tuning;
+    const pieceCustomRatios = (piece.defaultsState as any).customScaleRatios;
+    const pieceCustomEq = (piece.defaultsState as any).customEqRatio;
+
+    initialSharedParams = {
+      ...(piece.defaultsState.params as unknown as AnnealMusicParams),
+      tuning: pieceTuning,
+      customScaleRatios: pieceCustomRatios,
+      customEqRatio: pieceCustomEq,
+    };
+
+    orch = new Orchestrator(
+      initialSharedParams,
+      piece.defaultsState.engineId,
+      piece.defaultsState.engineParams as unknown as Partial<
+        Record<EngineId, EngineParams>
+      >,
+      undefined,
+      piece.defaultsState.loops,
+    );
+  } else {
+    applyDecodedToStore(decoded);
+    const state = useParamStore.getState();
+
+    if (state.tuning.system === 'custom' && state.tuning.sclId) {
+      const customScale = state.customScales.find(
+        (s) => s.id === state.tuning.sclId,
+      );
+      if (customScale) {
+        customRatios = customScale.parsed_scale;
+        customEq =
+          customScale.parsed_scale[customScale.parsed_scale.length - 1];
+      }
+    }
+
+    initialSharedParams = {
+      ...state.params,
+      tuning: state.tuning,
+      customScaleRatios: customRatios,
+      customEqRatio: customEq,
+    };
+
+    orch = new Orchestrator(
+      initialSharedParams,
+      state.engineId,
+      state.engineParams,
+      undefined,
+      state.loops,
+    );
+  }
+
+  orch.ensureLoops();
+  const analyser = orch.getAnalyser();
+  if (!analyser) throw new Error('analyser unavailable');
+  const ctx = analyser.context as AudioContext;
+  const dest = ctx.createMediaStreamDestination();
+  analyser.connect(dest);
+
+  const slots = captureSlotsFromPayload(payload);
+  const urls = opts.captureUrls ?? [];
+  for (let i = 0; i < slots.length && i < urls.length; i++) {
+    const res = await fetch(urls[i]!);
+    const buf = await orch.decodeAudio(await res.arrayBuffer());
+    orch.loadLoopBuffer(slots[i] as SlotId, buf);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  canvas.style.position = 'fixed';
+  canvas.style.left = '0';
+  canvas.style.top = '0';
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  canvas.style.zIndex = '99999';
+  canvas.style.background = '#0c0a09';
+  document.body.appendChild(canvas);
+
+  const renderer = new CanvasRenderer();
+  renderer.mount(canvas);
+  renderer.resize(width, height, 1);
+
+  const canvasStream = canvas.captureStream(fps);
+  const combinedStream = new MediaStream([
+    ...canvasStream.getVideoTracks(),
+    ...dest.stream.getAudioTracks(),
+  ]);
+
+  const VIDEO_MIME = 'video/webm;codecs=vp9,opus';
+  const recorder = new MediaRecorder(combinedStream, {
+    mimeType: VIDEO_MIME,
+    videoBitsPerSecond: videoBitrate,
+  });
+
+  const chunks: Blob[] = [];
+  recorder.ondataavailable = (e) => {
+    if (e.data.size > 0) chunks.push(e.data);
+  };
+
+  const stopped = new Promise<void>((resolve) => {
+    recorder.onstop = () => resolve();
+  });
+
+  let rafId = 0;
+  const phases: number[] = HARMONICS.map(() => Math.random() * Math.PI * 2);
+  let lastT = performance.now();
+
+  const drawLoop = (now: number) => {
+    const dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+
+    let spectrum: Uint8Array | null = null;
+    let fftSize = 1024;
+    let sampleRate = 48000;
+    const liveAnalyser = orch.getAnalyser();
+    if (liveAnalyser) {
+      spectrum = new Uint8Array(liveAnalyser.frequencyBinCount);
+      liveAnalyser.getByteFrequencyData(spectrum);
+      fftSize = liveAnalyser.fftSize;
+      sampleRate = liveAnalyser.context.sampleRate;
+    }
+
+    const loops: LoopRing[] = [];
+    SLOT_IDS.forEach((id, slot) => {
+      const loopSlot = orch.getLoopSlot(id);
+      if (!loopSlot) return;
+      const st = loopSlot.getState();
+      if (st !== 'playing' && st !== 'frozen') return;
+      loops.push({
+        slot,
+        level: Math.min(1, readRms(loopSlot.getAnalyser()) * 1.4),
+        frozen: st === 'frozen',
+      });
+    });
+
+    const params = useParamStore.getState().params;
+    const engineFreqs = orch.getPartialFrequencies() ?? [];
+    const count = engineFreqs.length || params.density;
+    const freqs: number[] = [];
+    for (let i = 0; i < count; i++) {
+      const ratio = HARMONICS[i] ?? 1;
+      freqs.push(engineFreqs[i] ?? params.rootFreq * ratio);
+    }
+
+    const r = orch.getOrderParameter() ?? 0;
+
+    const visualState: VisualState = {
+      w: width,
+      h: height,
+      dt,
+      phases,
+      freqs,
+      count,
+      spectrum,
+      sampleRate,
+      fftSize,
+      loops,
+      isCalm,
+      r,
+    };
+
+    renderer.drawFrame(visualState, now);
+    rafId = requestAnimationFrame(drawLoop);
+  };
+
+  recorder.start();
+  rafId = requestAnimationFrame(drawLoop);
+
+  if (decoded.kind === 'piece') {
+    player = new PiecePlayer(decoded.piece as unknown as Piece, orch);
+    if (opts.previewSliceStartMs && opts.previewSliceStartMs > 0) {
+      player.seek(opts.previewSliceStartMs);
+    }
+    player.start();
+  } else {
+    const state = useParamStore.getState();
+    if (state.sessionMode === 'arc') {
+      orch.startSession(
+        { mode: 'arc', arcId: state.arcId, durationSec: state.arcDurationSec },
+        (p) => useParamStore.getState().setMany(p),
+      );
+    } else {
+      orch.startSession({ mode: 'open' });
+    }
+  }
+
+  await new Promise((r) => setTimeout(r, opts.durationSec * 1000));
+
+  if (player) {
+    player.stop();
+  }
+  cancelAnimationFrame(rafId);
+  renderer.dispose();
+  canvas.remove();
+
+  recorder.stop();
+  await stopped;
+  await orch.dispose();
+
+  const blob = new Blob(chunks, { type: VIDEO_MIME });
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  return { b64: bytesToBase64(bytes), mime: VIDEO_MIME };
 }
 
 async function render(
@@ -232,6 +480,7 @@ async function render(
 }
 
 window.__annealRender = render;
+window.__annealVideoRender = videoRender;
 
 async function stemsRender(
   payload: string,
