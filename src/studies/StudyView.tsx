@@ -14,6 +14,7 @@ import { ResourceLinker } from './ResourceLinker';
 import { SnapshotDialog } from './SnapshotDialog';
 import { PublishFlow } from './PublishFlow';
 import { ROLE_RANK } from './types';
+import { ProtocolEditor } from '../clinical/ProtocolEditor';
 import type {
   AuditEntry,
   Study,
@@ -226,6 +227,10 @@ export function StudyView({
 
         <div className="border border-stone-900 bg-stone-900/10 rounded-xl p-5">
           <ResourceLinker study={study} links={links} onChange={reload} />
+        </div>
+
+        <div className="border border-stone-900 bg-stone-900/10 rounded-xl p-5">
+          <ProtocolEditor study={study} links={links} onChange={reload} />
         </div>
 
         {/* Versions */}
