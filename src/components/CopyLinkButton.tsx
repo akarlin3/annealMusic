@@ -4,6 +4,7 @@ import { buildShareUrl } from '@/share/url';
 import type { AnnealMusicParams } from '@/state/params';
 import type { EngineId, EngineParams } from '@/audio/engines/types';
 import type { LoopConfigMap } from '@/loop/types';
+import { Button } from '@/design/components/Button';
 
 /** Copy text to the clipboard, falling back to a legacy textarea + execCommand. */
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -74,25 +75,28 @@ export default function CopyLinkButton({
   }, [params, engineId, engineParams, loops, onResult]);
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
       onClick={handleClick}
       aria-label="Copy shareable link"
-      className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
-      style={{
-        background: 'rgba(245, 158, 11, 0.04)',
-        border: '1px solid #44403c',
-        color: '#d6d3d1',
-      }}
+      className="group flex items-center gap-2 px-4 py-2.5"
     >
       {copied ? (
-        <Check size={13} strokeWidth={1.5} style={{ color: '#f59e0b' }} />
+        <Check
+          size={13}
+          strokeWidth={1.5}
+          style={{ color: 'var(--color-accent)' }}
+        />
       ) : (
-        <Link2 size={13} strokeWidth={1.5} style={{ color: '#78716c' }} />
+        <Link2
+          size={13}
+          strokeWidth={1.5}
+          style={{ color: 'var(--color-muted)' }}
+        />
       )}
       <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
         {copied ? 'Copied' : 'Copy Link'}
       </span>
-    </button>
+    </Button>
   );
 }
