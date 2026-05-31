@@ -1,0 +1,682 @@
+{
+  "version": "v6.2.0",
+  "note": "Committed source of truth for the audio clip library. Audio bytes are produced by tools/gen_clips.py (run where ffmpeg is available) into public/clips/<slug>.opus. Embeddings are derived at seed/upload time and never committed. CI (tools/check-clip-licenses.mjs) enforces a license on every entry and attribution on every non-original clip.",
+  "clips": [
+    {
+      "slug": "sine-engine-archetype",
+      "title": "Sine Engine Archetype",
+      "description": "A pure sine pad — the cleanest possible tone, no harmonics.",
+      "duration_ms": 12000,
+      "file": "clips/sine-engine-archetype.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": ["sine", "engine", "fundamental", "pure-tone", "pad"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "fm-engine-archetype",
+      "title": "FM Engine Archetype",
+      "description": "Classic two-operator FM — bright, metallic, harmonically rich.",
+      "duration_ms": 12000,
+      "file": "clips/fm-engine-archetype.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": [
+        "fm",
+        "engine",
+        "frequency-modulation",
+        "metallic",
+        "bright"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "granular-engine-archetype",
+      "title": "Granular Engine Archetype",
+      "description": "A granular cloud built from a single grain source.",
+      "duration_ms": 15000,
+      "file": "clips/granular-engine-archetype.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": ["granular", "engine", "cloud", "texture", "grains"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "physical-engine-archetype",
+      "title": "Physical Engine Archetype",
+      "description": "A plucked physical-model string — the physical engine at rest.",
+      "duration_ms": 10000,
+      "file": "clips/physical-engine-archetype.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": ["physical-modeling", "engine", "string", "pluck"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "karplus-archetype",
+      "title": "Textbook Karplus Pluck",
+      "description": "A textbook Karplus-Strong pluck — bright, percussive, with a clean decay.",
+      "duration_ms": 8000,
+      "file": "clips/karplus-archetype.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": [
+        "karplus-strong",
+        "string",
+        "physical-modeling",
+        "pluck",
+        "delay-line"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "physical-bowed-string",
+      "title": "Bowed String Sub-model",
+      "description": "The bowed physical sub-model — continuous, singing, with friction excitation.",
+      "duration_ms": 12000,
+      "file": "clips/physical-bowed-string.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": [
+        "physical-modeling",
+        "bowed",
+        "string",
+        "friction",
+        "sustained"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "physical-blown-pipe",
+      "title": "Blown Pipe Sub-model",
+      "description": "The blown physical sub-model — breathy, flute-like, with air turbulence.",
+      "duration_ms": 12000,
+      "file": "clips/physical-blown-pipe.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": ["physical-modeling", "blown", "pipe", "flute", "breath"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "physical-struck-bar",
+      "title": "Struck Bar Sub-model",
+      "description": "The struck physical sub-model — a mallet on a tuned metal bar.",
+      "duration_ms": 9000,
+      "file": "clips/physical-struck-bar.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": [
+        "physical-modeling",
+        "struck",
+        "bar",
+        "mallet",
+        "percussion"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "fm-ratio-1-1",
+      "title": "FM Ratio 1:1",
+      "description": "FM at a 1:1 carrier-to-modulator ratio — harmonic, organ-like.",
+      "duration_ms": 10000,
+      "file": "clips/fm-ratio-1-1.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": ["fm", "ratio", "harmonic", "organ", "1:1"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "fm-ratio-2-1",
+      "title": "FM Ratio 2:1",
+      "description": "FM at a 2:1 ratio — hollow and clarinet-like, odd harmonics.",
+      "duration_ms": 10000,
+      "file": "clips/fm-ratio-2-1.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": ["fm", "ratio", "hollow", "clarinet", "2:1"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "fm-ratio-7-5",
+      "title": "FM Ratio 7:5 (Inharmonic)",
+      "description": "An inharmonic 7:5 FM ratio — bell-like and clangorous.",
+      "duration_ms": 11000,
+      "file": "clips/fm-ratio-7-5.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": [
+        "fm",
+        "ratio",
+        "inharmonic",
+        "bell",
+        "clangorous",
+        "7:5"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "granular-texture-sparse",
+      "title": "Sparse Granular Texture",
+      "description": "Sparse grains — pointillist and airy, with audible gaps.",
+      "duration_ms": 15000,
+      "file": "clips/granular-texture-sparse.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": [
+        "granular",
+        "sparse",
+        "pointillist",
+        "texture",
+        "density"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "granular-texture-dense",
+      "title": "Dense Granular Texture",
+      "description": "Dense grains overlapping into a continuous shimmering wash.",
+      "duration_ms": 15000,
+      "file": "clips/granular-texture-dense.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": ["granular", "dense", "wash", "texture", "density"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "wavetable-morph-sweep",
+      "title": "Wavetable Morph Sweep",
+      "description": "A wavetable morphing slowly from a saw to a sine.",
+      "duration_ms": 14000,
+      "file": "clips/wavetable-morph-sweep.opus",
+      "track_affinity": ["synthesis-fundamentals"],
+      "concept_tags": ["wavetable", "morph", "sweep", "saw", "sine"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+
+    {
+      "slug": "arc-rise-fall",
+      "title": "Arc: Rise and Fall",
+      "description": "A single swell — rise, peak, and fall over one breath.",
+      "duration_ms": 30000,
+      "file": "clips/arc-rise-fall.opus",
+      "track_affinity": ["composition-technique"],
+      "concept_tags": ["arc", "swell", "dynamics", "shape", "crescendo"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "arc-plateau",
+      "title": "Arc: Plateau",
+      "description": "A long sustained plateau with no climax — stasis as a form.",
+      "duration_ms": 45000,
+      "file": "clips/arc-plateau.opus",
+      "track_affinity": ["composition-technique"],
+      "concept_tags": ["arc", "plateau", "stasis", "sustained", "drone"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "transition-crossfade",
+      "title": "Transition: Crossfade",
+      "description": "A smooth crossfade from texture A to texture B.",
+      "duration_ms": 20000,
+      "file": "clips/transition-crossfade.opus",
+      "track_affinity": ["composition-technique"],
+      "concept_tags": ["transition", "crossfade", "blend", "movement"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "transition-hard-cut",
+      "title": "Transition: Hard Cut",
+      "description": "An abrupt scene change between two unrelated textures.",
+      "duration_ms": 16000,
+      "file": "clips/transition-hard-cut.opus",
+      "track_affinity": ["composition-technique"],
+      "concept_tags": ["transition", "cut", "contrast", "abrupt"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "movement-drift-slow",
+      "title": "Movement: Slow Drift",
+      "description": "Slow parameter drift over a minute — barely-perceptible motion.",
+      "duration_ms": 45000,
+      "file": "clips/movement-drift-slow.opus",
+      "track_affinity": ["composition-technique"],
+      "concept_tags": ["movement", "drift", "slow", "evolution", "modulation"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "movement-lfo-pulse",
+      "title": "Movement: LFO Pulse",
+      "description": "Rhythmic LFO-driven movement — a gentle pulsing motion.",
+      "duration_ms": 18000,
+      "file": "clips/movement-lfo-pulse.opus",
+      "track_affinity": ["composition-technique"],
+      "concept_tags": ["movement", "lfo", "pulse", "rhythm", "modulation"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "variation-density",
+      "title": "Variation by Density",
+      "description": "One motif revisited with varied event density.",
+      "duration_ms": 22000,
+      "file": "clips/variation-density.opus",
+      "track_affinity": ["composition-technique"],
+      "concept_tags": ["variation", "density", "motif", "development"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "variation-timbral",
+      "title": "Variation by Timbre",
+      "description": "The same notes, evolving only in timbre.",
+      "duration_ms": 22000,
+      "file": "clips/variation-timbral.opus",
+      "track_affinity": ["composition-technique"],
+      "concept_tags": ["variation", "timbre", "color", "development"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "layering-buildup",
+      "title": "Layering Buildup",
+      "description": "An additive layer-by-layer buildup into a full texture.",
+      "duration_ms": 28000,
+      "file": "clips/layering-buildup.opus",
+      "track_affinity": ["composition-technique"],
+      "concept_tags": [
+        "layering",
+        "buildup",
+        "additive",
+        "texture",
+        "arrangement"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+
+    {
+      "slug": "style-eno-ambient",
+      "title": "Ambient Passage (in the style of Eno)",
+      "description": "An ambient passage in the style of Brian Eno — slow, generative, weightless.",
+      "duration_ms": 40000,
+      "file": "clips/style-eno-ambient.opus",
+      "track_affinity": ["ambient-history"],
+      "concept_tags": [
+        "ambient",
+        "generative",
+        "eno-style",
+        "drone",
+        "history"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "style-reich-phase",
+      "title": "Phasing Pattern (in the style of Reich)",
+      "description": "A phasing pattern in the style of Steve Reich — two loops drifting apart.",
+      "duration_ms": 30000,
+      "file": "clips/style-reich-phase.opus",
+      "track_affinity": ["ambient-history"],
+      "concept_tags": [
+        "phasing",
+        "minimalism",
+        "reich-style",
+        "loops",
+        "history"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "style-stars-of-the-lid",
+      "title": "Orchestral Drone Swell (homage)",
+      "description": "A slow orchestral drone swell, a homage to Stars of the Lid.",
+      "duration_ms": 42000,
+      "file": "clips/style-stars-of-the-lid.opus",
+      "track_affinity": ["ambient-history"],
+      "concept_tags": ["drone", "orchestral", "swell", "ambient", "history"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "style-budd-soft-piano",
+      "title": "Soft-focus Piano (homage)",
+      "description": "Soft-focus piano with long reverb, a homage to Harold Budd.",
+      "duration_ms": 30000,
+      "file": "clips/style-budd-soft-piano.opus",
+      "track_affinity": ["ambient-history"],
+      "concept_tags": ["piano", "soft-focus", "reverb", "ambient", "history"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "style-oliveros-deep-listening",
+      "title": "Long-tone Meditation (homage)",
+      "description": "A long-tone meditation, a homage to Pauline Oliveros' deep listening.",
+      "duration_ms": 45000,
+      "file": "clips/style-oliveros-deep-listening.opus",
+      "track_affinity": ["ambient-history"],
+      "concept_tags": [
+        "long-tone",
+        "meditation",
+        "deep-listening",
+        "drone",
+        "history"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "style-fennesz-glitch-guitar",
+      "title": "Processed Guitar Texture (homage)",
+      "description": "A processed, granulated guitar texture, a homage to Fennesz.",
+      "duration_ms": 28000,
+      "file": "clips/style-fennesz-glitch-guitar.opus",
+      "track_affinity": ["ambient-history"],
+      "concept_tags": ["guitar", "glitch", "processed", "texture", "history"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "style-tim-hecker-distortion",
+      "title": "Saturated Drone (homage)",
+      "description": "A saturated, overdriven drone, a homage to Tim Hecker.",
+      "duration_ms": 30000,
+      "file": "clips/style-tim-hecker-distortion.opus",
+      "track_affinity": ["ambient-history"],
+      "concept_tags": ["drone", "distortion", "saturation", "noise", "history"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "style-grouper-haze",
+      "title": "Lo-fi Vocal Haze (homage)",
+      "description": "A lo-fi vocal-pad haze, a homage to Grouper.",
+      "duration_ms": 26000,
+      "file": "clips/style-grouper-haze.opus",
+      "track_affinity": ["ambient-history"],
+      "concept_tags": ["lo-fi", "vocal", "haze", "ambient", "history"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "style-basinski-decay",
+      "title": "Decaying Tape Loop (homage)",
+      "description": "A tape loop slowly decaying across repetitions, a homage to William Basinski.",
+      "duration_ms": 40000,
+      "file": "clips/style-basinski-decay.opus",
+      "track_affinity": ["ambient-history"],
+      "concept_tags": [
+        "tape-loop",
+        "decay",
+        "degradation",
+        "ambient",
+        "history"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "ref-tibetan-bowl-acoustic",
+      "title": "Tibetan Singing Bowl (reference recording)",
+      "description": "What a real Tibetan singing bowl sounds like — an acoustic reference recording.",
+      "duration_ms": 18000,
+      "file": "clips/ref-tibetan-bowl-acoustic.opus",
+      "track_affinity": ["ambient-history", "synthesis-fundamentals"],
+      "concept_tags": [
+        "singing-bowl",
+        "tibetan",
+        "acoustic",
+        "reference",
+        "bell"
+      ],
+      "license": "CC0",
+      "attribution": "Public-domain (CC0) singing-bowl recording, sourced from Freesound.org. See docs/AUDIO_CLIPS.md for the source URL."
+    },
+    {
+      "slug": "ref-gong-acoustic",
+      "title": "Struck Gong (reference recording)",
+      "description": "A real struck gong — an acoustic reference recording.",
+      "duration_ms": 20000,
+      "file": "clips/ref-gong-acoustic.opus",
+      "track_affinity": ["ambient-history", "synthesis-fundamentals"],
+      "concept_tags": ["gong", "acoustic", "reference", "metal", "percussion"],
+      "license": "CC0",
+      "attribution": "Public-domain (CC0) gong recording, sourced from Freesound.org. See docs/AUDIO_CLIPS.md for the source URL."
+    },
+
+    {
+      "slug": "comp-before-after",
+      "title": "Compression: Before / After",
+      "description": "The same loop uncompressed, then compressed — hear the levelling.",
+      "duration_ms": 16000,
+      "file": "clips/comp-before-after.opus",
+      "track_affinity": ["production-daw"],
+      "concept_tags": [
+        "compression",
+        "dynamics",
+        "before-after",
+        "mixing",
+        "daw"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "comp-pumping",
+      "title": "Compression: Pumping",
+      "description": "Heavy compression pumping in time with the beat.",
+      "duration_ms": 14000,
+      "file": "clips/comp-pumping.opus",
+      "track_affinity": ["production-daw"],
+      "concept_tags": ["compression", "pumping", "sidechain", "mixing", "daw"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "eq-lowcut-demo",
+      "title": "EQ: Low-cut",
+      "description": "Before and after a low-cut on a muddy mix.",
+      "duration_ms": 14000,
+      "file": "clips/eq-lowcut-demo.opus",
+      "track_affinity": ["production-daw"],
+      "concept_tags": ["eq", "low-cut", "high-pass", "mud", "mixing"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "eq-presence-boost",
+      "title": "EQ: Presence Boost",
+      "description": "A presence boost opening up a dull pad.",
+      "duration_ms": 14000,
+      "file": "clips/eq-presence-boost.opus",
+      "track_affinity": ["production-daw"],
+      "concept_tags": ["eq", "presence", "boost", "clarity", "mixing"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "mixbus-glue",
+      "title": "Mix Bus Glue",
+      "description": "Gentle mix-bus compression gluing a mix together.",
+      "duration_ms": 16000,
+      "file": "clips/mixbus-glue.opus",
+      "track_affinity": ["production-daw"],
+      "concept_tags": [
+        "mix-bus",
+        "glue",
+        "compression",
+        "cohesion",
+        "mastering"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "reverb-send-space",
+      "title": "Reverb Send: Space",
+      "description": "A dry signal versus the same on a reverb send.",
+      "duration_ms": 16000,
+      "file": "clips/reverb-send-space.opus",
+      "track_affinity": ["production-daw"],
+      "concept_tags": ["reverb", "send", "space", "depth", "mixing"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "saturation-warmth",
+      "title": "Saturation: Warmth",
+      "description": "Tape-style saturation adding warmth and harmonics.",
+      "duration_ms": 14000,
+      "file": "clips/saturation-warmth.opus",
+      "track_affinity": ["production-daw"],
+      "concept_tags": ["saturation", "tape", "warmth", "harmonics", "mixing"],
+      "license": "original-by-you",
+      "attribution": null
+    },
+
+    {
+      "slug": "shepard-tone-rising",
+      "title": "Shepard Tone (Rising)",
+      "description": "An endlessly rising Shepard tone — the auditory barber-pole.",
+      "duration_ms": 20000,
+      "file": "clips/shepard-tone-rising.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": [
+        "shepard-tone",
+        "illusion",
+        "rising",
+        "psychoacoustics",
+        "octave"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "risset-rhythm",
+      "title": "Risset Rhythm",
+      "description": "An ever-accelerating Risset rhythm that never speeds up.",
+      "duration_ms": 22000,
+      "file": "clips/risset-rhythm.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": [
+        "risset",
+        "rhythm",
+        "illusion",
+        "tempo",
+        "psychoacoustics"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "tritone-paradox",
+      "title": "Tritone Paradox",
+      "description": "Deutsch's tritone paradox — an ambiguous up-or-down interval.",
+      "duration_ms": 12000,
+      "file": "clips/tritone-paradox.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": [
+        "tritone",
+        "paradox",
+        "deutsch",
+        "illusion",
+        "psychoacoustics"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "beating-two-tones",
+      "title": "Beating Between Two Tones",
+      "description": "Two close tones (440 and 442 Hz) beating against each other.",
+      "duration_ms": 15000,
+      "file": "clips/beating-two-tones.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": [
+        "beating",
+        "interference",
+        "tuning",
+        "frequency",
+        "phenomena"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "just-vs-equal-triad",
+      "title": "Major Triad: Just vs Equal",
+      "description": "A major triad in just intonation versus equal temperament.",
+      "duration_ms": 16000,
+      "file": "clips/just-vs-equal-triad.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": [
+        "just-intonation",
+        "equal-temperament",
+        "tuning",
+        "triad",
+        "consonance"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "harmonic-series-sweep",
+      "title": "Harmonic Series Sweep",
+      "description": "The harmonic series ascending, partial by partial.",
+      "duration_ms": 20000,
+      "file": "clips/harmonic-series-sweep.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": [
+        "harmonic-series",
+        "partials",
+        "overtones",
+        "timbre",
+        "physics"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "missing-fundamental",
+      "title": "Missing Fundamental",
+      "description": "The missing-fundamental illusion — a pitch you hear but isn't there.",
+      "duration_ms": 14000,
+      "file": "clips/missing-fundamental.opus",
+      "track_affinity": ["music-science-crossover"],
+      "concept_tags": [
+        "missing-fundamental",
+        "illusion",
+        "pitch",
+        "psychoacoustics",
+        "physics"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    },
+    {
+      "slug": "comb-filter-phase",
+      "title": "Comb Filter / Phase Coherence",
+      "description": "Phase coherence sounds like this — a comb-filter sweep across a noise bed.",
+      "duration_ms": 16000,
+      "file": "clips/comb-filter-phase.opus",
+      "track_affinity": ["music-science-crossover", "production-daw"],
+      "concept_tags": [
+        "comb-filter",
+        "phase",
+        "coherence",
+        "interference",
+        "phenomena"
+      ],
+      "license": "original-by-you",
+      "attribution": null
+    }
+  ]
+}

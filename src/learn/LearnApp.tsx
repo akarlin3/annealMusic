@@ -1,12 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CurriculumBrowser } from './CurriculumBrowser';
 import { LessonPlayer } from './LessonPlayer';
+import { AdminPanel } from './admin/AdminPanel';
+import {
+  ProgressClient,
+  importLocalProgress,
+  type LessonProgress,
+} from './progress/ProgressClient';
+import { NextLessonPicker } from './recommend/NextLessonPicker';
 
 export interface LessonStep {
   id: string;
   lesson_id: string;
   position: number;
-  type: 'text' | 'demo' | 'prompt' | 'reflection';
+  type: 'text' | 'demo' | 'prompt' | 'reflection' | 'audio-clip';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config: any;
 }
@@ -42,8 +49,65 @@ export function LearnApp() {
   // Router state
   const [activeTrack, setActiveTrack] = useState<Track | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() =>
+    window.location.hash.startsWith('#admin'),
+  );
+
+  // Progress + auth state.
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [progress, setProgress] = useState<Record<string, LessonProgress>>({});
+  // Lesson just completed → drives the post-completion next-lesson picker.
+  const [justCompleted, setJustCompleted] = useState<string | null>(null);
 
   const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+
+  const progressClient = useMemo(
+    () => new ProgressClient(authenticated),
+    [authenticated],
+  );
+
+  // Resolve auth state once (account → cross-device progress + import on sign-in).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/auth/session`, {
+          credentials: 'include',
+        });
+        const data = res.ok ? await res.json() : { account: null };
+        if (!cancelled) setAuthenticated(!!data?.account);
+      } catch {
+        if (!cancelled) setAuthenticated(false);
+      } finally {
+        if (!cancelled) setAuthResolved(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [API_BASE]);
+
+  // On first sign-in, migrate any buffered anonymous (localStorage) progress, then
+  // (re)load the unified progress map for the curriculum browser checkmarks.
+  useEffect(() => {
+    if (!authResolved) return;
+    let cancelled = false;
+    (async () => {
+      if (authenticated) {
+        await importLocalProgress();
+      }
+      const map = await progressClient.list();
+      if (!cancelled) setProgress(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authResolved, authenticated, progressClient]);
+
+  const refreshProgress = async () => {
+    setProgress(await progressClient.list());
+  };
 
   useEffect(() => {
     async function fetchCurriculum() {
@@ -110,9 +174,23 @@ export function LearnApp() {
     };
   }, [tracks]);
 
+  // Admin console routing (#admin) — independent of curriculum load state so it
+  // works even if the public fetch fails.
+  useEffect(() => {
+    function onHash() {
+      setIsAdmin(window.location.hash.startsWith('#admin'));
+    }
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
   const navigateToHome = () => {
     window.location.hash = '';
   };
+
+  if (isAdmin) {
+    return <AdminPanel onClose={navigateToHome} />;
+  }
 
   const navigateToLesson = (trackSlug: string, lessonSlug: string) => {
     window.location.hash = `#lesson/${trackSlug}/${lessonSlug}`;
@@ -144,6 +222,11 @@ export function LearnApp() {
     );
   }
 
+  const handleLessonCompleted = (lessonId: string) => {
+    setJustCompleted(lessonId);
+    void refreshProgress();
+  };
+
   return (
     <div className="learn-app-container">
       {activeLesson ? (
@@ -151,9 +234,25 @@ export function LearnApp() {
           track={activeTrack!}
           lesson={activeLesson}
           onClose={navigateToHome}
+          progressClient={progressClient}
+          onCompleted={handleLessonCompleted}
         />
       ) : (
-        <CurriculumBrowser tracks={tracks} onSelectLesson={navigateToLesson} />
+        <>
+          <NextLessonPicker
+            apiBase={API_BASE}
+            authenticated={authenticated}
+            context={justCompleted ? 'completion' : 'arrival'}
+            justCompletedLessonId={justCompleted}
+            tracks={tracks}
+            onPick={navigateToLesson}
+          />
+          <CurriculumBrowser
+            tracks={tracks}
+            progress={progress}
+            onSelectLesson={navigateToLesson}
+          />
+        </>
       )}
     </div>
   );

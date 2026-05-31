@@ -58,3 +58,49 @@ To support multi-device synchronization and anonymous claims, we write your hist
 - **Security Bounds**:
   - Entries are tied strictly to your authenticated `user_id` or your cryptographically isolated `x-anon-id`.
   - The history export endpoint (`GET /me/sessions/export`) respects these authentication bounds and will never return history belonging to other users.
+
+---
+
+## 4. Lesson Progress (Learn surface, v6.3)
+
+The `/learn` surface records your progress through lessons so you can resume where you left off and so we can suggest a sensible next lesson. This data is **strictly private** — it is never shown to other users, never public, and never used to nudge you back.
+
+### 4.1 What we store
+
+For each lesson you start, a `lesson_progress` row (keyed to your `user_id`) holds:
+
+- `state` (`not_started` / `in_progress` / `completed`), the current step, and a 0..1 scroll position so you can resume.
+- `started_at` / `last_active_at` / `completed_at` timestamps.
+- A **bounded** per-step action log (`{step_position, action, time-on-step in ms}`) — metadata only, no free text.
+- `reflection_text` — any notes you chose to write in a reflection step.
+
+`abandoned` is **computed** (after 30 days of inactivity) for recommendation purposes only; it is never written to the database, and you can always resume.
+
+### 4.2 Where it lives
+
+- **Signed in:** progress is stored server-side against your account, so it follows you across devices.
+- **Anonymous:** progress stays in your browser's `localStorage` only — it is **never** uploaded to our servers. It is device-local; switching devices or clearing storage loses it. On your first sign-in, we offer to migrate this local progress to your account once (an idempotent merge); after that the server is the source of truth and the local copy is cleared.
+
+### 4.3 The next-lesson recommendation
+
+When we suggest a next lesson, we send a Claude (Haiku) model a **compact, metadata-only** summary of your progress: which lessons you completed (by title), your current track and aggregate counts, a text-free digest of recent step activity, and a coarse "time since last session" bucket — plus the candidate lesson list.
+
+- **Your `reflection_text` is never sent to the model.** Only step-action metadata becomes a signal. A server-side test asserts that no reflection content appears in the prompt.
+- The payload contains **no PII** (no name, email, or device identifiers).
+
+### 4.4 Your control
+
+Progress is account-scoped and never published or shared. Deleting your account cascades and removes all `lesson_progress` rows (`ON DELETE CASCADE`).
+
+---
+
+## 5. Lesson Analytics (admin-only, aggregate — v6.5)
+
+To iterate on the curriculum, AnnealMusic computes **aggregate, anonymized** lesson analytics for the maintainer (which lessons get abandoned, where learners pause, which audio clips get replayed, which prompts get skipped). This is a **curriculum-improvement tool, not a user-facing surface**, and it is built so that no individual's progress can be shown.
+
+- **Aggregate-by-construction.** Every analytics query counts / averages **before** anything is returned. No `user_id`, email, device id, or other per-user identifier ever crosses the response boundary — a server test asserts that no analytics payload contains a user identifier.
+- **Admin-only.** The analytics endpoints (`/api/v1/admin/analytics/*`) sit behind the same `x-admin-key` gate as the rest of the admin surface; when no admin key is configured they 404 (no oracle that they exist). They are never linked from `/learn` and never reachable by a normal user.
+- **Derived from data you already chose to create.** Analytics are computed from the existing private `lesson_progress` rows (§4). They add no new tracking: the per-step action log (`{step_position, action, ms}`) is the same bounded, text-free, PII-free metadata described above. **Your `reflection_text` is never read by analytics** — only its presence/absence contributes to an aggregate "reflection rate."
+- **No per-user analytics, ever.** We deliberately do **not** build a per-user analytics view — not for the maintainer, and not for you about yourself. Surfacing your own completion stats back at you is a calm-by-design tension (it invites self-measurement and habit-loop pressure), so it is on the permanent "never" list.
+
+The optional Postgres `lesson_analytics` materialized view is a performance/BI rollup of the same aggregate counts; it stores no per-user rows (it is `GROUP BY lesson_id`).

@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     quota_user_sources: int = 20
     quota_scripts: int = 50
     quota_experiments: int = 50
+    # v7.0: studies an account may be the PI of.
+    quota_studies: int = 100
     quota_bytes: int = 1024 * 1024 * 1024  # 1 GiB
 
 
@@ -113,11 +115,24 @@ class Settings(BaseSettings):
     # Observability.
     sentry_dsn: str | None = None
 
+    # --- v7.0 studies / research collaboration --------------------------------
+    # Public-facing base URL used to build study citation URLs (`/s/<slug>`).
+    public_base_url: str = "https://anneal.averykarlin.org"
+    # Zenodo DOI minting. Defaults to the *sandbox* so dev/CI never touch the
+    # production registry. When no token is set the ZenodoService runs in a
+    # deterministic stub mode (no network) so publish flows are testable offline.
+    zenodo_api_url: str = "https://sandbox.zenodo.org/api"
+    zenodo_token: str | None = None
+
     # AI Features
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None
     voyage_api_key: str | None = None
     monthly_cost_alarm_threshold: float = 100.0
+    # v6.1 lesson generation: soft monthly ceiling on uncached generation spend.
+    # The worker refuses a fresh LLM call once trailing-30-day cost exceeds this.
+    lesson_gen_monthly_budget_usd: float = 10.0
+    lesson_gen_model_id: str = "claude-3-haiku-20240307"
 
     @property
     def is_prod(self) -> bool:

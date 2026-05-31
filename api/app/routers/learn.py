@@ -25,15 +25,23 @@ from app.schemas import (
 router = APIRouter(prefix="/api/v1", tags=["learn"])
 
 
-# Helper function to convert Step model to Out schema
+# Helper function to convert Step model to Out schema. A manual override (v6.1)
+# wins over the generated/authored config wherever the step is served publicly.
 def step_to_out(step: LessonStep) -> LessonStepOut:
     return LessonStepOut(
         id=step.id,
         lesson_id=step.lesson_id,
         position=step.position,
         type=step.type,
-        config=step.config,
+        config=step.manual_override_content or step.config,
     )
+
+
+def _lesson_is_visible(lesson: Lesson) -> bool:
+    """A lesson is publicly visible if it is hand-authored (no spec) or its LLM
+    generation completed. Spec-based lessons that are pending/generating/failed
+    stay hidden from learners (admins see them via the admin status endpoints)."""
+    return lesson.spec is None or lesson.generation_status == "ready"
 
 
 # Helper function to convert Lesson model to Out schema
@@ -70,7 +78,9 @@ async def track_to_out(session: AsyncSession, track: Track) -> TrackOut:
         .order_by(Lesson.position.asc())
     )
     lessons = (await session.execute(lessons_stmt)).scalars().all()
-    lessons_out = [await lesson_to_out(session, l) for l in lessons]
+    lessons_out = [
+        await lesson_to_out(session, l) for l in lessons if _lesson_is_visible(l)
+    ]
 
     return TrackOut(
         id=track.id,
@@ -132,7 +142,7 @@ async def get_lesson(track_slug: str, lesson_slug: str, session: SessionDep) -> 
         )
     )
     lesson = (await session.execute(lesson_stmt)).scalar_one_or_none()
-    if lesson is None:
+    if lesson is None or not _lesson_is_visible(lesson):
         raise not_found("lesson")
 
     return await lesson_to_out(session, lesson)

@@ -114,7 +114,7 @@ export const DemographicScreen: React.FC<DemographicScreenProps> = ({
               placeholder="e.g. 5"
               value={
                 formData.musical_experience !== undefined
-                  ? (formData.musical_experience as string | number)
+                  ? String(formData.musical_experience)
                   : ''
               }
               onChange={(e) =>

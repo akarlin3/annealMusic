@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Visibility = Literal["unlisted", "public"]
 # A patch's stored visibility can also be 'flagged' (moderator action); only the
@@ -757,13 +758,13 @@ class ExperimentListOut(BaseModel):
 
 class LessonStepCreate(BaseModel):
     position: int
-    type: Literal["text", "demo", "prompt", "reflection"]
+    type: Literal["text", "demo", "prompt", "reflection", "audio-clip"]
     config: dict
 
 
 class LessonStepUpdate(BaseModel):
     position: int | None = None
-    type: Literal["text", "demo", "prompt", "reflection"] | None = None
+    type: Literal["text", "demo", "prompt", "reflection", "audio-clip"] | None = None
     config: dict | None = None
 
 
@@ -893,6 +894,521 @@ class SonificationListOut(BaseModel):
     next_cursor: str | None = None
 
 
+# --- v6.1 Lesson generation --------------------------------------------------
+
+StepType = Literal["text", "demo", "prompt", "reflection", "audio-clip"]
+
+
+class LessonSpecStep(BaseModel):
+    type: StepType
+    topic: str | None = Field(default=None, max_length=400)
+    patch_brief: str | None = Field(default=None, max_length=400)
+    task: str | None = Field(default=None, max_length=400)
+    diagram: Literal["svg", "mermaid"] | None = None
+    # v6.2 — for an 'audio-clip' step, what the clip should illustrate. Retrieval
+    # uses this to surface candidates; the LLM picks one and writes intro/outro.
+    clip_topic: str | None = Field(default=None, max_length=400)
+
+
+class LessonSpec(BaseModel):
+    id: str = Field(..., max_length=200)  # "track_slug/lesson_slug"
+    track: str = Field(..., max_length=100)
+    title: str = Field(..., max_length=120)
+    objectives: list[str] = Field(..., min_length=1, max_length=8)
+    difficulty: Literal["intro", "intermediate", "advanced"] = "intro"
+    prerequisites: list[str] = Field(default_factory=list)
+    audience: str | None = Field(default=None, max_length=120)
+    step_outline: list[LessonSpecStep] = Field(..., min_length=1, max_length=30)
+    constraints_during_prompts: list[str] = Field(default_factory=list)
+    estimated_minutes: int = Field(default=10, ge=1)
+    position: int = 0
+    description: str | None = Field(default=None, max_length=2000)
+
+
+class LessonGenStepOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    position: int
+    type: str
+    config: dict
+    manual_override_content: dict | None = None
+    generation_id: uuid.UUID | None = None
+    prompt_version: str | None = None
+    model_id: str | None = None
+    generated_at: datetime | None = None
+
+
+class LessonGenStatusOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    track_id: uuid.UUID
+    slug: str
+    title: str
+    difficulty: str
+    generation_status: str
+    generation_error: str | None = None
+    spec: dict | None = None
+    steps: list[LessonGenStepOut] = Field(default_factory=list)
+
+
+class StepOverrideIn(BaseModel):
+    content: dict
+
+
+# --- v6.4 Curriculum authoring tooling ---------------------------------------
+
+
+class SpecGenerateIn(BaseModel):
+    """Request to scaffold a starting lesson spec from a topic + outline."""
+
+    topic: str = Field(..., min_length=2, max_length=400)
+    track: str = Field(..., min_length=1, max_length=100)
+    outline: str | None = Field(default=None, max_length=2000)
+    difficulty: Literal["intro", "intermediate", "advanced"] | None = None
+
+
+class SpecGenerateOut(BaseModel):
+    spec: LessonSpec
+
+
+class BatchGenerateIn(BaseModel):
+    """Kick off generation. Empty/omitted ``lesson_ids`` means 'all pending'."""
+
+    lesson_ids: list[uuid.UUID] = Field(default_factory=list)
+    include_failed: bool = True
+
+
+class BatchGenerateItem(BaseModel):
+    id: uuid.UUID
+    slug: str
+    title: str
+    generation_status: str
+    generation_error: str | None = None
+    cached: bool = False
+
+
+class BatchGenerateOut(BaseModel):
+    requested: int
+    results: list[BatchGenerateItem] = Field(default_factory=list)
+
+
+class QAFindingOut(BaseModel):
+    rule: str
+    level: str
+    message: str
+
+
+class LessonQAOut(BaseModel):
+    id: uuid.UUID
+    spec_id: str | None = None
+    slug: str
+    title: str
+    status: str  # 'pass' | 'warn' | 'fail'
+    errors: int
+    warnings: int
+    findings: list[QAFindingOut] = Field(default_factory=list)
+
+
+class CurriculumQAOut(BaseModel):
+    status: str  # worst-of across lessons + graph
+    graph_findings: list[QAFindingOut] = Field(default_factory=list)
+    lessons: list[LessonQAOut] = Field(default_factory=list)
+
+
+class PrereqEdge(BaseModel):
+    prerequisite: str  # spec id "track/slug"
+    lesson: str        # spec id "track/slug"
+
+
+class PrereqNode(BaseModel):
+    id: str            # spec id "track/slug"
+    lesson_id: uuid.UUID
+    track: str
+    title: str
+    difficulty: str
+
+
+class PrereqGraphOut(BaseModel):
+    nodes: list[PrereqNode] = Field(default_factory=list)
+    edges: list[PrereqEdge] = Field(default_factory=list)
+
+
+class PrereqGraphIn(BaseModel):
+    edges: list[PrereqEdge] = Field(default_factory=list)
+
+
+# --- v6.2 Audio clip library -------------------------------------------------
+
+ClipLicense = Literal["CC0", "CC-BY", "original-by-you", "licensed-third-party"]
+
+
+class AudioClipOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    slug: str
+    title: str
+    description: str
+    duration_ms: int
+    track_affinity: list[str] = Field(default_factory=list)
+    concept_tags: list[str] = Field(default_factory=list)
+    license: str
+    attribution: str | None = None
+    audio_url: str | None = None
+    created_at: datetime
+
+
+class AudioClipMeta(BaseModel):
+    """Metadata for create/patch (the audio bytes arrive as a separate upload)."""
+
+    slug: str = Field(..., max_length=100)
+    title: str = Field(..., max_length=200)
+    description: str = Field(..., max_length=2000)
+    duration_ms: int | None = Field(default=None, ge=1, le=120000)
+    track_affinity: list[str] = Field(default_factory=list)
+    concept_tags: list[str] = Field(default_factory=list)
+    license: ClipLicense
+    attribution: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("slug")
+    @classmethod
+    def _slug_urlsafe(cls, v: str) -> str:
+        if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", v):
+            raise ValueError("slug must be lowercase URL-safe (a-z, 0-9, hyphens)")
+        return v
+
+    @model_validator(mode="after")
+    def _attribution_required(self) -> "AudioClipMeta":
+        if self.license != "original-by-you" and not (self.attribution or "").strip():
+            raise ValueError(
+                f"attribution is required for license '{self.license}'"
+            )
+        return self
+
+
+class AudioClipPatch(BaseModel):
+    title: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    track_affinity: list[str] | None = None
+    concept_tags: list[str] | None = None
+    license: ClipLicense | None = None
+    attribution: str | None = Field(default=None, max_length=2000)
+
+
+class ClipSearchResult(BaseModel):
+    slug: str
+    title: str
+    description: str
+    duration_ms: int
+    track_affinity: list[str] = Field(default_factory=list)
+    concept_tags: list[str] = Field(default_factory=list)
+    score: float
+
+
+# --- v6.3 Lesson progress + next-lesson recommendations ----------------------
+
+# The reader-facing state includes the *computed* 'abandoned'; only the first
+# three are ever stored (see app/models.py::LessonProgress).
+LessonProgressState = Literal["not_started", "in_progress", "completed", "abandoned"]
+
+
+class StepActionIn(BaseModel):
+    """A single per-step signal. Metadata only — no free text, no PII.
+
+    Navigation actions (``started`` / ``completed`` / ``skipped``) carry the
+    time-on-step in ``ms``. v6.5 adds, additively, the engagement-signal actions
+    the admin analytics surface reads: ``clip_play`` / ``clip_replay`` (audio-clip
+    steps) and ``prompt_tried`` / ``prompt_skipped`` (prompt steps). These remain
+    aggregate, anonymized signals — never per-user-exposed."""
+
+    step_position: int = Field(ge=0)
+    action: Literal[
+        "started",
+        "completed",
+        "skipped",
+        "clip_play",
+        "clip_replay",
+        "prompt_tried",
+        "prompt_skipped",
+    ]
+    ms: int = Field(default=0, ge=0)  # time-on-step in milliseconds
+    at: datetime | None = None  # defaults to server now() when absent
+
+
+class LessonProgressUpsert(BaseModel):
+    """Heartbeat / pause / complete. ``step_actions`` is a delta that is appended
+    to the bounded server-side log; ``state`` only ever advances (never downgrades
+    a completed lesson)."""
+
+    lesson_id: uuid.UUID
+    state: Literal["in_progress", "completed"] | None = None
+    current_step_position: int | None = Field(default=None, ge=0)
+    scroll_ratio: float | None = Field(default=None, ge=0, le=1)
+    step_actions: list[StepActionIn] = Field(default_factory=list)
+    reflection_text: str | None = Field(default=None, max_length=2000)
+
+
+class LessonProgressOut(BaseModel):
+    lesson_id: uuid.UUID
+    state: str  # may be the derived 'abandoned'
+    current_step_position: int
+    scroll_ratio: float
+    started_at: datetime | None = None
+    last_active_at: datetime | None = None
+    completed_at: datetime | None = None
+    reflection_text: str | None = None
+
+
+class LessonProgressListOut(BaseModel):
+    items: list[LessonProgressOut]
+
+
+class TrackProgressOut(BaseModel):
+    """Descriptive per-track counts only — no percentage-as-pressure, no streak."""
+
+    track_slug: str
+    track_title: str
+    total_lessons: int
+    completed_lessons: int
+    in_progress_lessons: int
+
+
+class ProgressImportItem(BaseModel):
+    """One localStorage progress record uploaded on first sign-in (anon→authed)."""
+
+    lesson_id: uuid.UUID
+    state: Literal["not_started", "in_progress", "completed"] = "in_progress"
+    current_step_position: int = Field(default=0, ge=0)
+    scroll_ratio: float = Field(default=0, ge=0, le=1)
+    started_at: datetime | None = None
+    last_active_at: datetime | None = None
+    completed_at: datetime | None = None
+    step_actions: list[StepActionIn] = Field(default_factory=list)
+    reflection_text: str | None = Field(default=None, max_length=2000)
+
+
+class ProgressImportIn(BaseModel):
+    items: list[ProgressImportItem] = Field(default_factory=list, max_length=500)
+
+
+class RecommendationRequest(BaseModel):
+    context: Literal["completion", "arrival"] = "arrival"
+    just_completed_lesson_id: uuid.UUID | None = None
+
+
+class RecommendationItem(BaseModel):
+    lesson_id: uuid.UUID
+    slug: str
+    title: str
+    difficulty: str
+    track_slug: str
+    rationale: str  # the LLM's one-sentence "why this next" (or a neutral fallback)
+
+
+class RecommendationsOut(BaseModel):
+    items: list[RecommendationItem]
+    # 'onboarding' = brand-new user; 'empty' = nothing reachable; 'deterministic'
+    # = LLM unavailable/invalid so Stage-1 order is used verbatim.
+    source: Literal["llm", "deterministic", "onboarding", "empty"]
+
+
+# --- v7.0 Research Collaboration (Studies) Schemas ----------------------------
+
+StudyStatus = Literal[
+    "planning",
+    "pre-registered",
+    "active",
+    "data-collection",
+    "analysis",
+    "published",
+    "archived",
+]
+StudyVisibility = Literal["private", "public"]
+InvestigatorRole = Literal["pi", "co-investigator", "analyst", "viewer"]
+ResourceKind = Literal[
+    "patch",
+    "piece",
+    "listening_session",
+    "audio_clip",
+    "experiment",
+    "user_script",
+    "dataset",
+    "sonification",
+]
+ResourceRole = Literal["stimulus", "protocol", "data", "analysis"]
+
+
+class FundingSource(BaseModel):
+    source: str = Field(..., max_length=200)
+    grant_number: str | None = Field(default=None, max_length=120)
+    role: str | None = Field(default=None, max_length=120)
+
+
+class StudyCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    abstract: str | None = Field(default=None, max_length=8000)
+    preregistration_url: str | None = Field(default=None, max_length=500)
+    ethics_statement: str | None = Field(default=None, max_length=8000)
+    funding_sources: list[FundingSource] | None = None
+
+
+class StudyUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    abstract: str | None = Field(default=None, max_length=8000)
+    status: StudyStatus | None = None
+    visibility: StudyVisibility | None = None
+    preregistration_url: str | None = Field(default=None, max_length=500)
+    ethics_statement: str | None = Field(default=None, max_length=8000)
+    funding_sources: list[FundingSource] | None = None
+
+
+class InvestigatorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    account_id: uuid.UUID
+    role: InvestigatorRole
+    added_at: datetime
+    # Resolved (best-effort) from the account for display + citation.
+    display_name: str | None = None
+    orcid: str | None = None
+    affiliation_ror: str | None = None
+
+
+class StudyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    slug: str
+    title: str
+    description: str | None
+    abstract: str | None
+    status: StudyStatus
+    visibility: StudyVisibility
+    preregistration_url: str | None
+    ethics_statement: str | None
+    funding_sources: list[dict]
+    concept_doi: str | None
+    created_at: datetime
+    updated_at: datetime
+    archived_at: datetime | None
+    investigators: list[InvestigatorOut] = []
+    # The caller's role on this study, if any (None for public/anon readers).
+    my_role: InvestigatorRole | None = None
+
+
+class StudyListOut(BaseModel):
+    items: list[StudyOut]
+
+
+class InvestigatorAdd(BaseModel):
+    # Add by account id or by email (resolved server-side); exactly one required.
+    account_id: uuid.UUID | None = None
+    account_email: str | None = Field(default=None, max_length=320)
+    role: InvestigatorRole = "viewer"
+
+    @model_validator(mode="after")
+    def _one_identifier(self) -> "InvestigatorAdd":
+        if (self.account_id is None) == (self.account_email is None):
+            raise ValueError("Provide exactly one of account_id or account_email.")
+        return self
+
+
+class InvestigatorRoleUpdate(BaseModel):
+    role: InvestigatorRole
+
+
+class ResourceLinkIn(BaseModel):
+    resource_kind: ResourceKind
+    resource_id: uuid.UUID
+    role: ResourceRole | None = None
+
+
+class ResourceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    resource_kind: ResourceKind
+    resource_id: uuid.UUID
+    role: ResourceRole | None
+    added_by: uuid.UUID | None
+    added_at: datetime
+
+
+class ResourceListOut(BaseModel):
+    items: list[ResourceOut]
+
+
+class AuditEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    account_id: uuid.UUID | None
+    timestamp: datetime
+    action: str
+    before: dict | None
+    after: dict | None
+
+
+class AuditListOut(BaseModel):
+    items: list[AuditEntryOut]
+
+
+class SnapshotIn(BaseModel):
+    version_label: str = Field(..., min_length=1, max_length=120)
+
+
+class VersionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    study_id: uuid.UUID
+    version_label: str
+    doi: str | None
+    created_by: uuid.UUID | None
+    created_at: datetime
+
+
+class VersionDetailOut(VersionOut):
+    snapshot_json: dict
+
+
+class VersionListOut(BaseModel):
+    items: list[VersionOut]
+
+
+class PublishIn(BaseModel):
+    # Publish an existing version by id, or create + publish a new one by label.
+    version_id: uuid.UUID | None = None
+    version_label: str | None = Field(default=None, min_length=1, max_length=120)
+
+    @model_validator(mode="after")
+    def _one_target(self) -> "PublishIn":
+        if (self.version_id is None) == (self.version_label is None):
+            raise ValueError("Provide exactly one of version_id or version_label.")
+        return self
+
+
+class PublishOut(BaseModel):
+    version_id: uuid.UUID
+    doi: str
+    concept_doi: str
+    stub: bool
+
+
+class CitationOut(BaseModel):
+    format: Literal["bibtex", "apa", "chicago"]
+    citation: str
+
+
+class AccountResearchUpdate(BaseModel):
+    orcid: str | None = Field(default=None, max_length=64)
+    affiliation_ror: str | None = Field(default=None, max_length=200)
+
+>>>>>>> main
 
 
 

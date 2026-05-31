@@ -1,12 +1,19 @@
 /* eslint-disable */
-import { getCitationBlock } from '../../../cite/bibtex-generator.js';
+import {
+  getCitationBlock,
+  getBibTeX,
+  getAPACitation,
+} from '../../../cite/bibtex-generator.js';
+import { getChicagoCitation } from '../../../cite/chicago-generator.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export function runCiteCommand(): void {
+type CiteFormat = 'all' | 'bibtex' | 'apa' | 'chicago';
+
+export function runCiteCommand(format: CiteFormat = 'all'): void {
   // Dynamically load the version from the workspace package.json
   let version = '5.7.0';
   try {
@@ -19,5 +26,17 @@ export function runCiteCommand(): void {
     // Fallback to standard
   }
 
-  console.log(getCitationBlock(version));
+  switch (format) {
+    case 'bibtex':
+      console.log(getBibTeX(version));
+      break;
+    case 'apa':
+      console.log(getAPACitation(version));
+      break;
+    case 'chicago':
+      console.log(getChicagoCitation(version));
+      break;
+    default:
+      console.log(getCitationBlock(version));
+  }
 }

@@ -140,3 +140,119 @@ To add a new track or lesson in a future version:
 1. Generate a new migration using `alembic revision -m "add_my_lesson"`.
 2. Construct the track/lesson/steps dictionary payloads with deterministic UUID strings (using `uuid.uuid4()` locally once to generate them).
 3. Call `op.bulk_insert` inside the `upgrade()` block of the new migration file.
+
+---
+
+## 4. Authoring with LLM generation (v6.1)
+
+As of **v6.1**, you no longer hand-write step `config` payloads. Instead you author
+a **lesson spec** — what the lesson covers — and the LLM pipeline generates the
+validated step sequence. See **[LESSON_GENERATION.md](./LESSON_GENERATION.md)** for
+the pipeline internals, caching, and cost.
+
+### 4.1 The spec
+
+A spec is a JSON document describing the lesson's intent and an ordered
+`step_outline`. It is stored on `lessons.spec` and uniquely determines the cached
+output (together with the prompt + schema versions and model id).
+
+```json
+{
+  "id": "synthesis-fundamentals/karplus-strong",
+  "track": "synthesis-fundamentals",
+  "title": "How the String Engine Works",
+  "objectives": [
+    "Understand the basic principle of Karplus-Strong synthesis",
+    "Hear the effect of damping on the string sound"
+  ],
+  "difficulty": "intro",
+  "prerequisites": ["synthesis-fundamentals/intro"],
+  "step_outline": [
+    { "type": "text", "topic": "What physical modeling is", "diagram": "svg" },
+    {
+      "type": "demo",
+      "patch_brief": "A bright Karplus pluck, brightness high"
+    },
+    { "type": "prompt", "task": "Try adjusting damping while listening" },
+    { "type": "reflection", "topic": "the effect of damping" }
+  ],
+  "constraints_during_prompts": ["damping", "brightness"]
+}
+```
+
+**Field rules**
+
+| Field                        | Rule                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `id`                         | Must be `"{track_slug}/{lesson_slug}"`. The lesson slug is derived from it.   |
+| `track`                      | Must equal the `id` prefix and match an existing, non-archived track slug.    |
+| `objectives`                 | 1–8 short learning objectives. They steer tone and reflection questions.      |
+| `difficulty`                 | `intro` \| `intermediate` \| `advanced`.                                      |
+| `prerequisites`              | Spec ids (`track/lesson`); resolved to lesson UUIDs, unknown ones skipped.    |
+| `step_outline[].type`        | `text` \| `demo` \| `prompt` \| `reflection`. The index is the step position. |
+| `text` / `reflection`        | Require `topic`.                                                              |
+| `demo`                       | Requires `patch_brief` (the target sonic character).                          |
+| `prompt`                     | Requires `task`.                                                              |
+| `diagram`                    | `svg` \| `mermaid`, **text steps only**. Generated as a sub-step.             |
+| `constraints_during_prompts` | Control keys the learner may adjust on prompt steps.                          |
+
+### 4.2 Generating
+
+POST the spec to the admin endpoint (gated by the `x-admin-key` header):
+
+```bash
+curl -X POST "$API/api/v1/admin/lessons/generate" \
+  -H "x-admin-key: $ADMIN_KEY" -H "content-type: application/json" \
+  -d @my-lesson.spec.json
+```
+
+Or use the **admin console** at `/learn#admin`: paste the spec, click _Generate
+now_, and review each step. Re-running the same spec is a free cache hit; bump
+`LESSON_PROMPT_VERSION` (in `lesson_generation.py`) when you change prompts or
+examples to force fresh content for new runs.
+
+A lesson is only served to learners once its `generation_status` is `ready`. If a
+step fails validation after 2 retries, the lesson is marked `generation_failed`
+with the error — fix the spec and regenerate, or **manually override** that step.
+
+### 4.3 Manual override
+
+Any step can be hand-fixed without re-running the lesson. In the console, open the
+step and edit its _Manual override (JSON)_, or call the API directly:
+
+```bash
+curl -X PUT "$API/api/v1/admin/lesson-steps/$STEP_ID/override" \
+  -H "x-admin-key: $ADMIN_KEY" -H "content-type: application/json" \
+  -d '{"content": {"title": "...", "content": "..."}}'
+```
+
+An override wins over the generated config everywhere and is never regenerated, so
+re-running the lesson preserves it. Demo overrides are re-validated against the
+schema manifest. `DELETE` the override to fall back to generated content.
+
+### 4.4 When to still seed via migration
+
+Hand-seeded lessons (spec `NULL`) remain fully supported and are always visible —
+use a migration (§3) for fixed, non-generated content. Spec-based lessons are the
+default path for new curriculum from v6.1 onward.
+
+---
+
+## 5. Batch authoring tooling (v6.4)
+
+To make a 55-lesson curriculum tractable, the `#admin` console gained five tabs,
+all gated by `x-admin-key` under `/api/v1/admin/curriculum`:
+
+| Tab                | Does                                                                                                                                          | Endpoint                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| **Spec generator** | LLM scaffolds a _starting_ spec from a topic + outline; you always edit it. Framing-sensitive topics get the `FRAMING.md` directive injected. | `POST …/spec-generate`             |
+| **Batch**          | Generate all `pending`/`failed` specs at once; unchanged specs are free cache hits.                                                           | `POST …/batch-generate`            |
+| **Review**         | Every lesson with generation status + a QA badge, beside the per-step override editor; approve / revise / regenerate.                         | (reuses v6.1 generate/override)    |
+| **Prerequisites**  | Add prerequisite edges; the server **rejects cycles**, so the graph stays a DAG.                                                              | `GET/PUT …/prereqs`                |
+| **Quality**        | Run the nine QA rules over the whole curriculum.                                                                                              | `GET …/qa`, `GET …/qa/{lesson_id}` |
+
+The full authored curriculum and its prerequisite edge list live in
+`api/app/services/curriculum_content.py`; see [CURRICULUM.md](CURRICULUM.md) for
+the outline and pedagogy. Quality rules, the DAG check, and the framing lexicon
+are each defined once (`curriculum_qa.py`, `framing_lexicon.py`) and shared by the
+generator, the QA pipeline, the graph editor, and CI.

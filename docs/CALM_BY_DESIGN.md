@@ -88,3 +88,30 @@ A lexical test (`src/test/calm-by-design.test.ts`) scans the UI source for banne
 - [x] **Non-Coercive Pathing (Unblocked Progress):** Lessons do not force high-stakes gates. Prompt challenges let users proceed at their own pace via a simple "I've Tried This" validation.
 - [x] **Voluntary & Calm Reflection:** Reflection inputs are open-ended, optional, and unblocked. Users can save notes for their own personal summary, or skip/proceed directly if they prefer silent presence.
 - [x] **Private & Local Summaries:** Handwritten reflections are summarized locally in the client-side session state for the user's review at the end of a lesson, remaining completely private and unshared.
+
+### v6.3 — Progress Tracking & Next-Lesson Picker
+
+> This is the slice with the highest engagement-loop risk (a progress + recommendation surface is exactly where a calm product could quietly grow a habit loop). The guardrails below are therefore explicit and CI-enforced.
+
+- [x] **Progress is descriptive, not motivational.** The curriculum browser shows a quiet completed checkmark, a "N of M lessons explored" count, and a "Resume" hint — nothing else. No progress bars, no "you're 47% through," no "almost there," no completion percentage framed as an obligation.
+- [x] **No streaks / no gamified counts.** No "days in a row," no session streak, no XP, no levels, no badges, no leaderboards, no points, no completion celebrations (no confetti, no sound). The v6.0 dots remain the only in-player progress affordance.
+- [x] **Abandonment is invisible to the user.** The 30-day `abandoned` derivation is picker-internal; the stored state stays `in_progress`. Users are never told a lesson "expired" or shown a guilt-framed "you abandoned this," and can always resume.
+- [x] **The picker is an offer, not a funnel.** 1–3 cards, always paired with a permanent "browse all lessons" escape. No "recommended for you" infinite feed, no autoplay-next-lesson, no ranking-as-competition, no urgency language in the rationales (the LLM is explicitly instructed against motivational copy).
+- [x] **At most one gentle nudge.** The only outbound prompt is a single, dismissible, once-per-session "sign in to keep your progress" line (session-storage guarded). No emails, push, SMS, in-app reminders, or daily "continue your practice" prompts — none ship, none are stubbed.
+- [x] **Stats computed once.** Effective-state derivation and per-track aggregation live solely in `api/app/services/progress_state.py`; the client renders the server's numbers verbatim, so framing can't drift between surfaces.
+- [x] **Progress data is private.** Account-scoped, never public, no share button, no profile display. Anonymous progress stays client-side (localStorage) and is only ever uploaded by the explicit, user-triggered sign-in import.
+- [x] **Reflection text never reaches the LLM.** The recommendation ranker reads only step-action metadata; a server test asserts no reflection content appears in the prompt, and the payload carries no PII.
+- [x] **CI lexical gate extended to `src/learn`.** `src/test/calm-by-design.test.ts` now scans the Learn surface (progress + recommendation UI included), matching banned terms as whole words and ignoring CSS/code identifiers so it flags engagement-loop _copy_ only.
+
+### v6.5 — Lesson Analytics & Discoverability (v6 closeout)
+
+> v6.5 adds two surfaces with distinct calm risks: an **admin analytics** view (the temptation to surface per-user funnels) and **in-app discoverability hints** (the temptation to nag the user toward lessons). Both are constrained below.
+
+- [x] **Analytics are aggregate-only and admin-only.** The analytics endpoints aggregate (`GROUP BY` / `COUNT`) before returning; no `user_id` or PII ever crosses the boundary (a server test asserts it). They sit behind the `x-admin-key` gate, are never linked from `/learn`, and are never shown to a normal user.
+- [x] **No per-user analytics — not even for the user themselves.** We deliberately ship no per-user analytics view. Surfacing a learner's own completion stats back at them invites self-measurement pressure; it is on the permanent "never" list (alongside user lesson-ratings).
+- [x] **Analytics add no new tracking.** They are derived from the existing private `lesson_progress` data; the per-step action log stays bounded, text-free, and PII-free. `reflection_text` is never read by analytics (only its presence contributes to an aggregate rate).
+- [x] **Discoverability is opt-out and understated.** Learning hints are a single quiet primitive (`LessonHintLink`) — a muted "learn more" link / `?` icon and one dismissable first-time banner. They open the relevant lesson in a **new tab** (never interrupting what the user is making), carry no counts/badges/urgency, and are not animated.
+- [x] **A global "hide learning hints" toggle.** One Account-Settings switch (default on) suppresses every hint and the banner reactively. The first-time banner's dismissal also persists forever. No hint ever recurs as a nag.
+- [x] **No outbound nudges from any of it.** Analytics and discoverability add no emails, push, or reminders — none ship, none are stubbed. The only in-app prompt is the single dismissable banner.
+- [x] **One primitive, one map (heuristic-drift guard).** Every hint is the same `LessonHintLink` component, and the engine/param/mode→lesson mapping lives once in `src/components/lessonHints.ts`, so the discoverability heuristic can't drift between surfaces.
+- [x] **CI lexical gate stays green** over the new `src/learn` analytics UI and the new `src/components` discoverability primitives.

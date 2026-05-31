@@ -25,7 +25,14 @@ const BANNED = [
   'days in a row',
 ];
 
-const ROOTS = ['src/history', 'src/library', 'src/admin/LibraryCuration.tsx'];
+const ROOTS = [
+  'src/history',
+  'src/library',
+  'src/admin/LibraryCuration.tsx',
+  // v6.3 — the Learn progress + recommendation surfaces carry the highest
+  // engagement-loop risk, so they are now lexically gated too.
+  'src/learn',
+];
 
 function walk(path: string): string[] {
   const st = statSync(path);
@@ -43,6 +50,19 @@ function stripComments(src: string): string {
     .replace(/\{\/\*[\s\S]*?\*\/\}/g, ' '); // JSX comments
 }
 
+/**
+ * The gate targets engagement-loop *copy* — not CSS styling identifiers. Class
+ * names like `difficulty-badge` or `duration-badge` are layout, not achievement
+ * badges, so we strip `className`/`class` attribute values (string and `{…}`
+ * template forms) before scanning. User-facing text and string literals remain.
+ */
+function stripClassAttributes(src: string): string {
+  return src.replace(
+    /\b(?:className|class)\s*=\s*(?:"[^"]*"|'[^']*'|\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/g,
+    'class=""',
+  );
+}
+
 describe('calm-by-design lexical gate (v4.5)', () => {
   const files = ROOTS.flatMap(walk);
 
@@ -50,12 +70,21 @@ describe('calm-by-design lexical gate (v4.5)', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
+  // Match each banned term as a whole word (with an optional trailing plural),
+  // so the gate flags engagement-loop *copy* ("badge", "badges", "streak") but
+  // not code identifiers that merely contain the substring (e.g. a `StatusBadge`
+  // component or a `LeaderboardView`). Class names are already stripped above.
+  const bannedRe = (token: string): RegExp =>
+    new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}s?\\b`, 'i');
+
   for (const file of ROOTS.flatMap(walk)) {
     it(`contains no engagement-loop language: ${file}`, () => {
-      const text = stripComments(readFileSync(file, 'utf8')).toLowerCase();
+      const text = stripClassAttributes(
+        stripComments(readFileSync(file, 'utf8')),
+      ).toLowerCase();
       for (const token of BANNED) {
         expect(
-          text.includes(token),
+          bannedRe(token).test(text),
           `Banned engagement-loop term "${token}" found in ${file}`,
         ).toBe(false);
       }

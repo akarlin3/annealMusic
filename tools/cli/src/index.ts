@@ -148,9 +148,16 @@ program
 // 8.5 Cite Command
 program
   .command('cite')
-  .description('Print academic APA citation and BibTeX entry for AnnealMusic')
-  .action(() => {
-    runCiteCommand();
+  .description('Print academic citation for AnnealMusic (BibTeX, APA, Chicago)')
+  .option(
+    '-f, --format <format>',
+    'one of: all | bibtex | apa | chicago',
+    'all',
+  )
+  .action((opts: { format?: string }) => {
+    const fmt = (opts.format ?? 'all').toLowerCase();
+    const allowed = ['all', 'bibtex', 'apa', 'chicago'];
+    runCiteCommand((allowed.includes(fmt) ? fmt : 'all') as any);
   });
 
 // 9. Sweep helper commands for Slurm job arrays

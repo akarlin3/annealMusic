@@ -36,7 +36,7 @@ New here? Press the **Help (?)** button in the app for a plain-language guide to
 - **Listen** — a curated meditation library (`/listen`) of hand-picked sessions to browse by length, intention, and audio character.
 - **Your sessions** — a private history (`/me/sessions`) of what you've listened to, with optional reflections. Just for you.
 - **Share links** — copy a link that reopens your exact sound for anyone you send it to.
-- **Learn (v6.0)** — an interactive pedagogical surface (`/learn`) designed to teach ambient synthesis, phase-coupling, and tuning physics through structured lessons, sandboxed parameter constraints, and visual cues.
+- **[Learn](learn.html) (v6.0 · v6.1 · v6.2 · v6.3 · v6.4)** — an interactive pedagogical surface (`/learn`) designed to teach ambient synthesis, phase-coupling, and tuning physics through structured lessons, sandboxed parameter constraints, and visual cues. In v6.1, lesson content is **LLM-generated from authored specs**: an admin writes a spec (topic, objectives, step outline) and Claude generates the validated step sequence — markdown with sanitized SVG/mermaid diagrams, schema-valid demo patches, prompts, and reflections — cached immutably so the whole curriculum costs ~$1–2 to generate once. v6.2 adds an **audio clip library**: 49 short reference examples that lessons play through a dedicated `audio-clip` step (the embedded engine pauses so clips don't fight the live audio), with a shared embedding+tag+affinity retrieval the generator uses to anchor a concept in sound. v6.3 adds **progress tracking + a next-lesson picker**: private, cross-device lesson progress with pause/resume of your exact step and scroll position, and a calm 1–3 card "where to go next" suggestion (deterministic candidate filter → Haiku ranking) shown after a lesson or on `/learn` arrival — no streaks, no percentages, no nudges. **v6.4 ships the actual curriculum: five tracks, 55 lessons, with a prerequisite DAG, an LLM-assisted spec generator + batch generation + review dashboard + prerequisite-graph editor + a quality-check pipeline, and discoverability (search, track/difficulty filters, "Start here").** See [docs/CURRICULUM.md](docs/CURRICULUM.md), [docs/LESSON_GENERATION.md](docs/LESSON_GENERATION.md), [docs/AUDIO_CLIPS.md](docs/AUDIO_CLIPS.md), and [docs/LEARN.md](docs/LEARN.md).
 - **Session Datalogging (v5.3)** — record high-resolution session observations (sculpt states, Kuramoto coupling order parameter, partial details, and audio features like RMS, ZCR, spectral centroid, and flux) to scientific formats (CSV, JSONL, Parquet, and HDF5) at configurable sample rates for ingestion into Python, MATLAB, Julia, or R.
 
 ---
@@ -109,6 +109,34 @@ Refer to the complete guides in:
 - [docs/DATALOG.md](docs/DATALOG.md) — Datalogger usage, ingest examples, and telemetry bridge references.
 - [docs/DATALOG_SCHEMA.md](docs/DATALOG_SCHEMA.md) — JSON Schema and data specifications.
 - [docs/OSC.md](docs/OSC.md) — Bidirectional OSC specifications.
+
+### Studies — multi-investigator research collaboration (v7.0)
+
+The `/research` console includes a **Studies** panel: the unit of scientific
+work in AnnealMusic. A **Study** is a versioned, citable bundle that organizes
+resources (stimuli, protocols, datasets, analysis scripts) into a reproducible
+package, edited by multiple authenticated investigators with full provenance.
+
+- **Investigators & roles** — `pi` / `co-investigator` / `analyst` / `viewer`
+  with a strict permission matrix (only a PI manages investigators or publishes;
+  analysts write analyses only; viewers are read-only). A study always keeps at
+  least one PI.
+- **Linked resources** — attach patches, pieces, listening sessions,
+  experiments, and scripts owned by any investigator, tagged by role
+  (stimulus / protocol / data / analysis).
+- **Provenance** — every mutation is recorded to an immutable `study_audit_log`
+  via a single write-path; the per-study **audit sidebar** shows the full trail.
+- **Snapshots & versions** — freeze the study + resolved resource metadata +
+  content hashes into an immutable version (deletion-proof; binary payloads are
+  never copied).
+- **Citation & DOIs** — generate **BibTeX / APA / Chicago** citations, link
+  **ORCID** + **ROR** on your account, and **publish** a version to mint a
+  **Zenodo DOI** (concept + per-version), behind a pre-flight checklist.
+- **Anonymous-first** — studies require an account, but anyone can browse and
+  cite a study marked `public`.
+
+See [docs/STUDIES.md](docs/STUDIES.md) for the multi-investigator workflow guide
+and [docs/CITATION.md](docs/CITATION.md) for study DOIs and citation formats.
 
 ## Project structure
 

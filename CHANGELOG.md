@@ -4,6 +4,141 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.0] - 2026-05-31
+
+**The v7 research-collaboration arc opens.** v7.0 ships the shared substrate that the clinical-research (v7.2/v7.4/v7.5) and sonification (v7.1) tracks build on: a multi-investigator **Study** model with provenance, immutable snapshots, and per-study Zenodo DOIs. No clinical or sonification features yet — only the collaboration primitives.
+
+### Added
+
+- **Studies — the unit of scientific work.** A **Study** (`/research` → **Studies** panel) is a versioned, citable bundle of investigators + linked resources (stimuli, protocols, datasets, analysis scripts) with full provenance. New tables (migration `0025_v7_0_studies`): `studies`, `study_investigators`, `study_resources`, `study_versions`, `study_audit_log`, plus `accounts.orcid` / `accounts.affiliation_ror`.
+- **Multi-investigator workflows.** Roles `pi` / `co-investigator` / `analyst` / `viewer` with a strict permission matrix enforced by a single `require_study_role` helper: only a PI adds/removes investigators or publishes; co-investigators edit the study + link/unlink resources; analysts read everything and may add `analysis` resources only; viewers are read-only. A study always retains at least one PI (`409 last_pi`).
+- **Provenance.** Every mutation is written to `study_audit_log` `(timestamp, account_id, action, before, after)` through one write-path (`app/study_provenance.py`) — the heuristic-drift guard. A per-study **audit sidebar** surfaces the trail; reads are never logged.
+- **Snapshots & versions.** `POST /studies/:id/snapshot` freezes the study + investigators + **resolved resource metadata and content hashes** into an immutable `study_versions` row (binary payloads are never copied, so snapshots stay KB-scale and survive later deletion of a source resource). Versions are append-only and immutable.
+- **Citations.** `GET /studies/:id/citation?format=bibtex|apa|chicago` renders citations server-side (`app/services/citation.py`, pure + unit-tested), PI-first author ordering with ORCID. Unpublished studies cite via their `/s/<slug>` URL. The CLI `annealmusic cite` gained a `--format` flag and `tools/cite/` gained APA + Chicago generators alongside BibTeX.
+- **Zenodo DOI minting.** `POST /studies/:id/publish` (PI-only) runs a pre-flight checklist (abstract, ethics statement, ≥1 PI, every investigator has an ORCID) then mints a **concept DOI** (per study) + **version DOI** (per snapshot) via `app/services/zenodo.py`. Robust HTTP: bounded exponential backoff on 5xx/429/network errors (honoring `Retry-After`), no retry on 4xx. Defaults to the Zenodo **sandbox**; with no token configured it runs a deterministic **stub** so publish flows are testable offline/in CI.
+- **Researcher identity.** `PATCH /api/v1/account/me` now accepts `orcid` (format-validated) and `affiliation_ror` (a `https://ror.org/<id>` URL); both flow into citations and Zenodo deposition metadata.
+- **Studies UI** (`src/studies/`): `StudiesPanel` (list + create), `StudyView` (metadata editor + versions + audit sidebar), `InvestigatorManager`, `ResourceLinker` (multi-kind picker), `SnapshotDialog`, and `PublishFlow` (pre-flight checklist → DOI), wired in as a new **Studies** tab in the research console.
+
+### IRB-friendly framing
+
+- **Anonymous-first preserved.** Studies require an authenticated account, but a study marked `visibility='public'` (plus its citation) is readable by anyone, anonymously. Private studies return **404** (not 403) to non-investigators, so their existence is never leaked. The public study **gallery UI** is deferred (v7.6); the `visibility` flag + public read/cite ship now.
+- **Controlled lifecycle.** `published` is reachable only via the publish flow (which mints the DOI) and `archived` only via `DELETE`; a direct `PATCH` cannot fake either state. AnnealMusic remains **not a data processor by default** — v7.0 ships the collaboration framework; subject-data instantiation lands in v7.2/v7.4/v7.5.
+
+### Docs & release
+
+- **`docs/STUDIES.md`** — multi-investigator workflow guide (roles, snapshots, publishing).
+- **`docs/CITATION.md`** — per-study/per-version DOIs and the three citation formats, extended from the v5.7 project-citation tooling.
+- `docs/v7.0-PLAN.md` — the CP0 design (data model, permission matrix, snapshot semantics, audit scope, Zenodo design, risks).
+- `README.md` Studies subsection; `docs/ROADMAP.md` marks **v7.0 ✅**.
+
+## [6.5.0] - 2026-05-31
+
+**The v6 education arc closes.** v6.5 adds the admin analytics that let the curriculum be iterated, the in-app discoverability that lets lessons be found, and the retrospective + release that close v6.0–v6.5.
+
+### Added
+
+- **Lesson analytics (admin-only, aggregate, anonymized).** A new **Analytics** tab in the `#admin` console (`src/learn/admin/AnalyticsPage.tsx`), backed by `GET /api/v1/admin/analytics/lessons`, `/lessons/{id}`, `/tracks`, `/clips` and `POST /api/v1/admin/analytics/refresh` — all behind the existing `x-admin-key` gate.
+  - **Per-lesson:** view count, completion rate, average time-to-complete, a step-by-step **drop-off curve**, per-step time-on-step distribution, prompt "I tried it" vs skip ratio, and reflection-presence rate.
+  - **Per-track:** aggregate completion + **path popularity** — the lesson sequences learners actually walk, flagged on/off the curated prerequisite graph.
+  - **Per-clip:** play / replay / skip / exposure counts.
+  - **CSV export** for the lesson and clip tables.
+- **Analytics service** (`api/app/services/analytics.py`): portable `GROUP BY` rollups + pure, unit-tested drop-off / time-on-step / prompt / clip helpers, computed from the existing `lesson_progress` data — **no new tracking**. A Postgres `lesson_analytics` **materialized view** (migration `0024_v6_5_lesson_analytics`, refreshed nightly + on demand) is the production performance / BI rollup; the endpoints compute live so there is one portable, tested code path (the test harness runs SQLite without migrations).
+- **Additive engagement signals.** The lesson player now emits, additively, `clip_play` / `clip_replay` (audio-clip steps) and `prompt_tried` / `prompt_skipped` (prompt steps) into the existing bounded `step_actions` log, so per-clip and prompt analytics begin to flow. The `StepActionIn` action set was widened additively — no schema or public-API break.
+- **In-app discoverability** built from one primitive, `LessonHintLink` (`src/components/LessonHintLink.tsx`): a muted "learn more" link or `?` icon that opens the relevant `/learn` lesson in a **new tab**. Wired into the **engine selector** ("Learn more about this engine →"), the **mode toggle** (links to the relevant track), and a single dismissable **first-time banner** ("New to AnnealMusic? Start with the intro lesson →"). The engine/param/mode→lesson maps live once in `src/components/lessonHints.ts` (the heuristic-drift guard).
+- **Global "Show learning hints" toggle** in Account Settings (`src/components/LearningHintsSettings.tsx`), default **on** (opt-out). Flipping it off suppresses every hint and the banner reactively; the first-time banner's dismissal persists independently.
+
+### Calm-by-design
+
+- **No per-user analytics — for anyone, including the user about themselves.** Every analytics query aggregates before returning; no `user_id` or PII ever crosses the boundary (a server test asserts it). Analytics are admin-only and never linked from `/learn`. Surfacing a learner's own completion stats back at them stays on the permanent "never" list.
+- **Discoverability is opt-out and understated:** one quiet primitive, a single dismissable banner, hints that open in a new tab and carry no counts/badges/urgency, and one global hide toggle. No outbound nudges ship or are stubbed. The `src/learn` calm-by-design CI gate stays green; the v6.5 checklist is recorded in `docs/CALM_BY_DESIGN.md`.
+
+### Docs & release
+
+- **`docs/V6_RETROSPECTIVE.md`** — the v6 education-arc retrospective (original thesis, what shipped v6.0–v6.5, LLM-generation cost reality vs forecast, an honest "known so far" on pedagogical effectiveness, where the LLM honored vs drifted on framing discipline, what was harder than expected, and the post-v6 thesis space).
+- `docs/LEARN.md`, `docs/PRIVACY.md`, and `docs/CALM_BY_DESIGN.md` finalized for v6 (discoverability + analytics sections; aggregate-analytics privacy section; v6.5 calm checklist).
+
+### Stability commitments (v6 close)
+
+- Lesson schema → **stable**. Curriculum content → **versioned / seeded** in `curriculum_content.py`. Public lesson + progress APIs → **stable, additive-only** (v6.5 widened `step_actions` actions and added admin-only analytics routes without changing any existing contract).
+
+## [6.4.0] - 2026-05-30
+
+### Added
+
+- **The curriculum.** Five tracks, **55 authored lessons**: Synthesis Fundamentals (15), Composition Technique (12), Ambient History & Listening (10), Production & DAW (8), and Music + Science Crossover (10). Every lesson is authored as a `LessonSpec` (objectives, step outline, constraints) in `api/app/services/curriculum_content.py` — the single, reviewable source for tracks, lessons, and the prerequisite graph. Lessons are seeded `generation_status='pending'` (migration `0023_v6_4_curriculum_seed`, deterministic uuid5 ids) and filled in by the v6.1 LLM pipeline at batch-generation time (~$1 on Haiku, cached). Two new tracks land in migration `0022_v6_4_curriculum_tracks`.
+- **Prerequisite graph (a DAG).** Prerequisites are declared once as an edge list and resolved to lesson UUIDs at seed time. The graph is rooted at `synthesis-fundamentals/intro`, acyclic, depth ≤5, with cross-track edges (e.g. `harmonic-series` precedes the spectral engines; `phase-kuramoto` follows the drift-based `sculpt-model`). Every track has an ungated intro lesson so onboarding never blocks.
+- **Curriculum authoring tooling** (`#admin` console, new tabs):
+  - **Spec generator** — given a topic + outline, the LLM scaffolds a _starting_ spec (validated against `LessonSpec`, one retry, framing directive injected for sensitive topics) that the author always edits. `POST /api/v1/admin/curriculum/spec-generate`.
+  - **Batch generation** — generate all pending/failed specs at once; unchanged specs are free cache hits. `POST /api/v1/admin/curriculum/batch-generate`.
+  - **Review dashboard** — every lesson with its generation status + QA badge, alongside the per-step spec↔output editor; approve / revise / regenerate.
+  - **Prerequisite-graph editor** — pick a prerequisite + a lesson, add an edge; the server validates the DAG and **rejects cycles**, so a cycle can never persist. `GET/PUT /api/v1/admin/curriculum/prereqs`.
+  - **Quality checks** — `GET /api/v1/admin/curriculum/qa` runs nine pure, network-free rules over the whole curriculum.
+- **Quality-check pipeline** (`api/app/services/curriculum_qa.py`): step-type coverage (every lesson must let you _hear_ something and _reflect_), audio-clip existence, demo-patch schema validity, SVG/mermaid sanitization, per-type word-count bands, prerequisite-DAG (cycle/self-edge/unknown-node detection), spec/id integrity, **framing compliance**, and difficulty monotonicity. Errors block publish; warnings are advisory.
+- **Honest-framing lexicon** (`api/app/services/framing_lexicon.py`): the framing-trigger terms, prohibited claim phrases, and honest hedging signals live **once** and are shared by the spec generator, the QA pipeline, and CI. Framing-sensitive lessons (432 Hz, solfeggio, binaural, entrainment …) get the `docs/FRAMING.md` directive injected at generation and are asserted by QA — the `432-solfeggio` lesson must state the clinical evidence is absent.
+- **Discoverability.** The curriculum browser gains search-by-topic, a track filter, a difficulty filter, a per-track lesson count, a **"Start here"** banner for brand-new learners (points at the first ungated intro lesson), and quiet **prerequisite hints** ("Suggested first: …") on lessons whose prerequisites aren't yet complete. Recommendations continue to pull from the real curriculum via the v6.3 picker.
+
+### Calm-by-design
+
+- Discoverability stays descriptive: lesson counts, not percentages; prerequisite _hints_, not hard locks; a "Start here" offer, not a funnel. No certificates, no quizzes, no scores. The `src/learn` calm-by-design CI gate (now covering the admin tooling too) stays green.
+
+### Notes
+
+- Lessons ship `pending` — an admin with an API key runs **Batch → Generate all pending** to fill in per-step prose. Specs are the editorial deliverable; the per-step content is generated and cached.
+- No URL schema bump — the curriculum lives server-side under the existing `/learn` route.
+
+## [6.3.0] - 2026-05-30
+
+### Added
+
+- **Lesson progress tracking.** A private, per-account `lesson_progress` record (migration `0021_v6_3_lesson_progress`, composite PK `user_id+lesson_id`) tracks `not_started` / `in_progress` / `completed` state, the current step, a 0..1 scroll position, timestamps, a bounded per-step action log, and any reflection text. `abandoned` is **computed** (>30 days inactive) and never stored, so a lesson can always be resumed. New endpoints: `POST/GET /api/v1/lesson-progress`, `GET /api/v1/lesson-progress/{lesson_id}` (resume), `GET /api/v1/lesson-progress/me/track/{slug}` (per-track summary), and `POST /api/v1/lesson-progress/import` (anon→authed migration).
+- **Pause + resume (cross-device).** The lesson player saves your step + scroll position on step change, on tab-hide (`visibilitychange`), and on close (`sendBeacon`), and silently resumes there on re-entry. Account progress is the server's (so it follows you across devices); anonymous progress stays in `localStorage` only and is migrated once on first sign-in via an idempotent **max-merge** import (completion is never downgraded).
+- **Next-lesson picker.** `POST /api/v1/recommendations/next` runs a two-stage pick: Stage 1 deterministically filters candidates (prerequisites satisfied, ±1 difficulty band, track scope, not-already-completed, ≤8 candidates); Stage 2 ranks them with **Haiku 4.5** into an ordered 1–3 with a one-sentence "why this next" each. Output is validated against the candidate set (hallucinated ids dropped), retried once, and falls back to the deterministic order if the model is unavailable. A 5-minute per-process TTL cache returns identical state without an LLM call.
+- **Onboarding picker.** Brand-new learners (no completions) get a deterministic set of intro lessons across tracks plus "explore a track" chips — no LLM call needed.
+- **Curriculum-browser progress display.** A quiet completed checkmark per lesson, a descriptive "N of M lessons explored" per track, and a "Resume" hint for in-progress lessons. No bars, no percentages, no streaks.
+- **Single source of truth for progress state.** `api/app/services/progress_state.py` is the one place effective-state derivation (the implicit `abandoned`), per-track aggregation, and the import max-merge live — the calm-by-design `compute_stats` heuristic-drift rule, applied to lessons.
+
+### Calm-by-design
+
+- This is the highest engagement-loop-risk slice, so the guardrails are explicit: progress is descriptive only (no streaks/scores/levels/%-pressure), the picker is an **offer** with a permanent "browse all lessons" escape (never a funnel, never autoplay-next), abandonment is invisible to the user, and the only outbound prompt is a single, dismissible, once-per-session "sign in to keep your progress" nudge.
+- **Privacy:** reflection text is private — never published and **never sent to the LLM ranker** (only step-action metadata becomes a signal). The recommendation payload carries no PII; a unit test asserts no reflection content reaches the prompt.
+- The calm-by-design CI lexical gate (`src/test/calm-by-design.test.ts`) now scans **`src/learn`**, refined to match banned terms as whole words and ignore CSS/code identifiers (e.g. a `difficulty-badge` class or a `StatusBadge` component) so it flags engagement-loop _copy_ only.
+
+## [6.2.0] - 2026-05-30
+
+### Added
+
+- **Audio clip library.** A curated library of short audio examples (5–60 s) that lessons reference by `slug`: engine archetypes, physical sub-models, FM ratios, granular textures, composition shapes, ambient-history homages, production demos, and psychoacoustic phenomena (Shepard tones, Risset rhythms, the tritone paradox, beating, just-vs-equal tuning). 49 clips across the five curriculum tracks, defined in `api/data/clip_library.json` and rendered to `public/clips/*.opus` (96 kbps mono) by `tools/gen_clips.py`.
+- **`audio_clips` data model + API.** New table (migration `0020_v6_2_audio_clips`) with slug, metadata, `track_affinity`/`concept_tags`, license, and a 1536-dim `description_embedding`. Public `GET /api/v1/clips/:slug` (metadata) and `GET /api/v1/clips/:slug/audio` (streams Opus, redirecting to the static asset for shipped clips). Admin `POST/PATCH/DELETE /api/v1/admin/clips` + `GET /api/v1/admin/clips/search`.
+- **`audio-clip` lesson step type.** `AudioClipStep` shows intro text, a waveform + play/pause/seek/loop transport, and outro text on completion, with the clip license surfaced on hover/focus. The embedded engine's `AudioContext` is suspended for the duration (new bridge methods `suspendEngine`/`resumeEngine` → `Orchestrator.suspendAudio`/`resumeAudio`) so clips don't fight the live engine, and resumed only if the player suspended it.
+- **Shared clip retrieval.** One `search_clips` service blends embedding similarity (0.6), tag intersection (0.3), and track affinity (0.1), used by **both** admin search and the LLM pipeline. Generating an `audio-clip` step retrieves the top 3 candidates and the LLM picks one (or declines, preferring no clip over a weak match) and writes the framing. `LESSON_PROMPT_VERSION` → `v6.2.0`.
+- **Admin clip manager.** `ClipManager` (in the `#admin` console) lists clips, uploads with a **required license** (attribution required for non-original), and tests retrieval.
+- **License CI gate.** `tools/check-clip-licenses.mjs` fails the build if any clip lacks a license or a non-`original-by-you` clip lacks an attribution. Canonical ambient works are not CC-licensed, so the library ships 100% original homages + 2 CC0 acoustic reference recordings; paid licensed material is deferred.
+
+### Notes
+
+- The clip Opus binaries are generated from the committed manifest, not hand-committed; run `python tools/gen_clips.py` (requires ffmpeg) to (re)produce `public/clips/`. The two CC0 reference recordings must be dropped in manually with their source recorded in `docs/AUDIO_CLIPS.md`.
+
+## [6.1.0] - 2026-05-30
+
+### Added
+
+- **LLM Lesson Generation Pipeline.** Lesson content is now generated from authored **specs** rather than hand-seeded. An admin POSTs a spec (id, track, objectives, difficulty, prerequisites, and a `step_outline`) to `POST /api/v1/admin/lessons/generate`; the server runs one LLM call per step, validates, and persists the result. Reuses the v1.7 `LLMClient`, schema-in-prompt machinery, and validate-and-retry loop (up to 2 retries with the validation errors fed back to the model).
+- **Six system prompts + few-shot library.** Dedicated prompts for `text`, `demo`, `prompt`, `reflection`, `svg`, and `mermaid` generation sharing a warm/precise preamble, plus a curated example library (`api/data/lesson_examples.json`: 4 text, 5 demo, 3 prompt, 3 reflection, 3 svg, 3 mermaid) — every SVG passes the sanitizer, every mermaid passes the linter, every demo patch validates against the schema manifest. Versioned by `LESSON_PROMPT_VERSION` (`v6.1.0`).
+- **Allowlist SVG sanitizer (`api/app/services/svg_sanitizer.py`).** Stdlib, deny-by-default. Hard-rejects `<script>`, `<image>`, `<foreignObject>`, external `href`/`url()`, `on*` handlers, and `DOCTYPE`/`ENTITY` (no silent stripping → retry). Caps the viewBox at 800×400. The client re-checks on render as defence-in-depth.
+- **Mermaid validation.** Lightweight server-side lint (allowlisted diagram types — `flowchart`, `graph`, `sequenceDiagram`, `stateDiagram-v2` — plus injection guards); full compile stays client-side.
+- **Schema-valid demo patches.** Demo steps generate a patch JSON that is clamped and validated through the existing v1.7 patch validator before persistence; the player loads the parsed patch.
+- **Immutable per-step caching.** Cache keyed on `sha256(prompt_version | schema_version | spec_id | step_index | step_type | model_id | diagram)`, stored in `ai_generations` (`cache_key` unique, `lesson_step_id` backref, `kind = lesson-*`, nullable `user_id`). Cache hits cost nothing and decrement no quota; a prompt-version bump invalidates only new generations.
+- **Manual per-step override.** `PUT/DELETE /api/v1/admin/lesson-steps/{id}/override` stores `manual_override_content`, which wins over generated content everywhere and is never regenerated (demo overrides are re-validated against the schema).
+- **Monthly budget ceiling.** `lesson_gen_monthly_budget_usd` (default `$10`) refuses fresh generation once trailing-30-day lesson spend exceeds it. A typical 6-step lesson costs ~$0.01–0.02; the full ~100-lesson curriculum ~$1–2.
+- **Admin generation console (`/learn#admin`).** Spec editor with "Generate now", a status dashboard (pending / generating / ready / failed), per-step preview, and a manual-override editor. Admin key held in tab `sessionStorage` only.
+- **Diagram rendering in the lesson player.** `TextStep` renders generated SVG inline (server-sanitized) and mermaid as a labelled block.
+- **Data model + migration `0019_v6_1_lesson_generation`.** `lessons.spec/generation_status/generation_error`; `lesson_steps` generation provenance + `manual_override_content`; `ai_generations.lesson_step_id/cache_key` + nullable `user_id`. Spec-based lessons stay hidden from learners until `ready`; hand-authored (spec-less) lessons remain always visible.
+
+### Docs
+
+- `docs/LESSON_GENERATION.md` (new): how the pipeline works, prompt versions, cache model, cost, manual override.
+- `docs/CURRICULUM_AUTHORING.md`: added the v6.1 spec-authoring guide.
+
 ## [6.0.0] - 2026-05-30
 
 ### Added
