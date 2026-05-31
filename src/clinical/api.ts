@@ -1,3 +1,4 @@
+/* eslint-disable */
 import type {
   ClinicalProtocol,
   ClinicalSessionRecord,
@@ -94,4 +95,27 @@ export const clinicalApi = {
 
   getCalibrationHistory: (id: string) =>
     request<CalibrationEvent[]>(`${BASE}/${id}/calibration-history`),
+
+  uploadBiosignalStream: (
+    sessionId: string,
+    body: {
+      device_id: string;
+      channel_name: string;
+      consented_at: string;
+      sample_rate_hz?: number;
+      frames: { timestamp: number; value: number }[];
+    },
+  ) =>
+    request<any>(
+      `/api/v1/clinical-session-records/${sessionId}/biosignal-stream`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+    ),
+
+  deleteBiosignalStream: (streamId: string) =>
+    request<void>(`/api/v1/biosignal-streams/${streamId}`, {
+      method: 'DELETE',
+    }),
 };

@@ -1,4 +1,4 @@
-export type SourceType = 'file' | 'live' | 'synthetic';
+export type SourceType = 'file' | 'live' | 'synthetic' | 'live-biosignal';
 
 export interface SourceDef {
   id: string;
@@ -9,6 +9,7 @@ export interface SourceDef {
   url?: string; // WebSocket / SSE url for live sources
   formula?: string; // JavaScript synthetic math expression
   data?: Record<string, unknown>[]; // Interpolated time-series data rows
+  deviceId?: string; // Active biofeedback device ID for live-biosignal
 }
 
 export type TransformType = 'linear' | 'log' | 'exp' | 'discrete' | 'quantile';

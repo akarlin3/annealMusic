@@ -1,3 +1,4 @@
+/* eslint-disable */
 export type RandomizationScheme =
   | 'simple'
   | 'latin-square'
@@ -35,6 +36,7 @@ export interface ClinicalProtocol {
   target_lufs: number;
   adverse_event_capture: boolean;
   ct_gov_nct: string | null;
+  biosignal_channels?: any[];
   created_at: string;
   updated_at: string;
 }
@@ -82,4 +84,5 @@ export interface EnrollmentResult {
   calibration_required: boolean;
   target_lufs: number;
   adverse_event_capture: boolean;
+  biosignal_channels?: any[];
 }

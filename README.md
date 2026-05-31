@@ -138,6 +138,16 @@ package, edited by multiple authenticated investigators with full provenance.
 See [docs/STUDIES.md](docs/STUDIES.md) for the multi-investigator workflow guide
 and [docs/CITATION.md](docs/CITATION.md) for study DOIs and citation formats.
 
+### Sonification Mappings & Recipes (v7.3)
+
+The `/research` console features a highly interactive **Sonification Panel** providing researchers with a sandbox to translate datasets into high-fidelity soundscapes:
+
+- **20 Canonical Mapping Templates** — A database-seeded catalog of 20 templates spanning four domain families (Time Series, Scalar Fields, Networks, and Structured Events) grounded in rigorous auditory display academic literature (e.g. ICAD, Hermann, Worrall, Kuramoto).
+- **Dynamic Auto-Calibration** — Automatically scans raw column values in uploaded datasets and maps min/max bounds to safe synthesizer parameters, safeguarding participant hearing and preventing digital clipping.
+- **Deep-Linking Sandbox Integration** — Standard URL hashes (e.g. `#template=single-scalar-drift`) automatically trigger tab transitions to `/research#sonification` and open pre-loaded calibration templates.
+- **Scientific Sonifications Gallery** — An elegant editorial catalog strip integrated inside the `/listen` (LibraryPage) practice route, enabling users to click a card and jump straight into the sandbox.
+- **Markdown Recipe Handbook** — Full step-by-step recipes, strict academic citations, and honest limitations for each template, compiled dynamically into a unified handbook: [docs/SONIFICATION_RECIPES.md](docs/SONIFICATION_RECIPES.md).
+
 ## Project structure
 
 ```

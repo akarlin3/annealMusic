@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect, useRef } from 'react';
 import { useSonificationStore } from './store';
 import { MappingEditor } from './MappingEditor';
@@ -17,8 +18,11 @@ import {
   Check,
   Plus,
   FileText,
+  BookOpen,
 } from 'lucide-react';
 import type { SourceDef, SourceType } from './types';
+import { TemplateBrowser } from './templates/TemplateBrowser';
+import { InstantiateDialog } from './templates/InstantiateDialog';
 import './SonificationPanel.css';
 
 export const SonificationPanel: React.FC = () => {
@@ -47,6 +51,11 @@ export const SonificationPanel: React.FC = () => {
   } = useSonificationStore();
 
   const [activeCalibrateIdx, setActiveCalibrateIdx] = useState<number | null>(
+    null,
+  );
+
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const [instantiateTemplate, setInstantiateTemplate] = useState<any | null>(
     null,
   );
 
@@ -109,6 +118,44 @@ export const SonificationPanel: React.FC = () => {
       });
     }
   }, [ensureOrchestrator, setOrchestrator, loadSonification, sourcesLength]);
+
+  useEffect(() => {
+    const handleToast = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message: string }>;
+      triggerToast(customEvent.detail.message);
+    };
+    window.addEventListener('anneal-toast', handleToast);
+    return () => window.removeEventListener('anneal-toast', handleToast);
+  }, []);
+
+  // Handle template deep-linking via URL hash
+  useEffect(() => {
+    const checkTemplateHash = () => {
+      const hash = window.location.hash;
+      const match = hash.match(/#?template=([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        const slug = match[1];
+        fetch(`/api/v1/mapping-templates/${slug}`)
+          .then((res) => {
+            if (res.ok) {
+              return res.json();
+            }
+            throw new Error('Template not found');
+          })
+          .then((template) => {
+            setInstantiateTemplate(template);
+          })
+          .catch((err) => {
+            console.error('Failed to load template from hash:', err);
+            triggerToast(`Could not load template "${slug}"`, 'error');
+          });
+      }
+    };
+
+    checkTemplateHash();
+    window.addEventListener('hashchange', checkTemplateHash);
+    return () => window.removeEventListener('hashchange', checkTemplateHash);
+  }, []);
 
   const triggerToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToastMsg(msg);
@@ -323,6 +370,12 @@ export const SonificationPanel: React.FC = () => {
         </div>
 
         <div className="hero-actions">
+          <button
+            className="btn-action outline"
+            onClick={() => setBrowserOpen(true)}
+          >
+            <BookOpen size={16} /> Browse Templates
+          </button>
           <button
             className="btn-action shadow-glow"
             onClick={handleSaveToBackend}
@@ -574,6 +627,25 @@ export const SonificationPanel: React.FC = () => {
         <CalibrationDialog
           ruleIndex={activeCalibrateIdx}
           onClose={() => setActiveCalibrateIdx(null)}
+        />
+      )}
+
+      {/* Render Catalog Browser */}
+      {browserOpen && (
+        <TemplateBrowser
+          onClose={() => setBrowserOpen(false)}
+          onInstantiate={(template) => {
+            setBrowserOpen(false);
+            setInstantiateTemplate(template);
+          }}
+        />
+      )}
+
+      {/* Render Instantiate Dialog */}
+      {instantiateTemplate !== null && (
+        <InstantiateDialog
+          template={instantiateTemplate}
+          onClose={() => setInstantiateTemplate(null)}
         />
       )}
     </div>

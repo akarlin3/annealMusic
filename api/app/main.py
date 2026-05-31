@@ -48,6 +48,8 @@ from app.routers import (
     recommendations,
     studies,
     clinical,
+    mapping_templates,
+    biofeedback,
 )
 
 
@@ -137,6 +139,11 @@ def create_app() -> FastAPI:
     app.include_router(learn.html_router)
     app.include_router(sonifications.router)
     app.include_router(clinical.router)
+    app.include_router(clinical.session_record_router)
+    app.include_router(biofeedback.router)
+    app.include_router(mapping_templates.router)
+    app.include_router(mapping_templates.admin_router)
+    app.include_router(mapping_templates.instantiate_router)
 
     return app
 

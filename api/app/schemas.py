@@ -1420,6 +1420,7 @@ class ClinicalProtocolCreate(BaseModel):
     target_lufs: float = -23.0
     adverse_event_capture: bool = True
     ct_gov_nct: str | None = Field(default=None, max_length=64)
+    biosignal_channels: list[dict] = Field(default_factory=list)
 
 
 class ClinicalProtocolUpdate(BaseModel):
@@ -1430,6 +1431,7 @@ class ClinicalProtocolUpdate(BaseModel):
     target_lufs: float | None = None
     adverse_event_capture: bool | None = None
     ct_gov_nct: str | None = Field(default=None, max_length=64)
+    biosignal_channels: list[dict] | None = None
 
 
 class ClinicalProtocolOut(BaseModel):
@@ -1446,8 +1448,24 @@ class ClinicalProtocolOut(BaseModel):
     target_lufs: float
     adverse_event_capture: bool
     ct_gov_nct: str | None
+    biosignal_channels: list[dict]
     created_at: datetime
     updated_at: datetime
+
+
+class BiosignalStreamOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    session_record_id: uuid.UUID
+    device_id: str
+    channel_name: str
+    storage_key: str
+    sample_rate_hz: float | None
+    bytes: int | None
+    consented_at: datetime
+    retention_until: datetime | None
+    created_at: datetime
 
 
 class ClinicalSessionRecordEnroll(BaseModel):
@@ -1485,6 +1503,78 @@ class ClinicalSessionRecordOut(BaseModel):
     withdrew: bool
     partial_data_disposition: str | None
     client_audit_log: list[dict]
+
+
+# --- v7.3 Mapping Template Schemas --------------------------------------------
+
+class MappingTemplateCreate(BaseModel):
+    slug: str = Field(..., max_length=120)
+    title: str = Field(..., max_length=120)
+    description: str = Field(..., max_length=1000)
+    domain_family: Literal["time-series", "scalar-field", "network", "structured-event"]
+    source_schema: dict
+    mapping_spec: dict
+    calibration_recommendation: str | None = None
+    citation: str | None = None
+    recipe_content: str
+    example_data_path: str | None = None
+    example_audio_path: str | None = None
+    position: int = 0
+
+
+class MappingTemplateUpdate(BaseModel):
+    slug: str | None = Field(default=None, max_length=120)
+    title: str | None = Field(default=None, max_length=120)
+    description: str | None = Field(default=None, max_length=1000)
+    domain_family: Literal["time-series", "scalar-field", "network", "structured-event"] | None = None
+    source_schema: dict | None = None
+    mapping_spec: dict | None = None
+    calibration_recommendation: str | None = None
+    citation: str | None = None
+    recipe_content: str | None = None
+    example_data_path: str | None = None
+    example_audio_path: str | None = None
+    position: int | None = None
+
+
+class MappingTemplateOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    slug: str
+    title: str
+    description: str
+    domain_family: str
+    source_schema: dict
+    mapping_spec: dict
+    calibration_recommendation: str | None
+    citation: str | None
+    recipe_content: str
+    example_data_path: str | None
+    example_audio_path: str | None
+    position: int
+    created_at: datetime
+
+
+class MappingTemplateListOut(BaseModel):
+    items: list[MappingTemplateOut]
+
+
+class SonificationFromTemplateIn(BaseModel):
+    template_slug: str
+    title: str | None = None
+    description: str | None = None
+    data_rows: list[dict] | None = None
+    duration_ms: int = 15000
+
+
+class BiosignalStreamUploadIn(BaseModel):
+    device_id: str
+    channel_name: str
+    consented_at: datetime
+    sample_rate_hz: float | None = None
+    frames: list[dict] = Field(default_factory=list)
+
 
 
 

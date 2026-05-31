@@ -6,6 +6,7 @@ import { applyTransform } from './transforms';
 import { FileSourceAdapter } from './sources/fileSource';
 import { SyntheticSourceAdapter } from './sources/syntheticSource';
 import { LiveSourceAdapter } from './sources/liveSource';
+import { BiosignalSourceAdapter } from './sources/biosignalSource';
 
 export class SonificationPlayer {
   spec: MappingSpec;
@@ -15,7 +16,10 @@ export class SonificationPlayer {
 
   private adapters: Map<
     string,
-    FileSourceAdapter | SyntheticSourceAdapter | LiveSourceAdapter
+    | FileSourceAdapter
+    | SyntheticSourceAdapter
+    | LiveSourceAdapter
+    | BiosignalSourceAdapter
   > = new Map();
   private elapsedSec = 0;
   private isPlaying = false;
@@ -46,6 +50,8 @@ export class SonificationPlayer {
         const liveAdapter = new LiveSourceAdapter(src);
         this.adapters.set(src.id, liveAdapter);
         liveAdapter.connect();
+      } else if (src.type === 'live-biosignal') {
+        this.adapters.set(src.id, new BiosignalSourceAdapter(src));
       }
     }
   }

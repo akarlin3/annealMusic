@@ -17,7 +17,9 @@ import {
   Trash2,
   Award,
   FlaskConical,
+  Music,
 } from 'lucide-react';
+import { SonificationPanel } from '@/sonification/SonificationPanel';
 
 interface RpcLog {
   id: string;
@@ -38,6 +40,7 @@ export function ResearchApp() {
     | 'scripting'
     | 'experiments'
     | 'studies'
+    | 'sonification'
   >('telemetry');
   const [logs, setLogs] = useState<RpcLog[]>([]);
   const [healthStatus, setHealthStatus] = useState<'ok' | 'offline'>('offline');
@@ -71,6 +74,19 @@ export function ResearchApp() {
   const clientRef = useRef<BridgeClient | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const requestStartTimes = useRef<Map<number, number>>(new Map());
+
+  // Deep-linking hash support: if template= or s= is in hash, auto-open sonification tab
+  useEffect(() => {
+    const checkHash = () => {
+      const hash = window.location.hash;
+      if (hash.includes('template=') || hash.includes('s=')) {
+        setActiveTab('sonification');
+      }
+    };
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
 
   // Setup client and BroadcastChannel connection
   useEffect(() => {
@@ -385,6 +401,17 @@ export function ResearchApp() {
           >
             <FlaskConical size={16} />
             Studies
+          </button>
+          <button
+            onClick={() => setActiveTab('sonification')}
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-mono tracking-wider transition-all ${
+              activeTab === 'sonification'
+                ? 'bg-amber-500/10 text-amber-400 border-l-2 border-amber-500'
+                : 'text-stone-400 hover:bg-stone-900/50 hover:text-stone-200'
+            }`}
+          >
+            <Music size={16} />
+            Sonification Panel
           </button>
         </nav>
 
@@ -743,6 +770,8 @@ export function ResearchApp() {
               </p>
             </div>
           )}
+
+          {activeTab === 'sonification' && <SonificationPanel />}
         </main>
       </div>
     </div>

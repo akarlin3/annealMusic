@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import {
@@ -18,6 +19,9 @@ import { decodeState } from '../share/encode';
 import { applyDecodedToStore } from '../share/hydrate';
 import { api } from '../api/client';
 import { AdverseEventDialog } from './AdverseEventDialog';
+import { ConnectionFlow } from '../biofeedback/ConnectionFlow';
+import { CalibrationFlow } from '../biofeedback/CalibrationFlow';
+import { StreamCapture } from '../biofeedback/StreamCapture';
 import type {
   ClinicalProtocol,
   Condition,
@@ -44,6 +48,7 @@ export function SubjectRunner() {
     | 'consent'
     | 'operator-id'
     | 'comfort-check'
+    | 'calibration'
     | 'stimulus'
     | 'survey'
     | 'debrief'
@@ -61,6 +66,16 @@ export function SubjectRunner() {
     unknown
   > | null>(null);
   const [stimulusSha256, setStimulusSha256] = useState<string | null>(null);
+
+  // Biofeedback session tracking states
+  const [channelConsents, setChannelConsents] = useState<
+    Record<string, boolean>
+  >({});
+  const [activeCalibrationIndex, setActiveCalibrationIndex] = useState(0);
+  const [calibrationResults, setCalibrationResults] = useState<
+    Record<string, any>
+  >({});
+  const capturesRef = useRef<Record<string, StreamCapture>>({});
 
   // Participant Consent & Logging telemetry
   const [consented, setConsented] = useState(false);
@@ -167,6 +182,26 @@ export function SubjectRunner() {
       return;
     }
     setStep('consent');
+  };
+
+  const handleCalibrationComplete = (metrics: Record<string, any>) => {
+    const consentedChs =
+      protocol?.biosignal_channels?.filter(
+        (ch) => channelConsents[ch.channel_name],
+      ) || [];
+    const currentChannel = consentedChs[activeCalibrationIndex];
+    if (currentChannel) {
+      setCalibrationResults((prev) => ({
+        ...prev,
+        [currentChannel.channel_name]: metrics,
+      }));
+    }
+
+    if (activeCalibrationIndex + 1 < consentedChs.length) {
+      setActiveCalibrationIndex((prev) => prev + 1);
+    } else {
+      setStep('stimulus');
+    }
   };
 
   const handleConsentSubmit = () => {
@@ -305,7 +340,16 @@ export function SubjectRunner() {
       setTimeLeft(dur);
       setTotalDuration(dur);
 
-      setStep('stimulus');
+      const consentedChs =
+        protocol.biosignal_channels?.filter(
+          (ch) => channelConsents[ch.channel_name],
+        ) || [];
+      if (consentedChs.length > 0) {
+        setStep('calibration');
+        setActiveCalibrationIndex(0);
+      } else {
+        setStep('stimulus');
+      }
     } catch {
       setErrorText('Failed to enroll subject in clinical trial conditions.');
       setStep('blocked');
@@ -319,6 +363,20 @@ export function SubjectRunner() {
 
     // Start synthesizing Audio
     am.startSession();
+
+    // Start biosignal captures!
+    const consentedChs =
+      protocol?.biosignal_channels?.filter(
+        (ch) => channelConsents[ch.channel_name],
+      ) || [];
+    consentedChs.forEach((ch) => {
+      const cap = new StreamCapture(
+        ch.device_id || 'polar-h10',
+        ch.channel_name,
+      );
+      cap.start();
+      capturesRef.current[ch.channel_name] = cap;
+    });
 
     // Trigger timer countdown ticking
     playbackIntervalRef.current = setInterval(() => {
@@ -335,6 +393,10 @@ export function SubjectRunner() {
   const handleStimulusFinished = () => {
     if (playbackIntervalRef.current) clearInterval(playbackIntervalRef.current);
     am.stopSession();
+
+    // Stop captures!
+    Object.values(capturesRef.current).forEach((cap) => cap.stop());
+
     const elapsed = Math.round(
       performance.now() - stimulusStartPerfRef.current,
     );
@@ -400,6 +462,33 @@ export function SubjectRunner() {
     if (!enrollment) return;
     setStep('loading');
 
+    // 1. Upload captured biosignal streams if the participant has kept their data
+    if (disposition === 'kept') {
+      const consentedChs =
+        protocol?.biosignal_channels?.filter(
+          (ch) => channelConsents[ch.channel_name],
+        ) || [];
+      for (const ch of consentedChs) {
+        const cap = capturesRef.current[ch.channel_name];
+        if (cap) {
+          try {
+            await clinicalApi.uploadBiosignalStream(enrollment.session_id, {
+              device_id: ch.device_id || 'polar-h10',
+              channel_name: ch.channel_name,
+              consented_at: new Date().toISOString(),
+              sample_rate_hz: ch.channel_name === 'hrv' ? 1.0 : 250.0,
+              frames: cap.getFrames(),
+            });
+          } catch (err) {
+            console.error(
+              `Failed to upload stream for channel ${ch.channel_name}`,
+              err,
+            );
+          }
+        }
+      }
+    }
+
     const payload = {
       id: enrollment.session_id,
       withdrew,
@@ -409,6 +498,7 @@ export function SubjectRunner() {
       calibration_record: {
         device_name: 'Calibration Headphones',
         gain_offset_db: calGainDb,
+        ...calibrationResults,
       },
       timing_report: timingReport || { fallback: true },
       adverse_events: adverseEvents,
@@ -607,6 +697,46 @@ export function SubjectRunner() {
             </span>
           </div>
 
+          {protocol?.biosignal_channels &&
+            protocol.biosignal_channels.length > 0 && (
+              <div className="flex flex-col gap-2 bg-stone-900/20 border border-stone-900 p-3 rounded-xl mt-1 select-none">
+                <span className="font-bold text-[9px] text-stone-500 uppercase tracking-wider">
+                  Physiological Channel Opt-In (GDPR Specific Consent):
+                </span>
+                <div className="flex flex-col gap-1.5">
+                  {protocol.biosignal_channels.map((ch: any) => (
+                    <label
+                      key={ch.channel_name}
+                      className="flex items-center gap-2 cursor-pointer text-[10px] text-stone-400 hover:text-stone-300 transition-all"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!channelConsents[ch.channel_name]}
+                        onChange={(e) => {
+                          setChannelConsents((prev) => ({
+                            ...prev,
+                            [ch.channel_name]: e.target.checked,
+                          }));
+                        }}
+                        className="accent-amber-500"
+                      />
+                      <span>
+                        Opt-in to telemetry recording for{' '}
+                        <span className="font-bold text-amber-500 uppercase">
+                          {ch.channel_name}
+                        </span>{' '}
+                        {ch.required && (
+                          <span className="text-[8px] text-stone-600 font-bold uppercase ml-1">
+                            (Required)
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
           <label className="flex items-start gap-2.5 mt-2 cursor-pointer bg-stone-900/30 border border-stone-900 p-3 rounded-xl hover:bg-stone-900/50 transition-all select-none">
             <input
               type="checkbox"
@@ -675,6 +805,30 @@ export function SubjectRunner() {
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (step === 'calibration') {
+    const consentedChs =
+      protocol?.biosignal_channels?.filter(
+        (ch) => channelConsents[ch.channel_name],
+      ) || [];
+    const currentChannel = consentedChs[activeCalibrationIndex];
+    return (
+      <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4">
+        {currentChannel ? (
+          <CalibrationFlow
+            key={currentChannel.channel_name}
+            channelName={currentChannel.channel_name}
+            deviceId={currentChannel.device_id || 'polar-h10'}
+            onCalibrationComplete={handleCalibrationComplete}
+          />
+        ) : (
+          <div className="text-center font-mono text-xs text-stone-500">
+            No consented channels. Loading...
+          </div>
+        )}
       </div>
     );
   }

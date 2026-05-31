@@ -8,6 +8,7 @@ import { applyQuantile } from '../transforms/quantile';
 import { parseCSV, FileSourceAdapter } from '../sources/fileSource';
 import { SyntheticSourceAdapter } from '../sources/syntheticSource';
 import type { MappingSpec, TransformDef } from '../types';
+import { useBiofeedbackStore } from '@/biofeedback/store';
 
 describe('Mapping Transforms', () => {
   it('should apply linear transformation correctly', () => {
@@ -189,6 +190,60 @@ describe('Sonification Player Orchestration', () => {
     const bellParams = frame.engineParams.bell;
     expect(bellParams).toBeDefined();
     expect(bellParams?.decay).toBeCloseTo(3, 5);
+
+    player.destroy();
+  });
+
+  it('should resolve parameter state frames from live-biosignal sources correctly', () => {
+    const spec: MappingSpec = {
+      sources: [
+        {
+          id: 'bio1',
+          type: 'live-biosignal',
+          columns: ['heart_rate'],
+          deviceId: 'polar-h10',
+        },
+      ],
+      rules: [
+        {
+          sourceId: 'bio1',
+          column: 'heart_rate',
+          targetType: 'param',
+          targetKey: 'brightness',
+          transform: {
+            type: 'linear',
+            rawMin: 60,
+            rawMax: 120,
+            outMin: 0.0,
+            outMax: 1.0,
+          },
+        },
+      ],
+    };
+
+    // Mock Zustand store connected devices state
+    useBiofeedbackStore.setState({
+      connectedDevices: {
+        'polar-h10': {
+          adapter: {} as any,
+          connection: {} as any,
+          subscription: null,
+          status: 'connected',
+          latestFrame: {
+            timestamp: 100,
+            channels: {
+              heart_rate: { value: 90, unit: 'bpm' },
+            },
+          },
+        },
+      },
+    });
+
+    const player = new SonificationPlayer(spec, 10000, 1.0, true);
+    const frame = player.resolveStateAt(5);
+
+    // heart_rate is 90 -> halfway between 60 and 120 -> transform maps to 0.5
+    expect(frame.params.brightness).toBeCloseTo(0.5, 5);
 
     player.destroy();
   });

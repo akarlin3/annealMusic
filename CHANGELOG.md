@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.4.0] - 2026-05-31
+
+**Biofeedback Ingest.** v7.4 bridges the dynamic data-mapping engine (v7.1) and clinical research framework (v7.2) with live, multi-modal physiological feedback streams (HRV, breath rate, EEG, GSR) driving real-time audio modulation and clinical session capture over WebSerial, Web Bluetooth, WebHID, and native iOS/Android BLE bridges.
+
+### Added
+
+- **Unified Biosignal Adapter Architecture.** Defined standard channel schema and custom asynchronous observable stream structures supporting both high-frequency raw telemetry (EEG, GSR) and event-based interval packets (HRV).
+- **Consumer & Research Hardware Drivers.** Shipped production-ready, dependency-free decoding adapters for Polar H10 (Web Bluetooth Heart Rate Service with R-R intervals), Polar Verity Sense, OpenBCI Cyton (raw EEG packet parsing over WebSerial), Muse 2 (EEG delta telemetry over Web Bluetooth), and Empatica E4 placeholder.
+- **Dynamic Sonification Bindings.** Registered `'live-biosignal'` source mapping type in the sonification player engine, enabling real-time physiological metrics to dynamically modulate synthesizer parameters (e.g. Kuramoto coupling, FM modulation index, or filter cutoff frequencies).
+- **Zustand Telemetry Store & Connection UI.** Implemented `useBiofeedbackStore` for pairing, battery telemetry, signal quality, and live values, coupled with a premium glassmorphic, responsive pairing modal console.
+- **Physiological Channel Opt-In.** Added GDPR-compliant per-channel opt-in checkboxes directly on the Clinical Runner Consent screen, ensuring explicit participant agreement before active ingestion.
+- **Resting Baseline Calibration Wizard.** Integrated a step-by-step visual baseline calibration component (`CalibrationFlow.tsx`) into the clinical runner before active sound trials, calculating mathematical constants (e.g., SDNN for HRV) to calibrate synthesizer parameter modulation ranges.
+- **Parquet Telemetry Stream Uploads.** Session runner logs and uploads compressed json stream packets on-the-fly to FastAPI, storing files securely on the server and linking them to `ClinicalSessionRecord`.
+- **GDPR Cascade Shredding & Compliance.** If a subject withdraws and elects to "Discard All Telemetry", both the database record and the physical storage files are permanently deleted (cascade shredded) from S3/local storage, retaining only secure consent/withdrawal audit logs for ethics proof.
+- **Native iOS & Android Capacitor Plugins.** Built native iOS Swift (`BiofeedbackBridge.swift`) and Android Java/Kotlin (`BiofeedbackBridgePlugin.java` / `BiofeedbackBridge.kt`) plugins wrapping BLE GATT Heart Rate peripherals, with integrated mock simulator streams for seamless device testing in virtual simulators.
+
+## [7.3.0] - 2026-05-30
+
+**Sonification Library & Recipes.** v7.3 establishes the content and content-tooling layer of AnnealMusic's interpretive sonification engine, exposing a curated catalog of 20 canonical mapping templates across 4 families (Time Series, Scalar Fields, Networks, Structured Events), complete with dynamic auto-calibration safeguards, a gorgeous interactive researcher console panel, curated editorial gallery blocks, and a compiled handbook `docs/SONIFICATION_RECIPES.md` based on rigorous academic citations and honest limitation disclosures.
+
+### Added
+
+- **20 Canonical Sonification Mappings.** Curated databases of 20 mappings spanning time series, spatial coordinates, network centralities, and categorical log events, seeded programmatically with academic origins (ICAD, Hermann, Worrall, Kuramoto) and step-by-step instructions.
+- **Dynamic Auto-Calibration.** Server-side and client-side data inspection that scans uploaded CSV/JSON column min/max bounds and dynamically scales values into safe synthesizer ranges, preventing frequency saturation and auditory clipping.
+- **Sonification Panel Dashboard.** An elegant glassmorphic researcher panel inside `/research` enabling CSV/JSON file uploads, column bindings, auto-calibration, and instant synthesis orchestration runs.
+- **URL Hash Deep-Linking.** Standard URL hashes (e.g. `#template=slug`) automatically load template specifications, trigger tab switches to `/research#sonification`, and open the Instantiate dialog pre-populated for a seamless end-to-end sandbox transition.
+- **Scientific Sonifications Gallery.** Curated scientific cards on the `/listen` (LibraryPage) editorial tab with click-to-sandbox links.
+- **Academic Citation & Honest Limitations.** Full Markdown recipes for each template including a mandatory "Limitations" section describing what the display abstracts or obscures.
+- **Compiler Script & Recipe Handbook.** Command line compilation script (`api/scripts/export_recipes.py`) exporting database configurations into a gorgeous `docs/SONIFICATION_RECIPES.md` reference guide.
+
 ## [7.2.0] - 2026-05-31
 
 **Clinical Stimulus-Grade Audio.** v7.2 shifts AnnealMusic from basic behavioral studies (v5.6) to clinical research level rigor: precisely calibrated levels, cryptographically randomized double-blind/single-blind condition counterbalancing, sub-millisecond scheduled auditory onset timing, continuous breathing pacing feedback, and IRB-compliant withdrawals disposition audits.

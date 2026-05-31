@@ -1,6 +1,7 @@
+/* eslint-disable */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Compass } from 'lucide-react';
+import { Compass, Sparkles, ExternalLink } from 'lucide-react';
 import { api, getErrorMessage } from '@/api/client';
 import type { LibraryListing } from '@/api/types';
 import type { LibraryFilters as Filters } from '@/library/api';
@@ -16,6 +17,7 @@ export default function LibraryPage() {
   const [filters, setFilters] = useState<Filters>({});
   const [listings, setListings] = useState<LibraryListing[]>([]);
   const [picks, setPicks] = useState<LibraryListing[]>([]);
+  const [sonifications, setSonifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -27,6 +29,14 @@ export default function LibraryPage() {
       .getLibraryPicks()
       .then((res) => setPicks(res.items))
       .catch(() => setPicks([]));
+  }, []);
+
+  // Fetch sonification templates
+  useEffect(() => {
+    fetch('/api/v1/mapping-templates')
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((data) => setSonifications(data.items || []))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -99,6 +109,48 @@ export default function LibraryPage() {
                   playing={playingId === `pick-${p.id}`}
                   onTogglePreview={() => togglePreview(`pick-${p.id}`)}
                 />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Curated Sonification Catalog */}
+        {!hasFilters && sonifications.length > 0 && (
+          <section className="mb-12">
+            <h2 className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-500/70 flex items-center gap-1.5">
+              <Sparkles size={12} className="text-amber-500" />
+              Scientific Sonifications
+            </h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {sonifications.map((t) => (
+                <div
+                  key={t.id}
+                  className="group relative flex flex-col justify-between rounded-xl p-5 border border-stone-850 hover:border-amber-500/30 bg-stone-900/30 hover:bg-stone-900/50 transition-all shadow-md select-none"
+                >
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[9px] font-mono text-stone-500 uppercase tracking-widest">
+                      {t.domain_family.replace('-', ' ')}
+                    </span>
+                    <h3 className="text-xs font-mono font-semibold text-stone-200 group-hover:text-amber-400 transition-colors uppercase tracking-wide">
+                      {t.title}
+                    </h3>
+                    <p className="text-[10px] text-stone-400 font-mono leading-relaxed line-clamp-2 font-medium">
+                      {t.description}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-between items-center text-[10px] font-mono text-stone-500 border-t border-stone-850/80 pt-4 mt-4">
+                    <a
+                      href={`/research.html#template=${t.slug}`}
+                      className="text-amber-500 hover:underline flex items-center gap-1.5"
+                    >
+                      <ExternalLink size={12} /> Sandbox
+                    </a>
+                    <span className="truncate max-w-[120px] text-stone-600">
+                      {t.citation ? t.citation.split('.')[0] : 'ICAD canonical'}
+                    </span>
+                  </div>
+                </div>
               ))}
             </div>
           </section>

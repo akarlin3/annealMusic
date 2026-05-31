@@ -857,6 +857,35 @@ class Sonification(Base):
     )
 
 
+class MappingTemplate(Base):
+    __tablename__ = "mapping_templates"
+    __table_args__ = (
+        CheckConstraint(
+            "domain_family IN ('time-series', 'scalar-field', 'network', 'structured-event')",
+            name="ck_mapping_templates_domain_family",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
+    domain_family: Mapped[str] = mapped_column(String, nullable=False)
+    source_schema: Mapped[dict] = mapped_column(JSONType(), nullable=False)
+    mapping_spec: Mapped[dict] = mapped_column(JSONType(), nullable=False)
+    calibration_recommendation: Mapped[str | None] = mapped_column(String, nullable=True)
+    citation: Mapped[str | None] = mapped_column(String, nullable=True)
+    recipe_content: Mapped[str] = mapped_column(String, nullable=False)
+    example_data_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    example_audio_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+
 class AudioClip(Base):
     """A short curated audio example (5–60 s) referenced by lessons via ``slug``
     (v6.2). License is non-negotiable: every clip carries one of four license
@@ -1115,6 +1144,7 @@ class ClinicalProtocol(Base):
     target_lufs: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=-23.0)
     adverse_event_capture: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     ct_gov_nct: Mapped[str | None] = mapped_column(String, nullable=True)
+    biosignal_channels: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -1147,6 +1177,28 @@ class ClinicalSessionRecord(Base):
     withdrew: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     partial_data_disposition: Mapped[str | None] = mapped_column(String, nullable=True)
     client_audit_log: Mapped[list] = mapped_column(JSONType(), nullable=False, default=list)
+
+
+class BiosignalStream(Base):
+    __tablename__ = "biosignal_streams"
+    __table_args__ = (
+        Index("idx_biosignal_streams_session", "session_record_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=_uuid)
+    session_record_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("clinical_session_records.id", ondelete="CASCADE"), nullable=False
+    )
+    device_id: Mapped[str] = mapped_column(String, nullable=False)
+    channel_name: Mapped[str] = mapped_column(String, nullable=False)
+    storage_key: Mapped[str] = mapped_column(String, nullable=False)
+    sample_rate_hz: Mapped[float | None] = mapped_column(Numeric(8, 2), nullable=True)
+    bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    consented_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    retention_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 # SQLite trigger events for tests/local development when using SQLite

@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { PolarH10Adapter } from './adapters/polar-h10';
+import { PolarVerityAdapter } from './adapters/polar-verity';
+import { OpenBCICytonAdapter } from './adapters/openbci-cyton';
+import { MuseAdapter } from './adapters/muse';
+import { EmpaticaAdapter } from './adapters/empatica';
 import { BiosignalAdapter, BiosignalFrame, Subscription } from './types';
 
 export interface ConnectedDevice {
@@ -27,7 +31,13 @@ interface BiofeedbackStore {
 }
 
 export const useBiofeedbackStore = create<BiofeedbackStore>((set, get) => ({
-  adapters: [new PolarH10Adapter()],
+  adapters: [
+    new PolarH10Adapter(),
+    new PolarVerityAdapter(),
+    new OpenBCICytonAdapter(),
+    new MuseAdapter(),
+    new EmpaticaAdapter(),
+  ],
   connectedDevices: {},
   isScanning: false,
 

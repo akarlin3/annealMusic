@@ -8,11 +8,12 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.deps import Identity, SessionDep, get_identity, rate_limit
+from app.deps import Identity, SessionDep, get_identity, rate_limit, StorageDep
 from app.errors import ApiError, forbidden, not_found, unauthorized
 from app.models import (
     ClinicalProtocol,
     ClinicalSessionRecord,
+    BiosignalStream,
     Study,
     StudyInvestigator,
     Experiment,
@@ -24,6 +25,8 @@ from app.schemas import (
     ClinicalSessionRecordEnroll,
     ClinicalSessionRecordCreate,
     ClinicalSessionRecordOut,
+    BiosignalStreamOut,
+    BiosignalStreamUploadIn,
 )
 from app.services.randomization import assign_condition
 from app.study_provenance import record_audit
@@ -101,6 +104,7 @@ async def create_protocol(
         target_lufs=body.target_lufs,
         adverse_event_capture=body.adverse_event_capture,
         ct_gov_nct=body.ct_gov_nct,
+        biosignal_channels=body.biosignal_channels,
     )
     session.add(protocol)
     await session.flush()
@@ -318,6 +322,7 @@ async def enroll_subject(
         "calibration_required": protocol.calibration_required,
         "target_lufs": float(protocol.target_lufs),
         "adverse_event_capture": protocol.adverse_event_capture,
+        "biosignal_channels": protocol.biosignal_channels,
     }
 
 
@@ -325,6 +330,7 @@ async def enroll_subject(
 async def create_or_finalize_session(
     body: ClinicalSessionRecordCreate,
     session: SessionDep,
+    storage: StorageDep,
 ) -> ClinicalSessionRecordOut:
     # Subject device pushes session completion / withdraw telemetry
     record = await session.get(ClinicalSessionRecord, body.id)
@@ -352,6 +358,19 @@ async def create_or_finalize_session(
                 log for log in (body.client_audit_log or [])
                 if log.get("event") in ("consent", "withdraw", "flag_issue")
             ]
+            # Delete physical files from storage client for all associated biosignal streams (GDPR Shred)
+            from app.models import BiosignalStream
+            from sqlalchemy import select
+            streams_res = await session.execute(
+                select(BiosignalStream).where(BiosignalStream.session_record_id == body.id)
+            )
+            streams = streams_res.scalars().all()
+            for stream in streams:
+                try:
+                    await storage.delete(stream.storage_key)
+                except Exception as e:
+                    print(f"Failed to delete storage key {stream.storage_key}: {e}")
+                await session.delete(stream)
         else:
             record.calibration_record = body.calibration_record
             record.timing_report = body.timing_report
@@ -477,3 +496,62 @@ async def get_calibration_history(
 
     await session.commit()
     return protocol.calibration_history or []
+
+
+session_record_router = APIRouter(tags=["clinical"])
+
+@session_record_router.post("/api/v1/clinical-session-records/{id}/biosignal-stream", response_model=BiosignalStreamOut, status_code=201, dependencies=[Depends(rate_limit("scripts"))])
+async def upload_biosignal_stream(
+    id: uuid.UUID,
+    body: BiosignalStreamUploadIn,
+    session: SessionDep,
+    storage: StorageDep,
+):
+    # Verify session record exists
+    record = await session.get(ClinicalSessionRecord, id)
+    if record is None:
+        raise not_found("clinical_session_record")
+
+    stream_id = uuid.uuid4()
+    storage_key = f"biosignal_streams/{id}/{stream_id}.parquet"
+    
+    # Serialize frames array to represent the Parquet stream
+    import json
+    payload_bytes = json.dumps(body.frames).encode("utf-8")
+    
+    # Write payload to Storage client
+    await storage.put(storage_key, payload_bytes, "application/octet-stream")
+    
+    from datetime import timedelta
+    stream = BiosignalStream(
+        id=stream_id,
+        session_record_id=id,
+        device_id=body.device_id,
+        channel_name=body.channel_name,
+        storage_key=storage_key,
+        sample_rate_hz=body.sample_rate_hz,
+        bytes=len(payload_bytes),
+        consented_at=body.consented_at,
+        retention_until=datetime.now(tz=timezone.utc) + timedelta(days=365)
+    )
+    session.add(stream)
+    await session.commit()
+    await session.refresh(stream)
+    return stream
+
+@session_record_router.delete("/api/v1/biosignal-streams/{id}", status_code=204, dependencies=[Depends(rate_limit("scripts"))])
+async def delete_biosignal_stream(
+    id: uuid.UUID,
+    session: SessionDep,
+    storage: StorageDep,
+):
+    stream = await session.get(BiosignalStream, id)
+    if stream is None:
+        raise not_found("biosignal_stream")
+
+    # Delete physical file from storage client
+    await storage.delete(stream.storage_key)
+    
+    # Remove database record
+    await session.delete(stream)
+    await session.commit()
