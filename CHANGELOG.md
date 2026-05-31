@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.0.0] - 2026-05-31
+
+**v8.0 Audit + Plan.** The diagnosis slice. v8.0 produces no shipped product code changes, introducing only essential non-invasive baseline instrumentation and delivering the comprehensive primary audit reports and sequenced roadmaps for the entire subsequent v8 refactoring arc (v8.1–v8.5).
+
+### Added
+
+- **Detailed Scope Plan.** Authored the foundational checkpoint strategy (`docs/v8.0-PLAN.md`) detailing audit domains, analytical tools, measurement methodologies, and mathematical prioritization scoring.
+- **Empirical Performance Audit.** Compiled baseline measurements (`docs/v8/AUDIT_PERFORMANCE.md`) detailing route-specific bundle weights, initial audio boot latencies, CPU and memory stress profiles, and mobile resource targets.
+- **Observability & Safety Audit.** Formulated a STRIDE threat model document (`docs/v8/AUDIT_OBSERVABILITY_SAFETY.md`) spanning data storage boundaries, user-uploaded schemas, sandboxed execution limitations, and silent logging gaps.
+- **Code Health Audit.** Documented package version matrices (`docs/v8/AUDIT_CODE_HEALTH.md`), dead-code catalogs via `knip` and `vulture`, TypeScript type coverage benchmarks (97.99%), and historical URL schema versioning drift analysis.
+- **Architectural Refactor Proposals.** Proposed six targeted, high-impact structural designs (`docs/v8/REFACTOR_PROPOSALS.md`) covering render path unification, single-source schema syncing, unified transport bridges, modular audio engines, and local Pyodide caching.
+- **Milestone Plan.** Synthesized the prioritized master work roadmap (`docs/v8/V8_PLAN.md`) for v8.1–v8.5 with concrete success criteria.
+
 ## [7.7.0] - 2026-05-31
 
 **v7 Closeout & Collaboration Infrastructure.** v7.7 closes the v7 research-collaboration arc by establishing comprehensive onboarding, publishing guides, legal partnership templates, legal postures, retrospectives, stability commitments, and tag v7.7.0.
