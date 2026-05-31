@@ -9,7 +9,6 @@ import {
   type SlotState,
 } from '@/loop/types';
 import { useJam } from '@/jam/JamProvider';
-import { shareLocalCapture } from '@/jam/bufferSharing';
 
 export interface SlotView {
   state: SlotState;
@@ -83,7 +82,9 @@ export function useLoops(
       if (wasCapturing.current[id] && state === 'playing' && jam?.session) {
         const buffer = slot.getBuffer();
         if (buffer) {
-          void shareLocalCapture(id, buffer, onToast);
+          import('@/jam/bufferSharing').then(({ shareLocalCapture }) => {
+            void shareLocalCapture(id, buffer, onToast);
+          });
         }
       }
       wasCapturing.current[id] = state === 'capturing';

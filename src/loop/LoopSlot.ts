@@ -165,6 +165,25 @@ export class LoopSlot {
     void controller.stop().then((buffer) => this.commit(buffer));
   }
 
+  private clampBuffer(buffer: AudioBuffer): AudioBuffer {
+    if (buffer.duration <= MAX_CAPTURE_SEC) return buffer;
+
+    const sampleRate = buffer.sampleRate;
+    const maxSamples = Math.floor(MAX_CAPTURE_SEC * sampleRate);
+    const capped = this.ctx.createBuffer(
+      buffer.numberOfChannels,
+      maxSamples,
+      sampleRate,
+    );
+
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+      const srcData = buffer.getChannelData(ch);
+      const dstData = capped.getChannelData(ch);
+      dstData.set(srcData.subarray(0, maxSamples));
+    }
+    return capped;
+  }
+
   private commit(buffer: AudioBuffer | null): void {
     if (this.committing || this.state !== 'capturing') return;
     this.committing = true;
@@ -177,7 +196,7 @@ export class LoopSlot {
       return;
     }
 
-    this.buffer = buffer;
+    this.buffer = this.clampBuffer(buffer);
     this.setState('playing');
     this.startSeam();
     this.committing = false;
@@ -195,7 +214,7 @@ export class LoopSlot {
   loadBuffer(buffer: AudioBuffer): void {
     if (buffer.duration < MIN_CAPTURE_SEC) return;
     this.clear();
-    this.buffer = buffer;
+    this.buffer = this.clampBuffer(buffer);
     this.setState('playing');
     this.startSeam();
     if (this.config.frozen) this.freeze();

@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import { api } from '@/api/client';
 import type { JamSession, JamParticipant, Patch } from '@/api/types';
-import { doc, presenceMap, initializeCrdtSync } from './crdt';
 import {
   connectSession,
   disconnectSession,
@@ -99,6 +98,7 @@ export const JamProvider: React.FC<{ children: React.ReactNode }> = ({
       setParticipants(detail.participants);
       setWsUrl(detail.ws_url);
 
+      const { initializeCrdtSync } = await import('./crdt');
       initializeCrdtSync();
       connectSession(detail.session.id, detail.ws_url, handleStateChange);
     } catch (err) {
@@ -119,6 +119,7 @@ export const JamProvider: React.FC<{ children: React.ReactNode }> = ({
       setSession(detail.session);
       setParticipants(detail.participants);
 
+      const { initializeCrdtSync } = await import('./crdt');
       initializeCrdtSync();
       connectSession(id, joinDetail.ws_url, handleStateChange);
     } catch (err) {
@@ -135,6 +136,7 @@ export const JamProvider: React.FC<{ children: React.ReactNode }> = ({
       // Clean up remote presence before leaving
       const myId = getAnonId();
       if (myId) {
+        const { doc, presenceMap } = await import('./crdt');
         doc.transact(() => {
           presenceMap.delete(myId);
         });
@@ -155,10 +157,11 @@ export const JamProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const updateCursorPresence = (paramKey: string) => {
+  const updateCursorPresence = async (paramKey: string) => {
     const myId = getAnonId();
     if (!session || !myId || !myColor) return;
 
+    const { doc, presenceMap } = await import('./crdt');
     doc.transact(() => {
       presenceMap.set(myId, {
         paramKey,
@@ -171,10 +174,11 @@ export const JamProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
-  const clearCursorPresence = () => {
+  const clearCursorPresence = async () => {
     const myId = getAnonId();
     if (!session || !myId) return;
 
+    const { doc, presenceMap } = await import('./crdt');
     doc.transact(() => {
       presenceMap.delete(myId);
     });
@@ -219,34 +223,48 @@ export const JamProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!session) return;
 
-    const handlePresenceChange = () => {
-      const currentCursors: JamContextType['activeCursors'] = {};
-      const now = Date.now();
-      const myId = getAnonId();
+    let active = true;
+    let cleanupFn: (() => void) | null = null;
 
-      presenceMap.forEach(
-        (
-          val: { paramKey: string; color: string; name: string; ts: number },
-          userId: string,
-        ) => {
-          if (userId === myId) return; // skip self
-          // Filter out expired presence updates (> 5 seconds old)
-          if (val && now - val.ts < 5000) {
-            currentCursors[userId] = val;
-          }
-        },
-      );
-      setActiveCursors(currentCursors);
-    };
+    import('./crdt').then(({ presenceMap }) => {
+      if (!active) return;
 
-    presenceMap.observe(handlePresenceChange);
+      const handlePresenceChange = () => {
+        const currentCursors: JamContextType['activeCursors'] = {};
+        const now = Date.now();
+        const myId = getAnonId();
 
-    // Periodically clear expired cursors locally
-    const interval = setInterval(handlePresenceChange, 2000);
+        presenceMap.forEach(
+          (
+            val: { paramKey: string; color: string; name: string; ts: number },
+            userId: string,
+          ) => {
+            if (userId === myId) return; // skip self
+            // Filter out expired presence updates (> 5 seconds old)
+            if (val && now - val.ts < 5000) {
+              currentCursors[userId] = val;
+            }
+          },
+        );
+        setActiveCursors(currentCursors);
+      };
+
+      presenceMap.observe(handlePresenceChange);
+
+      // Periodically clear expired cursors locally
+      const interval = setInterval(handlePresenceChange, 2000);
+
+      cleanupFn = () => {
+        presenceMap.unobserve(handlePresenceChange);
+        clearInterval(interval);
+      };
+    });
 
     return () => {
-      presenceMap.unobserve(handlePresenceChange);
-      clearInterval(interval);
+      active = false;
+      if (cleanupFn) {
+        cleanupFn();
+      }
     };
   }, [session]);
 

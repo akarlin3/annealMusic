@@ -12,6 +12,7 @@ export class DataLogger {
   private mode: DatalogMode = 'standard';
   private rateHz = 50;
   private ringBuffer: SessionLogRecord[] = [];
+  private ringBufferSizes: number[] = [];
   private totalSizeBytes = 0;
   private maxMemoryBytes = 100 * 1024 * 1024; // 100MB Limit
   private loggingInterval: ReturnType<typeof setInterval> | null = null;
@@ -105,6 +106,7 @@ export class DataLogger {
    */
   clear(): void {
     this.ringBuffer = [];
+    this.ringBufferSizes = [];
     this.totalSizeBytes = 0;
     this.hadOverflow = false;
     this.pendingEvents = [];
@@ -332,15 +334,30 @@ export class DataLogger {
       ...(rawAudio ? ({ audioChunk: rawAudio } as any) : {}),
     };
 
-    // 4. Memory footprint management
-    const estSize = JSON.stringify(record).length;
+    // 4. Memory footprint management: O(1) estimation to completely avoid JSON.stringify overhead
+    let estSize = 250; // base structure footprint
+    if (record.features?.spectrum) {
+      estSize += record.features.spectrum.length * 7;
+    }
+    if ((record as any).audioChunk) {
+      estSize += (record as any).audioChunk.length * 7;
+    }
+    if (record.partials?.frequencies) {
+      estSize += record.partials.frequencies.length * 12;
+    }
+    if (record.event) {
+      estSize += 50 + (eventData ? JSON.stringify(eventData).length : 0);
+    }
+
     this.ringBuffer.push(record);
+    this.ringBufferSizes.push(estSize);
     this.totalSizeBytes += estSize;
 
     while (this.totalSizeBytes > this.maxMemoryBytes) {
-      const oldest = this.ringBuffer.shift();
-      if (oldest) {
-        this.totalSizeBytes -= JSON.stringify(oldest).length;
+      this.ringBuffer.shift();
+      const oldestSize = this.ringBufferSizes.shift();
+      if (oldestSize !== undefined) {
+        this.totalSizeBytes -= oldestSize;
         this.hadOverflow = true;
       } else {
         break;

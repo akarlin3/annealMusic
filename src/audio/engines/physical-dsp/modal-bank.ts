@@ -60,17 +60,6 @@ export interface ModalConfig {
   gainFn?: GainFn;
 }
 
-interface Biquad {
-  b0: number;
-  b1: number;
-  b2: number;
-  a1: number;
-  a2: number;
-  z1: number;
-  z2: number;
-  gain: number;
-}
-
 const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
 
 /** Default high-mode rolloff: brighter ⇒ flatter (higher modes survive). */
@@ -79,7 +68,6 @@ export const defaultGain: GainFn = (n, _s1, _s2, brightness) =>
 
 export class ModalBank {
   private readonly sampleRate: number;
-  private readonly modes: Biquad[];
   private readonly exciter: Exciter;
   private readonly eigen: EigenFn;
   private readonly gainFn: GainFn;
@@ -90,6 +78,15 @@ export class ModalBank {
   private brightness: number;
   private shape1: number;
   private shape2: number;
+
+  // Flattened parallel typed arrays for zero-allocation, zero-lookup hot loop
+  private readonly b0: Float32Array;
+  private readonly b2: Float32Array;
+  private readonly a1: Float32Array;
+  private readonly a2: Float32Array;
+  private readonly z1: Float32Array;
+  private readonly z2: Float32Array;
+  private readonly gain: Float32Array;
 
   constructor(config: ModalConfig) {
     const {
@@ -118,16 +115,15 @@ export class ModalBank {
     this.count = Math.max(1, modeCount);
     this.exciter =
       exciter ?? new NoiseExciter(sampleRate, excitation, brightness, rng);
-    this.modes = Array.from({ length: this.count }, () => ({
-      b0: 0,
-      b1: 0,
-      b2: 0,
-      a1: 0,
-      a2: 0,
-      z1: 0,
-      z2: 0,
-      gain: 1,
-    }));
+
+    this.b0 = new Float32Array(this.count);
+    this.b2 = new Float32Array(this.count);
+    this.a1 = new Float32Array(this.count);
+    this.a2 = new Float32Array(this.count);
+    this.z1 = new Float32Array(this.count);
+    this.z2 = new Float32Array(this.count);
+    this.gain = new Float32Array(this.count);
+
     this.retune();
     this.recomputeGains();
   }
@@ -141,17 +137,22 @@ export class ModalBank {
     // Q rises sharply as damping falls → long, ringing modes.
     const Q = 8 + (1 - clamp01(this.damping)) * 240;
     for (let n = 0; n < this.count; n++) {
-      const mode = this.modes[n];
-      if (!mode) continue;
-      designBandpass(mode, this.eigenFreq(n), Q, this.sampleRate);
+      designBandpassFlat(
+        this.b0,
+        this.b2,
+        this.a1,
+        this.a2,
+        n,
+        this.eigenFreq(n),
+        Q,
+        this.sampleRate,
+      );
     }
   }
 
   private recomputeGains(): void {
     for (let n = 0; n < this.count; n++) {
-      const mode = this.modes[n];
-      if (mode)
-        mode.gain = this.gainFn(n, this.shape1, this.shape2, this.brightness);
+      this.gain[n] = this.gainFn(n, this.shape1, this.shape2, this.brightness);
     }
   }
 
@@ -197,16 +198,23 @@ export class ModalBank {
   next(): number {
     const x = this.exciter.next();
     let sum = 0;
-    for (let n = 0; n < this.count; n++) {
-      const m = this.modes[n];
-      if (!m) continue;
-      const y = m.b0 * x + m.z1;
-      m.z1 = m.b1 * x - m.a1 * y + m.z2;
-      m.z2 = m.b2 * x - m.a2 * y;
-      sum += y * m.gain;
+    const count = this.count;
+    const b0 = this.b0;
+    const b2 = this.b2;
+    const a1 = this.a1;
+    const a2 = this.a2;
+    const z1 = this.z1;
+    const z2 = this.z2;
+    const gain = this.gain;
+
+    for (let n = 0; n < count; n++) {
+      const y = b0[n]! * x + z1[n]!;
+      z1[n] = b2[n]! * x - a1[n]! * y + z2[n]!;
+      z2[n] = b2[n]! * x - a2[n]! * y;
+      sum += y * gain[n]!;
     }
     // Normalize by mode count so excitation scaling is independent of bank size.
-    return sum / Math.sqrt(this.count);
+    return sum / Math.sqrt(count);
   }
 
   render(out: Float32Array): void {
@@ -216,7 +224,7 @@ export class ModalBank {
 
 /** Design a constant-skirt-gain bandpass biquad (RBJ cookbook) in place. */
 export function designBandpass(
-  q: Biquad,
+  q: { b0: number; b1: number; b2: number; a1: number; a2: number },
   freq: number,
   Q: number,
   sampleRate: number,
@@ -231,4 +239,26 @@ export function designBandpass(
   q.b2 = -alpha / a0;
   q.a1 = (-2 * cos) / a0;
   q.a2 = (1 - alpha) / a0;
+}
+
+/** Design a constant-skirt-gain bandpass biquad on flat parallel arrays. */
+export function designBandpassFlat(
+  b0: Float32Array,
+  b2: Float32Array,
+  a1: Float32Array,
+  a2: Float32Array,
+  n: number,
+  freq: number,
+  Q: number,
+  sampleRate: number,
+): void {
+  const f = Math.max(20, Math.min(sampleRate * 0.45, freq));
+  const w0 = (2 * Math.PI * f) / sampleRate;
+  const alpha = Math.sin(w0) / (2 * Q);
+  const cos = Math.cos(w0);
+  const a0 = 1 + alpha;
+  b0[n] = alpha / a0;
+  b2[n] = -alpha / a0;
+  a1[n] = (-2 * cos) / a0;
+  a2[n] = (1 - alpha) / a0;
 }

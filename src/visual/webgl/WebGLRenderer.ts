@@ -35,6 +35,18 @@ export class WebGLRenderer implements VisualRenderer {
   private fpsThrottleInterval = 1000 / 5; // 5 FPS in silent mode
   private lastThrottleDrawTime = 0;
 
+  // Uniforms cache to prevent redundant WebGL state calls
+  private uCache = {
+    u_base_radius: -999,
+    u_rms: -999,
+    u_input_level: -999,
+    u_partial_count: -999,
+    u_show_spectrum: -999,
+    u_calm: -999,
+    u_loop_levels: [-999, -999, -999] as [number, number, number],
+    u_loop_frozen: [-999, -999, -999] as [number, number, number],
+  };
+
   mount(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
 
@@ -298,20 +310,67 @@ export class WebGLRenderer implements VisualRenderer {
       }
     }
 
-    // 4. Update Uniforms
+    // 4. Update Uniforms selectively if changed
     const program = this.program;
     if (!program) return;
     const u = program.uniforms;
-    u.u_base_radius.value = baseR * this.dpr;
-    u.u_rms.value = rms;
-    u.u_input_level.value =
+
+    const nextBaseR = baseR * this.dpr;
+    if (this.uCache.u_base_radius !== nextBaseR) {
+      u.u_base_radius.value = nextBaseR;
+      this.uCache.u_base_radius = nextBaseR;
+    }
+
+    if (this.uCache.u_rms !== rms) {
+      u.u_rms.value = rms;
+      this.uCache.u_rms = rms;
+    }
+
+    const nextInputLevel =
       state.inputLevel !== undefined ? state.inputLevel : -1.0;
-    u.u_partial_count.value = count;
+    if (this.uCache.u_input_level !== nextInputLevel) {
+      u.u_input_level.value = nextInputLevel;
+      this.uCache.u_input_level = nextInputLevel;
+    }
+
+    if (this.uCache.u_partial_count !== count) {
+      u.u_partial_count.value = count;
+      this.uCache.u_partial_count = count;
+    }
+
+    const nextShowSpectrum = state.spectrum ? 1 : 0;
+    if (this.uCache.u_show_spectrum !== nextShowSpectrum) {
+      u.u_show_spectrum.value = nextShowSpectrum;
+      this.uCache.u_show_spectrum = nextShowSpectrum;
+    }
+
+    const nextCalm = state.isCalm ? 1.0 : 0.0;
+    if (this.uCache.u_calm !== nextCalm) {
+      u.u_calm.value = nextCalm;
+      this.uCache.u_calm = nextCalm;
+    }
+
+    let levelsChanged = false;
+    let frozenChanged = false;
+    for (let i = 0; i < 3; i++) {
+      if (this.uCache.u_loop_levels[i] !== loopLevels[i]) {
+        this.uCache.u_loop_levels[i] = loopLevels[i]!;
+        levelsChanged = true;
+      }
+      if (this.uCache.u_loop_frozen[i] !== loopFrozen[i]) {
+        this.uCache.u_loop_frozen[i] = loopFrozen[i]!;
+        frozenChanged = true;
+      }
+    }
+    if (levelsChanged) {
+      u.u_loop_levels.value = this.uCache.u_loop_levels;
+    }
+    if (frozenChanged) {
+      u.u_loop_frozen.value = this.uCache.u_loop_frozen;
+    }
+
+    // Always update partialsData since it represents 60fps dynamic orbit phases
     u.u_partials.value = partialsData;
-    u.u_show_spectrum.value = state.spectrum ? 1 : 0;
-    u.u_loop_levels.value = loopLevels;
-    u.u_loop_frozen.value = loopFrozen;
-    u.u_calm.value = state.isCalm ? 1.0 : 0.0;
 
     // 5. Render Scene
     this.renderer.render({ scene: this.mesh });

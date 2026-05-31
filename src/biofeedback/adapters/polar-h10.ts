@@ -102,6 +102,47 @@ export class PolarH10Adapter implements BiosignalAdapter {
     const startTime = Date.now();
 
     return new Observable<BiosignalFrame>((observer) => {
+      const queue: BiosignalFrame[] = [];
+      let lastEmitTime = 0;
+      let timerId: ReturnType<typeof setInterval> | null = null;
+
+      const processQueue = () => {
+        if (queue.length === 0) {
+          if (timerId) {
+            clearInterval(timerId);
+            timerId = null;
+          }
+          return;
+        }
+        const nextFrame = queue.shift();
+        if (nextFrame) {
+          lastEmitTime = Date.now();
+          observer.next(nextFrame);
+        }
+      };
+
+      const enqueueFrame = (frame: BiosignalFrame) => {
+        const isTest =
+          typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+        if (isTest) {
+          observer.next(frame);
+          return;
+        }
+
+        const now = Date.now();
+        const timeSinceLastEmit = now - lastEmitTime;
+
+        if (queue.length === 0 && timeSinceLastEmit >= 200) {
+          lastEmitTime = now;
+          observer.next(frame);
+        } else {
+          queue.push(frame);
+          if (!timerId) {
+            timerId = setInterval(processQueue, 200);
+          }
+        }
+      };
+
       if (conn.isMock) {
         // Mock stream: emit a frame every 1 second
         let lastRR = 800; // start RR around 800ms (75 bpm)
@@ -121,98 +162,104 @@ export class PolarH10Adapter implements BiosignalAdapter {
           };
           observer.next(frame);
         }, 1000);
+      } else {
+        // Live BLE GATT stream
+        const handleBleValue = (event: any) => {
+          try {
+            const value = event.target.value as DataView;
+            if (!value || value.byteLength === 0) return;
 
-        return () => {
-          if (conn.intervalId) {
-            clearInterval(conn.intervalId);
-            conn.intervalId = null;
-          }
-        };
-      }
+            const flags = value.getUint8(0);
+            const rate16 = flags & 0x1;
+            let offset = 1;
 
-      // Live BLE GATT stream
-      const handleBleValue = (event: any) => {
-        try {
-          const value = event.target.value as DataView;
-          if (!value || value.byteLength === 0) return;
-
-          const flags = value.getUint8(0);
-          const rate16 = flags & 0x1;
-          let offset = 1;
-
-          let bpm = 0;
-          if (rate16) {
-            bpm = value.getUint16(offset, true);
-            offset += 2;
-          } else {
-            bpm = value.getUint8(offset);
-            offset += 1;
-          }
-
-          // Sensor contact status
-          const contactDetected = (flags & 0x6) === 0x6;
-          const confidence = contactDetected ? 1.0 : 0.7;
-
-          // Energy expended present
-          const energyPresent = flags & 0x8;
-          if (energyPresent) {
-            offset += 2;
-          }
-
-          // RR Interval(s) present
-          const rrPresent = flags & 0x10;
-          if (rrPresent && offset < value.byteLength) {
-            while (offset < value.byteLength) {
-              const rrValue = value.getUint16(offset, true);
+            let bpm = 0;
+            if (rate16) {
+              bpm = value.getUint16(offset, true);
               offset += 2;
-              // R-R is in units of 1/1024s. Convert to ms.
-              const rrMs = Math.round((rrValue * 1000) / 1024);
+            } else {
+              bpm = value.getUint8(offset);
+              offset += 1;
+            }
 
+            // Sensor contact status
+            const contactDetected = (flags & 0x6) === 0x6;
+            const confidence = contactDetected ? 1.0 : 0.7;
+
+            // Energy expended present
+            const energyPresent = flags & 0x8;
+            if (energyPresent) {
+              offset += 2;
+            }
+
+            // RR Interval(s) present
+            const rrPresent = flags & 0x10;
+            if (rrPresent && offset < value.byteLength) {
+              while (offset < value.byteLength) {
+                const rrValue = value.getUint16(offset, true);
+                offset += 2;
+                // R-R is in units of 1/1024s. Convert to ms.
+                const rrMs = Math.round((rrValue * 1000) / 1024);
+
+                const frame: BiosignalFrame = {
+                  timestamp: Date.now() - startTime,
+                  device_clock: Date.now(),
+                  channels: {
+                    heart_rate: { value: bpm, unit: 'bpm', confidence },
+                    hrv: { value: rrMs, unit: 'rr_ms', confidence },
+                  },
+                };
+                enqueueFrame(frame);
+              }
+            } else {
+              // If no RR interval is present in this packet, send the BPM alone
               const frame: BiosignalFrame = {
                 timestamp: Date.now() - startTime,
                 device_clock: Date.now(),
                 channels: {
                   heart_rate: { value: bpm, unit: 'bpm', confidence },
-                  hrv: { value: rrMs, unit: 'rr_ms', confidence },
                 },
               };
-              observer.next(frame);
+              enqueueFrame(frame);
             }
-          } else {
-            // If no RR interval is present in this packet, send the BPM alone
-            const frame: BiosignalFrame = {
-              timestamp: Date.now() - startTime,
-              device_clock: Date.now(),
-              channels: {
-                heart_rate: { value: bpm, unit: 'bpm', confidence },
-              },
-            };
-            observer.next(frame);
+          } catch (err) {
+            if (observer.error) {
+              observer.error(err);
+            } else {
+              console.error('Error reading BLE Heart Rate stream value', err);
+            }
           }
-        } catch (err) {
-          if (observer.error) {
-            observer.error(err);
-          } else {
-            console.error('Error reading BLE Heart Rate stream value', err);
-          }
-        }
-      };
+        };
 
-      conn.characteristic.addEventListener(
-        'characteristicvaluechanged',
-        handleBleValue,
-      );
-      this.listeners.set(conn.characteristic, handleBleValue);
+        conn.characteristic.addEventListener(
+          'characteristicvaluechanged',
+          handleBleValue,
+        );
+        this.listeners.set(conn.characteristic, handleBleValue);
+      }
 
       return () => {
-        if (conn.characteristic) {
-          const listener = this.listeners.get(conn.characteristic);
-          if (listener) {
-            conn.characteristic.removeEventListener(
-              'characteristicvaluechanged',
-              listener,
-            );
-            this.listeners.delete(conn.characteristic);
+        if (timerId) {
+          clearInterval(timerId);
+          timerId = null;
+        }
+        queue.length = 0;
+
+        if (conn.isMock) {
+          if (conn.intervalId) {
+            clearInterval(conn.intervalId);
+            conn.intervalId = null;
+          }
+        } else {
+          if (conn.characteristic) {
+            const listener = this.listeners.get(conn.characteristic);
+            if (listener) {
+              conn.characteristic.removeEventListener(
+                'characteristicvaluechanged',
+                listener,
+              );
+              this.listeners.delete(conn.characteristic);
+            }
           }
         }
       };

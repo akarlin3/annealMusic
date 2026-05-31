@@ -171,4 +171,13 @@ describe('LoopSlot state machine', () => {
     h.slot.unfreeze();
     expect(h.slot.getState()).toBe('playing');
   });
+
+  it('clamps buffer duration at MAX_CAPTURE_SEC (60s)', async () => {
+    const h = makeSlot(70);
+    await capture(h);
+    expect(h.slot.getState()).toBe('playing');
+    expect(h.slot.hasBuffer()).toBe(true);
+    const buf = h.slot.getBuffer();
+    expect(buf?.duration).toBe(60);
+  });
 });

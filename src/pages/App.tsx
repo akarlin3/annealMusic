@@ -37,7 +37,6 @@ import { Sparkles, User, Users } from 'lucide-react';
 import { useJam } from '@/jam/JamProvider';
 import JamIndicator from '@/jam/JamIndicator';
 import ParticipantCursor from '@/jam/ParticipantCursor';
-import { startBufferSharing } from '@/jam/bufferSharing';
 import { useRecorder } from '@/record/useRecorder';
 import { BridgeServer } from '@/research/bridge/BridgeServer';
 import RecordControls from '@/record/RecordControls';
@@ -178,8 +177,16 @@ export default function App() {
   // Sync and share loops buffers across session
   useEffect(() => {
     if (session) {
-      const cleanup = startBufferSharing(ensureOrchestrator, showToast);
-      return () => cleanup();
+      let active = true;
+      let cleanup: (() => void) | null = null;
+      import('@/jam/bufferSharing').then(({ startBufferSharing }) => {
+        if (!active) return;
+        cleanup = startBufferSharing(ensureOrchestrator, showToast);
+      });
+      return () => {
+        active = false;
+        if (cleanup) cleanup();
+      };
     }
   }, [session, ensureOrchestrator, showToast]);
 

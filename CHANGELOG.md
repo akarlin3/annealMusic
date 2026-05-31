@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.2.0] - 2026-05-31
+
+**v8.2 Performance Pass.** Shipped a comprehensive performance sweep across initial app boot latency, runtime CPU consumption, mobile BLE power thermals, and active memory retention. Route-level lazy loading and dynamic Yjs/CRDT code-splitting successfully reduced eagerly-loaded bundles by >250KB, beating all target budgets.
+
+### Added
+
+- **Dynamic Yjs Code-Splitting.** Decoupled Yjs and collaborative synchronization modules, dynamically loading CRDT synchronization libraries only when a jam session starts or is joined. This tree-shakes Yjs out of the eager main entrypoint bundle.
+- **WebGL Uniform Update Caching.** Implemented a WebGL uniforms state cache (`uCache`) inside `WebGLRenderer.ts`, skipping redundant uniform uploads for static parameters to decrease GPU draw-overhead.
+- **Strict 60-Second Loop Clamp.** Enforced strict 60-second limits in the loop pedal `loadBuffer` and `commit` routines using `getChannelData` subarray copying, capping loop audio memory allocations.
+
+### Changed
+
+- **Inner-Loop DSP Parallelization.** Refactored physical modeling `ModalBank` from biquad objects to flat parallel `Float32Array` buffers for `b0`, `b2`, `a1`, `a2`, `z1`, `z2`, and `gain` coefficients, bypassing object dereferencing overhead in sample-by-sample loops.
+- **Modulo Operations Bypass.** Replaced index wrapping modulo calculations (`%`) in Karplus-Strong waveguide `string.ts` and waveguide clarinet `tube.ts` with ternary bounds checks.
+- **BLE GATT State Throttling.** Configured Polar H10 BLE notify callbacks to space updates to at most once per 200ms with a leak-proof queueing mechanism, preventing rapid successive Zustand store updates while preserving uncorrupted R-R values for HRV.
+- **Datalogger GC Pressure Reduction.** Eliminated double `JSON.stringify` calls on active tick logging in `DataLogger.ts`, introducing a constant-time O(1) footprint estimator.
+
 ## [8.1.0] - 2026-05-31
 
 **v8.1 Code Health & Dependency Upgrades.** Resolve the code health audit findings from v8.0. Safely upgraded client stack (TypeScript 6, Vite 8, React 19, React Router 7, Tailwind 4, Zustand 5, Lucide-React 1.17), unified parameter schemas under a compile-time generator, removed dead exports and duplicate exports flagged by static analysis, and secured a strict frontend type-coverage benchmark of 98.68%.

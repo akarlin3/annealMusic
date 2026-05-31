@@ -51,7 +51,10 @@ export class KarplusStrong {
     // Exact phase delay of one-pole low-pass: theta / w
     const w = (2.0 * Math.PI * freq) / this.sampleRate;
     const c = this.loopCoef;
-    const theta = Math.atan2((1.0 - c) * Math.sin(w), 1.0 - (1.0 - c) * Math.cos(w));
+    const theta = Math.atan2(
+      (1.0 - c) * Math.sin(w),
+      1.0 - (1.0 - c) * Math.cos(w),
+    );
     const dLp = w > 0.0 ? theta / w : (1.0 - c) / c;
     const dCompensated = dTarget - dLp;
     // Clamp to ensure stable and safe Lagrange buffer reads (min 2.0, max buf.length - 3)
@@ -82,24 +85,32 @@ export class KarplusStrong {
     this.exciter.setLevel(level);
   }
 
-  /** Next output sample. */
   next(): number {
     const len = this.buf.length;
     const readPos = (this.idx - this.delay + len) % len;
     const i0 = Math.floor(readPos);
     const d = readPos - i0; // fractional part [0, 1)
 
-    // Four closest sample points for 3rd-order Lagrange interpolation
-    const y_neg1 = this.buf[(i0 - 1 + len) % len] ?? 0;
+    // Branch bounds checks instead of 4 expensive modulo operations
+    let im1 = i0 - 1;
+    if (im1 < 0) im1 += len;
+
+    let ip1 = i0 + 1;
+    if (ip1 >= len) ip1 -= len;
+
+    let ip2 = i0 + 2;
+    if (ip2 >= len) ip2 -= len;
+
+    const y_neg1 = this.buf[im1] ?? 0;
     const y_0 = this.buf[i0] ?? 0;
-    const y_1 = this.buf[(i0 + 1) % len] ?? 0;
-    const y_2 = this.buf[(i0 + 2) % len] ?? 0;
+    const y_1 = this.buf[ip1] ?? 0;
+    const y_2 = this.buf[ip2] ?? 0;
 
     // Lagrange polynomial coefficients
-    const c_neg1 = -d * (d - 1) * (d - 2) / 6;
-    const c_0 = (d + 1) * (d - 1) * (d - 2) / 2;
-    const c_1 = -(d + 1) * d * (d - 2) / 2;
-    const c_2 = (d + 1) * d * (d - 1) / 6;
+    const c_neg1 = (-d * (d - 1) * (d - 2)) / 6;
+    const c_0 = ((d + 1) * (d - 1) * (d - 2)) / 2;
+    const c_1 = (-(d + 1) * d * (d - 2)) / 2;
+    const c_2 = ((d + 1) * d * (d - 1)) / 6;
 
     const sample = c_neg1 * y_neg1 + c_0 * y_0 + c_1 * y_1 + c_2 * y_2;
 
@@ -109,7 +120,10 @@ export class KarplusStrong {
 
     // Continuous excitation: inject filtered noise so the string sustains.
     this.buf[this.idx] = fed + this.exciter.next();
-    this.idx = (this.idx + 1) % len;
+
+    this.idx++;
+    if (this.idx >= len) this.idx = 0;
+
     return sample;
   }
 

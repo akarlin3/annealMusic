@@ -85,8 +85,11 @@ export class Waveguide {
   }
 
   next(): number {
-    const readFwd = (this.idx - this.len + this.cap) % this.cap;
-    const readBwd = this.idx % this.cap;
+    // Branch bounds checks instead of modulo operations
+    let readFwd = this.idx - this.len;
+    if (readFwd < 0) readFwd += this.cap;
+
+    const readBwd = this.idx;
     const aFwd = this.fwd[readFwd] ?? 0;
     const aBwd = this.bwd[readBwd] ?? 0;
 
@@ -101,9 +104,11 @@ export class Waveguide {
     this.bore += this.loopCoef * (aFwd - this.bore);
     const reflected = -this.bore * this.fb;
 
-    this.fwd[this.idx % this.cap] = intoBore;
+    this.fwd[this.idx] = intoBore;
     this.bwd[readFwd] = reflected;
-    this.idx = (this.idx + 1) % this.cap;
+
+    this.idx++;
+    if (this.idx >= this.cap) this.idx = 0;
 
     // Output taps the bore pressure (sum of the two rails at the bell).
     return (aFwd + aBwd) * 0.5;
