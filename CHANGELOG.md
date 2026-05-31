@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.1.0] - 2026-05-31
+
+**v8.1 Code Health & Dependency Upgrades.** Resolve the code health audit findings from v8.0. Safely upgraded client stack (TypeScript 6, Vite 8, React 19, React Router 7, Tailwind 4, Zustand 5, Lucide-React 1.17), unified parameter schemas under a compile-time generator, removed dead exports and duplicate exports flagged by static analysis, and secured a strict frontend type-coverage benchmark of 98.68%.
+
+### Added
+
+- **Compile-Time Schema Syncing.** Authored `scripts/sync-schemas.mjs` to auto-compile parameters dynamically from a single canonical `schema/manifest.json` into client and CLI validation commands, failing builds on schema drift.
+
+### Changed
+
+- **Dependency Upgrades.** Upgraded frontend to Vite 8.0.14, TypeScript 6.0.3, React 19.2.6, React Router 7.16.0, Tailwind CSS 4.3.0, and Zustand 5.0.14, and backend to Starlette 1.2.1 and Boto3/Botocore 1.43.18.
+- **Strict Frontend Type Coverage.** Refactored `PulseEngine` and `crdt.ts` to enforce uniform, strict type boundaries, increasing TypeScript type coverage across the client bundle from 98.00% to 98.68%.
+
+### Removed
+
+- **Dead-Code Catalog.** Cleaned up all unused and duplicate exports identified by static analysis across client-side and backend files (e.g. `historyApi`, `clearAdminKey`, `isMoreAdvanced`, `isCaptureSupported`, `lessons_by_track`).
+
 ## [8.0.0] - 2026-05-31
 
 **v8.0 Audit + Plan.** The diagnosis slice. v8.0 produces no shipped product code changes, introducing only essential non-invasive baseline instrumentation and delivering the comprehensive primary audit reports and sequenced roadmaps for the entire subsequent v8 refactoring arc (v8.1–v8.5).
