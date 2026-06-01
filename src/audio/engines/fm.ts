@@ -112,6 +112,11 @@ export class FmEngine implements AnnealEngine {
     const out = ctx.createGain();
     out.gain.setValueAtTime(1, ctx.currentTime);
 
+    const dcFilter = ctx.createBiquadFilter();
+    dcFilter.type = 'highpass';
+    dcFilter.frequency.setValueAtTime(10, ctx.currentTime);
+    dcFilter.connect(out);
+
     const { modRatio, modIndex, feedback } = this.params;
 
     const tuning = shared.tuning ?? { system: 'equal' };
@@ -172,7 +177,7 @@ export class FmEngine implements AnnealEngine {
       fbGain.connect(modulator.frequency);
       // carrier → amplitude → output
       carrier.connect(g);
-      g.connect(out);
+      g.connect(dcFilter);
 
       carrier.start();
       modulator.start();

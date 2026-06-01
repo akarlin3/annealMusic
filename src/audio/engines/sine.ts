@@ -68,8 +68,10 @@ export class SineEngine implements AnnealEngine {
         customScale,
         customEq,
       );
+      const pitchBend = shared.pitchBend ?? 0;
+      const baseFreq = shared.rootFreq * Math.pow(latticeRatio, shared.spread);
       osc.frequency.setValueAtTime(
-        shared.rootFreq * Math.pow(latticeRatio, shared.spread),
+        baseFreq * Math.pow(2, (pitchBend * 2) / 12),
         ctx.currentTime,
       );
 
@@ -170,8 +172,7 @@ export class SineEngine implements AnnealEngine {
       partial.rootFreq !== undefined ||
       partial.spread !== undefined ||
       partial.tuning !== undefined ||
-      partial.customScaleRatios !== undefined ||
-      partial.customEqRatio !== undefined
+      partial.pitchBend !== undefined
     ) {
       const {
         rootFreq,
@@ -179,6 +180,7 @@ export class SineEngine implements AnnealEngine {
         tuning: activeTuning,
         customScaleRatios,
         customEqRatio,
+        pitchBend = 0,
       } = this.shared;
       const tuning = activeTuning ?? { system: 'equal' };
       const t = ctx.currentTime;
@@ -190,7 +192,8 @@ export class SineEngine implements AnnealEngine {
           customScaleRatios,
           customEqRatio,
         );
-        const targetFreq = rootFreq * Math.pow(latticeRatio, spread);
+        const baseFreq = rootFreq * Math.pow(latticeRatio, spread);
+        const targetFreq = baseFreq * Math.pow(2, (pitchBend * 2) / 12);
         if (instant) {
           part.osc.frequency.cancelScheduledValues(targetTime ?? t);
           part.osc.frequency.setValueAtTime(targetFreq, targetTime ?? t);

@@ -178,13 +178,18 @@ export class GranularEngine implements AnnealEngine {
     out.gain.setValueAtTime(1, ctx.currentTime);
     this.out = out;
 
+    const dcFilter = ctx.createBiquadFilter();
+    dcFilter.type = 'highpass';
+    dcFilter.frequency.setValueAtTime(10, ctx.currentTime);
+    dcFilter.connect(out);
+
     const tuning = shared.tuning ?? { system: 'equal' };
     const customScale = shared.customScaleRatios;
     const customEq = shared.customEqRatio;
 
     this.partials = HARMONICS.slice(0, shared.density).map((ratio, i) => {
       const cloud = new GrainCloud(ctx, this.random);
-      cloud.getOutputNode().connect(out);
+      cloud.getOutputNode().connect(dcFilter);
       const latticeRatio = resolveLatticeRatio(
         tuning,
         i,
@@ -322,6 +327,8 @@ export class GranularEngine implements AnnealEngine {
       partial.rootFreq === undefined &&
       partial.spread === undefined &&
       partial.tuning === undefined &&
+      partial.customScaleRatios === undefined &&
+      partial.customEqRatio === undefined &&
       partial.pitchBend === undefined
     )
       return;

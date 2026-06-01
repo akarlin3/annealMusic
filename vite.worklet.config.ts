@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 
@@ -46,5 +45,4 @@ export default defineConfig({
       output: { entryFileNames: 'physical.js' },
     },
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any);
+});

@@ -813,7 +813,8 @@ export class Orchestrator {
       partial.spread !== undefined ||
       partial.tuning !== undefined ||
       partial.customScaleRatios !== undefined ||
-      partial.customEqRatio !== undefined
+      partial.customEqRatio !== undefined ||
+      partial.pitchBend !== undefined
     ) {
       // Forward to both engines so a mid-crossfade engine doesn't jump in pitch.
       const voiceUpdate = {
@@ -822,6 +823,7 @@ export class Orchestrator {
         tuning: p.tuning,
         customScaleRatios: p.customScaleRatios,
         customEqRatio: p.customEqRatio,
+        pitchBend: p.pitchBend,
       };
 
       const gridLocked =
