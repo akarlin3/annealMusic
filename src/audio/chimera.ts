@@ -37,6 +37,8 @@
  *   `isChimeraAlive`, and the supervisor built on them).
  */
 
+import { fusionMultiplier } from '@/audio/fusion';
+
 /** Default phase lag β (α = π/2 − β). The probe's most reliable regime. */
 export const DEFAULT_BETA = 0.02;
 
@@ -238,4 +240,46 @@ export function isChimeraAlive(
 /** Which population is the locked (synchronized) one: 1 or 2. */
 export function lockedPopulation(pop1: OrderParam, pop2: OrderParam): 1 | 2 {
   return pop1.R >= pop2.R ? 1 : 2;
+}
+
+/**
+ * Map the two populations' coherence onto per-partial fusion gains, **reusing
+ * the production fusion law** (`fusion.ts` `fusionMultiplier`) rather than
+ * duplicating it — this is the bridge from the chimera dynamics to the existing
+ * partial-bank gain path.
+ *
+ * The partial bank is split in two: the low partials track population 1, the
+ * high partials population 2 (pop 1 takes the extra partial for odd counts). For
+ * a partial in population σ the multiplier is
+ *
+ *     m = fusionMultiplier(Φ_σ, ψ_global, amount · R_σ)
+ *
+ * i.e. the partial's coherence is taken against the *global* mean field, and the
+ * population's order-parameter magnitude `R_σ` scales the reshaping amount. The
+ * consequences are exactly the chimera's morph:
+ *
+ * - the **locked** population (R ≈ 1, Φ ≈ ψ_global, since it dominates the mean
+ *   field) is reinforced → its band brightens;
+ * - the **incoherent** population (R → 0) scales the amount → 0, so `m → 1` and
+ *   its band stays at baseline regardless of its ill-defined phase (no
+ *   zipper/noise from a wandering Φ);
+ * - as the chimera breathes (R, Φ oscillate) and the locked role swaps, the
+ *   reinforced band moves → the spectral centroid morphs on its own.
+ *
+ * Pure; deterministic in its inputs.
+ */
+export function chimeraFusionGains(
+  pop1: OrderParam,
+  pop2: OrderParam,
+  globalPhi: number,
+  partialCount: number,
+  amount: number,
+): number[] {
+  const split = Math.ceil(partialCount / 2);
+  const gains = new Array<number>(partialCount);
+  for (let i = 0; i < partialCount; i++) {
+    const pop = i < split ? pop1 : pop2;
+    gains[i] = fusionMultiplier(pop.Phi, globalPhi, amount * pop.R);
+  }
+  return gains;
 }

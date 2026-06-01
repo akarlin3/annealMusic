@@ -3,6 +3,7 @@ import { partialShape } from '@/audio/engines/shape';
 import type {
   AnnealEngine,
   AnnealEngineCapabilities,
+  EngineId,
   SharedParams,
 } from '@/audio/engines/types';
 import { resolveLatticeRatio } from '@/audio/tuning/resolver';
@@ -17,7 +18,7 @@ const FREQ_TC = 0.3;
  * per-partial amplitude shape; routes every voice into a single output node.
  */
 export class SineEngine implements AnnealEngine {
-  readonly id = 'sine' as const;
+  readonly id: EngineId;
   readonly capabilities: AnnealEngineCapabilities = {
     densityLockedWhilePlaying: true,
     params: [],
@@ -27,6 +28,16 @@ export class SineEngine implements AnnealEngine {
   private out: GainNode | null = null;
   private partials: PartialVoice[] = [];
   private shared: SharedParams | null = null;
+
+  /**
+   * @param id Engine identifier. Defaults to `'sine'`; the identical-ω chimera
+   *   voice reuses this exact partial bank under `'chimera'` (the chimera's
+   *   distinct behavior is the orchestrator's control-rate two-population
+   *   driver, not the sound generator — see `ChimeraEngine`).
+   */
+  constructor(id: EngineId = 'sine') {
+    this.id = id;
+  }
 
   start(ctx: AudioContext, shared: SharedParams): void {
     if (this.ctx)
