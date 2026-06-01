@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import type { ListeningSession } from '@/api/types';
@@ -17,12 +17,7 @@ export default function ListeningSessionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!slug) return;
-    loadSession();
-  }, [slug]);
-
-  const loadSession = async () => {
+  const loadSession = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -41,7 +36,12 @@ export default function ListeningSessionPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug) return;
+    loadSession();
+  }, [slug, loadSession]);
 
   const handleClose = () => {
     navigate(-1);
