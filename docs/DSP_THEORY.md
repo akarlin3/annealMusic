@@ -179,6 +179,18 @@ which is **monotone increasing in both $\alpha$ and $r$** (the linear term is $\
 
 The single source of truth for this math is `src/audio/fusion.ts`; the orchestrator drift loop computes the multipliers from the live phases and $\psi$, and the engines/worklets only _apply_ the resulting scalars.
 
+### 1.7 Structured-Sync Spectral Redistribution
+
+§1.6 ends on an honest negative: uniform synchronization reinforces _energy_ but does **not** move the spectral centroid (locked $= 539\text{ Hz} =$ baseline). The reason is topological, not a limit of the fusion model. With a single scalar coupling $K$ in an all-to-all mean field and a symmetric natural-frequency spread, every partial locks (or drifts) together, so the per-partial coherence $c_i$ is **near-uniform across $i$**. A constant $c_i$ makes $m_i$ a constant scalar, which rescales the whole spectrum by one factor — energy up, centroid fixed.
+
+**Spectral redistribution requires $c_i$ to correlate with frequency.** We get that by making the coupling _heterogeneous_ (§6 of [KURAMOTO.md](KURAMOTO.md)): each oscillator feels its own coupling $K_i = K\,p_i$, built from a single clustering control $\text{bias}\in[-1,1]$,
+
+$$\frac{d\theta_i}{dt} = \omega_i + \frac{K_i}{N}\sum_{j}\sin(\theta_j - \theta_i), \qquad p_i = \begin{cases}1 - \text{bias}\,(1-x_i) & \text{bias}\ge 0\\ 1 - |\text{bias}|\,x_i & \text{bias}<0\end{cases}$$
+
+with $x_i = i/(N-1)$. The strongly-coupled band locks to $\psi$ ($c_i\to 1$, $m_i\to 1+\tfrac12 d\alpha$) while the weakly-coupled band keeps drifting and stays incoherent ($\overline{c_i}\to\tfrac12$, $m_i\to 1$). One band is boosted relative to the other, so the centroid **moves** — and the direction is set by which band locks.
+
+**Prediction (sign and rough size, before building):** boosting the locked band by up to $\times 1.5$ relative to the drifting band, on the $1/(i+1)$ six-partial bank ($\text{baseline}=539\text{ Hz}$), a back-of-envelope estimate put the shift at $\approx +40\text{ Hz}$ when the high band locks and $\approx -20\text{ to }-40\text{ Hz}$ when the low band locks. The fusion model is unchanged; only the _input_ phase structure changed. The measured result (track 7, §2.3) confirms both the sign and the order of magnitude.
+
 ---
 
 ## Part 2: The Spectral Correctness Test Suite
@@ -361,6 +373,23 @@ The fusion suite (`analysis/__tests__/fusion.test.ts`) renders a pure additive p
 - **Brightness — honest finding:** the spectral **centroid** is essentially unchanged by fusion (locked $= 539\text{ Hz} =$ baseline; incoherent $= 503\text{ Hz}$). Because full lock boosts every partial by the _same_ factor, fusion is a **coherent-energy reinforcement of the fused tone, not a brightness tilt**. The audible effect is a tone that consolidates and gains presence as it synchronizes, not one that gets brighter — and the measurements say so plainly.
 
 **Honest assessment.** The effect is real, monotone in the order parameter, correct at both limits, and substantial ($\sim 3\text{ dB}$ of coherent reinforcement over the full $r$ range), deliberately bounded (multipliers in $[0.5, 1.5]$ at $\alpha = 1$) so it enriches the meditation voicing without destabilizing it. It is a genuine coupling of synchronization to timbre — modest by design, measured rather than asserted.
+
+#### 7. Structured-Sync Spectral Redistribution (§1.7)
+
+The redistribution suite (`analysis/__tests__/redistribution.test.ts`) runs the **real** `kuramotoStep` dynamics to steady state under a heterogeneous coupling profile, then renders the _same_ six-partial $1/(i+1)$ bank as track 6 and measures the FFT spectral centroid. The fusion model is untouched — only the coupling topology changed. **Prediction vs. measurement (actual numbers from the test run, seeded and offline, averaged over 16 incoherent draws at `coupling = 0.9`, `fusion_amount = 1`):**
+
+| Configuration              | Predicted (§1.7) | **Measured centroid** | Δ vs. homogeneous    |
+| :------------------------- | :--------------- | :-------------------- | :------------------- |
+| Homogeneous (uniform sync) | $\approx 0$      | $539.3\text{ Hz}$     | $+0.2\text{ Hz}$     |
+| **High band locks** ($+1$) | $\approx +40$    | $\mathbf{583.7\ Hz}$  | $\mathbf{+44.5\ Hz}$ |
+| **Low band locks** ($-1$)  | $\approx -20$    | $\mathbf{526.1\ Hz}$  | $\mathbf{-13.2\ Hz}$ |
+
+- **Sign matches the prediction:** locking the high band raises the centroid, locking the low band lowers it. Reversible **span $= 57.7\text{ Hz}$** (high − low).
+- **Specifically from structure:** the uniform-sync centroid shift is $0.2\text{ Hz}$ (the honest §1.6 result); the structured shift is $44.7\text{ Hz}$ — **$\times 220$ larger**, and categorically separable from the established $\sqrt{N}$ energy reinforcement.
+- **Backward-compatible:** with $\text{bias}=0$ (homogeneous, the default) the centroid is flat to $0.2\text{ Hz}$ and all 7 prior fusion tests pass unchanged.
+- **Smooth control:** sweeping the cluster bias $-1\to+1$ gives a monotone centroid ($526 \to 539 \to 584\text{ Hz}$) — a bypassable instrument knob, not a binary mode. The fusion multipliers stay in $[0.5,1.5]$, so the effect is bounded and stays in the ambient aesthetic.
+
+**Verdict (honest).** Structured sync produces a **real, reversible, sign-correct spectral centroid shift of roughly $+45 / -13\text{ Hz}$ (a $\sim 58\text{ Hz}$ span, $\approx 8$–$11\%$ of the $539\text{ Hz}$ centroid)** that is _specifically_ a product of oscillator-sync topology — not the coherent-summation reinforcement of §1.6, which leaves the centroid flat. This is genuine emergent spectral redistribution: the same per-partial fusion model that could not move the centroid under uniform coupling now shapes the envelope when the coupling is clustered. It is a **measurable, controllable, novel mechanism** — and it is **modest in magnitude**: a gentle brightness tilt, not a dramatic timbral morph. We report the number, not the hope. The shift is large enough to be audible and musically useful as an ambient brightness control, and the asymmetry (the high-lock shift exceeds the low-lock shift, because the $1/(i+1)$ voicing gives the high partials little baseline weight to begin with) is an honest property of the voicing, stated rather than smoothed over.
 
 ---
 

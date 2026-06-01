@@ -6,6 +6,26 @@ export interface KuramotoState {
 export interface KuramotoParams {
   coupling: number;
   freqSpread: number;
+  /**
+   * Optional **per-partial coupling profile** — a heterogeneous-coupling vector
+   * `p_i` that scales how strongly oscillator `i` is pulled toward the
+   * collective mean field. The effective per-partial coupling becomes
+   * `K_i = coupling · COUPLING_SCALE · p_i`, so the drift term is
+   * `ω_i + (K_i/N)·Σ_j sin(θ_j − θ_i)`.
+   *
+   * - **Omitted / all entries `1`:** every `K_i` equals the scalar
+   *   `K = coupling · COUPLING_SCALE` — **bit-identical to the homogeneous
+   *   model** (`p_i = 1` multiplies `K` by exactly `1.0` in IEEE-754).
+   * - **Graded (e.g. high band `1`, low band `→0`):** the strongly-coupled band
+   *   locks to the mean field while the weakly-coupled band keeps drifting at
+   *   its natural frequency — so the order parameter's per-partial coherence
+   *   `c_i` correlates with frequency. This is the structured-sync capability
+   *   that drives spectral redistribution (see `docs/KURAMOTO.md` §6).
+   *
+   * Indexed by partial position; entries beyond the partial count are ignored
+   * and missing entries default to `1`.
+   */
+  couplingProfile?: readonly number[];
 }
 
 /** Coupling strength scale. Sweeps from incoherent (< Kc) to locked (> Kc) */
@@ -13,6 +33,32 @@ export const COUPLING_SCALE = 4.0;
 
 /** Small phase-noise amplitude to keep the transition smooth (Euler–Maruyama) */
 export const NOISE_SIGMA = 0.15;
+
+/**
+ * Build a **clustered coupling profile** from a single continuous control.
+ *
+ * `bias ∈ [−1, 1]` tilts which frequency band locks, as a smooth linear ramp in
+ * normalized partial index `x_i = i/(N−1) ∈ [0, 1]` (low index = low frequency):
+ *
+ * - **`bias = 0`:** every entry is exactly `1` → homogeneous (current behavior).
+ * - **`bias > 0` (favor the high band):** `p_i = 1 − bias·(1 − x_i)` — the
+ *   highest partial keeps full coupling (`1`) and the lowest drops to `1 − bias`.
+ *   The high band locks, the low band drifts → centroid **rises**.
+ * - **`bias < 0` (favor the low band):** `p_i = 1 − |bias|·x_i` — mirror image →
+ *   centroid **falls**.
+ *
+ * The ramp is continuous in both `i` and `bias`, so the resulting centroid shift
+ * is a smooth, bypassable control rather than a binary mode. `bias` is clamped
+ * to `[−1, 1]`; `p_i` therefore stays in `[0, 1]` (never amplifies coupling).
+ */
+export function clusterCouplingProfile(n: number, bias: number): number[] {
+  const b = bias < -1 ? -1 : bias > 1 ? 1 : bias;
+  if (n <= 1 || b === 0) return Array.from({ length: n }, () => 1);
+  return Array.from({ length: n }, (_, i) => {
+    const x = i / (n - 1); // 0 (lowest freq) … 1 (highest freq)
+    return b > 0 ? 1 - b * (1 - x) : 1 - -b * x;
+  });
+}
 
 /**
  * Initialize the Kuramoto state.
@@ -48,6 +94,7 @@ export function kuramotoStep(
   }
 
   const K = params.coupling * COUPLING_SCALE;
+  const profile = params.couplingProfile;
   const nextPhases: number[] = [];
 
   for (let i = 0; i < n; i++) {
@@ -59,7 +106,11 @@ export function kuramotoStep(
       sum += Math.sin(state.phases[j]! - theta_i);
     }
 
-    const driftTerm = omega_i + (K / n) * sum;
+    // Heterogeneous coupling: each oscillator feels K_i = K · p_i toward the
+    // mean field. With no profile (or p_i = 1) this is exactly the scalar K,
+    // bit-identical to the homogeneous model.
+    const K_i = profile === undefined ? K : K * (profile[i] ?? 1);
+    const driftTerm = omega_i + (K_i / n) * sum;
     const noiseTerm = NOISE_SIGMA * (rng() - 0.5) * Math.sqrt(dt);
 
     let nextTheta = theta_i + driftTerm * dt + noiseTerm;

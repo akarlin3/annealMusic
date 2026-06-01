@@ -1,5 +1,5 @@
 import type { DriftPartial } from '@/types/audio';
-import { initKuramoto, kuramotoStep } from './kuramoto';
+import { clusterCouplingProfile, initKuramoto, kuramotoStep } from './kuramoto';
 
 /** Mean-reversion strength of the Ornstein–Uhlenbeck term. */
 const THETA = 0.25;
@@ -15,6 +15,23 @@ const DEFAULT_FREQ_SPREAD = 0.5;
 export interface DriftParams {
   drift: number;
   coupling: number;
+  /**
+   * Structured-sync clustering control, `∈ [−1, 1]`. Tilts which frequency band
+   * locks via a heterogeneous coupling profile (see `kuramoto.ts`):
+   *
+   * - **`0` (default / omitted):** homogeneous scalar coupling — bit-identical
+   *   to the prior behavior, so drift/detune and the flat-centroid result are
+   *   unchanged.
+   * - **`> 0`:** the high band locks while the low band stays incoherent, so the
+   *   per-partial coherence (and thus the existing fusion gains) tilt the
+   *   spectral centroid **up**.
+   * - **`< 0`:** the low band locks → centroid tilts **down**.
+   *
+   * This is the controllable, bypassable knob that turns the existing per-partial
+   * fusion model into spectral redistribution. It feeds the unchanged fusion core
+   * through the evolved phases — fusion itself is untouched.
+   */
+  cluster?: number;
 }
 
 export interface DriftStepResult {
@@ -62,14 +79,25 @@ export function driftStep(
     kNaturalFreqs = [...initial.naturalFreqs];
   }
 
-  // 2. Advance the Kuramoto model by one Euler-Maruyama step
+  // 2. Advance the Kuramoto model by one Euler-Maruyama step. When a clustering
+  // bias is set, build a heterogeneous per-partial coupling profile so one
+  // frequency band locks while the other stays incoherent (structured sync).
+  // cluster = 0 (or undefined) leaves couplingProfile undefined ⇒ scalar K ⇒
+  // bit-identical to the prior homogeneous behavior.
+  const cluster = params.cluster ?? 0;
+  const couplingProfile =
+    cluster === 0 ? undefined : clusterCouplingProfile(kPhases.length, cluster);
   const {
     phases: nextPhases,
     r,
     psi,
   } = kuramotoStep(
     { phases: kPhases, naturalFreqs: kNaturalFreqs },
-    { coupling: params.coupling, freqSpread: DEFAULT_FREQ_SPREAD },
+    {
+      coupling: params.coupling,
+      freqSpread: DEFAULT_FREQ_SPREAD,
+      couplingProfile,
+    },
     dt,
     rng,
   );

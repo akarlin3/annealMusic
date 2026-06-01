@@ -725,7 +725,11 @@ export async function renderStemsOffline(
         if (activeEngine && drift.length > 0) {
           const { detunes, phases, r, psi } = driftStep(
             drift,
-            { drift: live.drift, coupling: live.coupling },
+            {
+              drift: live.drift,
+              coupling: live.coupling,
+              cluster: live.cluster,
+            },
             DRIFT_DT,
             rng,
           );

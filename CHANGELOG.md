@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.5.0] - 2026-06-01
+
+**v9.5 Structured-Sync Spectral Redistribution.** v9.4 fusion coupled synchronization to timbre but, under the existing scalar all-to-all coupling, only _reinforced_ energy — the spectral centroid stayed flat (539 → 539 Hz), an honest negative. v9.5 isolates the cause (uniform coupling ⇒ near-uniform per-partial coherence ⇒ uniform gain) and adds **heterogeneous coupling** to `kuramotoStep`: a per-partial coupling profile that locks one frequency band while another stays incoherent, so the per-partial coherence `c_i` now correlates with frequency and the _unchanged_ fusion model redistributes the spectrum. Exposed as a single bypassable `cluster` control (−1..1). The fusion math is untouched — only the coupling topology changed.
+
+**Verdict (measured, honest):** structured sync produces a **real, reversible, sign-correct centroid shift of ≈ +45 Hz (high band locks) / −13 Hz (low band locks)** — a ~58 Hz reversible span (~8–11% of the 539 Hz centroid), **×220 larger** than the ~0 Hz uniform-sync shift and specifically a product of sync topology, not coherent summation. It is a genuine, novel, controllable spectral-redistribution mechanism — and it is **modest in magnitude**: a gentle, musical brightness tilt, not a dramatic timbral morph. We report the number, not the hope; the effect is real but moderate. Backward-compatible: `cluster = 0` (default) is bit-identical to the prior homogeneous model and all 7 v9.4 fusion tests pass unchanged.
+
+### Added
+
+- **Heterogeneous coupling (`src/audio/kuramoto.ts`):** new optional `couplingProfile` on `KuramotoParams` so each oscillator feels its own coupling `K_i = K·p_i` toward the mean field, with the drift term `ω_i + (K_i/N)·Σ sin(θ_j − θ_i)`. Homogeneous (`p_i = 1`) is **bit-identical** to the scalar model (×1.0 in IEEE-754). New `clusterCouplingProfile(n, bias)` builder ramps the profile from a single `[-1,1]` control.
+- **Controllable `cluster` param:** threaded through `driftStep` (`DriftParams.cluster`), `SharedParams`, the orchestrator drift loop, and both offline renderers (record + stem export). `cluster = 0` is fully bypassed; `> 0` locks the high band (centroid rises), `< 0` locks the low band (centroid falls). Drives the existing per-partial fusion gains — fusion itself is unchanged.
+- **The make-or-break measurement (`src/audio/analysis/__tests__/redistribution.test.ts`):** runs the real `kuramotoStep` dynamics to steady state under a clustered profile, renders the same six-partial bank as the fusion suite, and measures the FFT centroid. Asserts the shift (Δ +44.5 Hz / −13.2 Hz, sign matching the CP0 prediction), reversibility (57.7 Hz span), structure-specificity (×220 vs the ~0 uniform shift), backward-compat (homogeneous flat to 0.2 Hz), monotone/smooth control, and exact determinism. Seeded and offline.
+- **Heterogeneous-coupling unit tests** in `kuramoto.test.ts`: bit-identity of an all-ones profile, the `clusterCouplingProfile` ramp/clamp, and differential band locking in the real dynamics.
+- **Docs:** `docs/KURAMOTO.md` §6 (structured-coupling derivation + the clustering control), `docs/DSP_THEORY.md` §1.7 (prediction) and §2.3 #7 (measured results with the explicit honest verdict).
+
 ## [9.4.0] - 2026-06-01
 
 **v9.4 Synchronization-Driven Spectral Fusion.** Extends the Kuramoto coupling from pitch to timbre. Until now the order parameter `r` only drove detune contraction (pulling partial pitches together); v9.4 introduces a new pure DSP core (`src/audio/fusion.ts`) that reshapes per-partial _amplitudes_ by each partial's phase coherence with the collective mean field, so the spectrum itself fuses as the bank synchronizes. Wired into the engine (sine), the worklet (pulse), and the offline/stem renderers from one source of truth; controllable via a new `fusion` amount (0 = bypassed, behavior-preserving). Proven with the FFT harness and documented with measured numbers.

@@ -21,6 +21,16 @@ export type SharedParams = AnnealMusicParams & {
    * preserving — every partial keeps its base gain.
    */
   fusion?: number;
+  /**
+   * Structured-sync clustering bias, −1..1. Feeds a heterogeneous per-partial
+   * coupling profile into the Kuramoto step so one frequency band locks while
+   * the other stays incoherent — making the *existing* spectral fusion shift the
+   * spectral centroid (spectral redistribution). `> 0` locks the high band
+   * (centroid rises), `< 0` locks the low band (centroid falls). 0 (the default)
+   * is homogeneous coupling — fully bypassed and bit-identical to the prior
+   * behavior. Has audible effect only when `fusion > 0`.
+   */
+  cluster?: number;
 };
 
 /** Engine-specific params: a flat scalar bag, keyed by the engine's param defs. */

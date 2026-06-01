@@ -541,7 +541,14 @@ export class Orchestrator {
       const engine = this.active?.engine;
       const { detunes, phases, r, psi } = driftStep(
         this.driftState,
-        { drift: this.shared.drift, coupling: this.shared.coupling },
+        {
+          drift: this.shared.drift,
+          coupling: this.shared.coupling,
+          // Structured-sync clustering bias. 0 (default) ⇒ homogeneous coupling,
+          // so the drift/fusion path is unchanged; nonzero tilts the centroid via
+          // the existing per-partial fusion gains (spectral redistribution).
+          cluster: this.shared.cluster,
+        },
         DRIFT_DT,
         Math.random,
       );
