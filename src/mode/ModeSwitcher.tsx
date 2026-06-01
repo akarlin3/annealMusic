@@ -61,15 +61,21 @@ export function ModeSwitcher() {
   const modesConfig: {
     id: AppMode;
     label: string;
+    shortLabel: string;
     icon: ComponentType<{
       size?: number;
       strokeWidth?: number;
       className?: string;
     }>;
   }[] = [
-    { id: 'meditation', label: 'Meditation', icon: Wind },
-    { id: 'musician', label: 'Musician', icon: Music },
-    { id: 'researcher', label: 'Researcher', icon: FlaskConical },
+    { id: 'meditation', label: 'Meditation', shortLabel: 'FOCUS', icon: Wind },
+    { id: 'musician', label: 'Musician', shortLabel: 'MUSIC', icon: Music },
+    {
+      id: 'researcher',
+      label: 'Researcher',
+      shortLabel: 'STATS',
+      icon: FlaskConical,
+    },
   ];
 
   return (
@@ -116,7 +122,7 @@ export function ModeSwitcher() {
                 isActive ? 'text-amber-400/90 font-medium' : 'text-stone-600'
               }`}
             >
-              {m.id.substring(0, 5)}
+              {m.shortLabel}
             </span>
 
             {/* Hover Tooltip Label */}

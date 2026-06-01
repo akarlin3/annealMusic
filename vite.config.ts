@@ -1,7 +1,7 @@
 /* eslint-disable */
 /// <reference types="vitest/config" />
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 
@@ -15,7 +15,7 @@ export default defineConfig({
       gzipSize: true,
       brotliSize: true,
     }),
-  ],
+  ] as any,
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -61,4 +61,4 @@ export default defineConfig({
       '**/{karma,rollup,webpack,vite,vitest}.config.*',
     ],
   },
-} as any);
+});
