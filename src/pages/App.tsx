@@ -57,6 +57,12 @@ import ExportDialog from '@/export/ExportDialog';
 import { midiInput } from '@/midi/inputController';
 import { midiOutput } from '@/midi/outputController';
 
+// Shared pill styling for header toolbar actions. Uses mode-aware design
+// tokens (--color-border/--color-surf/--color-muted) so every action button
+// matches in size, border, and hover behavior across modes.
+const TOOLBAR_PILL =
+  'flex items-center gap-2 rounded-full px-4 py-2.5 transition-all border border-[var(--color-border)] bg-[var(--color-surf)]/20 text-[var(--color-muted)] hover:text-stone-200 hover:border-stone-700';
+
 function fmtDuration(sec: number): string {
   const total = Math.max(0, Math.round(sec));
   const mm = Math.floor(total / 60);
@@ -423,10 +429,9 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setExportOpen(true)}
-                  className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
-                  style={{ border: '1px solid #44403c', color: '#a8a29e' }}
+                  className={TOOLBAR_PILL}
                 >
-                  <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                  <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
                     Export Stems
                   </span>
                 </button>
@@ -436,12 +441,8 @@ export default function App() {
               {typeof navigator !== 'undefined' &&
                 typeof navigator.requestMIDIAccess === 'function' && (
                   <span className="flex items-center gap-1.5">
-                    <Link
-                      to="/midi"
-                      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
-                      style={{ border: '1px solid #44403c', color: '#a8a29e' }}
-                    >
-                      <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                    <Link to="/midi" className={TOOLBAR_PILL}>
+                      <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
                         MIDI
                       </span>
                     </Link>
@@ -466,11 +467,10 @@ export default function App() {
                             showToast('Failed to start collaborative session'),
                           );
                       }}
-                      className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-850 hover:border-stone-700 bg-stone-950/20"
-                      style={{ border: '1px solid #44403c', color: '#a8a29e' }}
+                      className={TOOLBAR_PILL}
                     >
-                      <Users size={12} strokeWidth={1.5} />
-                      <span className="font-mono text-[11px] uppercase tracking-[0.18em]">
+                      <Users size={13} strokeWidth={1.5} />
+                      <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
                         Start Collab
                       </span>
                     </button>
@@ -479,12 +479,8 @@ export default function App() {
                     type="button"
                     onClick={() => setAiGenerateOpen(true)}
                     aria-label="Generate patch with AI"
-                    className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
-                    style={{
-                      background: 'rgba(245, 158, 11, 0.04)',
-                      border: '1px solid #44403c',
-                      color: '#d6d3d1',
-                    }}
+                    className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all border border-[var(--color-border)] hover:border-stone-700 text-stone-300"
+                    style={{ background: 'var(--accent-glow)' }}
                   >
                     <Sparkles
                       size={13}
@@ -516,19 +512,27 @@ export default function App() {
           <button
             data-tour="play"
             onClick={() => (isPlaying ? stopSession() : startSession())}
-            className="group flex items-center gap-3 rounded-full px-5 py-2.5 transition-all cursor-pointer"
+            className="group flex items-center gap-3 rounded-full px-5 py-2.5 transition-all cursor-pointer hover:brightness-110"
             style={{
               background: isPlaying
-                ? 'rgba(245, 158, 11, 0.10)'
-                : 'rgba(245, 158, 11, 0.04)',
-              border: '1px solid #44403c',
+                ? 'rgba(var(--color-accent-rgb), 0.14)'
+                : 'rgba(var(--color-accent-rgb), 0.08)',
+              border: '1px solid rgba(var(--color-accent-rgb), 0.45)',
               color: '#fef3c7',
             }}
           >
             {isPlaying ? (
-              <Pause size={14} strokeWidth={1.5} style={{ color: '#f59e0b' }} />
+              <Pause
+                size={14}
+                strokeWidth={1.5}
+                style={{ color: 'var(--color-accent)' }}
+              />
             ) : (
-              <Play size={14} strokeWidth={1.5} style={{ color: '#f59e0b' }} />
+              <Play
+                size={14}
+                strokeWidth={1.5}
+                style={{ color: 'var(--color-accent)' }}
+              />
             )}
             <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
               {beginLabel}

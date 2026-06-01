@@ -1,6 +1,31 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind v4 entrypoint. The legacy `@tailwind base/components/utilities`
+ * directives this project shipped do NOT load v4's default theme, so dynamic
+ * utilities (px-6, py-10, gap-*, max-w-5xl, …) silently never generated and the
+ * layout sprawled full-width with no spacing. `@import "tailwindcss"` is the
+ * canonical v4 entry and restores the full utility set. */
+@import 'tailwindcss';
+
+/*
+ * Design tokens (Tailwind v4 `@theme`). This is the single source of truth for
+ * fonts and the custom stone/amber shades used across the app. Previously these
+ * lived in `tailwind.config.ts`, which v4 + @tailwindcss/postcss never loaded —
+ * so `font-display`/`font-body`/`font-mono` and `*-stone-850` silently produced
+ * nothing. Defining them here makes the intended design render on every route.
+ */
+@theme {
+  --font-display: 'Instrument Serif', 'Times New Roman', Georgia, serif;
+  --font-body: 'Geist', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  /* Intermediate stone shades referenced throughout the UI. */
+  --color-stone-350: #bfbab7;
+  --color-stone-650: #4d4945;
+  --color-stone-750: #363230;
+  --color-stone-850: #221f1d;
+
+  /* Intermediate amber accent. */
+  --color-amber-450: #f8ae17;
+}
 
 :root {
   color-scheme: dark;
