@@ -71,13 +71,28 @@ export class SineEngine implements AnnealEngine {
       lfoGain.gain.value = lfoDepth;
       lfo.connect(lfoGain).connect(g.gain);
 
-      osc.connect(g).connect(out);
+      // Fusion gain sits after the baseline+LFO shape; unity until the drift
+      // loop pushes synchronization-driven multipliers (behavior-preserving).
+      const fusionGain = ctx.createGain();
+      fusionGain.gain.value = 1;
+
+      osc.connect(g).connect(fusionGain).connect(out);
 
       osc.start();
       lfo.start();
       baseline.start();
 
-      return { osc, g, lfo, lfoGain, baseline, ratio, index: i, detune: 0 };
+      return {
+        osc,
+        g,
+        fusionGain,
+        lfo,
+        lfoGain,
+        baseline,
+        ratio,
+        index: i,
+        detune: 0,
+      };
     });
 
     this.out = out;
@@ -186,6 +201,23 @@ export class SineEngine implements AnnealEngine {
     }
   }
 
+  setPartialFusionGains(multipliers: readonly number[]): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    for (let i = 0; i < this.partials.length; i++) {
+      const part = this.partials[i];
+      const m = multipliers[i];
+      if (!part || m === undefined) continue;
+      try {
+        // Smooth with the same time-constant as detune so fusion is a gentle
+        // shimmer, never a zipper-noise step.
+        part.fusionGain.gain.setTargetAtTime(m, ctx.currentTime, DETUNE_TC);
+      } catch {
+        // node may be mid-teardown; ignore
+      }
+    }
+  }
+
   getPartialCount(): number {
     return this.partials.length;
   }
@@ -195,6 +227,6 @@ export class SineEngine implements AnnealEngine {
   }
 
   getPartialOutputs(): AudioNode[] {
-    return this.partials.map((p) => p.g);
+    return this.partials.map((p) => p.fusionGain);
   }
 }

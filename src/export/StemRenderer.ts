@@ -9,6 +9,7 @@ import type {
   SharedParams,
 } from '@/audio/engines/types';
 import { driftStep } from '@/audio/drift';
+import { fusionMultipliers } from '@/audio/fusion';
 import { ArcRunner } from '@/session/ArcRunner';
 import { getArcById } from '@/session/arcs';
 import { HARMONICS, type DriftPartial } from '@/types/audio';
@@ -722,7 +723,7 @@ export async function renderStemsOffline(
       ctx.suspend(t).then(() => {
         // 1. Advance engine detune walk deterministically
         if (activeEngine && drift.length > 0) {
-          const { detunes, phases, r } = driftStep(
+          const { detunes, phases, r, psi } = driftStep(
             drift,
             { drift: live.drift, coupling: live.coupling },
             DRIFT_DT,
@@ -736,6 +737,12 @@ export async function renderStemsOffline(
             p.phase = phases[i];
             activeEngine.setPartialDetune(i, d);
           });
+          const fusionAmount = live.fusion ?? 0;
+          if (fusionAmount > 0) {
+            activeEngine.setPartialFusionGains?.(
+              fusionMultipliers(phases, psi, fusionAmount),
+            );
+          }
         }
 
         // 2. Advance arc runner or piece timeline

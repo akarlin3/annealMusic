@@ -345,6 +345,16 @@ export class PulseEngine implements AnnealEngine {
     }
   }
 
+  setPartialFusionGains(multipliers: readonly number[]): void {
+    // Thin wrapper: forward the multipliers computed by the pure fusion core
+    // (audio/fusion.ts) to the worklet, which only applies them. No fusion math
+    // lives in the worklet (heuristic-drift rule).
+    this.pulseVoice?.post({
+      type: 'fusionGains',
+      gains: Array.from(multipliers),
+    });
+  }
+
   getPartialCount(): number {
     return this.shared?.density ?? 6;
   }

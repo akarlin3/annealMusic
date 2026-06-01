@@ -19,6 +19,9 @@ class PulseProcessor extends AudioWorkletProcessor {
   private phases = new Float32Array(8);
   private envelopes = new Float32Array(8);
   private partialGains = new Float32Array(8);
+  // Per-partial fusion gain multipliers, pushed from the main thread (computed
+  // by the pure fusion core in audio/fusion.ts). Unity = behavior-preserving.
+  private fusionGains = new Float32Array(8).fill(1);
 
   // Noise state
   private noiseEnvelope = 0;
@@ -46,6 +49,18 @@ class PulseProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < 8; i++) {
       this.partialGains[i] = 1.0 / (i + 1);
     }
+
+    // Apply fusion multipliers pushed from the main thread. The worklet is a
+    // thin applier — it never derives the fusion math itself.
+    this.port.onmessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; gains?: number[] };
+      if (data?.type === 'fusionGains' && Array.isArray(data.gains)) {
+        for (let i = 0; i < 8; i++) {
+          const m = data.gains[i];
+          this.fusionGains[i] = typeof m === 'number' && m >= 0 ? m : 1;
+        }
+      }
+    };
   }
 
   private triggerStrike(isAccent: boolean, densityVal: number) {
@@ -55,7 +70,8 @@ class PulseProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < 8; i++) {
       if (i < densityVal) {
         const gain = this.partialGains[i] ?? 0;
-        this.envelopes[i] = gain * accentMultiplier;
+        const fusion = this.fusionGains[i] ?? 1;
+        this.envelopes[i] = gain * fusion * accentMultiplier;
       } else {
         this.envelopes[i] = 0;
       }
@@ -71,7 +87,8 @@ class PulseProcessor extends AudioWorkletProcessor {
     swing: number,
     humanize: number,
   ) {
-    const ratio = DENSITY_RATIOS[Math.max(0, Math.min(5, Math.round(densityIdx)))] ?? 1.0;
+    const ratio =
+      DENSITY_RATIOS[Math.max(0, Math.min(5, Math.round(densityIdx)))] ?? 1.0;
     const samplesPerBeat = sampleRate * (60.0 / Math.max(10, bpm));
     const samplesPerSub = samplesPerBeat / ratio;
 
@@ -88,7 +105,9 @@ class PulseProcessor extends AudioWorkletProcessor {
     const maxJitterSamples = sampleRate * 0.015;
     const jitterOffset = (Math.random() * 2 - 1) * humanize * maxJitterSamples;
 
-    this.nextStrikeSample = Math.round(baseSampleIndex + swingOffset + jitterOffset);
+    this.nextStrikeSample = Math.round(
+      baseSampleIndex + swingOffset + jitterOffset,
+    );
   }
 
   process(
@@ -136,9 +155,13 @@ class PulseProcessor extends AudioWorkletProcessor {
 
       // Higher partials decay faster for realistic struck-plate physics
       const pDecaySec = decaySec * (1.0 / ratio);
-      decayFactors[i] = Math.exp(-1.0 / (sampleRate * Math.max(0.01, pDecaySec)));
+      decayFactors[i] = Math.exp(
+        -1.0 / (sampleRate * Math.max(0.01, pDecaySec)),
+      );
     }
-    const noiseDecayFactor = Math.exp(-1.0 / (sampleRate * Math.max(0.005, noiseDecaySec)));
+    const noiseDecayFactor = Math.exp(
+      -1.0 / (sampleRate * Math.max(0.005, noiseDecaySec)),
+    );
 
     for (let n = 0; n < len; n++) {
       const sampleTime = this.currentSampleCount;
@@ -146,7 +169,10 @@ class PulseProcessor extends AudioWorkletProcessor {
       // Check if we reached the scheduled strike sample
       if (sampleTime >= this.nextStrikeSample) {
         // Accent logic: Emphasize beat 1 of each bar
-        const subdivisionsPerBar = DENSITY_SUBDIVISIONS_PER_BAR[Math.max(0, Math.min(5, Math.round(densityIdx)))] ?? 4;
+        const subdivisionsPerBar =
+          DENSITY_SUBDIVISIONS_PER_BAR[
+            Math.max(0, Math.min(5, Math.round(densityIdx)))
+          ] ?? 4;
         const isAccent = this.strikeIndex % subdivisionsPerBar === 0;
 
         this.triggerStrike(isAccent && accent === 1, densityVal);
