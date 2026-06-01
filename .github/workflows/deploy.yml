@@ -28,6 +28,19 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The Researcher console is a separate Vite build (vite.config.research.ts)
+      # that emits to dist-research/. Firebase Hosting only serves dist/, so build
+      # it and merge its output into dist/ — otherwise /research.html falls through
+      # the catch-all rewrite to index.html and the console is unreachable.
+      - name: Build research console
+        run: npm run build:research
+
+      - name: Merge research console into dist
+        run: |
+          mkdir -p dist/assets
+          cp dist-research/research.html dist/research.html
+          cp -r dist-research/assets/. dist/assets/
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
