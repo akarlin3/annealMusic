@@ -135,6 +135,52 @@ We map the user-facing `coupling` slider (which goes from $0 \dots 1.0$) to $K =
 
 ---
 
+### 1.6 Synchronization-Driven Spectral Fusion
+
+Sections 1.1–1.5 use the order parameter $r$ to pull partial **pitches** together (detune contraction). Spectral fusion extends the same coupling to **timbre**: as the partials synchronize, their amplitudes are reshaped so the _spectrum itself_ fuses. Coherent partials reinforce into a brighter, more unified tone; incoherent ones stay diffuse and shimmering. This couples the Kuramoto order parameter to the spectrum, not just the pitch lattice.
+
+#### Per-partial coherence
+
+The mean-field simplification (§1.4) gave us a single collective phase $\psi$. We define each partial's **coherence** with that mean field as
+
+$$c_i = \tfrac{1}{2}\bigl(1 + \cos(\theta_i - \psi)\bigr) \in [0, 1].$$
+
+$c_i = 1$ when partial $i$ is perfectly aligned with the mean field, $c_i = 0$ when it is anti-aligned. Unlike the global scalar $r$, this is a _per-partial_ quantity — it tells us which individual partials are participating in the emergent order.
+
+#### The fusion gain law
+
+Let the user-facing `fusion_amount` be $\alpha \in [0,1]$ and a fixed reshaping depth be $d$ (we use $d = 1$). Each partial's base gain $g_i$ is reshaped by the multiplier
+
+$$m_i = 1 + d\,\alpha\,\bigl(c_i - \tfrac{1}{2}\bigr), \qquad g_i' = g_i \, m_i.$$
+
+The $-\tfrac{1}{2}$ centering means a partial at the mean coherence is left unchanged; aligned partials are boosted and opposed ones are attenuated.
+
+#### Limits
+
+- **$\alpha = 0$ (bypass):** $m_i = 1$ for all $i$, so $g_i' = g_i$ exactly. Fusion is **behavior-preserving at zero** — every pre-existing voicing and test survives untouched.
+- **$r \to 1$ (locked):** every $\theta_i \to \psi$, so $c_i \to 1$ and _all_ partials are reinforced uniformly by $\left(1 + \tfrac{1}{2} d\alpha\right)$. The bank sums **coherently** — amplitudes add ~linearly ($\propto N$) — producing the audible fused tone.
+- **$r \to 0$ (incoherent):** the $c_i$ scatter across $[0,1]$; aligned partials are reinforced and opposed ones attenuated, so the net energy stays near baseline and the timbre is a diffuse, time-varying shimmer (incoherent powers add, $\propto \sqrt{N}$).
+
+#### Why this is physically principled (and measurable)
+
+Projecting the order-parameter definition onto the mean phase (the same algebra as §1.4, taking the **real** part) gives the identity
+
+$$\frac{1}{N}\sum_{i=1}^{N}\cos(\theta_i - \psi) = r.$$
+
+Therefore the **bank-average multiplier is exactly**
+
+$$\overline{m} = \frac{1}{N}\sum_i m_i = 1 + \tfrac{1}{2} d\,\alpha\, r.$$
+
+The net coherent reinforcement is _directly proportional to the order parameter $r$_ — this is the phase-locked summation prediction, expressed as a gain law. Because the partials sit at distinct harmonic frequencies (distinct FFT bins, no inter-partial cancellation in the magnitude spectrum), the total harmonic energy is
+
+$$E = \sum_i (g_i')^2 \propto \sum_i m_i^2 = N + N\,d\,\alpha\, r + d^2\alpha^2 \sum_i\!\bigl(c_i - \tfrac{1}{2}\bigr)^2,$$
+
+which is **monotone increasing in both $\alpha$ and $r$** (the linear term is $\propto r$, the variance term is $\geq 0$). Track 3 asserts exactly this with the FFT harness; the measured numbers are recorded in §2.3.
+
+The single source of truth for this math is `src/audio/fusion.ts`; the orchestrator drift loop computes the multipliers from the live phases and $\psi$, and the engines/worklets only _apply_ the resulting scalars.
+
+---
+
 ## Part 2: The Spectral Correctness Test Suite
 
 In professional audio engineering, testing a synthesizer is difficult. How do you write a unit test to prove a physical modeling string actually sounds like a string?
