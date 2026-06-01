@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { driftStep } from '@/audio/drift';
 import { fusionMultipliers } from '@/audio/fusion';
+import { ChimeraVoice } from '@/audio/chimeraVoice';
 import { makeIR } from '@/audio/ir';
 import { midiOutput } from '@/midi/outputController';
 import { clampSharedParamsForDrone } from '@/drone/ModeConstraints';
@@ -102,6 +103,10 @@ export class Orchestrator {
   private driftState: DriftPartial[] = [];
   private driftTimer: ReturnType<typeof setInterval> | null = null;
   private currentR = 0;
+  /** Control-rate driver for the identical-ω chimera voice. Non-null only while
+   *  the chimera engine is the active voice; lazily (re)created so each entry
+   *  into the voice gets a fresh seeded chimera. */
+  private chimeraVoice: ChimeraVoice | null = null;
   /** True while fusion is actively reshaping gains, so we can reset to unity
    *  exactly once when fusion is turned back off. */
   private fusionEngaged = false;
@@ -539,6 +544,19 @@ export class Orchestrator {
     this.driftTimer = setInterval(() => {
       if (this.driftState.length === 0) return;
       const engine = this.active?.engine;
+
+      // Identical-ω chimera voice: a *separate* control-rate driver (the seeded
+      // two-population Sakaguchi integrator) replaces the spread-ω Kuramoto step
+      // and maps per-population coherence through the same fusion-gain path. It
+      // early-returns so the spread-ω path below stays bit-identical.
+      if (engine?.id === 'chimera') {
+        this.tickChimera(engine);
+        return;
+      }
+      // Left the chimera voice (swapped to a spread-ω engine): drop its state so
+      // re-entry reseeds a fresh chimera.
+      this.chimeraVoice = null;
+
       const { detunes, phases, r, psi } = driftStep(
         this.driftState,
         {
@@ -592,9 +610,36 @@ export class Orchestrator {
     }, DRIFT_INTERVAL_MS);
   }
 
+  /**
+   * One control-rate step of the chimera voice: advance the seeded two-population
+   * integrator and push the resulting per-partial fusion gains to the bank. The
+   * chimera is identical-ω, so it drives no detune (partials keep their harmonic
+   * pitches); the morph is entirely in the fusion gains.
+   */
+  private tickChimera(engine: NonNullable<Voice['engine']>): void {
+    const count = engine.getPartialCount();
+    if (!this.chimeraVoice) {
+      this.chimeraVoice = new ChimeraVoice({
+        partialCount: count,
+        rng: Math.random,
+        intensity: this.shared.chimeraIntensity,
+      });
+      // Identical-ω: clear any detune carried over from a spread-ω engine swap.
+      for (let i = 0; i < count; i++) engine.setPartialDetune(i, 0);
+    }
+    this.chimeraVoice.setPartialCount(count);
+    if (this.shared.chimeraIntensity !== undefined) {
+      this.chimeraVoice.setIntensity(this.shared.chimeraIntensity);
+    }
+    const { gains, pop1, pop2 } = this.chimeraVoice.tick(DRIFT_DT);
+    this.currentR = Math.max(pop1.R, pop2.R);
+    engine.setPartialFusionGains?.(gains);
+  }
+
   private stopDrift(): void {
     if (this.driftTimer !== null) clearInterval(this.driftTimer);
     this.driftTimer = null;
+    this.chimeraVoice = null;
   }
 
   /**

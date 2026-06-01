@@ -198,6 +198,22 @@ export const PRESET_CATEGORIES: readonly PresetCategory[] = [
           space: 0.65,
         },
       },
+      {
+        id: 'chimera-drift',
+        name: 'Chimera Drift',
+        description:
+          'A self-morphing tone that breathes on its own — a seeded two-population chimera slowly reshapes the timbre. Gentle by default; raise Intensity for a deeper morph.',
+        engineId: 'chimera',
+        params: {
+          rootFreq: 110,
+          spread: 1.0,
+          density: 6,
+          coupling: 0.6,
+          drift: 0.3,
+          brightness: 0.3,
+          space: 0.7,
+        },
+      },
     ],
   },
   {

@@ -23,6 +23,7 @@ export const ENGINE_LESSONS: Record<EngineId, string> = {
   granular: 'synthesis-fundamentals/granular-engine',
   physical: 'synthesis-fundamentals/physical-string',
   pulse: 'synthesis-fundamentals/pulse-engine',
+  chimera: 'music-science-crossover/phase-kuramoto',
 };
 
 /** `data-lesson-hint` value → the concept lesson it points at. */

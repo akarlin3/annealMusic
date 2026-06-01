@@ -19,6 +19,8 @@ const ENGINE_DESCRIPTIONS: Record<EngineId, string> = {
     'Digital waveguides and modal resonators (string, tube, plate, membrane, bowed, mallet, edge, bell) excited continuously. Recreates acoustic instrument physics.',
   pulse:
     'Percussive physical resonators excited by brief noise bursts. Synthesizes tempo-locked acoustic ticks, clicks, and bells.',
+  chimera:
+    'A seeded, supervised two-population chimera drives the partial bank — one population locks while the other stays incoherent, so the timbre morphs on its own. Self-morphing emergent voice; Intensity sets the basin↔morph trade-off.',
 };
 
 /**

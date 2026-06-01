@@ -3,7 +3,13 @@ import type { AnnealMusicParams } from '@/state/params';
 import type { TuningRef } from '@/audio/tuning/types';
 
 /** Identifier for a selectable synthesis engine. */
-export type EngineId = 'sine' | 'fm' | 'granular' | 'physical' | 'pulse';
+export type EngineId =
+  | 'sine'
+  | 'fm'
+  | 'granular'
+  | 'physical'
+  | 'pulse'
+  | 'chimera';
 
 /**
  * Shared physics + post-fx params, owned by the orchestration layer and passed
@@ -31,6 +37,16 @@ export type SharedParams = AnnealMusicParams & {
    * behavior. Has audible effect only when `fusion > 0`.
    */
   cluster?: number;
+  /**
+   * Chimera-voice **intensity**, 0..1 — the basin↔morph trade-off control for
+   * the identical-ω chimera engine. Maps to the two-population coupling
+   * disparity `A = 0.5 − 0.3·intensity`: low intensity → A ≈ 0.5 (wide, stable
+   * basin, gentle breath), high intensity → A ≈ 0.2 (bigger, faster morph that
+   * needs more supervision). Only the `chimera` engine reads it; other engines
+   * ignore it entirely. Default (when unset) is a gentle ≈0.2 (see
+   * `audio/chimera.ts` `intensityToA` and `audio/chimeraVoice.ts`).
+   */
+  chimeraIntensity?: number;
 };
 
 /** Engine-specific params: a flat scalar bag, keyed by the engine's param defs. */

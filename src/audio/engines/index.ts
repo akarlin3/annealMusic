@@ -3,6 +3,7 @@ import { FmEngine } from '@/audio/engines/fm';
 import { GranularEngine } from '@/audio/engines/granular';
 import { PhysicalEngine } from '@/audio/engines/physical';
 import { PulseEngine } from '@/audio/engines/pulse';
+import { ChimeraEngine } from '@/audio/engines/chimera';
 import {
   defaultsFromParamDefs,
   type AnnealEngine,
@@ -25,6 +26,7 @@ export const ENGINES: Partial<Record<EngineId, EngineFactory>> = {
   granular: () => new GranularEngine(),
   physical: () => new PhysicalEngine(),
   pulse: () => new PulseEngine(),
+  chimera: () => new ChimeraEngine(),
 };
 
 /** Selectable engines in display order (drives the selector + share schema). */
@@ -34,6 +36,7 @@ export const ENGINE_ORDER: readonly EngineId[] = [
   'granular',
   'physical',
   'pulse',
+  'chimera',
 ];
 
 /** Human-facing labels for each engine. */
@@ -43,6 +46,7 @@ export const ENGINE_LABELS: Record<EngineId, string> = {
   granular: 'Granular',
   physical: 'Physical',
   pulse: 'Pulse',
+  chimera: 'Chimera',
 };
 
 /**
@@ -56,6 +60,7 @@ export const ENGINE_URL_NS: Record<EngineId, string> = {
   granular: 'gr',
   physical: 'ph',
   pulse: 'pu',
+  chimera: 'ch',
 };
 
 const URL_NS_TO_ENGINE: ReadonlyMap<string, EngineId> = new Map(
