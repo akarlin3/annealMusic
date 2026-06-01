@@ -116,15 +116,25 @@ export default function App() {
     }
   }, [appMode, mode, setSubMode]);
 
-  // Redirect to mode-specific landing route if necessary on first arrival to /
+  // Send meditation/researcher users to their mode-specific landing route, but
+  // only on the first arrival of a browser session. A session-scoped flag means
+  // that once you're in, navigating back to `/` (e.g. via the brand logo) keeps
+  // you on the sandbox instead of immediately bouncing away again.
   useEffect(() => {
-    if (window.location.pathname === '/' && !window.location.hash) {
-      if (appMode === 'meditation') {
-        window.location.href = '/listen';
-      } else if (appMode === 'researcher') {
-        window.location.href = '/research.html';
-      }
+    if (window.location.pathname !== '/' || window.location.hash) return;
+    if (appMode !== 'meditation' && appMode !== 'researcher') return;
+
+    const REDIRECT_FLAG = 'am_landing_redirected';
+    try {
+      if (sessionStorage.getItem(REDIRECT_FLAG)) return;
+      sessionStorage.setItem(REDIRECT_FLAG, '1');
+    } catch {
+      // sessionStorage unavailable (e.g. privacy mode) — fall through and
+      // redirect once; without the flag it may repeat, which is acceptable.
     }
+
+    window.location.href =
+      appMode === 'meditation' ? '/listen' : '/research.html';
   }, [appMode]);
 
   const arcLocked = arcProgress !== null;
