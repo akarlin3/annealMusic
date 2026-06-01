@@ -377,14 +377,63 @@ export class Orchestrator {
    * same post-fx before any engine runs and survive session stop (the input must
    * share the engine's context — nodes can't connect across contexts).
    */
+  private setupAutoplayGestureWrapper(ctx: AudioContext): void {
+    if (typeof window === 'undefined') return;
+
+    const resumeContext = async () => {
+      if (ctx.state === 'suspended') {
+        try {
+          await ctx.resume();
+          console.log(
+            '[Autoplay] AudioContext successfully resumed via user gesture',
+          );
+          cleanup();
+        } catch (err) {
+          console.warn('[Autoplay] Failed to resume AudioContext:', err);
+        }
+      } else if (ctx.state === 'running') {
+        cleanup();
+      }
+    };
+
+    const events = ['click', 'touchend', 'keydown', 'mousedown'];
+    const cleanup = () => {
+      events.forEach((evt) => {
+        window.removeEventListener(evt, resumeContext, { capture: true });
+      });
+    };
+
+    events.forEach((evt) => {
+      window.addEventListener(evt, resumeContext, {
+        capture: true,
+        passive: true,
+      });
+    });
+
+    const stateHandler = () => {
+      if (ctx.state === 'running' || ctx.state === 'closed') {
+        cleanup();
+        ctx.removeEventListener('statechange', stateHandler);
+      }
+    };
+
+    ctx.addEventListener('statechange', stateHandler);
+  }
+
   private ensureCore(): { ctx: AudioContext; nodes: GraphNodes } {
     if (this.ctx && this.nodes) {
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      if (this.ctx.state === 'suspended') {
+        void this.ctx.resume();
+        this.setupAutoplayGestureWrapper(this.ctx);
+      }
       return { ctx: this.ctx, nodes: this.nodes };
     }
 
     const ctx = createAudioContext();
-    if (ctx.state === 'suspended') void ctx.resume();
+    if (ctx.state === 'suspended') {
+      void ctx.resume();
+      this.setupAutoplayGestureWrapper(ctx);
+    }
     const p = this.shared;
 
     // The mix bus is static at unity; amplitude fades live on per-engine buses.

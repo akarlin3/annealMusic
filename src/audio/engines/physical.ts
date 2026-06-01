@@ -12,6 +12,7 @@ import type {
   SharedParams,
 } from '@/audio/engines/types';
 import { resolveLatticeRatio } from '@/audio/tuning/resolver';
+import workletUrl from '../../../public/worklets/physical.js?url';
 
 /** Sub-models, indexed so the value rides the numeric engine-param bag + URL. */
 export const PHYSICAL_MODELS = [
@@ -194,14 +195,6 @@ interface PhysicalPartial {
 
 // ---- default (real-worklet) wiring --------------------------------------
 
-/**
- * The pre-bundled, self-contained worklet script (built by
- * `vite.worklet.config.ts`, served from `public/worklets/`). One `addModule`
- * registers all three processors; it is a classic worklet script (no module
- * imports), so it loads in every browser.
- */
-const WORKLET_URL = `${import.meta.env.BASE_URL}worklets/physical.js`;
-
 const moduleLoaded = new WeakMap<AudioContext, Promise<void>>();
 
 export const isPhysicalSupported: SupportProbe = (ctx) =>
@@ -212,7 +205,7 @@ export const isPhysicalSupported: SupportProbe = (ctx) =>
 export const registerPhysicalModules: ModuleRegistrar = (ctx) => {
   let loaded = moduleLoaded.get(ctx);
   if (!loaded) {
-    loaded = ctx.audioWorklet.addModule(WORKLET_URL);
+    loaded = ctx.audioWorklet.addModule(workletUrl);
     moduleLoaded.set(ctx, loaded);
   }
   return loaded;
