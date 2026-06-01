@@ -89,3 +89,28 @@ where $\alpha$ is the user-facing `fusion` amount and $d$ the reshaping depth. T
 
 To represent phase locking visually, the order parameter $r$ is passed into both the Canvas 2D and WebGL renderers inside `VisualState`.
 As $r \to 1$, the orbital radii of all partials converge towards the median orbit ($0.725 \cdot \text{baseR}$), bundling them together into a single, cohesive, rotating unified ring that mirrors the phase lock.
+
+---
+
+## 6. Structured (Heterogeneous) Coupling & Spectral Redistribution
+
+Sections 1–5 use a **single scalar** coupling $K = \text{coupling}\cdot 4.0$ applied to every oscillator in an all-to-all mean field. Because the natural frequencies are a _symmetric_ spread, all partials lock (or drift) **together**: the per-partial coherence $c_i$ is near-uniform across $i$, so the fusion multiplier $m_i = 1 + d\,\alpha\,(c_i - \tfrac12)$ is a near-constant scalar and rescales the spectrum **uniformly** — the order parameter couples to _loudness_ but the **spectral centroid stays flat** (measured $539 \to 539$ Hz). The flatness is a property of the coupling _topology_, not of the fusion model.
+
+### Heterogeneous coupling
+
+Structured coupling replaces the scalar $K$ with a **per-partial coupling profile** $p_i$, so each oscillator feels its own coupling $K_i = K\cdot p_i$ to the collective field:
+
+$$\frac{d\theta_i}{dt} = \omega_i + \frac{K_i}{N}\sum_{j=1}^{N}\sin(\theta_j - \theta_i), \qquad K_i = \text{coupling}\cdot 4.0\cdot p_i.$$
+
+- **Homogeneous limit ($p_i = 1$):** $K_i = K$ for all $i$, recovering the scalar model **bit-identically** ($p_i = 1$ multiplies $K$ by exactly $1.0$ in IEEE-754). Every prior $r$/$\psi$, the drift/detune behavior, and all existing tests are untouched.
+- **Graded profile ($p_i$ correlated with frequency):** the strongly-coupled band ($p_i \to 1$) locks tightly to the mean field ($c_i \to 1$) while the weakly-coupled band ($p_i \to 0$) keeps drifting at its natural frequency and stays incoherent ($c_i \approx \tfrac12$ on average). Now **$c_i$ correlates with partial frequency**, so the fusion multipliers $m_i$ are _no longer uniform_ — they boost one band relative to the other.
+
+### The clustering control
+
+A single continuous control $\text{bias}\in[-1,1]$ builds the profile as a smooth linear ramp in normalized partial index $x_i = i/(N-1)$ (low index = low frequency):
+
+$$p_i = \begin{cases} 1 - \text{bias}\,(1 - x_i) & \text{bias} \ge 0 \quad\text{(favor high band)}\\[2pt] 1 - |\text{bias}|\,x_i & \text{bias} < 0 \quad\text{(favor low band)} \end{cases}$$
+
+At $\text{bias}=0$ every $p_i = 1$ (homogeneous bypass); $\text{bias}>0$ locks the high band (centroid **rises**); $\text{bias}<0$ locks the low band (centroid **falls**). The ramp is continuous in both $i$ and $\text{bias}$, and $p_i\in[0,1]$ (coupling is attenuated, never amplified), so the centroid shift is a smooth, bypassable instrument control rather than a binary mode.
+
+This is the mechanism that turns the _existing_ per-partial fusion model into genuine **spectral redistribution**: a centroid shift driven by oscillator-sync topology, not just coherent energy reinforcement. The pure core is `clusterCouplingProfile` / `kuramotoStep` in `src/audio/kuramoto.ts`; the measured centroid shift (prediction vs. measurement, both directions) is in [DSP_THEORY.md](DSP_THEORY.md).
