@@ -44,7 +44,7 @@ Where:
 
 - $dt = 0.05$ (20 Hz step size).
 - $\sigma_{\theta} = 0.15$ is the phase-noise scale.
-- $dW_i = (\text{rng()} - 0.5) \cdot \sqrt{dt}$ is the noise step.
+- $dW_i = Z_i \cdot \sqrt{dt}$ is the noise step, where $Z_i \sim N(0, 1)$ is a standard normally distributed random variable generated via a Box-Muller transform.
 - All phases are wrapped into $[0, 2\pi)$ after each step.
 
 ---

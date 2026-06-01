@@ -79,6 +79,17 @@ export function initKuramoto(
 }
 
 /**
+ * Generates a standard normally distributed random number (mean = 0, variance = 1)
+ * using the Box-Muller transform.
+ */
+function randomNormal(rng: () => number): number {
+  let u = 0;
+  while (u === 0) u = rng(); // Avoid log(0)
+  const v = rng();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+/**
  * Advance the Kuramoto phases by one step using Euler–Maruyama integration.
  * Pure: does not mutate the input state.
  */
@@ -97,21 +108,27 @@ export function kuramotoStep(
   const profile = params.couplingProfile;
   const nextPhases: number[] = [];
 
+  // O(n) pre-loop pass to calculate cumulative sines and cosines
+  let sumCos = 0;
+  let sumSin = 0;
+  for (let i = 0; i < n; i++) {
+    sumCos += Math.cos(state.phases[i]!);
+    sumSin += Math.sin(state.phases[i]!);
+  }
+
   for (let i = 0; i < n; i++) {
     const theta_i = state.phases[i]!;
     const omega_i = state.naturalFreqs[i]!;
 
-    let sum = 0;
-    for (let j = 0; j < n; j++) {
-      sum += Math.sin(state.phases[j]! - theta_i);
-    }
+    // O(n) trigonometric expansion for pairwise coupling
+    const sum = Math.cos(theta_i) * sumSin - Math.sin(theta_i) * sumCos;
 
     // Heterogeneous coupling: each oscillator feels K_i = K · p_i toward the
     // mean field. With no profile (or p_i = 1) this is exactly the scalar K,
     // bit-identical to the homogeneous model.
     const K_i = profile === undefined ? K : K * (profile[i] ?? 1);
     const driftTerm = omega_i + (K_i / n) * sum;
-    const noiseTerm = NOISE_SIGMA * (rng() - 0.5) * Math.sqrt(dt);
+    const noiseTerm = NOISE_SIGMA * randomNormal(rng) * Math.sqrt(dt);
 
     let nextTheta = theta_i + driftTerm * dt + noiseTerm;
 
@@ -121,15 +138,15 @@ export function kuramotoStep(
   }
 
   // Compute complex order parameter: r * e^(i * psi) = (1/N) * sum(e^(i * theta))
-  let sumCos = 0;
-  let sumSin = 0;
+  let nextSumCos = 0;
+  let nextSumSin = 0;
   for (let i = 0; i < n; i++) {
-    sumCos += Math.cos(nextPhases[i]!);
-    sumSin += Math.sin(nextPhases[i]!);
+    nextSumCos += Math.cos(nextPhases[i]!);
+    nextSumSin += Math.sin(nextPhases[i]!);
   }
 
-  const meanCos = sumCos / n;
-  const meanSin = sumSin / n;
+  const meanCos = nextSumCos / n;
+  const meanSin = nextSumSin / n;
 
   const r = Math.sqrt(meanCos * meanCos + meanSin * meanSin);
   let psi = Math.atan2(meanSin, meanCos);

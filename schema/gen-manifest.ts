@@ -112,7 +112,7 @@ function buildManifest(): SchemaManifest {
     engines,
     session: {
       modes: [...SESSION_MODES],
-      arcIds: PRESET_ARCS.map((a) => a.id),
+      arcIds: PRESET_ARCS.map((a: { id: string }) => a.id),
       duration: { min: ARC_DURATION.min, max: ARC_DURATION.max },
     },
     loop: {

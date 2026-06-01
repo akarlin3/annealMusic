@@ -166,6 +166,33 @@ export interface ChimeraStep {
   readonly pop2: OrderParam;
 }
 
+interface ChimeraScratch {
+  readonly k1: Float64Array;
+  readonly k2: Float64Array;
+  readonly k3: Float64Array;
+  readonly k4: Float64Array;
+  readonly tmp: Float64Array;
+}
+
+let globalScratch: ChimeraScratch | null = null;
+
+/**
+ * Get or re-allocate the scratch buffers of size `n`.
+ * Reuses the same buffers if `n` matches the previous size to eliminate GC overhead.
+ */
+function getScratchBuffers(n: number): ChimeraScratch {
+  if (!globalScratch || globalScratch.k1.length !== n) {
+    globalScratch = {
+      k1: new Float64Array(n),
+      k2: new Float64Array(n),
+      k3: new Float64Array(n),
+      k4: new Float64Array(n),
+      tmp: new Float64Array(n),
+    };
+  }
+  return globalScratch;
+}
+
 /**
  * Advance the two-population mean-field system by one RK4 step. **Pure** — does
  * not mutate `phases`; returns a fresh array plus both populations' order
@@ -183,11 +210,7 @@ export function chimeraStep(
   const alpha = Math.PI / 2 - beta;
   const n = 2 * Np;
 
-  const k1 = new Float64Array(n);
-  const k2 = new Float64Array(n);
-  const k3 = new Float64Array(n);
-  const k4 = new Float64Array(n);
-  const tmp = new Float64Array(n);
+  const { k1, k2, k3, k4, tmp } = getScratchBuffers(n);
 
   deriv(phases, Np, mu, nu, alpha, k1);
   for (let i = 0; i < n; i++) tmp[i] = phases[i]! + 0.5 * dt * k1[i]!;
