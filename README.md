@@ -201,9 +201,29 @@ default) to mask grain start-up; sine/FM use the default.
 - **Physical** — per-partial digital waveguide / modal DSP in AudioWorklets,
   continuously excited for sustain. Three sub-models (string / tube / plate). See
   [`docs/MODELS.md`](docs/MODELS.md).
+- **Chimera** — a **self-morphing timbre**: an emergent voice whose spectrum
+  breathes and shifts on its own, with no LFO or envelope driving it. It reuses
+  the sine partial bank, but instead of the spread-ω drift loop it runs a seeded
+  **two-population chimera** (identical-frequency Sakaguchi oscillators, the
+  Abrams–Strogatz model) at control rate: one population locks into coherence
+  while the other stays incoherent, and that asymmetry — mapped through the same
+  fusion-gain law — reinforces one band of partials over the other. As the
+  chimera slowly breathes (and occasionally swaps which population leads), the
+  reinforced band moves and the spectral centroid morphs. **Honest framing:**
+  this is a _seeded, supervised emergent_ mode. Chimeras don't form
+  spontaneously here — the voice seeds the canonical state — and even seeded they
+  sometimes collapse to global sync, so a **supervisor** continuously detects
+  collapse and smoothly re-perturbs the state back into the chimera basin,
+  keeping it morphing over a long session. One control, **Intensity**, exposes
+  the basin↔morph trade-off: low is a wide, stable basin with a gentle breath;
+  high is a larger, faster morph that leans harder on the supervisor. Built on
+  the validated phenomenology in
+  [`docs/CHIMERA_CHARACTERIZATION.md`](docs/CHIMERA_CHARACTERIZATION.md); the
+  math lives in pure, tested modules (`src/audio/chimera.ts`,
+  `src/audio/chimeraVoice.ts`).
 
-Sine and FM share the same baseline + slow-LFO amplitude shape, so switching
-between them changes timbre without changing the field's envelope.
+Sine, FM, and Chimera share the same baseline + slow-LFO amplitude shape, so
+switching between them changes timbre without changing the field's envelope.
 
 ### Granular engine
 
