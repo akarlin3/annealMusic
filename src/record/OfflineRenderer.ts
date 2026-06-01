@@ -154,7 +154,7 @@ export async function renderOffline(
     ctx.suspend(t).then(() => {
       const { detunes, phases, psi } = driftStep(
         drift,
-        { drift: live.drift, coupling: live.coupling },
+        { drift: live.drift, coupling: live.coupling, cluster: live.cluster },
         DRIFT_DT,
         Math.random,
       );
