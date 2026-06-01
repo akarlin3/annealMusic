@@ -17,11 +17,19 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  esbuild: {
+    keepNames: true,
+  },
   build: {
     emptyOutDir: false,
     outDir: 'public/worklets',
     target: 'es2020',
     minify: true,
+    terserOptions: {
+      mangle: false,
+      keep_classnames: true,
+      keep_fnames: true,
+    },
     lib: {
       entry: fileURLToPath(
         new URL(
