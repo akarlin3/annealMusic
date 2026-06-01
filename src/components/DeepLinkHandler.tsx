@@ -38,12 +38,8 @@ export default function DeepLinkHandler() {
               return;
             }
 
-            if (path.startsWith('/auth/email/verify')) {
-              // Redirect to trigger session cookie storage in native Cookie jar
-              window.location.href = relativePath;
-            } else {
-              navigate(relativePath);
-            }
+            // Navigate using client-side router to keep within the SPA wrapper on Capacitor/mobile
+            navigate(relativePath);
           } catch (e) {
             console.error('Failed to parse deep link URL:', e);
           }
