@@ -25,12 +25,18 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       // Multi-page: the SPA, the headless preview-render harness (`/render/`,
-      // loaded by the API's Playwright renderer, v0.8 §3), and the standalone
-      // embed player (`/embed`, v1.0 §C) — a tiny, independent bundle.
+      // loaded by the API's Playwright renderer, v0.8 §3), the standalone
+      // embed player (`/embed`, v1.0 §C) — a tiny, independent bundle — and the
+      // Researcher console (`/research.html`). The console is its own entry
+      // (#research-root, no React Router) that the SPA hard-redirects to for
+      // researcher mode; building it here guarantees it lands in dist/ so
+      // Firebase serves the real page instead of falling through the catch-all
+      // rewrite to index.html (which renders blank — no SPA route matches it).
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         render: fileURLToPath(new URL('./render.html', import.meta.url)),
         embed: fileURLToPath(new URL('./embed.html', import.meta.url)),
+        research: fileURLToPath(new URL('./research.html', import.meta.url)),
       },
       output: {
         // Keep the embed entry + CSS at stable, hashless names so the embed

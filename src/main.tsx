@@ -1,6 +1,6 @@
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import App from '@/pages/App';
 import { AuthProvider } from '@/auth/AuthProvider';
 import { ModeProvider } from '@/mode/ModeContext';
@@ -121,6 +121,12 @@ createRoot(rootEl).render(
                   />
                   <Route path="/clinical/:slug" element={<SubjectRunner />} />
                   <Route path="/reproduce" element={<ReproducerPage />} />
+                  {/* Catch-all: never leave an unmatched path on a blank
+                      screen. Static multi-page entries (research.html,
+                      embed.html) are served directly by Firebase and never
+                      reach the SPA router; anything else that slips through
+                      (a stale link, a missing rewrite) lands back home. */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </Suspense>
             </JamProvider>
