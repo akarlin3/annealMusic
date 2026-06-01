@@ -224,7 +224,7 @@ async function videoRender(
 
     let spectrum: Uint8Array<ArrayBuffer> | null = null;
     let fftSize = 1024;
-    let sampleRate = 48000;
+    let sampleRate = orch.getSampleRate();
     const liveAnalyser = orch.getAnalyser();
     if (liveAnalyser) {
       spectrum = new Uint8Array(

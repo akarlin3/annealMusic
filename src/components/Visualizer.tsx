@@ -149,7 +149,7 @@ export default function Visualizer({
       const analyser = engine?.getAnalyser() ?? null;
 
       let spectrum: Uint8Array<ArrayBuffer> | null = null;
-      let sampleRate = 48000;
+      let sampleRate = engine?.getSampleRate() ?? 48000;
       let fftSize = 1024;
       if (analyser) {
         spectrum = new Uint8Array(analyser.frequencyBinCount);

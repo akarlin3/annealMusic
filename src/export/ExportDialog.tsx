@@ -60,7 +60,13 @@ export default function ExportDialog({
     }
     return 5 * 60; // 5 minutes default
   });
-  const [sampleRate, setSampleRate] = useState<44100 | 48000 | 96000>(48000);
+  const [sampleRate, setSampleRate] = useState<44100 | 48000 | 96000>(() => {
+    const sr = orchestrator.getSampleRate();
+    if (sr === 44100 || sr === 48000 || sr === 96000) {
+      return sr;
+    }
+    return 48000;
+  });
   const [bitDepth, setBitDepth] = useState<24 | 32>(24);
   const [includeFx, setIncludeFx] = useState(true);
   const [includePartials, setIncludePartials] = useState(false);

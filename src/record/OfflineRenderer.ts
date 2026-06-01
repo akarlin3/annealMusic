@@ -37,6 +37,10 @@ const FADE_OUT_SEC = 4.0;
 /** Default render length for open (non-arc) patches. */
 export const DEFAULT_OPEN_RENDER_SEC = 5 * 60;
 
+interface WebkitWindow {
+  webkitAudioContext?: typeof AudioContext;
+}
+
 export interface OfflineRenderConfig {
   params: SharedParams;
   engineId: EngineId;
@@ -83,7 +87,22 @@ export async function renderOffline(
   factory: OfflineContextFactory = defaultOfflineFactory,
   engineFactories: Partial<Record<EngineId, EngineFactory>> = ENGINES,
 ): Promise<AudioBuffer> {
-  const sampleRate = config.sampleRate ?? 48000;
+  let defaultSampleRate = 48000;
+  if (typeof window !== 'undefined') {
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as WebkitWindow).webkitAudioContext;
+    if (Ctor) {
+      try {
+        const tempCtx = new Ctor();
+        defaultSampleRate = tempCtx.sampleRate;
+        void tempCtx.close();
+      } catch {
+        // ignore
+      }
+    }
+  }
+  const sampleRate = config.sampleRate ?? defaultSampleRate;
   const durationSec =
     config.mode === 'arc' ? config.durationSec : config.durationSec;
   const frames = Math.ceil(durationSec * sampleRate);

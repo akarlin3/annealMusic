@@ -227,6 +227,10 @@ export class Orchestrator {
     return this.nodes?.analyser ?? null;
   }
 
+  getSampleRate(): number {
+    return this.ctx?.sampleRate ?? 48000;
+  }
+
   /**
    * A tap on the post-fx master output (post-volume), for realtime recording.
    * This is exactly "what the user hears" — engine(s), live input, and loops all
