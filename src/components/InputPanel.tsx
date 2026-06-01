@@ -185,11 +185,21 @@ export default function InputPanel({ input }: InputPanelProps) {
               type="range"
               className="am-range"
               min={0}
-              max={2}
-              step={0.01}
-              value={level}
+              max={1}
+              step={0.001}
+              value={
+                level <= 0
+                  ? 0
+                  : Math.min(
+                      1,
+                      Math.max(0, Math.log(level / 0.01) / Math.log(2 / 0.01)),
+                    )
+              }
               aria-label="Input Level"
-              onChange={(e) => setLevel(parseFloat(e.target.value))}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setLevel(val === 0 ? 0 : 0.01 * Math.pow(2 / 0.01, val));
+              }}
             />
           </div>
 

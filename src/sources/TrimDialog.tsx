@@ -80,37 +80,42 @@ export default function TrimDialog({
     setIsPlaying(false);
   }, []);
 
-  const startPlayback = useCallback(() => {
-    stopPlayback();
-    if (!audioCtxRef.current) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      audioCtxRef.current = new (
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext
-      )();
-    }
-    const ctx = audioCtxRef.current;
-    if (ctx.state === 'suspended') {
-      void ctx.resume();
-    }
+  const startPlayback = useCallback(
+    async (e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      stopPlayback();
+      if (!audioCtxRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        audioCtxRef.current = new (
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext
+        )();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx && ctx.state === 'suspended') {
+        await ctx.resume();
+      }
 
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    source.loopStart = startSec;
-    source.loopEnd = endSec;
-    source.connect(ctx.destination);
-    source.start(0, startSec);
-    sourceNodeRef.current = source;
-    setIsPlaying(true);
-  }, [buffer, startSec, endSec, stopPlayback]);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.loopStart = startSec;
+      source.loopEnd = endSec;
+      source.connect(ctx.destination);
+      source.start(0, startSec);
+      sourceNodeRef.current = source;
+      setIsPlaying(true);
+    },
+    [buffer, startSec, endSec, stopPlayback],
+  );
 
-  const togglePlayback = () => {
+  const togglePlayback = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (isPlaying) {
       stopPlayback();
     } else {
-      startPlayback();
+      void startPlayback();
     }
   };
 

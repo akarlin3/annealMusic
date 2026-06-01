@@ -107,9 +107,9 @@ describe('InputPanel — connected controls', () => {
     const input = connected();
     render(<InputPanel input={input} />);
     fireEvent.change(screen.getByLabelText('Input Level'), {
-      target: { value: '1.5' },
+      target: { value: '1.0' },
     });
-    expect(input.setLevel).toHaveBeenCalledWith(1.5);
+    expect(input.setLevel).toHaveBeenCalledWith(2.0);
   });
 
   it('surfaces the latency estimate readout', () => {

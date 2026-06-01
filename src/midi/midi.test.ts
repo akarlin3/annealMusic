@@ -1,10 +1,13 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { interpolateMidiValue } from './inputController';
 import { valueToMidiCC, OUTPUT_CC_MAP } from './outputController';
 import { getAutoMappingForController } from './knownControllers';
 import { midiStorage, type GlobalMidiConfig } from './storage';
 import { useParamStore } from '@/state/params';
 import { midiInput } from './inputController';
+import { midiApi } from './api';
+import { BridgeServer } from '@/research/bridge/BridgeServer';
+import type { Orchestrator } from '@/audio/orchestrator';
 import type { MappingSet } from './types';
 
 describe('MIDI Curve Interpolation', () => {
@@ -270,5 +273,78 @@ describe('MIDI Note Tracking & Velocity Modulation Integration', () => {
       'device_1',
     );
     expect(useParamStore.getState().params.brightness).toBeCloseTo(0.5, 1);
+  });
+});
+
+describe('MIDI Pitch Bend Integration', () => {
+  beforeEach(() => {
+    useParamStore.getState().reset();
+    localStorage.clear();
+    midiInput.stop();
+  });
+
+  it('correctly parses 14-bit pitch bend messages', () => {
+    const events: any[] = [];
+    const unsubscribe = midiApi.subscribeInput((event) => {
+      events.push(event);
+    });
+
+    // Standard MIDI Pitch Bend on channel 1 (0xE0)
+    // 1. Minimum bend (0, 0)
+    midiApi['handleMidiMessage'](
+      { data: new Uint8Array([0xe0, 0x00, 0x00]) } as any,
+      'device_1',
+    );
+    // 2. Center bend (0x00, 0x40) => 8192
+    midiApi['handleMidiMessage'](
+      { data: new Uint8Array([0xe0, 0x00, 0x40]) } as any,
+      'device_1',
+    );
+    // 3. Maximum bend (0x7F, 0x7F) => 16383
+    midiApi['handleMidiMessage'](
+      { data: new Uint8Array([0xe0, 0x7f, 0x7f]) } as any,
+      'device_1',
+    );
+
+    expect(events).toHaveLength(3);
+
+    expect(events[0]).toEqual({
+      type: 'pitchbend',
+      channel: 1,
+      number: 0,
+      value: -1,
+    });
+
+    expect(events[1]).toEqual({
+      type: 'pitchbend',
+      channel: 1,
+      number: 0,
+      value: 0,
+    });
+
+    expect(events[2].type).toBe('pitchbend');
+    expect(events[2].value).toBeCloseTo(1.0, 3);
+
+    unsubscribe();
+  });
+
+  it('forwards parsed pitch bend events to the active orchestrator', () => {
+    const mockSetSharedParams = vi.fn();
+    const mockOrch = {
+      setSharedParams: mockSetSharedParams,
+    } as unknown as Orchestrator;
+
+    BridgeServer.registerOrchestrator(() => mockOrch);
+
+    midiInput.start();
+
+    midiInput['handleMidiEvent'](
+      { type: 'pitchbend', channel: 1, number: 0, value: 0.5 },
+      'device_1',
+    );
+
+    expect(mockSetSharedParams).toHaveBeenCalledWith({ pitchBend: 0.5 });
+
+    BridgeServer.registerOrchestrator(null as any);
   });
 });

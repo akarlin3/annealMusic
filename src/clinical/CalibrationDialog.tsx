@@ -24,7 +24,8 @@ export function CalibrationDialog({
   const oscRef = useRef<OscillatorNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
 
-  const startTone = () => {
+  const startTone = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
       if (!audioCtxRef.current) {
         const WebkitAudioContext = (
@@ -33,8 +34,8 @@ export function CalibrationDialog({
         audioCtxRef.current = new (window.AudioContext || WebkitAudioContext)();
       }
       const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
+      if (ctx && ctx.state === 'suspended') {
+        await ctx.resume();
       }
 
       // 1kHz Sine Tone reference

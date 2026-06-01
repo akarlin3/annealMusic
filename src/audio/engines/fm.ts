@@ -126,8 +126,9 @@ export class FmEngine implements AnnealEngine {
         customScale,
         customEq,
       );
-      const carrierFreq =
-        shared.rootFreq * Math.pow(latticeRatio, shared.spread);
+      const pitchBend = shared.pitchBend ?? 0;
+      const baseFreq = shared.rootFreq * Math.pow(latticeRatio, shared.spread);
+      const carrierFreq = baseFreq * Math.pow(2, (pitchBend * 2) / 12);
       const modFreq = carrierFreq * modRatio;
 
       const carrier = ctx.createOscillator();
@@ -252,7 +253,8 @@ export class FmEngine implements AnnealEngine {
       partial.spread !== undefined ||
       partial.tuning !== undefined ||
       partial.customScaleRatios !== undefined ||
-      partial.customEqRatio !== undefined
+      partial.customEqRatio !== undefined ||
+      partial.pitchBend !== undefined
     ) {
       const {
         rootFreq,
@@ -260,6 +262,7 @@ export class FmEngine implements AnnealEngine {
         tuning: activeTuning,
         customScaleRatios,
         customEqRatio,
+        pitchBend = 0,
       } = this.shared;
       const tuning = activeTuning ?? { system: 'equal' };
       const t = ctx.currentTime;
@@ -271,7 +274,8 @@ export class FmEngine implements AnnealEngine {
           customScaleRatios,
           customEqRatio,
         );
-        const targetFreq = rootFreq * Math.pow(latticeRatio, spread);
+        const baseFreq = rootFreq * Math.pow(latticeRatio, spread);
+        const targetFreq = baseFreq * Math.pow(2, (pitchBend * 2) / 12);
         if (instant) {
           v.carrier.frequency.cancelScheduledValues(targetTime ?? t);
           v.carrier.frequency.setValueAtTime(targetFreq, targetTime ?? t);

@@ -275,6 +275,7 @@ export class PhysicalEngine implements AnnealEngine {
   private model: PhysicalModel = 'string';
   private buildToken = 0;
   private stopped = false;
+  private dcFilter: BiquadFilterNode | null = null;
   private onError: ((error: Error) => void) | null = null;
 
   setErrorHandler(fn: (error: Error) => void): void {
@@ -302,6 +303,12 @@ export class PhysicalEngine implements AnnealEngine {
     out.gain.setValueAtTime(1, ctx.currentTime);
     this.out = out;
 
+    const dcFilter = ctx.createBiquadFilter();
+    dcFilter.type = 'highpass';
+    dcFilter.frequency.setValueAtTime(10, ctx.currentTime);
+    dcFilter.connect(out);
+    this.dcFilter = dcFilter;
+
     const tuning = shared.tuning ?? { system: 'equal' };
     const customScale = shared.customScaleRatios;
     const customEq = shared.customEqRatio;
@@ -314,10 +321,12 @@ export class PhysicalEngine implements AnnealEngine {
         customScale,
         customEq,
       );
+      const pitchBend = shared.pitchBend ?? 0;
+      const baseFreq = shared.rootFreq * Math.pow(latticeRatio, shared.spread);
       return {
         ratio,
         index: i,
-        freq: shared.rootFreq * Math.pow(latticeRatio, shared.spread),
+        freq: baseFreq * Math.pow(2, (pitchBend * 2) / 12),
         detune: 0,
         gain: partialShape(i).baselineOffset,
         node: null,
@@ -331,7 +340,8 @@ export class PhysicalEngine implements AnnealEngine {
   private build(): void {
     const ctx = this.ctx;
     const out = this.out;
-    if (!ctx || !out) return;
+    const dcFilter = this.dcFilter;
+    if (!ctx || !out || !dcFilter) return;
     const token = ++this.buildToken;
     const processor = PROCESSOR_BY_MODEL[this.model];
 
@@ -340,7 +350,7 @@ export class PhysicalEngine implements AnnealEngine {
         if (this.stopped || token !== this.buildToken || !this.ctx) return;
         for (const p of this.partials) {
           const voice = this.factory(ctx, processor);
-          voice.node.connect(out);
+          voice.node.connect(dcFilter);
           voice.setParam('f0', p.freq);
           voice.setParam(
             'excitation',
@@ -391,6 +401,7 @@ export class PhysicalEngine implements AnnealEngine {
     this.partials = [];
     this.ctx = null;
     this.out = null;
+    this.dcFilter = null;
     this.shared = null;
     return Promise.resolve();
   }
@@ -411,7 +422,10 @@ export class PhysicalEngine implements AnnealEngine {
     if (
       partial.rootFreq === undefined &&
       partial.spread === undefined &&
-      partial.tuning === undefined
+      partial.tuning === undefined &&
+      partial.customScaleRatios === undefined &&
+      partial.customEqRatio === undefined &&
+      partial.pitchBend === undefined
     )
       return;
     const {
@@ -420,6 +434,7 @@ export class PhysicalEngine implements AnnealEngine {
       tuning: activeTuning,
       customScaleRatios,
       customEqRatio,
+      pitchBend = 0,
     } = this.shared;
     const tuning = activeTuning ?? { system: 'equal' };
     for (const p of this.partials) {
@@ -430,7 +445,8 @@ export class PhysicalEngine implements AnnealEngine {
         customScaleRatios,
         customEqRatio,
       );
-      p.freq = rootFreq * Math.pow(latticeRatio, spread);
+      const baseFreq = rootFreq * Math.pow(latticeRatio, spread);
+      p.freq = baseFreq * Math.pow(2, (pitchBend * 2) / 12);
       p.node?.setParam('f0', p.freq, targetTime, instant);
     }
   }

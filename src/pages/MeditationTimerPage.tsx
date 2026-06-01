@@ -161,7 +161,8 @@ export default function MeditationTimerPage() {
     };
   }, [isPlaying, tupleKey, breathPrefs.reduceMotion, breathPrefs.haptics]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleStart = () => {
+  const handleStart = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     // 1. Initialize Web Audio Context and Scheduler
     if (!audioCtxRef.current) {
       const AudioCtx =
@@ -172,8 +173,8 @@ export default function MeditationTimerPage() {
     }
 
     const ctx = audioCtxRef.current!;
-    if (ctx.state === 'suspended') {
-      void ctx.resume();
+    if (ctx && ctx.state === 'suspended') {
+      await ctx.resume();
     }
 
     if (!schedulerRef.current) {

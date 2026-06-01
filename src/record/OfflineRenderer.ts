@@ -112,8 +112,8 @@ export async function renderOffline(
   const master = ctx.createGain();
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
-  filter.frequency.value = cutoffFor(config.params.brightness);
-  filter.Q.value = 0.6;
+  filter.frequency.setValueAtTime(cutoffFor(config.params.brightness), 0);
+  filter.Q.setValueAtTime(0.6, 0);
   const convolver = ctx.createConvolver();
   await setupConvolverBuffer(
     ctx as unknown as BaseAudioContext,
@@ -121,11 +121,11 @@ export async function renderOffline(
     makeIR(ctx as unknown as AudioContext, 4.0, 2.4),
   );
   const wet = ctx.createGain();
-  wet.gain.value = config.params.space;
+  wet.gain.setValueAtTime(config.params.space, 0);
   const dry = ctx.createGain();
-  dry.gain.value = 1 - config.params.space * 0.4;
+  dry.gain.setValueAtTime(1 - config.params.space * 0.4, 0);
   const masterVol = ctx.createGain();
-  masterVol.gain.value = config.params.volume;
+  masterVol.gain.setValueAtTime(config.params.volume, 0);
 
   filter.connect(dry).connect(master);
   filter.connect(convolver).connect(wet).connect(master);

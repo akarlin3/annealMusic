@@ -426,7 +426,7 @@ export class Orchestrator {
 
   private ensureCore(): { ctx: AudioContext; nodes: GraphNodes } {
     if (this.ctx && this.nodes) {
-      if (this.ctx.state === 'suspended') {
+      if (this.ctx && this.ctx.state === 'suspended') {
         void this.ctx.resume();
         this.setupAutoplayGestureWrapper(this.ctx);
       }
@@ -434,7 +434,7 @@ export class Orchestrator {
     }
 
     const ctx = createAudioContext();
-    if (ctx.state === 'suspended') {
+    if (ctx && ctx.state === 'suspended') {
       void ctx.resume();
       this.setupAutoplayGestureWrapper(ctx);
     }
@@ -442,12 +442,12 @@ export class Orchestrator {
 
     // The mix bus is static at unity; amplitude fades live on per-engine buses.
     const master = ctx.createGain();
-    master.gain.value = 1;
+    master.gain.setValueAtTime(1, ctx.currentTime);
 
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = cutoffFor(p.brightness);
-    filter.Q.value = 0.6;
+    filter.frequency.setValueAtTime(cutoffFor(p.brightness), ctx.currentTime);
+    filter.Q.setValueAtTime(0.6, ctx.currentTime);
 
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
@@ -456,12 +456,12 @@ export class Orchestrator {
     const convolver = ctx.createConvolver();
     void setupConvolverBuffer(ctx, convolver, makeIR(ctx, 4.0, 2.4));
     const wetGain = ctx.createGain();
-    wetGain.gain.value = p.space;
+    wetGain.gain.setValueAtTime(p.space, ctx.currentTime);
     const dryGain = ctx.createGain();
-    dryGain.gain.value = 1 - p.space * 0.4;
+    dryGain.gain.setValueAtTime(1 - p.space * 0.4, ctx.currentTime);
 
     const masterVol = ctx.createGain();
-    masterVol.gain.value = p.volume;
+    masterVol.gain.setTargetAtTime(p.volume, ctx.currentTime, 0.015);
 
     filter.connect(dryGain).connect(master);
     filter.connect(convolver).connect(wetGain).connect(master);
@@ -493,7 +493,7 @@ export class Orchestrator {
       );
     }
     const loopBus = ctx.createGain();
-    loopBus.gain.value = 1;
+    loopBus.gain.setValueAtTime(1, ctx.currentTime);
     loopBus.connect(nodes.filter);
     this.loopSlots = {
       A: new LoopSlot('A', ctx, loopBus, this.loopConfig.A),
@@ -562,7 +562,7 @@ export class Orchestrator {
       return false;
     }
     const bus = ctx.createGain();
-    bus.gain.value = 0;
+    bus.gain.setValueAtTime(0, ctx.currentTime);
     engine.getOutputNode().connect(bus);
     bus.connect(nodes.filter);
     bus.gain.setValueAtTime(0, ctx.currentTime);
@@ -903,7 +903,7 @@ export class Orchestrator {
       return;
     }
     const bus = ctx.createGain();
-    bus.gain.value = 0;
+    bus.gain.setValueAtTime(0, ctx.currentTime);
     engine.getOutputNode().connect(bus);
     bus.connect(nodes.filter);
 

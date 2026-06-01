@@ -26,14 +26,14 @@ export function playBell(
   // Filter 1: Bandpass at fundamental frequency
   const bp = ctx.createBiquadFilter();
   bp.type = 'bandpass';
-  bp.frequency.value = frequency;
-  bp.Q.value = 100;
+  bp.frequency.setValueAtTime(frequency, startTime);
+  bp.Q.setValueAtTime(100, startTime);
 
   // Filter 2: Bandpass at overtone (1.5x fundamental) for metallic bell-like character
   const bp2 = ctx.createBiquadFilter();
   bp2.type = 'bandpass';
-  bp2.frequency.value = frequency * 1.5;
-  bp2.Q.value = 80;
+  bp2.frequency.setValueAtTime(frequency * 1.5, startTime);
+  bp2.Q.setValueAtTime(80, startTime);
 
   // Envelope for fundamental
   const gain = ctx.createGain();

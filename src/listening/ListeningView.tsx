@@ -169,7 +169,8 @@ export default function ListeningView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, ensureOrchestrator, logEnd]);
 
-  const handleStart = () => {
+  const handleStart = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const player = playerRef.current;
     if (!player) return;
 
@@ -194,12 +195,14 @@ export default function ListeningView({
     );
   };
 
-  const handlePause = () => {
+  const handlePause = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     playerRef.current?.pause();
     setIsPlaying(false);
   };
 
-  const handleResume = () => {
+  const handleResume = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     sessionStartedAtRef.current = new Date();
     playerRef.current?.resume();
     setIsPlaying(true);
@@ -598,7 +601,7 @@ export default function ListeningView({
         <div className="flex items-center gap-4">
           {isPlaying ? (
             <button
-              onClick={handlePause}
+              onClick={(e) => handlePause(e)}
               className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-300 hover:border-amber-500/50 hover:text-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all shadow-lg"
               title="Pause Session"
               aria-label="Pause Session"
@@ -607,11 +610,13 @@ export default function ListeningView({
             </button>
           ) : (
             <button
-              onClick={
-                currentState === 'idle' || currentState === 'ended'
-                  ? handleStart
-                  : handleResume
-              }
+              onClick={(e) => {
+                if (currentState === 'idle' || currentState === 'ended') {
+                  handleStart(e);
+                } else {
+                  handleResume(e);
+                }
+              }}
               className="flex items-center justify-center h-12 w-12 rounded-full bg-amber-500 text-stone-950 hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all shadow-lg shadow-amber-500/10"
               title="Play Session"
               aria-label="Play Session"

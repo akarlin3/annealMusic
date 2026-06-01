@@ -25,10 +25,10 @@ function getPreviewContext(): AudioContext {
         .webkitAudioContext;
     tempAudioCtx = new Ctx();
   }
-  if (tempAudioCtx!.state === 'suspended') {
-    void tempAudioCtx!.resume();
+  if (tempAudioCtx && tempAudioCtx.state === 'suspended') {
+    void tempAudioCtx.resume();
   }
-  return tempAudioCtx!;
+  return tempAudioCtx;
 }
 
 export default function BellScheduleEditor({
@@ -38,7 +38,12 @@ export default function BellScheduleEditor({
 }: BellScheduleEditorProps) {
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
 
-  const handlePreview = async (bellId: string, volume = 0.7) => {
+  const handlePreview = async (
+    bellId: string,
+    volume = 0.7,
+    e?: React.MouseEvent,
+  ) => {
+    if (e) e.stopPropagation();
     try {
       setActivePreviewId(bellId);
       const ctx = getPreviewContext();
@@ -149,7 +154,9 @@ export default function BellScheduleEditor({
 
                     <button
                       type="button"
-                      onClick={() => handlePreview(event.bellId, event.volume)}
+                      onClick={(e) =>
+                        handlePreview(event.bellId, event.volume, e)
+                      }
                       disabled={activePreviewId !== null}
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded border border-stone-800 bg-stone-900 hover:border-amber-500/40 text-stone-400 hover:text-amber-300 transition-colors ${
                         activePreviewId === event.bellId

@@ -22,6 +22,9 @@ class PulseProcessor extends AudioWorkletProcessor {
   // Per-partial fusion gain multipliers, pushed from the main thread (computed
   // by the pure fusion core in audio/fusion.ts). Unity = behavior-preserving.
   private fusionGains = new Float32Array(8).fill(1);
+  private latticeRatios = new Float32Array([
+    1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5,
+  ]);
 
   // Noise state
   private noiseEnvelope = 0;
@@ -50,14 +53,24 @@ class PulseProcessor extends AudioWorkletProcessor {
       this.partialGains[i] = 1.0 / (i + 1);
     }
 
-    // Apply fusion multipliers pushed from the main thread. The worklet is a
+    // Apply fusion multipliers and lattice ratios pushed from the main thread. The worklet is a
     // thin applier — it never derives the fusion math itself.
     this.port.onmessage = (event: MessageEvent) => {
-      const data = event.data as { type?: string; gains?: number[] };
+      const data = event.data as {
+        type?: string;
+        gains?: number[];
+        ratios?: number[];
+      };
       if (data?.type === 'fusionGains' && Array.isArray(data.gains)) {
         for (let i = 0; i < 8; i++) {
           const m = data.gains[i];
           this.fusionGains[i] = typeof m === 'number' && m >= 0 ? m : 1;
+        }
+      } else if (data?.type === 'latticeRatios' && Array.isArray(data.ratios)) {
+        for (let i = 0; i < 8; i++) {
+          const r = data.ratios[i];
+          this.latticeRatios[i] =
+            typeof r === 'number' && r > 0 ? r : (HARMONICS[i] ?? 1.0);
         }
       }
     };
@@ -146,7 +159,7 @@ class PulseProcessor extends AudioWorkletProcessor {
     const freqs = new Float32Array(8);
     const decayFactors = new Float32Array(8);
     for (let i = 0; i < 8; i++) {
-      const ratio = HARMONICS[i] ?? 1.0;
+      const ratio = this.latticeRatios[i] ?? HARMONICS[i] ?? 1.0;
       // Frequency over the harmonic lattice
       const baseFreq = f0 * Math.pow(ratio, spread);
       // Detune cents translation

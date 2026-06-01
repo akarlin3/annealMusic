@@ -159,7 +159,9 @@ function Slider({
   const isRoot = explainId === 'rootFreq';
   const sliderMin = isRoot ? 55 : def.min;
   const sliderMax = isRoot ? 220 : def.max;
-  const sliderVal = isRoot ? Math.min(220, Math.max(55, value)) : value;
+  const sliderVal = isRoot
+    ? Math.log(Math.min(220, Math.max(55, value)) / 55) / Math.log(220 / 55)
+    : value;
 
   const [highlighted, setHighlighted] = useState(false);
 
@@ -221,12 +223,19 @@ function Slider({
       <input
         type="range"
         className="am-range"
-        min={sliderMin}
-        max={sliderMax}
-        step={def.step}
+        min={isRoot ? 0 : sliderMin}
+        max={isRoot ? 1 : sliderMax}
+        step={isRoot ? 0.0001 : def.step}
         value={sliderVal}
         disabled={disabled}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onChange={(e) => {
+          const val = parseFloat(e.target.value);
+          if (isRoot) {
+            onChange(55 * Math.pow(220 / 55, val));
+          } else {
+            onChange(val);
+          }
+        }}
       />
       {explainId && showCaption && <ControlCaption id={explainId} />}
       {isRoot && (
@@ -664,11 +673,27 @@ export default function ControlPanel({
         <input
           type="range"
           className="am-range"
-          min={VOLUME_DEF.min}
-          max={VOLUME_DEF.max}
-          step={VOLUME_DEF.step}
-          value={params.volume}
-          onChange={(e) => setParam('volume', parseFloat(e.target.value))}
+          min={0}
+          max={1}
+          step={0.001}
+          value={
+            params.volume <= 0
+              ? 0
+              : Math.min(
+                  1,
+                  Math.max(
+                    0,
+                    Math.log(params.volume / 0.005) / Math.log(0.8 / 0.005),
+                  ),
+                )
+          }
+          onChange={(e) => {
+            const val = parseFloat(e.target.value);
+            setParam(
+              'volume',
+              val === 0 ? 0 : 0.005 * Math.pow(0.8 / 0.005, val),
+            );
+          }}
         />
         {showCaptions && <ControlCaption id="volume" />}
       </div>
@@ -754,12 +779,18 @@ export default function ControlPanel({
               <input
                 type="range"
                 className="am-range"
-                min="400"
-                max="480"
-                step="0.1"
-                value={tuning.referenceA4Hz ?? 440}
+                min={0}
+                max={1}
+                step={0.001}
+                value={
+                  Math.log((tuning.referenceA4Hz ?? 440) / 400) /
+                  Math.log(480 / 400)
+                }
                 disabled={tuning.system === 'solfeggio' || arcLocked}
-                onChange={(e) => handleRefA4Change(parseFloat(e.target.value))}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  handleRefA4Change(400 * Math.pow(480 / 400, val));
+                }}
               />
             </div>
           </div>

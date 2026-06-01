@@ -523,12 +523,12 @@ export async function renderStemsOffline(
     if (stem.isFx) {
       // Build full post-fx chain mirroring live core
       const master = ctx.createGain();
-      master.gain.value = 1;
+      master.gain.setValueAtTime(1, 0);
 
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.value = cutoffFor(config.params.brightness);
-      filter.Q.value = 0.6;
+      filter.frequency.setValueAtTime(cutoffFor(config.params.brightness), 0);
+      filter.Q.setValueAtTime(0.6, 0);
 
       const convolver = ctx.createConvolver();
       await setupConvolverBuffer(
@@ -538,10 +538,10 @@ export async function renderStemsOffline(
       );
 
       const wet = ctx.createGain();
-      wet.gain.value = config.params.space;
+      wet.gain.setValueAtTime(config.params.space, 0);
 
       const dry = ctx.createGain();
-      dry.gain.value = 1 - config.params.space * 0.4;
+      dry.gain.setValueAtTime(1 - config.params.space * 0.4, 0);
 
       const masterVol = ctx.createGain();
 
@@ -570,7 +570,7 @@ export async function renderStemsOffline(
         masterVol.gain.setValueAtTime(config.params.volume, fadeOutStart);
         masterVol.gain.linearRampToValueAtTime(0, config.durationSec);
       } else {
-        masterVol.gain.value = config.params.volume;
+        masterVol.gain.setValueAtTime(config.params.volume, 0);
         // End fade-out on masterVol so tail doesn't clip
         masterVol.gain.setValueAtTime(
           config.params.volume,
@@ -627,7 +627,7 @@ export async function renderStemsOffline(
 
           if (buffer && slotState !== 'empty' && slotConf) {
             const loopBus = ctx.createGain();
-            loopBus.gain.value = slotConf.muted ? 0 : 1;
+            loopBus.gain.setValueAtTime(slotConf.muted ? 0 : 1, 0);
             loopBus.connect(filter);
 
             let player: any;
@@ -673,7 +673,7 @@ export async function renderStemsOffline(
         const slotConf = config.loopConfig[stem.slotId!];
         if (buffer && slotConf) {
           const loopBus = ctx.createGain();
-          loopBus.gain.value = slotConf.muted ? 0 : 1;
+          loopBus.gain.setValueAtTime(slotConf.muted ? 0 : 1, 0);
           loopBus.connect(ctx.destination);
 
           let player: any;

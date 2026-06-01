@@ -21,8 +21,8 @@ describe('playBell Punctuation', () => {
 
     const mockFilter = {
       type: 'bandpass',
-      frequency: { value: 0 },
-      Q: { value: 0 },
+      frequency: { value: 0, setValueAtTime: vi.fn() },
+      Q: { value: 0, setValueAtTime: vi.fn() },
       connect: vi.fn().mockReturnThis(),
     };
 
@@ -108,8 +108,8 @@ describe('ListeningSessionPlayer', () => {
 
     const mockFilter = {
       type: 'bandpass',
-      frequency: { value: 0 },
-      Q: { value: 0 },
+      frequency: { value: 0, setValueAtTime: vi.fn() },
+      Q: { value: 0, setValueAtTime: vi.fn() },
       connect: vi.fn().mockReturnThis(),
     };
 

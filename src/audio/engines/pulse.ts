@@ -170,6 +170,7 @@ export class PulseEngine implements AnnealEngine {
   private params: PulseNumericParams = { ...DEFAULTS };
   private buildToken = 0;
   private stopped = false;
+  private dcFilter: BiquadFilterNode | null = null;
   private onError: ((error: Error) => void) | null = null;
   private tempoBpm: number | null = null;
 
@@ -210,13 +211,20 @@ export class PulseEngine implements AnnealEngine {
     out.gain.setValueAtTime(1.0, ctx.currentTime);
     this.out = out;
 
+    const dcFilter = ctx.createBiquadFilter();
+    dcFilter.type = 'highpass';
+    dcFilter.frequency.setValueAtTime(10, ctx.currentTime);
+    dcFilter.connect(out);
+    this.dcFilter = dcFilter;
+
     this.build();
   }
 
   private build(): void {
     const ctx = this.ctx;
     const out = this.out;
-    if (!ctx || !out) return;
+    const dcFilter = this.dcFilter;
+    if (!ctx || !out || !dcFilter) return;
 
     const token = ++this.buildToken;
     const processor = 'pulse-processor';
@@ -226,12 +234,15 @@ export class PulseEngine implements AnnealEngine {
         if (this.stopped || token !== this.buildToken || !this.ctx) return;
 
         const voice = this.factory(ctx, processor);
-        voice.node.connect(out);
+        voice.node.connect(dcFilter);
 
         const pVoice = voice as unknown as PulseVoiceNode;
 
         // Apply parameters to the worklet node
-        pVoice.setParam('f0', this.shared?.rootFreq ?? 110);
+        const pitchBend = this.shared?.pitchBend ?? 0;
+        const bentFreq =
+          (this.shared?.rootFreq ?? 110) * Math.pow(2, (pitchBend * 2) / 12);
+        pVoice.setParam('f0', bentFreq);
         pVoice.setParam('spread', this.shared?.spread ?? 1.0);
         pVoice.setParam('densityVal', this.shared?.density ?? 6);
         pVoice.setParam('detune', 0);
@@ -277,6 +288,7 @@ export class PulseEngine implements AnnealEngine {
     this.voice = null;
     this.ctx = null;
     this.out = null;
+    this.dcFilter = null;
     this.shared = null;
     return Promise.resolve();
   }
@@ -297,8 +309,10 @@ export class PulseEngine implements AnnealEngine {
     this.shared = { ...this.shared, ...partial };
     if (!this.pulseVoice) return;
 
-    if (partial.rootFreq !== undefined) {
-      this.pulseVoice.setParam('f0', partial.rootFreq, targetTime, instant);
+    if (partial.rootFreq !== undefined || partial.pitchBend !== undefined) {
+      const pitchBend = this.shared.pitchBend ?? 0;
+      const bentFreq = this.shared.rootFreq * Math.pow(2, (pitchBend * 2) / 12);
+      this.pulseVoice.setParam('f0', bentFreq, targetTime, instant);
     }
     if (partial.spread !== undefined) {
       this.pulseVoice.setParam('spread', partial.spread, targetTime, instant);

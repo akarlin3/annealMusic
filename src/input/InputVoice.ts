@@ -113,37 +113,40 @@ export class InputVoice {
 
     this.highpass = ctx.createBiquadFilter();
     this.highpass.type = 'highpass';
-    this.highpass.frequency.value = HIGHPASS_HZ;
-    this.highpass.Q.value = HIGHPASS_Q;
+    this.highpass.frequency.setValueAtTime(HIGHPASS_HZ, ctx.currentTime);
+    this.highpass.Q.setValueAtTime(HIGHPASS_Q, ctx.currentTime);
 
     this.compressor = ctx.createDynamicsCompressor();
-    this.compressor.threshold.value = COMP_THRESHOLD;
-    this.compressor.ratio.value = COMP_RATIO;
-    this.compressor.knee.value = COMP_KNEE;
-    this.compressor.attack.value = COMP_ATTACK;
-    this.compressor.release.value = COMP_RELEASE;
+    this.compressor.threshold.setValueAtTime(COMP_THRESHOLD, ctx.currentTime);
+    this.compressor.ratio.setValueAtTime(COMP_RATIO, ctx.currentTime);
+    this.compressor.knee.setValueAtTime(COMP_KNEE, ctx.currentTime);
+    this.compressor.attack.setValueAtTime(COMP_ATTACK, ctx.currentTime);
+    this.compressor.release.setValueAtTime(COMP_RELEASE, ctx.currentTime);
 
     // Soft-clip shaper, bypassed by default (curve null ⇒ pass-through).
     this.shaper = ctx.createWaveShaper();
 
     this.voiceGain = ctx.createGain();
-    this.voiceGain.gain.value = 1;
+    this.voiceGain.gain.setValueAtTime(1, ctx.currentTime);
 
     this.driftFilter = ctx.createBiquadFilter();
     this.driftFilter.type = 'peaking';
-    this.driftFilter.frequency.value = DRIFT_FILTER_BASE_HZ;
-    this.driftFilter.Q.value = DRIFT_FILTER_Q;
-    this.driftFilter.gain.value = DRIFT_FILTER_GAIN_DB;
+    this.driftFilter.frequency.setValueAtTime(
+      DRIFT_FILTER_BASE_HZ,
+      ctx.currentTime,
+    );
+    this.driftFilter.Q.setValueAtTime(DRIFT_FILTER_Q, ctx.currentTime);
+    this.driftFilter.gain.setValueAtTime(DRIFT_FILTER_GAIN_DB, ctx.currentTime);
 
     this.analyser = ctx.createAnalyser();
     this.analyser.fftSize = 1024;
     this.analyser.smoothingTimeConstant = 0.6;
 
     this.monitorGain = ctx.createGain();
-    this.monitorGain.gain.value = 0; // muted by default — feedback-safe
+    this.monitorGain.gain.setValueAtTime(0, ctx.currentTime); // muted by default — feedback-safe
 
     this.captureTap = ctx.createGain();
-    this.captureTap.gain.value = 1;
+    this.captureTap.gain.setValueAtTime(1, ctx.currentTime);
 
     this.highpass
       .connect(this.compressor)

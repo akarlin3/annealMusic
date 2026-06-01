@@ -15,23 +15,13 @@ export function encodeAudioBufferToWav(
   );
   const frameCount = Math.max(0, endFrame - startFrame);
 
-  // Mix down channels to mono (averaging channels if stereo)
-  const channels = buffer.numberOfChannels;
+  // Mix down channels to mono by picking the Left-only channel (channel 0)
+  // to completely prevent phase cancellation artifacts from summing inverted signals.
   const monoData = new Float32Array(frameCount);
-
-  // Read samples and average them
-  for (let c = 0; c < channels; c++) {
-    const channelData = buffer.getChannelData(c);
+  if (buffer.numberOfChannels > 0) {
+    const leftChannelData = buffer.getChannelData(0);
     for (let i = 0; i < frameCount; i++) {
-      const current = monoData[i] ?? 0;
-      const sample = channelData[startFrame + i] ?? 0;
-      monoData[i] = current + sample;
-    }
-  }
-  if (channels > 1) {
-    for (let i = 0; i < frameCount; i++) {
-      const current = monoData[i] ?? 0;
-      monoData[i] = current / channels;
+      monoData[i] = leftChannelData[startFrame + i] ?? 0;
     }
   }
 

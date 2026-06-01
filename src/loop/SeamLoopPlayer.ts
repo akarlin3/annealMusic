@@ -83,22 +83,21 @@ export class SeamLoopPlayer {
   }
 
   private scheduleVoice(when: number): void {
+    const startTime = Math.max(when, this.ctx.currentTime);
     const src = this.ctx.createBufferSource();
     src.buffer = this.buffer;
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0, start);
+    gain.gain.setValueAtTime(0, startTime);
     src.connect(gain).connect(this.output);
-
-    const start = Math.max(when, this.ctx.currentTime);
-    gain.gain.setValueCurveAtTime(this.fadeIn, start, this.xfade);
+    gain.gain.setValueCurveAtTime(this.fadeIn, startTime, this.xfade);
     gain.gain.setValueCurveAtTime(
       this.fadeOut,
-      start + this.duration - this.xfade,
+      startTime + this.duration - this.xfade,
       this.xfade,
     );
 
-    src.start(start);
-    src.stop(start + this.duration);
+    src.start(startTime);
+    src.stop(startTime + this.duration);
     this.voices.add(src);
     src.onended = (): void => {
       this.voices.delete(src);

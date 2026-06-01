@@ -239,6 +239,7 @@ export class GranularEngine implements AnnealEngine {
         // A newer load (or a stop) superseded this one — discard.
         if (this.stopped || token !== this.loadToken || !this.ctx) return;
         const maxGrains = this.maxGrainsPerCloud();
+        const pitchBend = this.shared?.pitchBend ?? 0;
         for (const p of this.partials) {
           if (p.cloud.isRunning()) {
             p.cloud.setParams({ source: buffer });
@@ -250,7 +251,7 @@ export class GranularEngine implements AnnealEngine {
               positionJitter: this.params.posJitter,
               pitchJitter: this.params.pitchJitter,
               positionCenter: this.liveCenter,
-              pitchOffset: p.pitchOffsetBase + p.detune,
+              pitchOffset: p.pitchOffsetBase + p.detune + pitchBend * 200,
               gain: p.gain,
               maxGrains,
             });
@@ -320,7 +321,8 @@ export class GranularEngine implements AnnealEngine {
     if (
       partial.rootFreq === undefined &&
       partial.spread === undefined &&
-      partial.tuning === undefined
+      partial.tuning === undefined &&
+      partial.pitchBend === undefined
     )
       return;
     const {
@@ -329,6 +331,7 @@ export class GranularEngine implements AnnealEngine {
       tuning: activeTuning,
       customScaleRatios,
       customEqRatio,
+      pitchBend = 0,
     } = this.shared;
     const tuning = activeTuning ?? { system: 'equal' };
     for (const p of this.partials) {
@@ -341,7 +344,7 @@ export class GranularEngine implements AnnealEngine {
       );
       p.freq = rootFreq * Math.pow(latticeRatio, spread);
       p.pitchOffsetBase = this.pitchOffsetFor(p.freq, this.sourceVal);
-      p.cloud.setPitchOffset(p.pitchOffsetBase + p.detune);
+      p.cloud.setPitchOffset(p.pitchOffsetBase + p.detune + pitchBend * 200);
     }
   }
 
@@ -387,7 +390,8 @@ export class GranularEngine implements AnnealEngine {
     const p = this.partials[index];
     if (!p) return;
     p.detune = cents;
-    p.cloud.setPitchOffset(p.pitchOffsetBase + cents);
+    const pitchBend = this.shared?.pitchBend ?? 0;
+    p.cloud.setPitchOffset(p.pitchOffsetBase + cents + pitchBend * 200);
   }
 
   getPartialCount(): number {

@@ -139,7 +139,8 @@ export default function MySourcesPanel({
   }, []);
 
   const playPreview = useCallback(
-    async (source: UserSource) => {
+    async (source: UserSource, e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
       stopPreview();
 
       try {
@@ -151,7 +152,7 @@ export default function MySourcesPanel({
           audioCtxRef.current = new Ctor();
         }
         const ctx = audioCtxRef.current;
-        if (ctx.state === 'suspended') {
+        if (ctx && ctx.state === 'suspended') {
           await ctx.resume();
         }
 
@@ -176,11 +177,12 @@ export default function MySourcesPanel({
   );
 
   const togglePreview = useCallback(
-    (source: UserSource) => {
+    (source: UserSource, e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
       if (playingId === source.id) {
         stopPreview();
       } else {
-        void playPreview(source);
+        void playPreview(source, e);
       }
     },
     [playingId, playPreview, stopPreview],
@@ -438,7 +440,7 @@ export default function MySourcesPanel({
                       <div className="flex items-center gap-2.5 shrink-0">
                         <button
                           type="button"
-                          onClick={() => togglePreview(src)}
+                          onClick={(e) => togglePreview(src, e)}
                           className="flex h-7 w-7 items-center justify-center rounded-lg border border-stone-800 bg-stone-900 text-stone-400 hover:text-stone-200 active:bg-stone-950 transition-all"
                           aria-label={
                             isPlaying ? 'Pause preview' : 'Play preview'

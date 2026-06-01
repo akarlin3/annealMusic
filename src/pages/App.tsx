@@ -527,7 +527,14 @@ export default function App() {
           {/* Play/Pause Button is cross-mode */}
           <button
             data-tour="play"
-            onClick={() => (isPlaying ? stopSession() : startSession())}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isPlaying) {
+                stopSession();
+              } else {
+                startSession();
+              }
+            }}
             className="group flex items-center gap-3 rounded-full px-5 py-2.5 transition-all cursor-pointer hover:brightness-110"
             style={{
               background: isPlaying

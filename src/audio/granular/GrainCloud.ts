@@ -178,23 +178,24 @@ export class GrainCloud {
     let offset = this.centerSec + jitter * duration;
     offset = Math.max(0, Math.min(duration - grainDur, offset));
 
+    const startTime = Math.max(when, this.ctx.currentTime);
+
     const src = this.ctx.createBufferSource();
     src.buffer = p.source;
     if (p.pitchOffset !== 0 || p.pitchJitter > 0) {
       const jit =
         p.pitchJitter > 0 ? (this.random() * 2 - 1) * p.pitchJitter : 0;
-      src.detune.setValueAtTime(p.pitchOffset + jit, start);
+      src.detune.setValueAtTime(p.pitchOffset + jit, startTime);
     }
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0, start);
+    gain.gain.setValueAtTime(0, startTime);
     src.connect(gain).connect(this.out);
 
-    const start = Math.max(when, this.ctx.currentTime);
-    gain.gain.setValueCurveAtTime(this.hann, start, grainDur);
+    gain.gain.setValueCurveAtTime(this.hann, startTime, grainDur);
 
-    src.start(start, offset, grainDur);
-    src.stop(start + grainDur + GRAIN_TAIL_SEC);
+    src.start(startTime, offset, grainDur);
+    src.stop(startTime + grainDur + GRAIN_TAIL_SEC);
     this.grains.add(src);
     src.onended = (): void => {
       this.grains.delete(src);

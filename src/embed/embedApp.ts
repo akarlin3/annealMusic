@@ -550,7 +550,8 @@ function mountFigurePlayer(
   drawWaveform();
 
   // Event handlers
-  playBtn.addEventListener('click', () => {
+  playBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     initWebAudio();
     if (audioCtx && audioCtx.state === 'suspended') void audioCtx.resume();
     if (audio.paused) void audio.play();
@@ -852,7 +853,10 @@ function mountTalkPlayer(
     else audio.pause();
   };
 
-  playBtn.addEventListener('click', togglePlay);
+  playBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePlay();
+  });
   audio.addEventListener('play', () => {
     playBtn.textContent = '❚❚';
   });
