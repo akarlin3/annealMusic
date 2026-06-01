@@ -25,21 +25,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # `npm run build` is a multi-page Vite build that emits every entry into
+      # dist/, including the Researcher console (research.html → #research-root).
+      # No separate build/merge step is needed — keeping the console in the same
+      # build guarantees it ships, so /research.html serves the real page instead
+      # of falling through the catch-all rewrite to index.html (which renders
+      # blank, as no SPA route matches /research.html).
       - name: Build
         run: npm run build
-
-      # The Researcher console is a separate Vite build (vite.config.research.ts)
-      # that emits to dist-research/. Firebase Hosting only serves dist/, so build
-      # it and merge its output into dist/ — otherwise /research.html falls through
-      # the catch-all rewrite to index.html and the console is unreachable.
-      - name: Build research console
-        run: npm run build:research
-
-      - name: Merge research console into dist
-        run: |
-          mkdir -p dist/assets
-          cp dist-research/research.html dist/research.html
-          cp -r dist-research/assets/. dist/assets/
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
