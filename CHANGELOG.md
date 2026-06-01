@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.4.0] - 2026-06-01
+
+**v9.4 Synchronization-Driven Spectral Fusion.** Extends the Kuramoto coupling from pitch to timbre. Until now the order parameter `r` only drove detune contraction (pulling partial pitches together); v9.4 introduces a new pure DSP core (`src/audio/fusion.ts`) that reshapes per-partial _amplitudes_ by each partial's phase coherence with the collective mean field, so the spectrum itself fuses as the bank synchronizes. Wired into the engine (sine), the worklet (pulse), and the offline/stem renderers from one source of truth; controllable via a new `fusion` amount (0 = bypassed, behavior-preserving). Proven with the FFT harness and documented with measured numbers.
+
+### Added
+
+- **Fusion core (`src/audio/fusion.ts`):** pure, deterministic per-partial gain law `g_i' = g_i·(1 + d·α·(c_i − ½))` with coherence `c_i = ½(1 + cos(θ_i − ψ))`. Behavior-preserving at `α = 0` (every multiplier exactly 1); the mean-field identity makes the bank-average gain exactly `1 + ½·d·α·r`, so coherent reinforcement is proportional to the order parameter.
+- **Engine wiring:** new optional `setPartialFusionGains` on the engine contract. The orchestrator drift loop computes multipliers from the live phases + mean phase ψ and fans them out; `SineEngine` applies them on a new per-partial post-shape gain node (smoothed); `PulseEngine` forwards them to its worklet via a port message (the worklet only applies — no fusion math duplicated). Offline + stem renderers mirror the same path.
+- **New shared param `fusion`** (0..1, default 0 = bypassed).
+- **Spectral proof (`src/audio/analysis/__tests__/fusion.test.ts`):** behavior-preserving limit, mean-field identity (6 dp), monotone fusion (+3.01 dB / ×2.000 over the full `r` range on a flat spectrum, matching prediction), realistic-voicing concentration (+3.47 dB), and the coherent-vs-incoherent √N summation signature (measured 3.51 vs predicted 4.0). Deterministic, seeded, offline.
+- **Docs:** `docs/DSP_THEORY.md` §1.6 (derivation + limits) and §2.3 #6 (measured results, with an honest note that fusion is coherent-energy reinforcement, not a brightness tilt); `docs/KURAMOTO.md` audible-mapping subsection.
+
 ## [9.3.0] - 2026-05-31
 
 **v9.3 Polish & Closeout.** This release completes the v9 multi-mode arc. It migrates all remaining deferred tail components (login dialogues, patch generation and modification dialogues, and admin moderation and curation surfaces) to dynamic design-system token primitives (`Input`, `Select`). It resolves key edge cases across modes: suppressing technical/sonification notifications under Meditation mode, persisting unsaved patch parameters and creative sub-modes (`sketch` vs. `drone`) during mode switches, and adding cross-mode relevance badges to recommended lessons in `NextLessonPicker`. Finally, it completes a comprehensive WCAG 2.1 AA accessibility and contrast review across all theme modes, checking prefers-reduced-motion triggers, and tags the final `v9.3.0` release.

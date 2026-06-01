@@ -23,6 +23,7 @@ import type {
   SharedParams,
 } from '@/audio/engines/types';
 import { driftStep } from '@/audio/drift';
+import { fusionMultipliers } from '@/audio/fusion';
 import { ArcRunner } from '@/session/ArcRunner';
 import { getArcById } from '@/session/arcs';
 import { engineCapabilities } from '@/audio/engines/index';
@@ -151,7 +152,7 @@ export async function renderOffline(
   // Schedule the drift/arc steps at audio-time checkpoints.
   for (const t of driftCheckpoints(durationSec)) {
     ctx.suspend(t).then(() => {
-      const { detunes, phases } = driftStep(
+      const { detunes, phases, psi } = driftStep(
         drift,
         { drift: live.drift, coupling: live.coupling },
         DRIFT_DT,
@@ -164,6 +165,12 @@ export async function renderOffline(
         p.phase = phases[i];
         engine.setPartialDetune(i, d);
       });
+      const fusionAmount = live.fusion ?? 0;
+      if (fusionAmount > 0) {
+        engine.setPartialFusionGains?.(
+          fusionMultipliers(phases, psi, fusionAmount),
+        );
+      }
       if (arc) {
         const frame = arc.tick(t);
         if (Object.keys(frame.params).length > 0) {

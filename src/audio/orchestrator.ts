@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { driftStep } from '@/audio/drift';
+import { fusionMultipliers } from '@/audio/fusion';
 import { makeIR } from '@/audio/ir';
 import { midiOutput } from '@/midi/outputController';
 import { clampSharedParamsForDrone } from '@/drone/ModeConstraints';
@@ -101,6 +102,9 @@ export class Orchestrator {
   private driftState: DriftPartial[] = [];
   private driftTimer: ReturnType<typeof setInterval> | null = null;
   private currentR = 0;
+  /** True while fusion is actively reshaping gains, so we can reset to unity
+   *  exactly once when fusion is turned back off. */
+  private fusionEngaged = false;
   private running = false;
   private tempoBpm: number | null = null;
   private playStartAudioTime = 0;
@@ -535,7 +539,7 @@ export class Orchestrator {
     this.driftTimer = setInterval(() => {
       if (this.driftState.length === 0) return;
       const engine = this.active?.engine;
-      const { detunes, phases, r } = driftStep(
+      const { detunes, phases, r, psi } = driftStep(
         this.driftState,
         { drift: this.shared.drift, coupling: this.shared.coupling },
         DRIFT_DT,
@@ -553,6 +557,25 @@ export class Orchestrator {
         engine?.setPartialDetune(i, detune);
         sum += detune;
       });
+
+      // Synchronization-driven spectral fusion: couple the order parameter to
+      // timbre by reshaping per-partial gains from each partial's coherence
+      // with the mean field ψ. The pure core (audio/fusion.ts) is the single
+      // source of truth; engines (and their worklets) only apply the scalars.
+      // fusion = 0 ⇒ every multiplier is exactly 1 (bypassed, behavior-preserving).
+      const fusionAmount = this.shared.fusion ?? 0;
+      if (engine?.setPartialFusionGains) {
+        if (fusionAmount > 0) {
+          engine.setPartialFusionGains(
+            fusionMultipliers(phases, psi, fusionAmount),
+          );
+          this.fusionEngaged = true;
+        } else if (this.fusionEngaged) {
+          // Fusion was just turned off — restore unity gains once.
+          engine.setPartialFusionGains(phases.map(() => 1));
+          this.fusionEngaged = false;
+        }
+      }
       const mean = sum / this.driftState.length;
       this.inputVoice?.setDriftModulation(mean);
       if (this.loopSlots) {

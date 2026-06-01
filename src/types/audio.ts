@@ -5,6 +5,12 @@ export const HARMONICS = [1, 1.5, 2, 2.5, 3, 4, 5, 6] as const;
 export interface PartialVoice {
   readonly osc: OscillatorNode;
   readonly g: GainNode;
+  /**
+   * Post-shape gain applied by synchronization-driven spectral fusion. Sits
+   * after `g` (the baseline+LFO shape) so fusion multiplies the partial's
+   * amplitude without disturbing the existing voicing. Defaults to unity.
+   */
+  readonly fusionGain: GainNode;
   readonly lfo: OscillatorNode;
   readonly lfoGain: GainNode;
   readonly baseline: ConstantSourceNode;

@@ -13,6 +13,14 @@ export type SharedParams = AnnealMusicParams & {
   tuning?: TuningRef;
   customScaleRatios?: number[];
   customEqRatio?: number;
+  /**
+   * Synchronization-driven spectral fusion amount, 0..1. Couples the Kuramoto
+   * order parameter to *timbre*: as the partials synchronize, their amplitudes
+   * are reshaped by per-partial coherence so the spectrum fuses (see
+   * `audio/fusion.ts`). 0 (the default) is fully bypassed and behavior-
+   * preserving — every partial keeps its base gain.
+   */
+  fusion?: number;
 };
 
 /** Engine-specific params: a flat scalar bag, keyed by the engine's param defs. */
@@ -76,6 +84,16 @@ export interface AnnealEngine {
 
   /** Push a detune offset (cents) to partial `index`, called by the drift loop. */
   setPartialDetune(index: number, cents: number): void;
+
+  /**
+   * [Optional] Apply per-partial fusion gain multipliers, called by the drift
+   * loop. `multipliers[i]` scales partial `i`'s amplitude (1 = unchanged). The
+   * scalars are produced by the single fusion core (`audio/fusion.ts`) on the
+   * main thread; engines only *apply* them (worklets via a thin port message),
+   * so the math is never duplicated. Engines that don't support per-partial
+   * gain omit this.
+   */
+  setPartialFusionGains?(multipliers: readonly number[]): void;
 
   /** Number of currently active partials (the drift loop needs this). */
   getPartialCount(): number;
