@@ -141,7 +141,8 @@ export default function Visualizer({
       const isReduced = window.matchMedia(
         '(prefers-reduced-motion: reduce)',
       ).matches;
-      const dt = isReduced ? 0 : Math.min(0.05, (now - lastT) / 1000);
+      const actualDt = (now - lastT) / 1000;
+      const dt = isReduced ? 0 : Math.min(actualDt, 0.1);
       lastT = now;
       const { w, h } = sizeRef.current;
 

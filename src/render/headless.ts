@@ -219,7 +219,8 @@ async function videoRender(
   let lastT = performance.now();
 
   const drawLoop = (now: number) => {
-    const dt = Math.min(0.05, (now - lastT) / 1000);
+    const actualDt = (now - lastT) / 1000;
+    const dt = Math.min(actualDt, 0.1);
     lastT = now;
 
     let spectrum: Uint8Array<ArrayBuffer> | null = null;
