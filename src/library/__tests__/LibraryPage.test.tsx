@@ -84,4 +84,17 @@ describe('LibraryPage', () => {
       ),
     );
   });
+
+  it('renders offline local listings when backend is not configured', async () => {
+    vi.spyOn(api, 'isBackendConfigured').mockReturnValue(false);
+
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Cosmic Hum').length).toBeGreaterThan(0),
+    );
+    expect(screen.getByText("Editor's recent picks")).toBeTruthy();
+    expect(screen.getAllByText('Tibetan Bowls').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Autumn Rain').length).toBeGreaterThan(0);
+  });
 });

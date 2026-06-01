@@ -6,6 +6,7 @@ import { useAnnealMusic } from '@/hooks/useAnnealMusic';
 import ListeningView from '@/listening/ListeningView';
 import { getErrorMessage } from '@/api/client';
 import { Compass, HelpCircle, ArrowLeft } from 'lucide-react';
+import { OFFLINE_SESSIONS } from '@/library/offlineSessions';
 
 export default function ListeningSessionPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -25,6 +26,10 @@ export default function ListeningSessionPage() {
     setLoading(true);
     setError(null);
     try {
+      if (slug && OFFLINE_SESSIONS[slug]) {
+        setSession(OFFLINE_SESSIONS[slug]);
+        return;
+      }
       if (!api.isBackendConfigured()) {
         setError('Listening Sessions require an active server connection.');
         return;

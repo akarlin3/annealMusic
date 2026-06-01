@@ -7,6 +7,7 @@ import type { LibraryListing } from '@/api/types';
 import type { LibraryFilters as Filters } from '@/library/api';
 import LibraryFilters from '@/library/LibraryFilters';
 import LibraryCard from '@/library/LibraryCard';
+import { OFFLINE_LISTINGS } from '@/library/offlineSessions';
 
 /**
  * v4.5 — `/listen`. The curated, editorial meditation entry point. Distinct
@@ -24,7 +25,10 @@ export default function LibraryPage() {
 
   // Picks are filter-independent; load once.
   useEffect(() => {
-    if (!api.isBackendConfigured()) return;
+    if (!api.isBackendConfigured()) {
+      setPicks(OFFLINE_LISTINGS.filter((l) => l.editor_pick));
+      return;
+    }
     void api
       .getLibraryPicks()
       .then((res) => setPicks(res.items))
@@ -41,7 +45,21 @@ export default function LibraryPage() {
 
   useEffect(() => {
     if (!api.isBackendConfigured()) {
-      setError('The library requires an active server connection.');
+      // Filter offline listings locally
+      let filtered = [...OFFLINE_LISTINGS];
+      if (filters.intention) {
+        filtered = filtered.filter((l) => l.intention === filters.intention);
+      }
+      if (filters.length) {
+        filtered = filtered.filter((l) => l.length_category === filters.length);
+      }
+      if (filters.character) {
+        filtered = filtered.filter((l) =>
+          l.character_tags.includes(filters.character!),
+        );
+      }
+      setListings(filtered);
+      setError(null);
       setLoading(false);
       return;
     }
