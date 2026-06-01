@@ -55,6 +55,7 @@ import HelpPanel from '@/components/HelpPanel';
 import Tour from '@/components/Tour';
 import { useTour } from '@/hooks/useTour';
 import ExportDialog from '@/export/ExportDialog';
+import { midiApi } from '@/midi/api';
 import { midiInput } from '@/midi/inputController';
 import { midiOutput } from '@/midi/outputController';
 
@@ -230,6 +231,8 @@ export default function App() {
     return () => {
       midiInput.stop();
       midiOutput.stop();
+      // Loop through active MIDI inputs and set their listeners to null
+      midiApi.clearListeners();
     };
   }, []);
 

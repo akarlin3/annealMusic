@@ -70,6 +70,10 @@ export default function MidiSettingsPage() {
           });
       }
     }
+    return () => {
+      // Loop through active MIDI inputs and set their listeners to null
+      midiApi.clearListeners();
+    };
   }, []);
 
   // 2. Hot-plug connection listener

@@ -41,6 +41,9 @@ class MidiApi {
         this.handleStateChange();
       };
 
+      // Clear existing listeners before applying new ones
+      this.clearListeners();
+
       // Listen to all currently available input ports
       this.scanInputs();
 
@@ -91,6 +94,8 @@ class MidiApi {
     callback: (event: MidiInputEvent, deviceId: string) => void,
   ): () => void {
     this.onInputCallbacks.add(callback);
+    // Wire up listeners to any active ports if access is already granted
+    this.scanInputs();
     return () => {
       this.onInputCallbacks.delete(callback);
     };
@@ -99,6 +104,13 @@ class MidiApi {
   getOutputs(): MIDIOutput[] {
     if (!this.access) return [];
     return Array.from(this.access.outputs.values());
+  }
+
+  clearListeners(): void {
+    if (!this.access) return;
+    this.access.inputs.forEach((input) => {
+      input.onmidimessage = null;
+    });
   }
 
   private handleStateChange() {
@@ -110,7 +122,8 @@ class MidiApi {
   private scanInputs() {
     if (!this.access) return;
     this.access.inputs.forEach((input) => {
-      // Ensure we don't duplicate the listener
+      // Clear existing message listeners before applying new ones
+      input.onmidimessage = null;
       input.onmidimessage = (e) => this.handleMidiMessage(e, input.id);
     });
   }
