@@ -37,12 +37,31 @@ export function useSession(): SessionApi {
   const engineId = useParamStore((s) => s.engineId);
   const engineParams = useParamStore((s) => s.engineParams);
   const mode = useParamStore((s) => s.mode);
+  const tuning = useParamStore((s) => s.tuning);
+  const customScales = useParamStore((s) => s.customScales);
 
   const ensureOrchestrator = useCallback((): Orchestrator => {
     if (!engineRef.current) {
       const state = useParamStore.getState();
+      let customScaleRatios: number[] | undefined;
+      let customEqRatio: number | undefined;
+      if (state.tuning.system === 'custom' && state.tuning.sclId) {
+        const customScale = state.customScales.find(
+          (s) => s.id === state.tuning.sclId,
+        );
+        if (customScale) {
+          customScaleRatios = customScale.parsed_scale;
+          customEqRatio =
+            customScale.parsed_scale[customScale.parsed_scale.length - 1];
+        }
+      }
       const orch = new Orchestrator(
-        state.params,
+        {
+          ...state.params,
+          tuning: state.tuning,
+          customScaleRatios,
+          customEqRatio,
+        },
         state.engineId,
         state.engineParams,
         undefined,
@@ -74,6 +93,24 @@ export function useSession(): SessionApi {
   useEffect(() => {
     engineRef.current?.setMode(mode);
   }, [mode]);
+  useEffect(() => {
+    if (!engineRef.current) return;
+    let customScaleRatios: number[] | undefined;
+    let customEqRatio: number | undefined;
+    if (tuning.system === 'custom' && tuning.sclId) {
+      const customScale = customScales.find((s) => s.id === tuning.sclId);
+      if (customScale) {
+        customScaleRatios = customScale.parsed_scale;
+        customEqRatio =
+          customScale.parsed_scale[customScale.parsed_scale.length - 1];
+      }
+    }
+    engineRef.current.setSharedParams({
+      tuning,
+      customScaleRatios,
+      customEqRatio,
+    });
+  }, [tuning, customScales]);
 
   // Poll arc progress while an arc runs or settles out.
   useEffect(() => {

@@ -269,8 +269,13 @@ export default function MeditationTimerPage() {
       if (mainTimerRef.current) {
         clearInterval(mainTimerRef.current);
       }
-      if (audioCtxRef.current) {
-        void audioCtxRef.current.close();
+      if (schedulerRef.current) {
+        schedulerRef.current.stop();
+        schedulerRef.current = null;
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        void ctx.close().catch(() => undefined);
       }
     };
   }, []);

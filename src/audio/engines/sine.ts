@@ -49,6 +49,11 @@ export class SineEngine implements AnnealEngine {
     const out = ctx.createGain();
     out.gain.value = 1;
 
+    const dcFilter = ctx.createBiquadFilter();
+    dcFilter.type = 'highpass';
+    dcFilter.frequency.setValueAtTime(10, ctx.currentTime);
+    dcFilter.connect(out);
+
     const tuning = shared.tuning ?? { system: 'equal' };
     const customScale = shared.customScaleRatios;
     const customEq = shared.customEqRatio;
@@ -63,23 +68,25 @@ export class SineEngine implements AnnealEngine {
         customScale,
         customEq,
       );
-      osc.frequency.value =
-        shared.rootFreq * Math.pow(latticeRatio, shared.spread);
+      osc.frequency.setValueAtTime(
+        shared.rootFreq * Math.pow(latticeRatio, shared.spread),
+        ctx.currentTime,
+      );
 
       const g = ctx.createGain();
-      g.gain.value = 0;
+      g.gain.setValueAtTime(0, ctx.currentTime);
 
       const { baselineOffset, lfoGain: lfoDepth, lfoFreq } = partialShape(i);
 
       const baseline = ctx.createConstantSource();
-      baseline.offset.value = baselineOffset;
+      baseline.offset.setValueAtTime(baselineOffset, ctx.currentTime);
       baseline.connect(g.gain);
 
       const lfo = ctx.createOscillator();
       lfo.type = 'sine';
-      lfo.frequency.value = lfoFreq;
+      lfo.frequency.setValueAtTime(lfoFreq, ctx.currentTime);
       const lfoGain = ctx.createGain();
-      lfoGain.gain.value = lfoDepth;
+      lfoGain.gain.setValueAtTime(lfoDepth, ctx.currentTime);
       lfo.connect(lfoGain).connect(g.gain);
 
       // Fusion gain sits after the baseline+LFO shape; unity until the drift
@@ -87,7 +94,7 @@ export class SineEngine implements AnnealEngine {
       const fusionGain = ctx.createGain();
       fusionGain.gain.value = 1;
 
-      osc.connect(g).connect(fusionGain).connect(out);
+      osc.connect(g).connect(fusionGain).connect(dcFilter);
 
       osc.start();
       lfo.start();
@@ -162,7 +169,9 @@ export class SineEngine implements AnnealEngine {
     if (
       partial.rootFreq !== undefined ||
       partial.spread !== undefined ||
-      partial.tuning !== undefined
+      partial.tuning !== undefined ||
+      partial.customScaleRatios !== undefined ||
+      partial.customEqRatio !== undefined
     ) {
       const {
         rootFreq,

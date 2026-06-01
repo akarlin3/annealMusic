@@ -181,6 +181,16 @@ class MidiApi {
         number: ccNumber,
         value: ccValue,
       };
+    } else if (typeByte === 0xe0) {
+      // Pitch Bend
+      const pitchBendValue = (byte2 << 7) | byte1;
+      const normalizedBend = (pitchBendValue - 8192) / 8192;
+      parsedEvent = {
+        type: 'pitchbend',
+        channel,
+        number: 0,
+        value: normalizedBend,
+      };
     }
 
     if (parsedEvent) {

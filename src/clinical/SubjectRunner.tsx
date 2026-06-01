@@ -90,6 +90,8 @@ export function SubjectRunner() {
 
   // Web Audio Context comfortable comfort tone
   const testAudioCtxRef = useRef<AudioContext | null>(null);
+  const comfortOscRef = useRef<OscillatorNode | null>(null);
+  const comfortGainRef = useRef<GainNode | null>(null);
 
   // Error boundary state
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -170,7 +172,11 @@ export function SubjectRunner() {
     return () => {
       if (playbackIntervalRef.current)
         clearInterval(playbackIntervalRef.current);
-      if (testAudioCtxRef.current) testAudioCtxRef.current.close();
+      stopComfortBeep();
+      const ctx = testAudioCtxRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        void ctx.close().catch(() => undefined);
+      }
       am.stopSession();
     };
   }, [am]);
@@ -212,9 +218,28 @@ export function SubjectRunner() {
     setStep('comfort-check');
   };
 
+  const stopComfortBeep = () => {
+    if (comfortOscRef.current) {
+      try {
+        comfortOscRef.current.stop();
+      } catch {}
+      try {
+        comfortOscRef.current.disconnect();
+      } catch {}
+      comfortOscRef.current = null;
+    }
+    if (comfortGainRef.current) {
+      try {
+        comfortGainRef.current.disconnect();
+      } catch {}
+      comfortGainRef.current = null;
+    }
+  };
+
   // Play auditory comfortable headphone check reference tone
   const playComfortBeep = () => {
     try {
+      stopComfortBeep();
       if (testAudioCtxRef.current) {
         testAudioCtxRef.current.close();
       }
@@ -233,6 +258,10 @@ export function SubjectRunner() {
       // Clinical comfort level reference
       const osc = ctx.createOscillator();
       const gainNode = ctx.createGain();
+
+      comfortOscRef.current = osc;
+      comfortGainRef.current = gainNode;
+
       osc.connect(gainNode);
       gainNode.connect(ctx.destination);
 
@@ -276,6 +305,7 @@ export function SubjectRunner() {
   };
 
   const handleComfortCheckConfirm = async (isComfy: boolean) => {
+    stopComfortBeep();
     if (testAudioCtxRef.current) {
       testAudioCtxRef.current.close();
       testAudioCtxRef.current = null;

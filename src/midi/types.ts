@@ -27,8 +27,8 @@ export interface MidiDevice {
 }
 
 export interface MidiInputEvent {
-  type: 'cc' | 'note-on' | 'note-off';
+  type: 'cc' | 'note-on' | 'note-off' | 'pitchbend';
   channel: number; // 1..16
   number: number; // CC number or Note number (0..127)
-  value: number; // CC value (0..127) or Note velocity (0..127)
+  value: number; // CC value (0..127) or Note velocity (0..127) or normalized bend (-1..1)
 }

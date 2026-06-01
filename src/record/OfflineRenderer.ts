@@ -13,7 +13,7 @@
  * `OfflineAudioContext` or AudioWorklet (physical patches), the caller falls
  * back to the v0.8 server render. This module owns only the client path.
  */
-import { makeIR } from '@/audio/ir';
+import { makeIR, setupConvolverBuffer } from '@/audio/ir';
 import { cutoffFor } from '@/audio/orchestrator';
 import { ENGINES } from '@/audio/engines/index';
 import type { EngineFactory } from '@/audio/engines/index';
@@ -115,7 +115,11 @@ export async function renderOffline(
   filter.frequency.value = cutoffFor(config.params.brightness);
   filter.Q.value = 0.6;
   const convolver = ctx.createConvolver();
-  convolver.buffer = makeIR(ctx as unknown as AudioContext, 4.0, 2.4);
+  await setupConvolverBuffer(
+    ctx as unknown as BaseAudioContext,
+    convolver,
+    makeIR(ctx as unknown as AudioContext, 4.0, 2.4),
+  );
   const wet = ctx.createGain();
   wet.gain.value = config.params.space;
   const dry = ctx.createGain();

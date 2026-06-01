@@ -80,8 +80,9 @@ export function CalibrationDialog({
   useEffect(() => {
     return () => {
       stopTone();
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close();
+      const ctx = audioCtxRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        void ctx.close().catch(() => undefined);
       }
     };
   }, []);

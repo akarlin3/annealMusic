@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { makeIR } from '@/audio/ir';
+import { makeIR, setupConvolverBuffer } from '@/audio/ir';
 import { cutoffFor } from '@/audio/orchestrator';
 import { ENGINES, engineCapabilities } from '@/audio/engines/index';
 import type { EngineFactory } from '@/audio/engines/index';
@@ -531,7 +531,11 @@ export async function renderStemsOffline(
       filter.Q.value = 0.6;
 
       const convolver = ctx.createConvolver();
-      convolver.buffer = makeIR(ctx as any, 4.0, 2.4);
+      await setupConvolverBuffer(
+        ctx as any,
+        convolver,
+        makeIR(ctx as any, 4.0, 2.4),
+      );
 
       const wet = ctx.createGain();
       wet.gain.value = config.params.space;

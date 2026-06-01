@@ -2,7 +2,7 @@
 import { driftStep } from '@/audio/drift';
 import { fusionMultipliers } from '@/audio/fusion';
 import { ChimeraVoice } from '@/audio/chimeraVoice';
-import { makeIR } from '@/audio/ir';
+import { makeIR, setupConvolverBuffer } from '@/audio/ir';
 import { midiOutput } from '@/midi/outputController';
 import { clampSharedParamsForDrone } from '@/drone/ModeConstraints';
 import {
@@ -454,7 +454,7 @@ export class Orchestrator {
     analyser.smoothingTimeConstant = 0.85;
 
     const convolver = ctx.createConvolver();
-    convolver.buffer = makeIR(ctx, 4.0, 2.4);
+    void setupConvolverBuffer(ctx, convolver, makeIR(ctx, 4.0, 2.4));
     const wetGain = ctx.createGain();
     wetGain.gain.value = p.space;
     const dryGain = ctx.createGain();
@@ -1012,21 +1012,110 @@ export class Orchestrator {
 
   /** Full teardown for unmount: drop loops + input then close the core. */
   async dispose(): Promise<void> {
+    midiOutput.triggerStop();
+    this.clearArcTick();
+    if (this.arcEndTimer !== null) clearTimeout(this.arcEndTimer);
+    this.arcEndTimer = null;
+    this.arcRunner = null;
+    this.applyArcParams = null;
+    if (this.swapTimer !== null) clearTimeout(this.swapTimer);
+    this.swapTimer = null;
+    this.pendingSwap = null;
+    this.running = false;
+    this.stopDrift();
+    this.driftState = [];
+
+    // Dispose loop slots
     if (this.loopSlots) {
-      for (const id of SLOT_IDS) this.loopSlots[id].dispose();
+      for (const id of SLOT_IDS) {
+        try {
+          this.loopSlots[id].dispose();
+        } catch {
+          // ignore
+        }
+      }
       this.loopSlots = null;
     }
+
+    // Disconnect input voice
     const voice = this.inputVoice;
     this.inputVoice = null;
     if (voice) {
       try {
         voice.getOutputNode().disconnect();
       } catch {
-        // already detached
+        // ignore
       }
-      await voice.disconnect();
+      await voice.disconnect().catch(() => undefined);
     }
-    await this.stop();
+
+    // Disconnect and stop voices immediately
+    const voices = [this.active, this.outgoing].filter(
+      (v): v is Voice => v !== null,
+    );
+    this.active = null;
+    this.outgoing = null;
+
+    for (const v of voices) {
+      try {
+        void v.engine.stop(0);
+      } catch {
+        // ignore
+      }
+      try {
+        v.bus.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+
+    // Disconnect shared post-fx nodes
+    if (this.nodes) {
+      const n = this.nodes;
+      try {
+        n.filter.disconnect();
+      } catch {
+        /* ignore */
+      }
+      try {
+        n.convolver.disconnect();
+      } catch {
+        /* ignore */
+      }
+      try {
+        n.wetGain.disconnect();
+      } catch {
+        /* ignore */
+      }
+      try {
+        n.dryGain.disconnect();
+      } catch {
+        /* ignore */
+      }
+      try {
+        n.master.disconnect();
+      } catch {
+        /* ignore */
+      }
+      try {
+        n.masterVol.disconnect();
+      } catch {
+        /* ignore */
+      }
+      try {
+        n.analyser.disconnect();
+      } catch {
+        /* ignore */
+      }
+      this.nodes = null;
+    }
+
+    // Close AudioContext safely
+    const ctx = this.ctx;
+    this.ctx = null;
+    if (ctx && ctx.state !== 'closed') {
+      await ctx.close().catch(() => undefined);
+    }
   }
 
   // --- loop pedal API ------------------------------------------------------

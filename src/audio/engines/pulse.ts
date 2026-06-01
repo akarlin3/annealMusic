@@ -207,7 +207,7 @@ export class PulseEngine implements AnnealEngine {
     this.tempoBpm = tempoVal;
 
     const out = ctx.createGain();
-    out.gain.value = 1.0;
+    out.gain.setValueAtTime(1.0, ctx.currentTime);
     this.out = out;
 
     this.build();

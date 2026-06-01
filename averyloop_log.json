@@ -1,0 +1,95 @@
+[
+  {
+    "iteration": 1,
+    "timestamp": "2026-06-01T18:59:57.255415",
+    "audit_scores": {
+      "specificity": 5.0,
+      "accuracy": 5.0,
+      "coverage": 5.0,
+      "prioritization": 5.0,
+      "domain_appropriateness": 5.0,
+      "overall": 5.0,
+      "flags": [],
+      "reasoning": "Dry-run mode \u2014 skipped API evaluation."
+    },
+    "findings": [],
+    "findings_count": 0,
+    "high_priority_findings": 0,
+    "branches_created": [],
+    "branches_merged": [],
+    "tests_passed": true,
+    "exit_condition_met": true
+  },
+  {
+    "iteration": 2,
+    "timestamp": "2026-06-01T19:01:20.441594",
+    "audit_scores": {
+      "specificity": 5.0,
+      "accuracy": 5.0,
+      "coverage": 5.0,
+      "prioritization": 5.0,
+      "domain_appropriateness": 5.0,
+      "overall": 5.0,
+      "flags": [],
+      "reasoning": "Dry-run mode \u2014 skipped API evaluation."
+    },
+    "findings": [],
+    "findings_count": 0,
+    "high_priority_findings": 0,
+    "branches_created": [],
+    "branches_merged": [],
+    "tests_passed": true,
+    "exit_condition_met": true
+  },
+  {
+    "iteration": 3,
+    "timestamp": "2026-06-01T19:05:20.727609",
+    "audit_scores": {
+      "specificity": 5.0,
+      "accuracy": 5.0,
+      "coverage": 5.0,
+      "prioritization": 5.0,
+      "domain_appropriateness": 5.0,
+      "overall": 5.0,
+      "flags": ["EVALUATION_FAILED"],
+      "reasoning": "Fallback scores \u2014 evaluator failed after max retries.",
+      "composite": 6.875,
+      "llm_overall": 5.0,
+      "blend_weights": {
+        "llm": 0.625,
+        "tests": 0.25,
+        "scope": 0.125
+      },
+      "objective_signals": {
+        "sub_scores": {
+          "tests": 10.0,
+          "diff_size": 10.0,
+          "scope": 10.0
+        },
+        "available": {
+          "tests": true,
+          "coverage": false,
+          "complexity": false,
+          "diff_size": true,
+          "scope": true
+        },
+        "raw": {
+          "tests_passed": true,
+          "prev_test_count": null,
+          "curr_test_count": null,
+          "diff_added": 0,
+          "diff_removed": 0,
+          "changed_files": [],
+          "intended_files": []
+        }
+      }
+    },
+    "findings": [],
+    "findings_count": 0,
+    "high_priority_findings": 0,
+    "branches_created": [],
+    "branches_merged": [],
+    "tests_passed": true,
+    "exit_condition_met": false
+  }
+]

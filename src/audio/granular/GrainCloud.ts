@@ -58,14 +58,14 @@ export class GrainCloud {
     private readonly random: () => number = Math.random,
   ) {
     this.out = ctx.createGain();
-    this.out.gain.value = 1;
+    this.out.gain.setValueAtTime(1, this.ctx.currentTime);
     this.scheduler = new LookaheadScheduler(ctx, (until) => this.pump(until));
   }
 
   start(params: GrainCloudParams): void {
     this.params = { ...params };
     this.centerSec = params.positionCenter * params.source.duration;
-    this.out.gain.value = params.gain;
+    this.out.gain.setTargetAtTime(params.gain, this.ctx.currentTime, 0.015);
     if (this.running) return;
     this.running = true;
     this.nextGrainTime = this.ctx.currentTime + 0.02;
@@ -183,11 +183,11 @@ export class GrainCloud {
     if (p.pitchOffset !== 0 || p.pitchJitter > 0) {
       const jit =
         p.pitchJitter > 0 ? (this.random() * 2 - 1) * p.pitchJitter : 0;
-      src.detune.value = p.pitchOffset + jit;
+      src.detune.setValueAtTime(p.pitchOffset + jit, start);
     }
 
     const gain = this.ctx.createGain();
-    gain.gain.value = 0;
+    gain.gain.setValueAtTime(0, start);
     src.connect(gain).connect(this.out);
 
     const start = Math.max(when, this.ctx.currentTime);

@@ -175,7 +175,7 @@ export class GranularEngine implements AnnealEngine {
     this.stopped = false;
 
     const out = ctx.createGain();
-    out.gain.value = 1;
+    out.gain.setValueAtTime(1, ctx.currentTime);
     this.out = out;
 
     const tuning = shared.tuning ?? { system: 'equal' };

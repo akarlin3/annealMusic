@@ -16,6 +16,8 @@ export class BellScheduler {
   private scheduledSet = new Set<string>(); // tracks scheduled timestamps to prevent duplicate schedules
   private timer: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
+  private activeSources = new Set<AudioBufferSourceNode>();
+  private activeGains = new Set<GainNode>();
 
   constructor(ctx: AudioContext, destination: AudioNode) {
     this.ctx = ctx;
@@ -52,6 +54,27 @@ export class BellScheduler {
       clearInterval(this.timer);
       this.timer = null;
     }
+    for (const src of this.activeSources) {
+      try {
+        src.stop();
+      } catch {
+        /* ignore */
+      }
+      try {
+        src.disconnect();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.activeSources.clear();
+    for (const gain of this.activeGains) {
+      try {
+        gain.disconnect();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.activeGains.clear();
   }
 
   private tick(): void {
@@ -95,6 +118,18 @@ export class BellScheduler {
         gainNode.gain.setValueAtTime(t.volume, targetTime);
 
         source.connect(gainNode).connect(this.destination);
+        this.activeSources.add(source);
+        this.activeGains.add(gainNode);
+        source.onended = () => {
+          this.activeSources.delete(source);
+          this.activeGains.delete(gainNode);
+          try {
+            source.disconnect();
+            gainNode.disconnect();
+          } catch {
+            /* ignore */
+          }
+        };
         source.start(targetTime);
       }
     } catch (err) {
@@ -114,6 +149,18 @@ export class BellScheduler {
     gainNode.gain.linearRampToValueAtTime(volume, this.ctx.currentTime + 0.005);
 
     source.connect(gainNode).connect(this.destination);
+    this.activeSources.add(source);
+    this.activeGains.add(gainNode);
+    source.onended = () => {
+      this.activeSources.delete(source);
+      this.activeGains.delete(gainNode);
+      try {
+        source.disconnect();
+        gainNode.disconnect();
+      } catch {
+        /* ignore */
+      }
+    };
     source.start(this.ctx.currentTime);
   }
 }

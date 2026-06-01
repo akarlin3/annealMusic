@@ -55,7 +55,7 @@ export class LoopSlot {
     this.id = id;
 
     this.slotGain = ctx.createGain();
-    this.slotGain.gain.value = config.muted ? 0 : 1;
+    this.slotGain.gain.setValueAtTime(config.muted ? 0 : 1, ctx.currentTime);
 
     this.analyser = ctx.createAnalyser();
     this.analyser.fftSize = 1024;

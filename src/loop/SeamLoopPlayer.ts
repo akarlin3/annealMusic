@@ -86,7 +86,7 @@ export class SeamLoopPlayer {
     const src = this.ctx.createBufferSource();
     src.buffer = this.buffer;
     const gain = this.ctx.createGain();
-    gain.gain.value = 0;
+    gain.gain.setValueAtTime(0, start);
     src.connect(gain).connect(this.output);
 
     const start = Math.max(when, this.ctx.currentTime);

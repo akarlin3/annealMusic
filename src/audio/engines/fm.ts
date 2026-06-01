@@ -110,7 +110,7 @@ export class FmEngine implements AnnealEngine {
     this.params = { ...this.params, ...engine };
 
     const out = ctx.createGain();
-    out.gain.value = 1;
+    out.gain.setValueAtTime(1, ctx.currentTime);
 
     const { modRatio, modIndex, feedback } = this.params;
 
@@ -132,33 +132,36 @@ export class FmEngine implements AnnealEngine {
 
       const carrier = ctx.createOscillator();
       carrier.type = 'sine';
-      carrier.frequency.value = carrierFreq;
+      carrier.frequency.setValueAtTime(carrierFreq, ctx.currentTime);
 
       const g = ctx.createGain();
-      g.gain.value = 0;
+      g.gain.setValueAtTime(0, ctx.currentTime);
 
       const { baselineOffset, lfoGain: lfoDepth, lfoFreq } = partialShape(i);
 
       const baseline = ctx.createConstantSource();
-      baseline.offset.value = baselineOffset;
+      baseline.offset.setValueAtTime(baselineOffset, ctx.currentTime);
       baseline.connect(g.gain);
 
       const lfo = ctx.createOscillator();
       lfo.type = 'sine';
-      lfo.frequency.value = lfoFreq;
+      lfo.frequency.setValueAtTime(lfoFreq, ctx.currentTime);
       const lfoGain = ctx.createGain();
-      lfoGain.gain.value = lfoDepth;
+      lfoGain.gain.setValueAtTime(lfoDepth, ctx.currentTime);
       lfo.connect(lfoGain).connect(g.gain);
 
       const modulator = ctx.createOscillator();
       modulator.type = 'sine';
-      modulator.frequency.value = modFreq;
+      modulator.frequency.setValueAtTime(modFreq, ctx.currentTime);
 
       const modGain = ctx.createGain();
-      modGain.gain.value = modIndex * carrierFreq;
+      modGain.gain.setValueAtTime(modIndex * carrierFreq, ctx.currentTime);
 
       const fbGain = ctx.createGain();
-      fbGain.gain.value = feedback * modFreq * FEEDBACK_SCALE;
+      fbGain.gain.setValueAtTime(
+        feedback * modFreq * FEEDBACK_SCALE,
+        ctx.currentTime,
+      );
 
       // modulator → depth → carrier.frequency (additive FM)
       modulator.connect(modGain);
@@ -247,7 +250,9 @@ export class FmEngine implements AnnealEngine {
     if (
       partial.rootFreq !== undefined ||
       partial.spread !== undefined ||
-      partial.tuning !== undefined
+      partial.tuning !== undefined ||
+      partial.customScaleRatios !== undefined ||
+      partial.customEqRatio !== undefined
     ) {
       const {
         rootFreq,

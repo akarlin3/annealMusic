@@ -47,6 +47,8 @@ export type SharedParams = AnnealMusicParams & {
    * `audio/chimera.ts` `intensityToA` and `audio/chimeraVoice.ts`).
    */
   chimeraIntensity?: number;
+  /** High-resolution floating point pitch bend value (-1.0 to 1.0) */
+  pitchBend?: number;
 };
 
 /** Engine-specific params: a flat scalar bag, keyed by the engine's param defs. */

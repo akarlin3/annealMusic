@@ -144,7 +144,11 @@ export default function MySourcesPanel({
 
       try {
         if (!audioCtxRef.current) {
-          audioCtxRef.current = getSharedPreviewCtx();
+          const Ctor =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext })
+              .webkitAudioContext;
+          audioCtxRef.current = new Ctor();
         }
         const ctx = audioCtxRef.current;
         if (ctx.state === 'suspended') {
@@ -185,6 +189,10 @@ export default function MySourcesPanel({
   useEffect(() => {
     return () => {
       stopPreview();
+      const ctx = audioCtxRef.current;
+      if (ctx && ctx.state !== 'closed') {
+        void ctx.close().catch(() => undefined);
+      }
     };
   }, [stopPreview]);
 

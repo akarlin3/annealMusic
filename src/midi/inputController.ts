@@ -3,6 +3,7 @@ import { midiStorage } from './storage';
 import { getAutoMappingForController } from './knownControllers';
 import { useParamStore, type ParamKey } from '@/state/params';
 import type { CurveType, MappingSet, MidiInputEvent } from './types';
+import { BridgeServer } from '@/research/bridge/BridgeServer';
 
 // Mathematical interpolation curves
 export function interpolateMidiValue(
@@ -96,6 +97,15 @@ class MidiInputController {
       this.processNoteOn(event);
     } else if (event.type === 'note-off') {
       this.processNoteOff(event);
+    } else if (event.type === 'pitchbend') {
+      this.processPitchBend(event);
+    }
+  }
+
+  private processPitchBend(event: MidiInputEvent) {
+    const orch = BridgeServer.getOrchestrator();
+    if (orch) {
+      orch.setSharedParams({ pitchBend: event.value });
     }
   }
 

@@ -133,7 +133,7 @@ export const createWorkletCapture: CaptureFactory = async (
   // A muted sink keeps the node "actively processing" (pulled by the graph)
   // without routing any signal to the speakers.
   const sink = ctx.createGain();
-  sink.gain.value = 0;
+  sink.gain.setValueAtTime(0, ctx.currentTime);
   source.connect(node);
   node.connect(sink).connect(ctx.destination);
 
