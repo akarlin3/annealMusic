@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build:worklets": "vite build --config vite.worklet.config.ts",
-    "build": "npm run sync-schemas && npm run build:worklets && tsc -b && vite build",
+    "build": "npm run sync-schemas && npm run build:worklets && tsc -b && vite build && npm run build:research && npm run build:learn && node scripts/merge-dist.mjs",
     "build:mobile": "npm run build:worklets && tsc -b && vite build --config vite.config.mobile.ts",
     "build:research": "npm run build:worklets && vite build --config vite.config.research.ts",
     "build:learn": "npm run build:worklets && vite build --config vite.config.learn.ts",
