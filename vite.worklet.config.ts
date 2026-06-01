@@ -19,7 +19,7 @@ export default defineConfig({
   },
   esbuild: {
     keepNames: true,
-  },
+  } as unknown as Record<string, unknown>,
   build: {
     emptyOutDir: false,
     outDir: 'public/worklets',
@@ -29,7 +29,7 @@ export default defineConfig({
       mangle: false,
       keep_classnames: true,
       keep_fnames: true,
-    },
+    } as unknown as Record<string, unknown>,
     lib: {
       entry: fileURLToPath(
         new URL(
