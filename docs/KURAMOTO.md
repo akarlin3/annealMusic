@@ -77,6 +77,14 @@ Where:
 - When **uncoupled** (`coupling = 0` or $r \to 0$), the detunes walk independently under independent noise and OU reversion.
 - When **synchronized** ($r \to 1$), the detunes contract rapidly into a unified unison chorus, locking the harmonic structure together.
 
+### Audible: Spectral Fusion
+
+Detune contraction couples $r$ to _pitch_. Spectral fusion (v9.4) couples the same order parameter to _timbre_. Each partial's coherence with the mean field, $c_i = \tfrac{1}{2}(1 + \cos(\theta_i - \psi))$, scales its amplitude:
+
+$$g_i' = g_i \cdot \left(1 + d\,\alpha\,(c_i - \tfrac{1}{2})\right)$$
+
+where $\alpha$ is the user-facing `fusion` amount and $d$ the reshaping depth. The mean-field identity $\frac{1}{N}\sum\cos(\theta_i-\psi) = r$ makes the bank-average gain exactly $1 + \tfrac{1}{2} d\,\alpha\, r$, so the fused harmonic energy grows in proportion to $r$ — the partials reinforce coherently as they lock, and stay diffuse when incoherent. The pure core is `src/audio/fusion.ts`; the full derivation, limits, and measured spectral results are in [DSP_THEORY.md §1.6 and §2.3](DSP_THEORY.md).
+
 ### Visual: Orbital Convergence
 
 To represent phase locking visually, the order parameter $r$ is passed into both the Canvas 2D and WebGL renderers inside `VisualState`.
