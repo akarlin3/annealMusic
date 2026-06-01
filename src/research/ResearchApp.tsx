@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { BridgeClient } from './bridge/BridgeClient';
 import { ModeSwitcher } from '@/mode/ModeSwitcher';
+import { FirstTimeModePicker } from '@/mode/FirstTimeModePicker';
 import {
   Activity,
   Terminal,
@@ -212,8 +213,16 @@ export function ResearchApp() {
         client
           .getSpectrum()
           .then((res) => {
-            const data = res.spectrum;
+            const data = res?.spectrum || [];
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (data.length === 0) {
+              ctx.fillStyle = '#1c1917'; // stone-900
+              ctx.font = '10px monospace';
+              ctx.fillText('AUDIO TIMELINE IDLE — NO SIGNAL', 10, 25);
+              return;
+            }
+
             ctx.fillStyle = 'rgba(245, 158, 11, 0.15)'; // glowing amber
             ctx.strokeStyle = '#f59e0b'; // amber-500
             ctx.lineWidth = 1.5;
@@ -308,6 +317,7 @@ export function ResearchApp() {
 
   return (
     <div className="w-full h-full flex flex-col bg-stone-950 text-stone-100 min-h-screen overflow-hidden">
+      <FirstTimeModePicker />
       {/* Premium Glassmorphic Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-stone-900 bg-stone-950/80 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-3">

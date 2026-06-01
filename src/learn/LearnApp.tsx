@@ -9,6 +9,7 @@ import {
 } from './progress/ProgressClient';
 import { NextLessonPicker } from './recommend/NextLessonPicker';
 import { useMode } from '@/mode/useMode';
+import { FirstTimeModePicker } from '@/mode/FirstTimeModePicker';
 
 export interface LessonStep {
   id: string;
@@ -280,6 +281,7 @@ export function LearnApp() {
 
   return (
     <div className="learn-app-container">
+      <FirstTimeModePicker />
       {activeLesson ? (
         <LessonPlayer
           track={activeTrack!}
