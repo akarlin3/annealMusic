@@ -14,6 +14,7 @@ import ControlPanel from '@/components/ControlPanel';
 import InputPanel from '@/components/InputPanel';
 import LoopPedal from '@/components/LoopPedal';
 import EngineSelector from '@/components/EngineSelector';
+import ModeToggle from '@/components/ModeToggle';
 
 import SessionModeToggle from '@/components/SessionModeToggle';
 import FirstTimeBanner from '@/components/FirstTimeBanner';
@@ -424,6 +425,8 @@ export default function App() {
           {/* Creative/Musician controls, shown conditionally depending on active mode */}
           {appMode !== 'meditation' && (
             <>
+              <ModeToggle disabled={isPlaying} />
+
               <span className="flex items-center gap-1.5">
                 <CopyLinkButton
                   params={params}

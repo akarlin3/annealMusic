@@ -142,6 +142,7 @@ test.describe('AnnealMusic v8.5 E2E Automated Smoke Matrix', () => {
         const originalGetItem = Storage.prototype.getItem;
         Storage.prototype.getItem = function (key) {
           if (key === 'annealmusic.tour.v1') return '1';
+          if (key === 'am_app_mode') return 'musician';
           return originalGetItem.call(this, key);
         };
       } catch {
