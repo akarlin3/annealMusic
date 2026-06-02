@@ -181,6 +181,8 @@ function App() {
 
   const immersive = !!IMMERSIVE[route];
   const chromeLifted = chromeActive;
+  const activeGroup = groupForRoute(route);
+  const hasSubnav = !!(activeGroup && activeGroup.children.length > 1);
 
   const value = {
     mode, setMode, route, navigate, finishOnboarding,
@@ -210,8 +212,9 @@ function App() {
 
   return (
     <AppContext.Provider value={value}>
-      <div className={'app' + (immersive ? ' immersive' : '') + (chromeLifted ? ' chrome-lifted' : '')} data-mode={mode}>
+      <div className={'app' + (immersive ? ' immersive' : '') + (chromeLifted ? ' chrome-lifted' : '') + (hasSubnav ? ' has-subnav' : '')} data-mode={mode}>
         {route !== 'onboarding' && <TopNav route={route} navigate={navigate} mode={mode} setMode={setMode} immersive={immersive} />}
+        {route !== 'onboarding' && <SubNav route={route} navigate={navigate} />}
         <main className="screen-host">{renderScreen()}</main>
         <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} />
         <EmbedModal open={!!embedTarget} item={embedTarget} onClose={() => setEmbedTarget(null)} />

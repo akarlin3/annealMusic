@@ -76,31 +76,43 @@ function ModeToggle({ mode, onChange, compact }) {
   );
 }
 
-// ── Top navigation (shared shell chrome) ──
-const NAV_ITEMS = [
-  { route: 'listen', label: 'Listen', icon: 'listen' },
-  { route: 'sounds', label: 'Sounds', icon: 'sounds' },
-  { route: 'breathe', label: 'Breathe', icon: 'breathe' },
-  { route: 'attune', label: 'Attune', icon: 'attune' },
-  { route: 'gallery', label: 'Gallery', icon: 'gallery' },
-  { route: 'research', label: 'Research', icon: 'research' },
-  { route: 'library', label: 'Library', icon: 'library' },
-  { route: 'history', label: 'History', icon: 'history' },
-  { route: 'learn', label: 'Learn', icon: 'learn' },
+// ── Top navigation: 5 intent-based groups + Settings ──
+// Each group owns one or more routes; grouped routes get a calm sub-nav.
+const NAV_GROUPS = [
+  { id: 'listen',  label: 'Listen',  icon: 'listen',  children: [{ route: 'listen', label: 'Listen' }] },
+  { id: 'sounds',  label: 'Sounds',  icon: 'sounds',  children: [
+      { route: 'sounds',  label: 'Presets' },
+      { route: 'library', label: 'Curated' },
+      { route: 'gallery', label: 'Community' },
+  ] },
+  { id: 'breathe', label: 'Breathe', icon: 'breathe', children: [
+      { route: 'breathe', label: 'Paced' },
+      { route: 'attune',  label: 'Biofeedback' },
+  ] },
+  { id: 'learn',   label: 'Learn',   icon: 'learn',   children: [
+      { route: 'learn',    label: 'Lessons' },
+      { route: 'research', label: 'Studies' },
+  ] },
+  { id: 'history', label: 'History', icon: 'history', children: [{ route: 'history', label: 'History' }] },
 ];
 
+function groupForRoute(route) {
+  return NAV_GROUPS.find((g) => g.children.some((c) => c.route === route));
+}
+
 function TopNav({ route, navigate, mode, setMode, immersive }) {
+  const active = groupForRoute(route);
   return (
     <header className={'topnav' + (immersive ? ' immersive chrome' : '')}>
       <button className="brand" onClick={() => navigate('listen')}>
         <span className="wordmark font-display">Anneal</span>
       </button>
       <nav className="nav-links font-mono">
-        {NAV_ITEMS.map((it) => (
-          <button key={it.route} className={'nav-link' + (route === it.route ? ' is-active' : '')}
-            onClick={() => navigate(it.route)} title={it.label}>
-            <Icon name={it.icon} size={14} />
-            <span>{it.label}</span>
+        {NAV_GROUPS.map((g) => (
+          <button key={g.id} className={'nav-link' + (active && active.id === g.id ? ' is-active' : '')}
+            onClick={() => navigate(g.children[0].route)} title={g.label}>
+            <Icon name={g.icon} size={14} />
+            <span>{g.label}</span>
           </button>
         ))}
       </nav>
@@ -109,6 +121,22 @@ function TopNav({ route, navigate, mode, setMode, immersive }) {
         <ModeToggle mode={mode} onChange={setMode} />
       </div>
     </header>
+  );
+}
+
+// ── Sub-nav: segmented pill for grouped destinations (recedes on immersive routes) ──
+function SubNav({ route, navigate }) {
+  const group = groupForRoute(route);
+  if (!group || group.children.length < 2) return null;
+  return (
+    <div className="subnav chrome font-mono">
+      <div className="subnav-pill">
+        {group.children.map((c) => (
+          <button key={c.route} className={'subnav-tab' + (c.route === route ? ' is-active' : '')}
+            onClick={() => navigate(c.route)}>{c.label}</button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -149,4 +177,4 @@ function BreathOverlay({ tuple, active, reduceMotion, big }) {
   );
 }
 
-Object.assign(window, { Icon, Range, Chip, ProgressDots, ModeToggle, TopNav, BreathOverlay, NAV_ITEMS });
+Object.assign(window, { Icon, Range, Chip, ProgressDots, ModeToggle, TopNav, SubNav, BreathOverlay, NAV_GROUPS, groupForRoute });
