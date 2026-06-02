@@ -12,8 +12,6 @@ No install, no account, nothing to download. Simply pick an immersive soundscape
 
 ![Anneal Ambiance visualizer](docs/media/demo.gif)
 
-<!-- TODO: replace placeholder with a 6–10s, 800px-wide looping GIF of the visualizer reacting to sound + a slider move. Recipe in scripts/capture-demo.ts. -->
-
 ## What you actually do
 
 - **Pick a base note** — the home note everything is tuned to. Lower for deep and weighty, higher for light and airy.
