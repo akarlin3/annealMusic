@@ -1,11 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { HelpCircle, User } from 'lucide-react';
-import { useMode } from '@/mode/useMode';
 import { ModeSwitcher } from '@/mode/ModeSwitcher';
 import { useAuth } from '@/auth/AuthProvider';
 import { LissajousAvatar } from '@/components/LissajousAvatar';
-import { MODE_VISIBILITY } from '@/mode/modeVisibility';
 
 interface HeaderProps {
   subtitle?: string;
@@ -14,17 +12,96 @@ interface HeaderProps {
   children?: React.ReactNode;
 }
 
+/**
+ * Intent-based navigation, ported from the Anneal design prototype
+ * (`prototypes/anneal/`): 5 primary groups, each owning one or more routes.
+ * Grouped destinations expose a calm sub-nav pill so related surfaces read as
+ * one place. Routes map onto the production app as follows:
+ *
+ *   Listen   -> /                (the instrument / sandbox)
+ *   Sounds   -> /listen Curated, /gallery Community
+ *   Breathe  -> /timer  Paced
+ *   Learn    -> /learn.html Lessons, /experiment/preview Studies
+ *   History  -> /me/sessions
+ *
+ * Mappings to surfaces that production structures differently (e.g. the patch
+ * bank lives inside the instrument; biofeedback has no standalone route) point
+ * at the closest existing destination and are noted here for future passes.
+ */
+interface NavChild {
+  to: string;
+  label: string;
+  /** True for links to a separate build (full page load, not client routing). */
+  external?: boolean;
+}
+interface NavGroup {
+  id: string;
+  label: string;
+  children: NavChild[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  { id: 'listen', label: 'Listen', children: [{ to: '/', label: 'Listen' }] },
+  {
+    id: 'sounds',
+    label: 'Sounds',
+    children: [
+      { to: '/listen', label: 'Curated' },
+      { to: '/gallery', label: 'Community' },
+    ],
+  },
+  {
+    id: 'breathe',
+    label: 'Breathe',
+    children: [{ to: '/timer', label: 'Paced' }],
+  },
+  {
+    id: 'learn',
+    label: 'Learn',
+    children: [
+      { to: '/learn.html', label: 'Lessons', external: true },
+      { to: '/experiment/preview', label: 'Studies' },
+    ],
+  },
+  {
+    id: 'history',
+    label: 'History',
+    children: [{ to: '/me/sessions', label: 'History' }],
+  },
+];
+
+function groupForPath(pathname: string): NavGroup | undefined {
+  // First group whose child route matches wins, so `/` resolves to Listen.
+  return NAV_GROUPS.find((g) => g.children.some((c) => c.to === pathname));
+}
+
+const PRIMARY_LINK =
+  'flex items-center rounded-full px-3.5 py-2 font-mono text-[11px] uppercase tracking-[0.14em] transition-all';
+
+const NavLink = React.forwardRef<
+  HTMLAnchorElement,
+  { child: NavChild; className: string }
+>(function NavLink({ child, className }, ref) {
+  return child.external ? (
+    <a ref={ref} href={child.to} className={className}>
+      {child.label}
+    </a>
+  ) : (
+    <Link ref={ref} to={child.to} className={className}>
+      {child.label}
+    </Link>
+  );
+});
+
 export function Header({
   subtitle,
   showHelp = false,
   onHelpClick,
   children,
 }: HeaderProps) {
-  const { mode } = useMode();
   const { account } = useAuth();
   const location = useLocation();
-
-  const affordances = mode ? MODE_VISIBILITY[mode] : null;
+  const activeGroup = groupForPath(location.pathname);
 
   return (
     <header className="mb-8 flex flex-col gap-5">
@@ -34,10 +111,10 @@ export function Header({
           <div className="flex items-baseline gap-3">
             <Link to="/" className="hover:opacity-90 transition-opacity">
               <h1
-                className="font-display text-5xl tracking-tight"
+                className="font-display text-5xl tracking-tight italic"
                 style={{ color: '#fef3c7' }}
               >
-                <em>AnnealMusic</em>
+                Anneal
               </h1>
             </Link>
             <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-stone-500">
@@ -52,16 +129,33 @@ export function Header({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Persistent Mode Switcher */}
+          {/* Primary navigation — 5 intent-based groups */}
+          <nav className="flex items-center gap-0.5">
+            {NAV_GROUPS.map((g) => {
+              const isActive = activeGroup?.id === g.id;
+              return (
+                <NavLink
+                  key={g.id}
+                  child={g.children[0]!}
+                  className={`${PRIMARY_LINK} ${
+                    isActive
+                      ? 'text-amber-200 bg-amber-500/[0.08]'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                />
+              );
+            })}
+          </nav>
+
+          {/* Persistent Mode Switcher (the three voices) */}
           <ModeSwitcher />
 
-          {/* Dynamic Mode-aware Navigation Links */}
           <div className="flex items-center gap-3 border-l border-[var(--color-border)] pl-3">
             {/* Help Action */}
             {showHelp && onHelpClick && (
               <button
                 type="button"
-                aria-label="What is AnnealMusic? Open help"
+                aria-label="What is Anneal? Open help"
                 onClick={onHelpClick}
                 className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-800 text-stone-400 hover:text-stone-200 bg-stone-950/20 cursor-pointer"
               >
@@ -70,59 +164,6 @@ export function Header({
                   Help
                 </span>
               </button>
-            )}
-
-            {/* Musician/Meditation Links */}
-            {affordances?.showGallery && (
-              <Link
-                to="/gallery"
-                className={`font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
-                  location.pathname === '/gallery'
-                    ? 'text-amber-400 font-semibold'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                Gallery
-              </Link>
-            )}
-
-            {affordances?.showTimeline && (
-              <Link
-                to="/piece"
-                className={`font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
-                  location.pathname === '/piece'
-                    ? 'text-amber-400 font-semibold'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                Timeline
-              </Link>
-            )}
-
-            {affordances?.showCuratedLibrary && (
-              <Link
-                to="/listen"
-                className={`font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
-                  location.pathname === '/listen'
-                    ? 'text-amber-400 font-semibold'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                Listen
-              </Link>
-            )}
-
-            {mode === 'meditation' && (
-              <Link
-                to="/timer"
-                className={`font-mono text-[11px] uppercase tracking-[0.18em] transition-colors ${
-                  location.pathname === '/timer'
-                    ? 'text-amber-400 font-semibold'
-                    : 'text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                Timer
-              </Link>
             )}
 
             {/* User Account / Sign In */}
@@ -156,6 +197,29 @@ export function Header({
           </div>
         </div>
       </div>
+
+      {/* Sub-nav — segmented pill for grouped destinations, so related
+          surfaces read as one place (matches the prototype's calm sub-nav). */}
+      {activeGroup && activeGroup.children.length > 1 && (
+        <div className="flex justify-center">
+          <div className="flex gap-0.5 rounded-full border border-stone-800 bg-stone-900/70 p-1 backdrop-blur-md">
+            {activeGroup.children.map((c) => {
+              const isActive = c.to === location.pathname;
+              return (
+                <NavLink
+                  key={c.to}
+                  child={c}
+                  className={`rounded-full px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-all ${
+                    isActive
+                      ? 'bg-amber-500 text-stone-950'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Row 2 — page-specific action toolbar, on its own line so it never
           crowds the brand/nav row and wraps as a single coherent group. */}
