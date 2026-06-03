@@ -119,7 +119,7 @@ export class WebGLRenderer implements VisualRenderer {
           u_rms: { value: 0.0 },
           u_input_level: { value: -1.0 },
           u_partial_count: { value: 0 },
-          u_partials: { value: new Float32Array(16 * 4) },
+          'u_partials[0]': { value: new Float32Array(16 * 4) },
           u_spectrum: { value: this.spectrumTexture },
           u_show_spectrum: { value: 1 },
           u_loop_levels: { value: [0.0, 0.0, 0.0] },
@@ -371,7 +371,7 @@ export class WebGLRenderer implements VisualRenderer {
     }
 
     // Always update partialsData since it represents 60fps dynamic orbit phases
-    u.u_partials.value = partialsData;
+    u['u_partials[0]'].value = partialsData;
 
     // 5. Render Scene
     this.renderer.render({ scene: this.mesh });

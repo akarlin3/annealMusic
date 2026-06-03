@@ -20,6 +20,7 @@ describe('useTour first-run behavior', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     window.localStorage.clear();
+    window.localStorage.setItem('am_error_reporting_opt_in', 'true');
   });
 
   it('auto-starts on first visit (no dismissal flag stored)', () => {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getOptInStatus } from '@/observability/errorReporter';
 
 /** localStorage key recording that the first-run tour has been dismissed. */
 export const TOUR_STORAGE_KEY = 'annealmusic.tour.v1';
@@ -44,13 +45,26 @@ export function useTour(): TourApi {
   const [step, setStep] = useState(0);
 
   // First-run auto-start, after mount so the target controls exist in the DOM.
+  // Delay until the privacy consent dialog has been resolved (status is non-null).
   useEffect(() => {
     if (alreadySeen()) return;
-    const id = window.setTimeout(() => {
-      setStep(0);
-      setActive(true);
-    }, 400);
-    return () => window.clearTimeout(id);
+
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const checkStart = () => {
+      const optInChosen = getOptInStatus() !== null;
+      if (optInChosen) {
+        setStep(0);
+        setActive(true);
+      } else {
+        timerId = setTimeout(checkStart, 500);
+      }
+    };
+
+    timerId = setTimeout(checkStart, 500);
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
   }, []);
 
   const start = useCallback(() => {

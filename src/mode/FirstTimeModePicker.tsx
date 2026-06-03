@@ -103,7 +103,7 @@ export function FirstTimeModePicker() {
               <button
                 key={c.id}
                 onClick={() => handleSelect(c.id)}
-                className={`group text-left p-6 rounded-xl border border-stone-850 bg-stone-950/30 hover:bg-stone-950/50 ${c.border} transition-all duration-300 relative overflow-hidden flex flex-col justify-between h-64 shadow-lg hover:shadow-2xl cursor-pointer`}
+                className={`group text-left p-6 rounded-xl border border-stone-850 bg-stone-950/30 hover:bg-stone-950/50 hover:-translate-y-1 ${c.border} transition-all duration-300 relative overflow-hidden flex flex-col justify-between h-64 shadow-lg hover:shadow-2xl cursor-pointer`}
               >
                 {/* Micro glow behind icon */}
                 <div

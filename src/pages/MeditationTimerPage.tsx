@@ -310,7 +310,7 @@ export default function MeditationTimerPage() {
             Silent focus space punctuated by curated, organic bell tones.
           </p>
         </div>
-        <div className="w-8 h-8" /> {/* Spacer */}
+        <div className="w-11 h-11" /> {/* Spacer */}
       </header>
 
       {/* Main Breathing and Settings Field */}

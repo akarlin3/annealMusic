@@ -62,7 +62,13 @@ export const LissajousAvatar: React.FC<LissajousAvatarProps> = ({
           <stop offset="0%" stopColor={color1} stopOpacity={opacity} />
           <stop offset="100%" stopColor={color2} stopOpacity={opacity * 0.6} />
         </linearGradient>
-        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+        <filter
+          id={`glow-${seed}`}
+          x="-20%"
+          y="-20%"
+          width="140%"
+          height="140%"
+        >
           <feGaussianBlur stdDeviation="3" result="blur" />
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
@@ -115,7 +121,7 @@ export const LissajousAvatar: React.FC<LissajousAvatarProps> = ({
         fill="none"
         stroke={`url(#grad-${seed})`}
         strokeWidth={strokeWidth.toFixed(1)}
-        filter="url(#glow)"
+        filter={`url(#glow-${seed})`}
         strokeLinecap="round"
         strokeLinejoin="round"
       />

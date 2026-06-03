@@ -73,7 +73,20 @@ const NAV_GROUPS: NavGroup[] = [
 
 function groupForPath(pathname: string): NavGroup | undefined {
   // First group whose child route matches wins, so `/` resolves to Listen.
-  return NAV_GROUPS.find((g) => g.children.some((c) => c.to === pathname));
+  return NAV_GROUPS.find((g) =>
+    g.children.some((c) => {
+      if (c.to === pathname) return true;
+      if (
+        c.to === '/' &&
+        (pathname.startsWith('/p/') || pathname.startsWith('/jam/'))
+      )
+        return true;
+      if (c.to === '/listen' && pathname.startsWith('/listening/')) return true;
+      if (c.to === '/experiment/preview' && pathname.startsWith('/experiment/'))
+        return true;
+      return false;
+    }),
+  );
 }
 
 const PRIMARY_LINK =
@@ -207,7 +220,12 @@ export function Header({
         <div className="flex justify-center">
           <div className="flex gap-0.5 rounded-full border border-stone-800 bg-stone-900/70 p-1 backdrop-blur-md">
             {activeGroup.children.map((c) => {
-              const isActive = c.to === location.pathname;
+              const isActive =
+                c.to === location.pathname ||
+                (c.to === '/listen' &&
+                  location.pathname.startsWith('/listening/')) ||
+                (c.to === '/experiment/preview' &&
+                  location.pathname.startsWith('/experiment/'));
               return (
                 <NavLink
                   key={c.to}
