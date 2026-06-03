@@ -147,12 +147,11 @@ function PatternChip({
     <button
       type="button"
       onClick={onClick}
-      className={
-        'rounded-full px-3 py-1 font-mono text-[9px] uppercase tracking-wider transition-colors ' +
-        (active
-          ? 'bg-amber-500 text-stone-950'
-          : 'border border-stone-800 text-stone-400 hover:text-stone-200')
-      }
+      className={`rounded-full px-3.5 py-1.5 font-mono text-[9px] uppercase tracking-wider transition-all cursor-pointer select-none border ${
+        active
+          ? 'border-amber-500/40 bg-amber-500/[0.06] text-amber-200 shadow-[inset_0_0_12px_rgba(245,158,11,0.15)] font-semibold'
+          : 'border-stone-800/80 bg-stone-950/10 text-stone-400 hover:text-stone-200 hover:border-stone-700/80'
+      }`}
     >
       {label}
     </button>

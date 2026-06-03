@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, Square, Bell, HelpCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Play,
+  Pause,
+  Square,
+  Bell,
+  HelpCircle,
+  ChevronDown,
+} from 'lucide-react';
 import { BELL_REGISTRY, getBellById } from '@/audio/bells/registry';
 import {
   BellScheduler,
@@ -285,25 +293,34 @@ export default function MeditationTimerPage() {
   const currentBellDef = getBellById(selectedBellId);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-stone-950 text-stone-200 px-8 py-10 overflow-y-auto"
-      style={{ background: '#090807' }}
-    >
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-stone-950 text-stone-200 px-8 py-10 overflow-y-auto relative select-none">
+      {/* Decorative background glows */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div
+          className="absolute -top-[10%] -left-[10%] w-[500px] h-[500px] rounded-full bg-amber-500/[0.03] blur-[100px] transition-opacity duration-1000"
+          style={{ opacity: isPlaying ? 0.8 : 0.4 }}
+        />
+        <div
+          className="absolute -bottom-[10%] -right-[10%] w-[500px] h-[500px] rounded-full bg-amber-600/[0.02] blur-[120px] transition-opacity duration-1000"
+          style={{ opacity: isPlaying ? 0.6 : 0.3 }}
+        />
+      </div>
+
       {/* Header */}
-      <header className="w-full max-w-4xl flex items-center justify-between border-b border-stone-900 pb-4 z-10">
+      <header className="w-full max-w-4xl flex items-center justify-between border-b border-stone-900/60 pb-4 z-10">
         <button
           onClick={() => {
             handleStop();
             navigate('/');
           }}
-          className="flex items-center justify-center h-11 w-11 rounded-full border border-stone-850 bg-stone-950/20 hover:border-stone-700 text-stone-400 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-colors"
+          className="flex items-center justify-center h-11 w-11 rounded-full border border-stone-850 bg-stone-950/20 hover:border-stone-700 text-stone-400 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all cursor-pointer"
           title="Back to App"
           aria-label="Back to App"
         >
           <ArrowLeft size={14} />
         </button>
         <div className="text-center">
-          <h1 className="font-mono text-xs uppercase tracking-[0.25em] text-amber-100/90 font-bold">
+          <h1 className="font-mono text-[10px] uppercase tracking-[0.25em] text-amber-100/90 font-bold">
             Meditation Bell Timer
           </h1>
           <p className="text-[8px] uppercase tracking-wider text-stone-500 mt-1">
@@ -316,25 +333,37 @@ export default function MeditationTimerPage() {
       {/* Main Breathing and Settings Field */}
       <main className="relative flex-1 w-full max-w-4xl flex flex-col sm:flex-row items-center justify-center gap-12 py-6">
         {/* Left Field: Breathing Visualizer Circle */}
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <div className="relative w-72 h-72 rounded-full border border-stone-900/60 bg-stone-950/10 flex items-center justify-center overflow-hidden">
-            {/* LFO expanding breath circle */}
+        <div className="flex-1 flex flex-col items-center justify-center z-10">
+          <div className="relative w-80 h-80 rounded-full flex items-center justify-center">
+            {/* Pulsing Outer Glow Aura */}
             <div
-              className="absolute rounded-full bg-amber-500/10 border border-amber-500/20 shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-transform duration-150 ease-out"
+              className="absolute rounded-full bg-amber-500/[0.02] blur-[40px] border border-amber-500/[0.05] transition-all duration-300 ease-out"
               style={{
-                width: '140px',
-                height: '140px',
+                width: '320px',
+                height: '320px',
+                transform: `scale(${breathingScale * 1.15})`,
+                opacity: isPlaying ? breathingOpacity * 0.7 : 0.2,
+              }}
+            />
+            {/* LFO expanding breath circle (Glassmorphic) */}
+            <div
+              className="absolute rounded-full bg-gradient-to-br from-amber-500/[0.06] to-amber-600/[0.02] border border-amber-500/20 shadow-[0_0_50px_rgba(245,158,11,0.12)] transition-transform duration-150 ease-out backdrop-blur-[2px]"
+              style={{
+                width: '180px',
+                height: '180px',
                 transform: `scale(${breathingScale})`,
                 opacity: isPlaying ? breathingOpacity : 0.3,
               }}
             />
+            {/* Outer Static Subtle Ring */}
+            <div className="absolute w-[220px] h-[220px] rounded-full border border-stone-800/40 pointer-events-none" />
 
             {/* Inner stable circle */}
-            <div className="relative flex flex-col items-center justify-center text-center">
-              <span className="font-mono text-xs uppercase tracking-[0.2em] text-stone-500 font-semibold mb-1">
+            <div className="relative z-20 flex flex-col items-center justify-center text-center">
+              <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-stone-400 font-semibold mb-2">
                 {breathingLabel}
               </span>
-              <span className="font-mono text-2xl font-light text-stone-300">
+              <span className="font-mono text-4xl font-light tracking-tight text-stone-100 drop-shadow-md">
                 {fmtTime(remainingSec)}
               </span>
             </div>
@@ -342,36 +371,46 @@ export default function MeditationTimerPage() {
         </div>
 
         {/* Right Field: Settings Controls Card */}
-        <div className="w-full sm:w-80 rounded-xl border border-stone-850 p-6 font-mono text-[9px] uppercase tracking-wider backdrop-blur-xl bg-stone-950/70 shadow-2xl space-y-5">
-          <div className="flex items-center gap-2 border-b border-stone-900 pb-2 mb-3">
+        <div className="w-full sm:w-80 rounded-2xl border border-stone-800/80 p-6 font-mono text-[9px] uppercase tracking-wider backdrop-blur-xl bg-stone-900/40 shadow-2xl space-y-6 z-10">
+          <div className="flex items-center gap-2 border-b border-stone-800/60 pb-3 mb-2">
             <Bell size={12} className="text-amber-500" />
-            <span className="font-semibold text-amber-200">
+            <span className="font-semibold text-amber-200/90 tracking-widest text-[10px]">
               Timer Configuration
             </span>
           </div>
 
           {/* Select Bell Instrument */}
-          <div>
-            <label className="text-stone-500 mb-2 block">Bell Instrument</label>
-            <select
-              value={selectedBellId}
-              disabled={isPlaying}
-              onChange={(e) => setSelectedBellId(e.target.value)}
-              className="w-full rounded border border-stone-850 bg-stone-950 px-2.5 py-1.5 font-mono text-[10px] uppercase text-stone-200 focus:border-amber-500/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950 disabled:opacity-50"
-            >
-              {BELL_REGISTRY.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+          <div className="space-y-1.5">
+            <label className="text-stone-500 block">Bell Instrument</label>
+            <div className="relative">
+              <select
+                value={selectedBellId}
+                disabled={isPlaying}
+                onChange={(e) => setSelectedBellId(e.target.value)}
+                className="w-full appearance-none rounded-xl border border-stone-800/60 bg-stone-950/40 hover:bg-stone-950/60 transition-colors px-3.5 py-2.5 font-mono text-[10px] uppercase text-stone-200 focus:border-amber-500/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:opacity-50 cursor-pointer pr-10"
+              >
+                {BELL_REGISTRY.map((b) => (
+                  <option
+                    key={b.id}
+                    value={b.id}
+                    className="bg-stone-950 text-stone-200"
+                  >
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={14}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-stone-450"
+              />
+            </div>
           </div>
 
           {/* Session Duration */}
-          <div>
-            <div className="flex justify-between mb-2">
+          <div className="space-y-2">
+            <div className="flex justify-between items-baseline">
               <label className="text-stone-500">Duration</label>
-              <span className="text-amber-400 font-semibold">
+              <span className="text-amber-400 font-semibold text-[10px]">
                 {durationMin} Min
               </span>
             </div>
@@ -383,53 +422,73 @@ export default function MeditationTimerPage() {
               value={durationMin}
               disabled={isPlaying}
               onChange={(e) => setDurationMin(Number(e.target.value))}
-              className="w-full h-1 bg-stone-900 rounded appearance-none cursor-pointer accent-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950 disabled:opacity-50"
+              className="w-full am-range cursor-pointer disabled:opacity-50"
               aria-label="Duration"
             />
           </div>
 
           {/* Chime Interval */}
-          <div>
-            <label className="text-stone-500 mb-2 block">
-              Interval Punctuation
-            </label>
-            <select
-              value={intervalMin}
-              disabled={isPlaying}
-              onChange={(e) => setIntervalMin(Number(e.target.value))}
-              className="w-full rounded border border-stone-850 bg-stone-950 px-2.5 py-1.5 font-mono text-[10px] uppercase text-stone-200 focus:border-amber-500/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1 focus-visible:ring-offset-stone-950 disabled:opacity-50"
-            >
-              <option value={0}>None (Only Start/End)</option>
-              <option value={1}>Every 1 Minute</option>
-              <option value={2}>Every 2 Minutes</option>
-              <option value={3}>Every 3 Minutes</option>
-              <option value={5}>Every 5 Minutes</option>
-              <option value={10}>Every 10 Minutes</option>
-              <option value={15}>Every 15 Minutes</option>
-            </select>
+          <div className="space-y-1.5">
+            <label className="text-stone-500 block">Interval Punctuation</label>
+            <div className="relative">
+              <select
+                value={intervalMin}
+                disabled={isPlaying}
+                onChange={(e) => setIntervalMin(Number(e.target.value))}
+                className="w-full appearance-none rounded-xl border border-stone-800/60 bg-stone-950/40 hover:bg-stone-950/60 transition-colors px-3.5 py-2.5 font-mono text-[10px] uppercase text-stone-200 focus:border-amber-500/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 disabled:opacity-50 cursor-pointer pr-10"
+              >
+                <option value={0} className="bg-stone-950 text-stone-200">
+                  None (Only Start/End)
+                </option>
+                <option value={1} className="bg-stone-950 text-stone-200">
+                  Every 1 Minute
+                </option>
+                <option value={2} className="bg-stone-950 text-stone-200">
+                  Every 2 Minutes
+                </option>
+                <option value={3} className="bg-stone-950 text-stone-200">
+                  Every 3 Minutes
+                </option>
+                <option value={5} className="bg-stone-950 text-stone-200">
+                  Every 5 Minutes
+                </option>
+                <option value={10} className="bg-stone-950 text-stone-200">
+                  Every 10 Minutes
+                </option>
+                <option value={15} className="bg-stone-950 text-stone-200">
+                  Every 15 Minutes
+                </option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-stone-450"
+              />
+            </div>
           </div>
 
           {/* Breath pacing (persists on this device) */}
-          <div className="border-t border-stone-900 pt-3 normal-case tracking-normal">
+          <div className="border-t border-stone-800/60 pt-4 normal-case tracking-normal">
             <BreathPicker value={breathPattern} onChange={setBreathPattern} />
             {tuple && (
-              <div className="mt-3 flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-wider text-stone-400">
+              <div className="mt-4 flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-wider text-stone-400 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={breathPrefs.reduceMotion}
                     onChange={(e) =>
                       breathPrefs.setReduceMotion(e.target.checked)
                     }
+                    className="rounded border-stone-850 bg-stone-950/40 text-amber-500 focus:ring-0 focus:ring-offset-0 h-3.5 w-3.5 cursor-pointer"
                   />
                   Reduce motion
                 </label>
                 {breathPrefs.hapticsAvailable && (
-                  <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-wider text-stone-400">
+                  <label className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-wider text-stone-400 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={breathPrefs.haptics}
                       onChange={(e) => breathPrefs.setHaptics(e.target.checked)}
+                      className="rounded border-stone-850 bg-stone-950/40 text-amber-500 focus:ring-0 focus:ring-offset-0 h-3.5 w-3.5 cursor-pointer"
                     />
                     Haptics
                   </label>
@@ -440,8 +499,8 @@ export default function MeditationTimerPage() {
 
           {/* Bell Description */}
           {currentBellDef && (
-            <div className="border-t border-stone-900 pt-3 text-[7.5px] uppercase tracking-wide text-stone-500 leading-relaxed">
-              <span className="text-stone-400 block font-bold mb-0.5">
+            <div className="border-t border-stone-800/60 pt-4 text-[8px] uppercase tracking-wider text-stone-500 leading-relaxed">
+              <span className="text-stone-400 block font-semibold mb-1">
                 {currentBellDef.name}
               </span>
               {currentBellDef.description}
@@ -453,31 +512,31 @@ export default function MeditationTimerPage() {
       {/* Footer controls & Clinical disclaimer */}
       <footer className="w-full max-w-4xl flex flex-col items-center gap-6 z-10">
         {/* Playback Controls */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           {isPlaying ? (
             <button
               onClick={handlePause}
-              className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-300 hover:border-amber-500/50 hover:text-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all shadow-lg"
+              className="flex items-center justify-center h-14 w-14 rounded-full border border-stone-800 bg-stone-900/60 hover:bg-stone-800/60 text-stone-300 hover:text-amber-400 hover:border-amber-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all shadow-lg active:scale-95 cursor-pointer"
               title="Pause Timer"
               aria-label="Pause Timer"
             >
-              <Pause size={16} strokeWidth={1.5} />
+              <Pause size={18} strokeWidth={1.5} />
             </button>
           ) : (
             <button
               onClick={handleStart}
-              className="flex items-center justify-center h-12 w-12 rounded-full bg-amber-500 text-stone-950 hover:bg-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all shadow-lg shadow-amber-500/10"
+              className="flex items-center justify-center h-14 w-14 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 shadow-[0_0_30px_rgba(245,158,11,0.25)] hover:shadow-[0_0_40px_rgba(245,158,11,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all active:scale-90 cursor-pointer"
               title="Start Timer"
               aria-label="Start Timer"
             >
-              <Play size={16} strokeWidth={1.5} className="ml-0.5" />
+              <Play size={18} strokeWidth={1.5} className="ml-0.5" />
             </button>
           )}
 
           <button
-            onClick={handleStop}
+            onClick={() => handleStop()}
             disabled={!isPlaying && elapsedSec === 0}
-            className="flex items-center justify-center h-12 w-12 rounded-full border border-stone-800 bg-stone-950/60 text-stone-500 hover:text-stone-300 hover:border-stone-700 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all"
+            className="flex items-center justify-center h-14 w-14 rounded-full border border-stone-800 bg-stone-900/30 text-stone-500 hover:text-stone-300 hover:border-stone-700 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-950 transition-all active:scale-95 cursor-pointer"
             title="Reset Timer"
             aria-label="Reset Timer"
           >
@@ -487,16 +546,16 @@ export default function MeditationTimerPage() {
 
         {/* Dynamic bottom progress bar */}
         {isPlaying && (
-          <div className="w-full max-w-xl h-0.5 bg-stone-900 rounded-full overflow-hidden">
+          <div className="w-full max-w-xl h-[3px] bg-stone-900/60 rounded-full overflow-hidden">
             <div
-              className="h-full bg-amber-500 rounded-full transition-all duration-1000 ease-linear"
+              className="h-full bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-400 rounded-full transition-all duration-1000 ease-linear shadow-[0_0_10px_rgba(245,158,11,0.5)]"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
         )}
 
         {/* Clinical Disclaimer */}
-        <div className="w-full max-w-xl text-center border-t border-stone-900/60 pt-4 pb-2">
+        <div className="w-full max-w-xl text-center border-t border-stone-900/40 pt-4 pb-2">
           <p className="flex items-center justify-center gap-1.5 font-mono text-[8px] uppercase tracking-wider text-stone-600">
             <HelpCircle size={10} className="text-stone-700" />
             Disclaimer: Ambient listens are calming, but specific tuning
