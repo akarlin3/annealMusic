@@ -416,7 +416,7 @@ export default function Visualizer({
 
       <div
         className="absolute bottom-3 left-4 right-4 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em]"
-        style={{ color: '#57534e' }}
+        style={{ color: '#a8a29e' }}
       >
         <span className="flex items-center gap-2">
           <Circle

@@ -61,8 +61,8 @@ export default function LoopPedal({ loops, inputConnected }: LoopPedalProps) {
     >
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Repeat size={12} strokeWidth={1.5} style={{ color: '#78716c' }} />
-          <span className={labelCaps} style={{ color: '#78716c' }}>
+          <Repeat size={12} strokeWidth={1.5} style={{ color: '#a8a29e' }} />
+          <span className={labelCaps} style={{ color: '#a8a29e' }}>
             Loop Pedal
           </span>
           <InfoTip id="loop.slot" label="Loop pedal" />
@@ -72,7 +72,7 @@ export default function LoopPedal({ loops, inputConnected }: LoopPedalProps) {
           aria-label="Loop pedal keyboard help"
           onClick={() => setShowLegend((v) => !v)}
           className="rounded-full p-1.5 transition-all"
-          style={{ border: '1px solid #44403c', color: '#78716c' }}
+          style={{ border: '1px solid #44403c', color: '#a8a29e' }}
         >
           <HelpCircle size={13} strokeWidth={1.5} />
         </button>
@@ -95,7 +95,7 @@ export default function LoopPedal({ loops, inputConnected }: LoopPedalProps) {
             <span className="font-mono text-[#fbbf24]">Shift + 1/2/3</span> —
             freeze ↔ unfreeze (granular re-synthesis).
           </p>
-          <p className="mt-1" style={{ color: '#78716c' }}>
+          <p className="mt-1" style={{ color: '#a8a29e' }}>
             Capture starts on the first sound after arming, and auto-stops at 60
             s. Re-arming overwrites a slot — there is no undo.
           </p>
@@ -103,7 +103,7 @@ export default function LoopPedal({ loops, inputConnected }: LoopPedalProps) {
       )}
 
       {!inputConnected && (
-        <p className="mb-3 text-[12px]" style={{ color: '#78716c' }}>
+        <p className="mb-3 text-[12px]" style={{ color: '#a8a29e' }}>
           Connect an input above to capture loops.
         </p>
       )}

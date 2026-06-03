@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Headphones, Mic, MicOff } from 'lucide-react';
 import LevelMeter from '@/components/LevelMeter';
 import InfoTip from '@/components/InfoTip';
@@ -20,6 +21,7 @@ function deviceName(label: string, index: number): string {
  * (the arc never touches input), so it is never disabled by session state.
  */
 export default function InputPanel({ input }: InputPanelProps) {
+  const levelInputId = useId();
   const {
     state,
     devices,
@@ -46,8 +48,8 @@ export default function InputPanel({ input }: InputPanelProps) {
       }}
     >
       <div className="mb-4 flex items-center gap-2">
-        <Mic size={12} strokeWidth={1.5} style={{ color: '#78716c' }} />
-        <span className={labelCaps} style={{ color: '#78716c' }}>
+        <Mic size={12} strokeWidth={1.5} style={{ color: '#a8a29e' }} />
+        <span className={labelCaps} style={{ color: '#a8a29e' }}>
           Input
         </span>
         <InfoTip id="input.connect" label="live input" />
@@ -82,7 +84,7 @@ export default function InputPanel({ input }: InputPanelProps) {
             </button>
             <span
               className="flex items-center gap-1.5 text-[11px]"
-              style={{ color: '#57534e' }}
+              style={{ color: '#a8a29e' }}
             >
               <Headphones size={12} strokeWidth={1.5} />
               Use headphones to avoid feedback
@@ -138,7 +140,7 @@ export default function InputPanel({ input }: InputPanelProps) {
               <label
                 htmlFor="input-device-select"
                 className={labelCaps}
-                style={{ color: '#78716c' }}
+                style={{ color: '#a8a29e' }}
               >
                 Device
               </label>
@@ -174,7 +176,11 @@ export default function InputPanel({ input }: InputPanelProps) {
           <div className="max-w-xs">
             <div className="mb-1.5 flex items-baseline justify-between">
               <span className="flex items-center gap-1.5">
-                <label className="text-[13px]" style={{ color: '#d6d3d1' }}>
+                <label
+                  htmlFor={levelInputId}
+                  className="text-[13px]"
+                  style={{ color: '#d6d3d1' }}
+                >
                   Input Level
                 </label>
                 <InfoTip id="input.level" label="Input Level" />
@@ -187,6 +193,7 @@ export default function InputPanel({ input }: InputPanelProps) {
               </span>
             </div>
             <input
+              id={levelInputId}
               type="range"
               className="am-range"
               min={0}
@@ -223,7 +230,7 @@ export default function InputPanel({ input }: InputPanelProps) {
                     ? 'rgba(245, 158, 11, 0.12)'
                     : 'transparent',
                   border: '1px solid #44403c',
-                  color: monitoring ? '#fef3c7' : '#78716c',
+                  color: monitoring ? '#fef3c7' : '#a8a29e',
                 }}
               >
                 {monitoring ? (
@@ -254,7 +261,7 @@ export default function InputPanel({ input }: InputPanelProps) {
 
           <div
             className={`flex items-center gap-1.5 ${labelCaps}`}
-            style={{ color: '#57534e' }}
+            style={{ color: '#a8a29e' }}
           >
             ~{latencyMs} MS INPUT LATENCY · ESTIMATE
             <InfoTip id="input.latency" label="Latency" />

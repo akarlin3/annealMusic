@@ -116,7 +116,7 @@ function Labeled({
     <div className="flex items-center gap-2">
       <span
         className="font-mono text-[10px] uppercase tracking-[0.2em]"
-        style={{ color: '#57534e' }}
+        style={{ color: '#a8a29e' }}
       >
         {label}
       </span>

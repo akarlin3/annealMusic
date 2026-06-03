@@ -119,7 +119,7 @@ export function Header({
                 Anneal
               </h1>
             </Link>
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-stone-500">
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-stone-400">
               v9.0
             </span>
           </div>

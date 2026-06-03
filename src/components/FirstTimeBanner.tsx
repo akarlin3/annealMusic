@@ -38,7 +38,7 @@ export default function FirstTimeBanner() {
         aria-label="Dismiss"
         onClick={dismiss}
         className="font-mono text-[11px] uppercase tracking-[0.18em]"
-        style={{ color: '#78716c' }}
+        style={{ color: '#a8a29e' }}
       >
         Dismiss
       </button>

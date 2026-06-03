@@ -19,11 +19,89 @@ function fmtElapsed(sec: number): string {
  */
 export default function RecordControls({
   recorder,
+  variant = 'button',
 }: {
   recorder: RecorderApi;
+  variant?: 'button' | 'menuItem';
 }) {
   const [format, setFormat] = useState<RecordingFormat>('opus');
   const recording = recorder.state === 'recording';
+
+  if (variant === 'menuItem') {
+    return (
+      <div className="flex flex-col gap-1.5 p-1 border-b border-stone-900/50 pb-2 mb-1">
+        {recorder.state === 'idle' && (
+          <div className="flex items-center justify-between px-2.5 py-1">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-stone-500">
+              Rec Format
+            </span>
+            <div
+              role="radiogroup"
+              aria-label="Recording format"
+              className="flex items-center gap-1 rounded-full p-0.5 border border-stone-850"
+            >
+              {(['opus', 'wav'] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  role="radio"
+                  aria-checked={format === f}
+                  disabled={f === 'opus' && !recorder.opusSupported}
+                  onClick={() => setFormat(f)}
+                  className={`rounded-full px-2.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.16em] transition-colors ${
+                    format === f
+                      ? 'bg-amber-500/20 text-amber-405 font-medium'
+                      : 'text-stone-500 hover:text-stone-300'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          aria-label={recording ? 'Stop recording' : 'Record session'}
+          onClick={() =>
+            recording ? void recorder.stop() : void recorder.start(format)
+          }
+          disabled={recorder.state === 'saving'}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.16em] text-stone-300 hover:bg-stone-900/60 hover:text-stone-100 transition-colors cursor-pointer outline-none focus-visible:bg-stone-900/60"
+        >
+          {recording ? (
+            <>
+              <span
+                className="inline-block h-2 w-2 animate-pulse rounded-full"
+                style={{ background: '#dc2626' }}
+              />
+              <Square
+                size={11}
+                strokeWidth={1.5}
+                style={{ color: '#dc2626' }}
+              />
+              <span className="text-red-400 font-semibold">
+                {fmtElapsed(recorder.elapsedSec)} · Stop
+              </span>
+            </>
+          ) : (
+            <>
+              <Circle
+                size={11}
+                strokeWidth={1.5}
+                fill="#dc2626"
+                style={{ color: '#dc2626' }}
+              />
+              <span>
+                {recorder.state === 'saving' ? 'Saving…' : 'Record Session'}
+              </span>
+            </>
+          )}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2">

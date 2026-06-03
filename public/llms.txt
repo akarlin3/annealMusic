@@ -1,0 +1,10 @@
+# AnnealMusic
+
+AnnealMusic is a generative ambient meditation sandbox. Coupled oscillators drift over a harmonic lattice, and you sculpt the field. It features physics-driven sound, session arcs, and audio-reactive visuals.
+
+## Links
+
+- [Homepage](https://anneal.averykarlin.org/)
+- [Meditation Focus](https://anneal.averykarlin.org/listen)
+- [Research Console](https://anneal.averykarlin.org/research.html)
+- [GitHub Repository](https://github.com/akarlin3/annealMusic)

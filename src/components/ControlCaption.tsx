@@ -17,7 +17,7 @@ export default function ControlCaption({ id }: ControlCaptionProps) {
   const entry = getExplain(id);
   if (!entry) return null;
   return (
-    <p className="mt-1 text-[11px] leading-snug" style={{ color: '#78716c' }}>
+    <p className="mt-1 text-[11px] leading-snug" style={{ color: '#a8a29e' }}>
       {entry.caption}
     </p>
   );

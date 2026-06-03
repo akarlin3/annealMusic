@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import {
   CONTROL_DEFS,
   VOLUME_DEF,
@@ -97,11 +97,11 @@ function NoteConverter({
         <div className="flex items-center gap-1.5">
           <label
             htmlFor="piano-note-converter"
-            className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#78716c]"
+            className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#a8a29e]"
           >
             Piano Note Converter
           </label>
-          <span className="text-[9px] font-mono text-[#57534e]">
+          <span className="text-[9px] font-mono text-[#a8a29e]">
             (e.g., A4, C#3, Eb5)
           </span>
         </div>
@@ -168,6 +168,7 @@ function Slider({
     : value;
 
   const [highlighted, setHighlighted] = useState(false);
+  const inputId = useId();
 
   useEffect(() => {
     const handleHighlight = (e: Event) => {
@@ -195,6 +196,7 @@ function Slider({
       <div className="mb-1.5 flex items-baseline justify-between">
         <span className="flex items-center gap-1.5">
           <label
+            htmlFor={inputId}
             className="text-[13px]"
             style={{ color: disabled ? '#57534e' : '#d6d3d1' }}
           >
@@ -225,6 +227,7 @@ function Slider({
         </span>
       </div>
       <input
+        id={inputId}
         type="range"
         className="am-range"
         min={isRoot ? 0 : sliderMin}
@@ -317,7 +320,7 @@ function ModelPicker({
             >
               {MODEL_LABELS[model]}
             </div>
-            <div className="mt-0.5 text-[10px]" style={{ color: '#78716c' }}>
+            <div className="mt-0.5 text-[10px]" style={{ color: '#a8a29e' }}>
               {MODEL_HINTS[model]}
             </div>
           </button>
@@ -339,6 +342,9 @@ export default function ControlPanel({
   showToast,
 }: ControlPanelProps) {
   const [aiModifyOpen, setAiModifyOpen] = useState(false);
+  const volumeId = useId();
+  const tuningSelectId = useId();
+  const refA4Id = useId();
   const backendOn = api.isBackendConfigured();
   const caps = engineCapabilities(engineId);
   const structuralLock = isPlaying && caps.densityLockedWhilePlaying;
@@ -491,7 +497,7 @@ export default function ControlPanel({
           <div key={group}>
             <div
               className="mb-4 font-mono text-[10px] uppercase tracking-[0.22em]"
-              style={{ color: '#78716c' }}
+              style={{ color: '#a8a29e' }}
             >
               {group}
             </div>
@@ -536,13 +542,13 @@ export default function ControlPanel({
             <div className="flex items-baseline gap-2">
               <span
                 className="font-mono text-[10px] uppercase tracking-[0.22em]"
-                style={{ color: '#78716c' }}
+                style={{ color: '#a8a29e' }}
               >
                 Engine
               </span>
               <span
                 className="font-mono text-[10px] uppercase tracking-[0.22em]"
-                style={{ color: '#57534e' }}
+                style={{ color: '#a8a29e' }}
               >
                 {ENGINE_LABELS[engineId]}
               </span>
@@ -571,7 +577,7 @@ export default function ControlPanel({
               <div className="mb-2 flex items-center gap-1.5">
                 <span
                   className="font-mono text-[10px] uppercase tracking-[0.18em]"
-                  style={{ color: '#78716c' }}
+                  style={{ color: '#a8a29e' }}
                 >
                   Source
                 </span>
@@ -599,7 +605,7 @@ export default function ControlPanel({
               <div className="mb-2 flex items-center gap-1.5">
                 <span
                   className="font-mono text-[10px] uppercase tracking-[0.18em]"
-                  style={{ color: '#78716c' }}
+                  style={{ color: '#a8a29e' }}
                 >
                   Model
                 </span>
@@ -660,8 +666,9 @@ export default function ControlPanel({
         <div className="mb-1.5 flex items-baseline justify-between">
           <span className="flex items-center gap-1.5">
             <label
+              htmlFor={volumeId}
               className="font-mono text-[10px] uppercase tracking-[0.22em]"
-              style={{ color: '#78716c' }}
+              style={{ color: '#a8a29e' }}
             >
               {VOLUME_DEF.label}
             </label>
@@ -675,6 +682,7 @@ export default function ControlPanel({
           </span>
         </div>
         <input
+          id={volumeId}
           type="range"
           className="am-range"
           min={0}
@@ -705,10 +713,10 @@ export default function ControlPanel({
       {/* Tuning Settings Panel (v4.1) */}
       <div className="mt-10 max-w-xl rounded-xl border border-[#2e2b28] bg-[#141210]/90 p-5">
         <div className="mb-4 flex items-baseline justify-between border-b border-[#292524] pb-2">
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#78716c]">
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#a8a29e]">
             Tuning & Scales
           </span>
-          <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-[#57534e]">
+          <span className="font-mono text-[9px] uppercase tracking-[0.15em] text-[#a8a29e]">
             v4.1 Tuning Engine
           </span>
         </div>
@@ -717,10 +725,14 @@ export default function ControlPanel({
           {/* Left Column: Selector & Reference A4 */}
           <div className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-[11px] font-mono uppercase tracking-[0.16em] text-[#a8a29e]">
+              <label
+                htmlFor={tuningSelectId}
+                className="mb-1.5 block text-[11px] font-mono uppercase tracking-[0.16em] text-[#a8a29e]"
+              >
                 Tuning System
               </label>
               <select
+                id={tuningSelectId}
                 value={
                   tuning.system === 'custom'
                     ? `custom:${tuning.sclId}`
@@ -756,6 +768,7 @@ export default function ControlPanel({
             <div>
               <div className="mb-1.5 flex items-baseline justify-between">
                 <label
+                  htmlFor={refA4Id}
                   className="text-[11px] font-mono uppercase tracking-[0.16em]"
                   style={{
                     color:
@@ -781,6 +794,7 @@ export default function ControlPanel({
                 </span>
               </div>
               <input
+                id={refA4Id}
                 type="range"
                 className="am-range"
                 min={0}
@@ -826,10 +840,10 @@ export default function ControlPanel({
                   className="absolute inset-0 cursor-pointer opacity-0"
                   disabled={arcLocked}
                 />
-                <span className="text-[10px] font-mono text-[#78716c]">
+                <span className="text-[10px] font-mono text-[#a8a29e]">
                   Drag & Drop .scl File
                 </span>
-                <span className="mt-1 text-[9px] text-[#57534e]">
+                <span className="mt-1 text-[9px] text-[#a8a29e]">
                   or click to browse
                 </span>
               </div>
@@ -837,7 +851,7 @@ export default function ControlPanel({
 
             {customScales.length > 0 && (
               <div>
-                <span className="mb-1 block text-[10px] font-mono uppercase tracking-wider text-[#57534e]">
+                <span className="mb-1 block text-[10px] font-mono uppercase tracking-wider text-[#a8a29e]">
                   Your Imported Scales
                 </span>
                 <div className="max-h-[80px] overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
@@ -856,7 +870,7 @@ export default function ControlPanel({
                         type="button"
                         onClick={() => handleDeleteCustomScale(s.id)}
                         disabled={arcLocked}
-                        className="text-[#78716c] hover:text-[#ef4444] transition-colors"
+                        className="text-[#a8a29e] hover:text-[#ef4444] transition-colors"
                         title="Delete scale"
                       >
                         <Trash2 size={11} />

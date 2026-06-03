@@ -104,7 +104,7 @@ export default function GalleryCard({
             <button
               aria-label="More"
               onClick={() => setMenuOpen((v) => !v)}
-              style={{ color: '#78716c' }}
+              style={{ color: '#a8a29e' }}
             >
               <MoreHorizontal size={16} />
             </button>
@@ -162,7 +162,7 @@ export default function GalleryCard({
             ) : (
               <span
                 className="font-mono text-[10px] uppercase tracking-[0.15em]"
-                style={{ color: '#57534e' }}
+                style={{ color: '#a8a29e' }}
               >
                 {item.preview_status === 'failed'
                   ? 'no preview'
@@ -171,7 +171,7 @@ export default function GalleryCard({
             )}
             <span
               className="font-mono text-[10px]"
-              style={{ color: '#57534e' }}
+              style={{ color: '#a8a29e' }}
             >
               {item.load_count} loads
             </span>

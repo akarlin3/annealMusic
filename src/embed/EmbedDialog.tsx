@@ -72,7 +72,7 @@ export default function EmbedDialog({
               className="rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em]"
               style={{
                 background: preset === i ? '#f59e0b' : 'transparent',
-                color: preset === i ? '#0c0a09' : '#78716c',
+                color: preset === i ? '#0c0a09' : '#a8a29e',
                 border: '1px solid #44403c',
               }}
             >
@@ -90,7 +90,7 @@ export default function EmbedDialog({
               className="rounded-full px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em]"
               style={{
                 background: theme === t ? '#f59e0b' : 'transparent',
-                color: theme === t ? '#0c0a09' : '#78716c',
+                color: theme === t ? '#0c0a09' : '#a8a29e',
                 border: '1px solid #44403c',
               }}
             >

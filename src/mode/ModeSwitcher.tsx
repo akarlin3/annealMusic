@@ -119,7 +119,7 @@ export function ModeSwitcher() {
             />
             <span
               className={`text-[8px] font-mono uppercase tracking-[0.15em] mt-1 transition-all duration-200 ${
-                isActive ? 'text-amber-400/90 font-medium' : 'text-stone-600'
+                isActive ? 'text-amber-400/90 font-medium' : 'text-stone-400'
               }`}
             >
               {m.shortLabel}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 export interface SliderProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -6,12 +6,15 @@ export interface SliderProps extends React.InputHTMLAttributes<HTMLInputElement>
 }
 
 export const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
-  ({ label, valueDisplay, className = '', ...props }, ref) => {
+  ({ label, valueDisplay, className = '', id, ...props }, ref) => {
+    const generatedId = useId();
+    const inputId = id || generatedId;
+
     return (
       <div className={`flex flex-col w-full select-none ${className}`}>
         {label && (
           <div className="flex items-center justify-between mb-1.5 font-mono text-[9px] uppercase tracking-wider text-[var(--color-muted)]">
-            <span>{label}</span>
+            <label htmlFor={inputId}>{label}</label>
             {valueDisplay !== undefined && (
               <span className="text-[var(--color-text)] font-semibold font-mono tabular-nums">
                 {valueDisplay}
@@ -23,6 +26,7 @@ export const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
           {/* Touch-safe overlay wrapper ensures a 44px min hit zone */}
           <input
             ref={ref}
+            id={inputId}
             type="range"
             className="
               am-range w-full appearance-none h-[2px] rounded-full outline-none cursor-pointer bg-[var(--color-border)]

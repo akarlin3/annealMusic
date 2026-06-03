@@ -138,7 +138,7 @@ export function FirstTimeModePicker() {
         <button
           type="button"
           onClick={handleSkip}
-          className="text-xs font-mono uppercase tracking-[0.2em] text-stone-500 hover:text-stone-300 transition-colors border border-transparent hover:border-stone-800 rounded-full px-5 py-2.5 bg-stone-900/20"
+          className="text-xs font-mono uppercase tracking-[0.2em] text-stone-400 hover:text-stone-300 transition-colors border border-transparent hover:border-stone-800 rounded-full px-5 py-2.5 bg-stone-900/20"
         >
           Skip to Musician Sandbox
         </button>

@@ -9,6 +9,7 @@ export interface MyRecordingsHandle {
 
 interface MyRecordingsProps {
   showToast: (msg: string) => void;
+  variant?: 'button' | 'menuItem';
 }
 
 function fmtDuration(ms: number): string {
@@ -23,7 +24,7 @@ function fmtDuration(ms: number): string {
  * play, download, delete, and copy `/r/<slug>` share link.
  */
 const MyRecordings = forwardRef<MyRecordingsHandle, MyRecordingsProps>(
-  function MyRecordings({ showToast }, ref) {
+  function MyRecordings({ showToast, variant = 'button' }, ref) {
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<Recording[]>([]);
     const [busy, setBusy] = useState(false);
@@ -75,22 +76,34 @@ const MyRecordings = forwardRef<MyRecordingsHandle, MyRecordingsProps>(
 
     return (
       <>
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label="Open your recordings"
-          className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
-          style={{
-            background: 'rgba(245, 158, 11, 0.04)',
-            border: '1px solid #44403c',
-            color: '#d6d3d1',
-          }}
-        >
-          <Disc3 size={13} strokeWidth={1.5} style={{ color: '#78716c' }} />
-          <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-            Recordings
-          </span>
-        </button>
+        {variant === 'menuItem' ? (
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label="Open your recordings"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.16em] text-stone-300 hover:bg-stone-900/60 hover:text-stone-100 transition-colors cursor-pointer outline-none focus-visible:bg-stone-900/60"
+          >
+            <Disc3 size={13} strokeWidth={1.5} className="text-stone-400" />
+            <span>My Recordings</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label="Open your recordings"
+            className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
+            style={{
+              background: 'rgba(245, 158, 11, 0.04)',
+              border: '1px solid #44403c',
+              color: '#d6d3d1',
+            }}
+          >
+            <Disc3 size={13} strokeWidth={1.5} style={{ color: '#a8a29e' }} />
+            <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
+              Recordings
+            </span>
+          </button>
+        )}
 
         {open && (
           <div

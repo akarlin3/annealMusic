@@ -134,6 +134,7 @@ describe('Top-Level Modes Infrastructure', () => {
     fireEvent.keyDown(window, { key: 'm', shiftKey: true });
 
     await waitFor(() => {
+      expect(screen.getByTestId('mode')).toHaveTextContent('musician');
       expect(localStorage.getItem('am_app_mode')).toBe('musician');
       expect(mockLocation.href).toBe('/');
     });
@@ -142,6 +143,7 @@ describe('Top-Level Modes Infrastructure', () => {
     fireEvent.keyDown(window, { key: 'm', shiftKey: true });
 
     await waitFor(() => {
+      expect(screen.getByTestId('mode')).toHaveTextContent('researcher');
       expect(localStorage.getItem('am_app_mode')).toBe('researcher');
       expect(mockLocation.href).toBe('/research.html');
     });

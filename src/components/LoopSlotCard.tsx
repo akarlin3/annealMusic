@@ -130,7 +130,7 @@ export default function LoopSlotCard({
           <span className="font-display text-2xl" style={{ color: '#fef3c7' }}>
             {id}
           </span>
-          <span className={labelCaps} style={{ color: '#78716c' }}>
+          <span className={labelCaps} style={{ color: '#a8a29e' }}>
             {STATE_LABEL[state]}
           </span>
         </div>
@@ -151,7 +151,7 @@ export default function LoopSlotCard({
         {hasBuffer ? (
           <WaveformThumbnail buffer={api.getBuffer(id)} />
         ) : (
-          <span className={labelCaps} style={{ color: '#44403c' }}>
+          <span className={labelCaps} style={{ color: '#a8a29e' }}>
             {state === 'armed'
               ? 'play to capture'
               : state === 'capturing'
@@ -195,7 +195,7 @@ export default function LoopSlotCard({
           style={{
             background: isFrozen ? 'rgba(56, 189, 248, 0.14)' : 'transparent',
             border: '1px solid #44403c',
-            color: isFrozen ? '#7dd3fc' : '#78716c',
+            color: isFrozen ? '#7dd3fc' : '#a8a29e',
             opacity: !hasBuffer || isMuted ? 0.4 : 1,
           }}
           title="Freeze into an endless drone"
@@ -215,7 +215,7 @@ export default function LoopSlotCard({
           style={{
             background: isMuted ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
             border: '1px solid #44403c',
-            color: '#78716c',
+            color: '#a8a29e',
             opacity: !hasBuffer ? 0.4 : 1,
           }}
           title={isMuted ? 'Unmute' : 'Mute'}
@@ -235,7 +235,7 @@ export default function LoopSlotCard({
           className="rounded-full p-2 transition-all"
           style={{
             border: '1px solid #44403c',
-            color: '#78716c',
+            color: '#a8a29e',
             opacity: !hasBuffer && state === 'empty' ? 0.4 : 1,
           }}
           title="Clear (no undo)"
@@ -298,7 +298,7 @@ export default function LoopSlotCard({
                   ? 'rgba(245, 158, 11, 0.12)'
                   : 'transparent',
                 border: '1px solid #44403c',
-                color: config.driftCoupled ? '#fef3c7' : '#78716c',
+                color: config.driftCoupled ? '#fef3c7' : '#a8a29e',
               }}
               title="Couple grain wander to the drift field"
             >

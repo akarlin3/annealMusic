@@ -15,6 +15,7 @@ import InputPanel from '@/components/InputPanel';
 import LoopPedal from '@/components/LoopPedal';
 import EngineSelector from '@/components/EngineSelector';
 import ModeToggle from '@/components/ModeToggle';
+import ToolbarDropdown from '@/components/ToolbarDropdown';
 
 import SessionModeToggle from '@/components/SessionModeToggle';
 import FirstTimeBanner from '@/components/FirstTimeBanner';
@@ -41,7 +42,7 @@ import {
   reportError,
 } from '@/observability/errorReporter';
 import ClaimBanner from '@/components/ClaimBanner';
-import { Sparkles, Users } from 'lucide-react';
+import { Sparkles, Users, FolderHeart, Wrench } from 'lucide-react';
 import { useJam } from '@/jam/JamProvider';
 import JamIndicator from '@/jam/JamIndicator';
 import ParticipantCursor from '@/jam/ParticipantCursor';
@@ -58,12 +59,6 @@ import ExportDialog from '@/export/ExportDialog';
 import { midiApi } from '@/midi/api';
 import { midiInput } from '@/midi/inputController';
 import { midiOutput } from '@/midi/outputController';
-
-// Shared pill styling for header toolbar actions. Uses mode-aware design
-// tokens (--color-border/--color-surf/--color-muted) so every action button
-// matches in size, border, and hover behavior across modes.
-const TOOLBAR_PILL =
-  'flex items-center gap-2 rounded-full px-4 py-2.5 transition-all border border-[var(--color-border)] bg-[var(--color-surf)]/20 text-[var(--color-muted)] hover:text-stone-200 hover:border-stone-700';
 
 function fmtDuration(sec: number): string {
   const total = Math.max(0, Math.round(sec));
@@ -97,7 +92,7 @@ export default function App() {
   } = useAnnealMusic();
 
   const mode = useParamStore((s) => s.mode);
-  const { mode: appMode } = useMode();
+  const { mode: appMode, loading } = useMode();
   const setSubMode = useParamStore((s) => s.setMode);
 
   useEffect(() => {
@@ -413,13 +408,34 @@ export default function App() {
     }
   }, [routeSlug]);
 
+  if (loading) {
+    return (
+      <div
+        className="min-h-screen w-full"
+        style={{ background: '#0c0a09', color: '#f5f5f4' }}
+      />
+    );
+  }
+
+  if (appMode === null) {
+    return (
+      <div
+        className="min-h-screen w-full"
+        style={{ background: '#0c0a09', color: '#f5f5f4' }}
+      >
+        <main>
+          <FirstTimeModePicker />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div
       className="min-h-screen w-full"
       style={{ background: '#0c0a09', color: '#f5f5f4' }}
     >
-      <FirstTimeModePicker />
-      <div className="mx-auto max-w-5xl px-6 py-10 font-body">
+      <main className="mx-auto max-w-5xl px-6 py-10 font-body">
         <Header
           subtitle="Endless, slowly-shifting ambient soundscapes. Set a few sliders, press play, and let it drift — good for focus, sleep, or calm."
           showHelp={true}
@@ -431,97 +447,100 @@ export default function App() {
             <>
               <ModeToggle disabled={isPlaying} />
 
-              <span className="flex items-center gap-1.5">
+              <ToolbarDropdown label="Library & Share" icon={FolderHeart}>
                 <CopyLinkButton
                   params={params}
                   engineId={engineId}
                   engineParams={engineParams[engineId] ?? {}}
                   loops={loopConfig}
                   onResult={showToast}
+                  variant="menuItem"
                 />
-                <InfoTip id="feature.share" label="Copy link" />
-              </span>
+                <SavePatchButton
+                  patches={patches}
+                  hasCaptures={hasCaptures}
+                  showToast={showToast}
+                  variant="menuItem"
+                />
+                <MyPatchesDrawer
+                  patches={patches}
+                  onLoad={patches.loadPatch}
+                  showToast={showToast}
+                  variant="menuItem"
+                />
+                <RecordControls recorder={recorder} variant="menuItem" />
+                <MyRecordings
+                  ref={recordingsRef}
+                  showToast={showToast}
+                  variant="menuItem"
+                />
+              </ToolbarDropdown>
 
-              <span className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setExportOpen(true)}
-                  className={TOOLBAR_PILL}
-                >
-                  <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-                    Export Stems
-                  </span>
-                </button>
-                <InfoTip id="feature.export" label="Export stems" />
-              </span>
-
-              {typeof navigator !== 'undefined' &&
-                typeof navigator.requestMIDIAccess === 'function' && (
-                  <span className="flex items-center gap-1.5">
-                    <Link to="/midi" className={TOOLBAR_PILL}>
-                      <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-                        MIDI
-                      </span>
-                    </Link>
-                    <InfoTip
-                      id="feature.midi"
-                      label="MIDI settings dashboard"
-                    />
-                  </span>
-                )}
-
-              {backendOn && (
-                <>
-                  {!session && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void startJam()
-                          .then(() =>
-                            showToast('Started collaborative session'),
-                          )
-                          .catch(() =>
-                            showToast('Failed to start collaborative session'),
-                          );
-                      }}
-                      className={TOOLBAR_PILL}
-                    >
-                      <Users size={13} strokeWidth={1.5} />
-                      <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-                        Start Collab
-                      </span>
-                    </button>
-                  )}
+              <ToolbarDropdown label="Session Tools" icon={Wrench}>
+                {backendOn && (
                   <button
                     type="button"
                     onClick={() => setAiGenerateOpen(true)}
-                    aria-label="Generate patch with AI"
-                    className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all border border-[var(--color-border)] hover:border-stone-700 text-stone-300"
-                    style={{ background: 'var(--accent-glow)' }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.16em] text-stone-300 hover:bg-stone-900/60 hover:text-stone-100 transition-colors cursor-pointer outline-none focus-visible:bg-stone-900/60"
                   >
                     <Sparkles
                       size={13}
                       strokeWidth={1.5}
-                      style={{ color: '#fbbf24' }}
+                      className="text-amber-400"
                     />
-                    <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-                      AI Generate
-                    </span>
+                    <span>AI Generate</span>
                   </button>
-                  <SavePatchButton
-                    patches={patches}
-                    hasCaptures={hasCaptures}
-                    showToast={showToast}
+                )}
+
+                {backendOn && !session && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void startJam()
+                        .then(() => showToast('Started collaborative session'))
+                        .catch(() =>
+                          showToast('Failed to start collaborative session'),
+                        );
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.16em] text-stone-300 hover:bg-stone-900/60 hover:text-stone-100 transition-colors cursor-pointer outline-none focus-visible:bg-stone-900/60"
+                  >
+                    <Users
+                      size={13}
+                      strokeWidth={1.5}
+                      className="text-stone-400"
+                    />
+                    <span>Start Collab</span>
+                  </button>
+                )}
+
+                {typeof navigator !== 'undefined' &&
+                  typeof navigator.requestMIDIAccess === 'function' && (
+                    <Link
+                      to="/midi"
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.16em] text-stone-300 hover:bg-stone-900/60 hover:text-stone-100 transition-colors cursor-pointer outline-none focus-visible:bg-stone-900/60"
+                    >
+                      <Wrench
+                        size={13}
+                        strokeWidth={1.5}
+                        className="text-stone-400"
+                      />
+                      <span>MIDI Settings</span>
+                    </Link>
+                  )}
+
+                <button
+                  type="button"
+                  onClick={() => setExportOpen(true)}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.16em] text-stone-300 hover:bg-stone-900/60 hover:text-stone-100 transition-colors cursor-pointer outline-none focus-visible:bg-stone-900/60"
+                >
+                  <FolderHeart
+                    size={13}
+                    strokeWidth={1.5}
+                    className="text-stone-400"
                   />
-                  <RecordControls recorder={recorder} />
-                  <MyPatchesDrawer
-                    patches={patches}
-                    onLoad={patches.loadPatch}
-                    showToast={showToast}
-                  />
-                  <MyRecordings ref={recordingsRef} showToast={showToast} />
-                </>
-              )}
+                  <span>Export Stems</span>
+                </button>
+              </ToolbarDropdown>
             </>
           )}
 
@@ -575,7 +594,7 @@ export default function App() {
                 <span className="flex items-center gap-1.5">
                   <span
                     className="font-mono text-[10px] uppercase tracking-[0.22em]"
-                    style={{ color: '#57534e' }}
+                    style={{ color: '#a8a29e' }}
                   >
                     Mode
                   </span>
@@ -591,7 +610,7 @@ export default function App() {
                 <span className="flex items-center gap-1.5">
                   <span
                     className="font-mono text-[10px] uppercase tracking-[0.22em]"
-                    style={{ color: '#57534e' }}
+                    style={{ color: '#a8a29e' }}
                   >
                     Sound
                   </span>
@@ -666,7 +685,7 @@ export default function App() {
 
         <footer
           className="mb-4 mt-16 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em]"
-          style={{ color: '#44403c' }}
+          style={{ color: '#a8a29e' }}
         >
           <span>annealmusic · working title</span>
           {typeof navigator !== 'undefined' &&
@@ -680,7 +699,7 @@ export default function App() {
             )}
           <span>kuramoto · ornstein–uhlenbeck</span>
         </footer>
-      </div>
+      </main>
 
       {recorder.pending && (
         <RecordingDialog

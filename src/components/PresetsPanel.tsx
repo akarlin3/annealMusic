@@ -109,7 +109,7 @@ export default function PresetsPanel({
         <div className="flex items-center gap-1.5">
           <span
             className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold"
-            style={{ color: '#78716c' }}
+            style={{ color: '#a8a29e' }}
           >
             Sound Presets
           </span>
@@ -170,7 +170,7 @@ export default function PresetsPanel({
                   background: isSelected
                     ? 'rgba(245, 158, 11, 0.08)'
                     : 'transparent',
-                  color: isSelected ? '#fbbf24' : '#78716c',
+                  color: isSelected ? '#fbbf24' : '#a8a29e',
                   border: isSelected
                     ? '1px solid rgba(245, 158, 11, 0.2)'
                     : '1px solid transparent',
@@ -188,7 +188,7 @@ export default function PresetsPanel({
       {!collapsed && (
         <p
           className="mt-2.5 px-1 font-mono text-[9px] uppercase tracking-[0.05em] transition-all duration-300"
-          style={{ color: '#57534e' }}
+          style={{ color: '#a8a29e' }}
         >
           {
             PRESET_CATEGORIES.find((c) => c.id === activeCategoryId)
@@ -240,7 +240,7 @@ export default function PresetsPanel({
                     <span
                       className="font-mono text-[8px] uppercase tracking-[0.1em] px-1.5 py-0.5 rounded border"
                       style={{
-                        color: active ? '#fbbf24' : '#78716c',
+                        color: active ? '#fbbf24' : '#a8a29e',
                         borderColor: active
                           ? 'rgba(245, 158, 11, 0.3)'
                           : '#292524',
@@ -256,7 +256,7 @@ export default function PresetsPanel({
                   {/* Description */}
                   <p
                     className="mt-1 text-[11px] leading-relaxed transition-colors"
-                    style={{ color: active ? '#a8a29e' : '#78716c' }}
+                    style={{ color: active ? '#d6d3d1' : '#a8a29e' }}
                   >
                     {preset.description}
                   </p>
@@ -269,7 +269,7 @@ export default function PresetsPanel({
                     borderColor: active
                       ? 'rgba(245, 158, 11, 0.15)'
                       : '#1c1917',
-                    color: active ? '#fbbf24' : '#57534e',
+                    color: active ? '#fbbf24' : '#a8a29e',
                   }}
                 >
                   <span className="flex items-center gap-1">

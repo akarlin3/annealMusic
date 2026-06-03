@@ -12,6 +12,7 @@ interface SavePatchButtonProps {
   /** Whether any loop slot currently holds a captured buffer. */
   hasCaptures: boolean;
   showToast: (msg: string) => void;
+  variant?: 'button' | 'menuItem';
 }
 
 const field =
@@ -22,6 +23,7 @@ export default function SavePatchButton({
   patches,
   hasCaptures,
   showToast,
+  variant = 'button',
 }: SavePatchButtonProps) {
   const jam = useJam();
   const isJamActive = !!(jam && jam.session);
@@ -127,22 +129,34 @@ export default function SavePatchButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={handleOpen}
-        aria-label="Save patch to your library"
-        className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
-        style={{
-          background: 'rgba(245, 158, 11, 0.04)',
-          border: '1px solid #44403c',
-          color: '#d6d3d1',
-        }}
-      >
-        <Save size={13} strokeWidth={1.5} style={{ color: '#78716c' }} />
-        <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-          Save
-        </span>
-      </button>
+      {variant === 'menuItem' ? (
+        <button
+          type="button"
+          onClick={handleOpen}
+          aria-label="Save patch to your library"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.16em] text-stone-300 hover:bg-stone-900/60 hover:text-stone-100 transition-colors cursor-pointer outline-none focus-visible:bg-stone-900/60"
+        >
+          <Save size={13} strokeWidth={1.5} className="text-stone-400" />
+          <span>Save Patch</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={handleOpen}
+          aria-label="Save patch to your library"
+          className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
+          style={{
+            background: 'rgba(245, 158, 11, 0.04)',
+            border: '1px solid #44403c',
+            color: '#d6d3d1',
+          }}
+        >
+          <Save size={13} strokeWidth={1.5} style={{ color: '#a8a29e' }} />
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
+            Save
+          </span>
+        </button>
+      )}
 
       {open && (
         <div

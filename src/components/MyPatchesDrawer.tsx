@@ -10,12 +10,14 @@ interface MyPatchesDrawerProps {
   onLoad: (idOrSlug: string) => Promise<boolean>;
   /** Surface a toast (e.g. "embed code copied"). */
   showToast?: (msg: string) => void;
+  variant?: 'button' | 'menuItem';
 }
 
 export default function MyPatchesDrawer({
   patches,
   onLoad,
   showToast,
+  variant = 'button',
 }: MyPatchesDrawerProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Patch[]>([]);
@@ -45,22 +47,34 @@ export default function MyPatchesDrawer({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label="Open your saved patches"
-        className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
-        style={{
-          background: 'rgba(245, 158, 11, 0.04)',
-          border: '1px solid #44403c',
-          color: '#d6d3d1',
-        }}
-      >
-        <Library size={13} strokeWidth={1.5} style={{ color: '#78716c' }} />
-        <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
-          Patches
-        </span>
-      </button>
+      {variant === 'menuItem' ? (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label="Open your saved patches"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.16em] text-stone-300 hover:bg-stone-900/60 hover:text-stone-100 transition-colors cursor-pointer outline-none focus-visible:bg-stone-900/60"
+        >
+          <Library size={13} strokeWidth={1.5} className="text-stone-400" />
+          <span>My Patches</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label="Open your saved patches"
+          className="group flex items-center gap-2 rounded-full px-4 py-2.5 transition-all"
+          style={{
+            background: 'rgba(245, 158, 11, 0.04)',
+            border: '1px solid #44403c',
+            color: '#d6d3d1',
+          }}
+        >
+          <Library size={13} strokeWidth={1.5} style={{ color: '#a8a29e' }} />
+          <span className="font-mono text-[11px] uppercase tracking-[0.2em]">
+            Patches
+          </span>
+        </button>
+      )}
 
       {open && (
         <div

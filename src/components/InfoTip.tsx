@@ -61,7 +61,7 @@ export default function InfoTip({ id, label, size = 12 }: InfoTipProps) {
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         className="inline-flex items-center justify-center rounded-full motion-safe:transition-colors"
-        style={{ color: open ? '#fbbf24' : '#57534e', lineHeight: 0 }}
+        style={{ color: open ? '#fbbf24' : '#a8a29e', lineHeight: 0 }}
       >
         <HelpCircle size={size} strokeWidth={1.5} />
       </button>

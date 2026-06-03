@@ -225,7 +225,7 @@ export default function GalleryPage() {
         )}
 
         {!loading && !error && items.length === 0 && (
-          <div className="py-20 text-center" style={{ color: '#78716c' }}>
+          <div className="py-20 text-center" style={{ color: '#a8a29e' }}>
             <p className="font-body text-lg">No patches match.</p>
             <p className="mt-1 text-sm">Try clearing filters or search.</p>
           </div>
@@ -248,7 +248,7 @@ export default function GalleryPage() {
           {loading ? (
             <span
               className="font-mono text-[11px] uppercase tracking-[0.2em]"
-              style={{ color: '#57534e' }}
+              style={{ color: '#a8a29e' }}
             >
               Loading…
             </span>

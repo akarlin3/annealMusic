@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useId } from 'react';
 import { useParamStore, getClosestNote } from '@/state/params';
 import Visualizer from '@/components/Visualizer';
 import { DRONE_ENGINES } from '@/drone/droneEngines';
@@ -17,6 +17,9 @@ interface DroneViewProps {
 }
 
 export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
+  const tuningSelectId = useId();
+  const fundamentalPitchId = useId();
+  const brightnessId = useId();
   const {
     params,
     engineId,
@@ -157,10 +160,14 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
 
           {/* Tuning Selector */}
           <div>
-            <label className="mb-2 block font-mono text-[10px] uppercase tracking-[0.2em] text-[#78716c]">
+            <label
+              htmlFor={tuningSelectId}
+              className="mb-2 block font-mono text-[10px] uppercase tracking-[0.2em] text-[#78716c]"
+            >
               Tuning Lattice
             </label>
             <select
+              id={tuningSelectId}
               value={
                 tuning.system === 'custom'
                   ? `custom:${tuning.sclId}`
@@ -190,9 +197,12 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
           <div>
             <div className="mb-2 flex items-baseline justify-between">
               <span className="flex items-center gap-1.5">
-                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#a8a29e]">
+                <label
+                  htmlFor={fundamentalPitchId}
+                  className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#a8a29e]"
+                >
                   Fundamental Pitch
-                </span>
+                </label>
                 <InfoTip id="drone.fundamental" label="Fundamental Pitch" />
               </span>
               <span className="font-mono text-xs text-[#fbbf24] tabular-nums">
@@ -200,6 +210,7 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
               </span>
             </div>
             <input
+              id={fundamentalPitchId}
               type="range"
               className="am-range"
               min="50"
@@ -208,7 +219,7 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
               value={params.rootFreq}
               onChange={handleFundamentalChange}
             />
-            <div className="mt-1 flex justify-between text-[9px] font-mono text-[#57534e]">
+            <div className="mt-1 flex justify-between text-[9px] font-mono text-[#a8a29e]">
               <span>Sub-Bass (50 Hz)</span>
               <span>Low Tenor (220 Hz)</span>
             </div>
@@ -243,7 +254,7 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
                         ? 'rgba(245, 158, 11, 0.1)'
                         : 'transparent',
                       borderColor: active ? '#f59e0b' : '#44403c',
-                      color: active ? '#fbbf24' : '#78716c',
+                      color: active ? '#fbbf24' : '#a8a29e',
                     }}
                   >
                     {d === 1 ? '1 (Pure)' : `${d} Partials`}
@@ -251,7 +262,7 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
                 );
               })}
             </div>
-            <div className="mt-2 text-[9px] font-mono text-[#57534e] text-center leading-relaxed">
+            <div className="mt-2 text-[9px] font-mono text-[#a8a29e] text-center leading-relaxed">
               Fewer partials stays clean and focused; higher partials adds rich
               resonant overtones.
             </div>
@@ -261,9 +272,12 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
           <div>
             <div className="mb-2 flex items-baseline justify-between">
               <span className="flex items-center gap-1.5">
-                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#a8a29e]">
+                <label
+                  htmlFor={brightnessId}
+                  className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#a8a29e]"
+                >
                   Brightness
-                </span>
+                </label>
                 <InfoTip id="drone.brightness" label="Brightness" />
               </span>
               <span className="font-mono text-xs text-[#fbbf24] tabular-nums">
@@ -271,6 +285,7 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
               </span>
             </div>
             <input
+              id={brightnessId}
               type="range"
               className="am-range"
               min="0"
@@ -279,7 +294,7 @@ export default function DroneView({ engineRef, isPlaying }: DroneViewProps) {
               value={params.brightness}
               onChange={handleBrightnessChange}
             />
-            <div className="mt-1 flex justify-between text-[9px] font-mono text-[#57534e]">
+            <div className="mt-1 flex justify-between text-[9px] font-mono text-[#a8a29e]">
               <span>Warm / Muted</span>
               <span>Open / Bright</span>
             </div>

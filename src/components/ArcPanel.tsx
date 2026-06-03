@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { ARC_DURATION, PRESET_ARCS, getArcById } from '@/session/arcs';
 import { engineCapabilities } from '@/audio/engines/index';
 import InfoTip from '@/components/InfoTip';
@@ -45,6 +46,7 @@ export default function ArcPanel({
   const densityHeld =
     engineCapabilities(engineId).densityLockedWhilePlaying &&
     arcTargetsDensity(selected.id);
+  const durationInputId = useId();
 
   return (
     <div
@@ -54,7 +56,7 @@ export default function ArcPanel({
       <div className="mb-2 flex items-center gap-1.5">
         <span
           className="font-mono text-[10px] uppercase tracking-[0.22em]"
-          style={{ color: '#78716c' }}
+          style={{ color: '#a8a29e' }}
         >
           Journey
         </span>
@@ -91,7 +93,7 @@ export default function ArcPanel({
               >
                 {arc.name}
               </div>
-              <div className="mt-1 text-[12px]" style={{ color: '#78716c' }}>
+              <div className="mt-1 text-[12px]" style={{ color: '#a8a29e' }}>
                 {arc.description}
               </div>
             </button>
@@ -103,8 +105,9 @@ export default function ArcPanel({
         <div className="mb-1.5 flex items-baseline justify-between">
           <span className="flex items-center gap-1.5">
             <label
+              htmlFor={durationInputId}
               className="font-mono text-[10px] uppercase tracking-[0.22em]"
-              style={{ color: '#78716c' }}
+              style={{ color: '#a8a29e' }}
             >
               Duration
             </label>
@@ -118,6 +121,7 @@ export default function ArcPanel({
           </span>
         </div>
         <input
+          id={durationInputId}
           type="range"
           aria-label="Arc duration"
           className="am-range"
@@ -132,12 +136,12 @@ export default function ArcPanel({
 
       <div
         className="mt-4 font-mono text-[10px] uppercase tracking-[0.16em]"
-        style={{ color: '#57534e' }}
+        style={{ color: '#a8a29e' }}
       >
         {selected.name} · {minutesLabel(durationSec)} ·{' '}
         {selected.description.replace(/\.$/, '').toLowerCase()}
         {densityHeld && (
-          <span style={{ color: '#78716c' }}> · density held</span>
+          <span style={{ color: '#a8a29e' }}> · density held</span>
         )}
       </div>
     </div>
