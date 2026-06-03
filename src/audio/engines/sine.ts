@@ -139,11 +139,12 @@ export class SineEngine implements AnnealEngine {
       }
     }
 
+    const stopTime = ctx.currentTime + fadeSeconds;
     partials.forEach((part) => {
       try {
-        part.osc.stop();
-        part.lfo.stop();
-        part.baseline.stop();
+        part.osc.stop(stopTime);
+        part.lfo.stop(stopTime);
+        part.baseline.stop(stopTime);
       } catch {
         // already stopped
       }

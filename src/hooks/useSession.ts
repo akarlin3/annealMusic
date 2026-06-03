@@ -181,6 +181,16 @@ export function useSession(): SessionApi {
     return () => unsubscribe();
   }, []);
 
+  // Stop active synth session when preview audio starts playing
+  useEffect(() => {
+    const handlePreviewPlay = () => {
+      stopSession();
+    };
+    window.addEventListener('anneal-preview-play', handlePreviewPlay);
+    return () =>
+      window.removeEventListener('anneal-preview-play', handlePreviewPlay);
+  }, [stopSession]);
+
   // Tear down on unmount (drops the input and closes the core).
   useEffect(
     () => () => {

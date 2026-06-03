@@ -12,6 +12,7 @@ import ReportDialog from '@/gallery/ReportDialog';
 import EmbedDialog from '@/embed/EmbedDialog';
 import { Sparkles, ChevronRight } from 'lucide-react';
 import { Header } from '@/components/Header';
+import LoginDialog from '@/components/LoginDialog';
 
 const SORTS: GallerySort[] = ['newest', 'oldest', 'most_loaded', 'most_liked'];
 
@@ -43,6 +44,7 @@ export default function GalleryPage() {
   const [reportTarget, setReportTarget] = useState<string | null>(null);
   const [embedTarget, setEmbedTarget] = useState<GalleryItem | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const fetchPage = useCallback(
     async (append: boolean, nextCursor?: string) => {
@@ -127,7 +129,10 @@ export default function GalleryPage() {
       style={{ background: '#0c0a09', color: '#f5f5f4' }}
     >
       <div className="mx-auto max-w-6xl px-6 py-10">
-        <Header subtitle="Public patches shared by the community. Preview, then load any into the sandbox.">
+        <Header
+          subtitle="Public patches shared by the community. Preview, then load any into the sandbox."
+          onSignInClick={() => setLoginOpen(true)}
+        >
           <div className="flex items-center gap-4">
             <Link
               to="/"
@@ -274,6 +279,10 @@ export default function GalleryPage() {
           onClose={() => setEmbedTarget(null)}
           showToast={setToast}
         />
+      )}
+
+      {loginOpen && (
+        <LoginDialog isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
       )}
 
       {toast && (

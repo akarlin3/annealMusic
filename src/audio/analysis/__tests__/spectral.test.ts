@@ -126,8 +126,13 @@ describe('Spectral DSP Physics Correctness Test Suite', () => {
       });
 
       // Assert that a fundamental peak near 110 Hz is present
-      const fundamentalPeak = peaks.find((p) => Math.abs(p.frequency - f0) < 10);
-      expect(fundamentalPeak, 'Fundamental peak near 110 Hz should be found').toBeDefined();
+      const fundamentalPeak = peaks.find(
+        (p) => Math.abs(p.frequency - f0) < 10,
+      );
+      expect(
+        fundamentalPeak,
+        'Fundamental peak near 110 Hz should be found',
+      ).toBeDefined();
 
       // Assert that ALL picked peaks are integer multiples (harmonics) of the fundamental frequency
       for (const peak of peaks) {
@@ -136,7 +141,9 @@ describe('Spectral DSP Physics Correctness Test Suite', () => {
         const harmonicIndex = Math.round(ratio);
         const expectedFreq = harmonicIndex * f0;
 
-        const centsDiff = Math.abs(1200 * Math.log2(peak.frequency / expectedFreq));
+        const centsDiff = Math.abs(
+          1200 * Math.log2(peak.frequency / expectedFreq),
+        );
         expect(
           centsDiff,
           `Peak at ${peak.frequency.toFixed(1)} Hz should correspond to harmonic ${harmonicIndex} (expected ${expectedFreq} Hz)`,
@@ -168,7 +175,9 @@ describe('Spectral DSP Physics Correctness Test Suite', () => {
       });
 
       // Find the fundamental peak near 1600 Hz
-      const fundamentalPeak = peaks.find((p) => Math.abs(p.frequency - highF0) < 300);
+      const fundamentalPeak = peaks.find(
+        (p) => Math.abs(p.frequency - highF0) < 300,
+      );
       expect(fundamentalPeak, 'Fundamental peak should be found').toBeDefined();
 
       if (fundamentalPeak) {

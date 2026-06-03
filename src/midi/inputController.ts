@@ -32,6 +32,7 @@ export function interpolateMidiValue(
 class MidiInputController {
   private activeMappings: Map<string, MappingSet> = new Map();
   private unsubscribeMidi: (() => void) | null = null;
+  private unsubscribeLearn: (() => void) | null = null;
   private heldNotes: number[] = [];
   private preMidiRootFreq = 110;
 
@@ -43,7 +44,7 @@ class MidiInputController {
     });
 
     // Handle learning updates dynamically
-    midiLearn.subscribeLearnSuccess(
+    this.unsubscribeLearn = midiLearn.subscribeLearnSuccess(
       (paramKey, isEngineParam, ccNumber, deviceId) => {
         this.handleLearnMapping(paramKey, isEngineParam, ccNumber, deviceId);
       },
@@ -54,6 +55,10 @@ class MidiInputController {
     if (this.unsubscribeMidi) {
       this.unsubscribeMidi();
       this.unsubscribeMidi = null;
+    }
+    if (this.unsubscribeLearn) {
+      this.unsubscribeLearn();
+      this.unsubscribeLearn = null;
     }
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Save } from 'lucide-react';
 import type { PatchPersistence, SaveOptions } from '@/api/usePatches';
 import type { Visibility } from '@/api/types';
@@ -32,6 +32,17 @@ export default function SavePatchButton({
   const [visibility, setVisibility] = useState<Visibility>('unlisted');
   const [includeCaptures, setIncludeCaptures] = useState(false);
   const [saveAsShared, setSaveAsShared] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
 
   const handleOpen = () => {
     setSaveAsShared(isJamActive);
@@ -170,12 +181,13 @@ export default function SavePatchButton({
 
             <div className="mb-3 block">
               <div className="mb-1 flex items-center justify-between">
-                <span
+                <label
+                  htmlFor="save-patch-description"
                   className="font-mono text-[10px] uppercase tracking-[0.18em]"
                   style={{ color: '#78716c' }}
                 >
                   Description
-                </span>
+                </label>
                 <button
                   type="button"
                   onClick={suggestDescription}
@@ -192,6 +204,7 @@ export default function SavePatchButton({
                 </button>
               </div>
               <textarea
+                id="save-patch-description"
                 className={field}
                 style={fieldStyle}
                 value={description}

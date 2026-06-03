@@ -228,6 +228,11 @@ export class OpenBCICytonAdapter implements BiosignalAdapter {
         isStreaming = false;
         if (conn.reader) {
           conn.reader.cancel().catch(() => {});
+          try {
+            conn.reader.releaseLock();
+          } catch {
+            // Already released
+          }
         }
       };
     });

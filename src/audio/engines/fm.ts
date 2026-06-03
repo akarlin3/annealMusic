@@ -224,12 +224,13 @@ export class FmEngine implements AnnealEngine {
       }
     }
 
+    const stopTime = ctx.currentTime + fadeSeconds;
     voices.forEach((v) => {
       try {
-        v.carrier.stop();
-        v.modulator.stop();
-        v.lfo.stop();
-        v.baseline.stop();
+        v.carrier.stop(stopTime);
+        v.modulator.stop(stopTime);
+        v.lfo.stop(stopTime);
+        v.baseline.stop(stopTime);
       } catch {
         // already stopped
       }

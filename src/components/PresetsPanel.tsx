@@ -282,11 +282,20 @@ export default function PresetsPanel({
                       <span>src {preset.engineParams?.source}</span>
                     ) : preset.engineId === 'physical' ? (
                       <span>
-                        {preset.engineParams?.model === 0
-                          ? 'string'
-                          : preset.engineParams?.model === 1
-                            ? 'pipe'
-                            : 'plate'}
+                        {(() => {
+                          const models = [
+                            'string',
+                            'pipe',
+                            'plate',
+                            'membrane',
+                            'bowed',
+                            'mallet',
+                            'edge',
+                            'bell',
+                          ];
+                          const idx = Number(preset.engineParams?.model ?? 0);
+                          return models[idx] ?? 'plate';
+                        })()}
                       </span>
                     ) : preset.engineId === 'fm' ? (
                       <span>r: {preset.engineParams?.modRatio}</span>

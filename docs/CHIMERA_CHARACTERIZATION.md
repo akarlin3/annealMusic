@@ -1,8 +1,8 @@
 # Chimera Characterization (Build B)
 
 **Status:** probe/analysis only — no synthesis feature, no engine wiring. Production
-`src/` is untouched; this is the science that tells Build A *where* to put a chimera
-synthesis mode and *how* to seed its basin, and that supplies the core figures for a
+`src/` is untouched; this is the science that tells Build A _where_ to put a chimera
+synthesis mode and _how_ to seed its basin, and that supplies the core figures for a
 DAFx/NIME write-up.
 
 **Reproduce:** `node examples/probes/chimera_probe.mjs` (seeded, offline, deterministic,
@@ -21,12 +21,13 @@ dθ_i^σ/dt = ω + μ·R_σ·sin(Φ_σ − θ_i^σ − α) + ν·R_σ'·sin(Φ_�
 ```
 
 with intra-population coupling **μ = (1+A)/2**, inter-population coupling **ν = (1−A)/2**
-(so μ + ν = 1 and **A = μ − ν** is the *coupling disparity*), and phase lag **α = π/2 − β**.
+(so μ + ν = 1 and **A = μ − ν** is the _coupling disparity_), and phase lag **α = π/2 − β**.
 `R_σ e^{iΦ_σ} = (1/N)·Σ_j e^{iθ_j^σ}` is the per-population complex order parameter. This
-mean-field form is *exact* for all-to-all coupling, so the integrator is O(N) per step;
+mean-field form is _exact_ for all-to-all coupling, so the integrator is O(N) per step;
 it is advanced with RK4 at dt = 0.05 (1 model time unit := 1 s).
 
 **What is measured.** The probe reuses the production primitives verbatim:
+
 - the **fusion law** (`src/audio/fusion.ts`): `m_i = 1 + depth·amount·(c_i − ½)`,
   `c_i = ½(1 + cos(θ_i − ψ))`, depth = 1, amount = 1;
 - the **order parameter** (`src/audio/kuramoto.ts`);
@@ -38,19 +39,20 @@ the meditation-default `1/(i+1)` rolloff. The global mean field ψ drives the fu
 multipliers, and we track the **centroid(t)** trajectory. As the chimera self-organizes
 which band locks, the coherent partials are reinforced and the centroid moves — **emergent
 spectral redistribution** (the same mechanism as the structured-sync redistribution result,
-but here the band split is *not imposed* by a coupling profile; it emerges from the chimera).
+but here the band split is _not imposed_ by a coupling profile; it emerges from the chimera).
 
 **Initial condition.** The canonical chimera seed: population 1 starts as a tight
 synchronized cluster (R₁ ≈ 1, ±0.25 rad jitter), population 2 starts incoherent. The seed
 controls the draw, so **basin fraction = the fraction of seeds whose seeded chimera
-*persists* vs collapses to global sync** — exactly the state Build A would seed. (From
-fully-random initial phases the spontaneous-formation basin is near-zero and *shrinks* with
+_persists_ vs collapses to global sync** — exactly the state Build A would seed. (From
+fully-random initial phases the spontaneous-formation basin is near-zero and _shrinks_ with
 N; that is a different, much harder question and is not the shippable path.)
 
 **Metrics.** A sample is "chimera-alive" when one population is locked (max R > 0.90) while
 the other is genuinely incoherent (min R < 0.85). Per trajectory:
+
 - **fracLive** — fraction of post-transient time the chimera is alive;
-- **role-stability** — of the alive samples, the fraction in which the *same* population
+- **role-stability** — of the alive samples, the fraction in which the _same_ population
   stays the synchronized one (1.0 = roles never swap, 0.5 = the locked role flips evenly);
 - **morph amplitude** — peak-to-peak centroid excursion (Hz).
 
@@ -142,7 +144,7 @@ N=32    A=0.05  A=0.10  A=0.20  A=0.35  A=0.50
 **The Build-A target regime: A = 0.50, β ∈ [0.02, 0.05], N ≥ 32 (ideally 64).** This is the
 only corner that combines a wide basin (75–92%), perfectly stable roles (1.00), and a real
 (if slow) morph (~300–680 Hz centroid excursion, ~10–14% of the mean centroid). If a more
-dramatic, faster morph is wanted, A ≈ 0.20 roughly *doubles* the excursion (~800–1700 Hz)
+dramatic, faster morph is wanted, A ≈ 0.20 roughly _doubles_ the excursion (~800–1700 Hz)
 but costs basin reliability and — at large N — role-stability. That is a knob, not a free
 lunch.
 
@@ -191,7 +193,7 @@ noise) is **low everywhere — typically 0.03–0.18, and as low as 0.025**. The
 clean limit cycle (or, in the most strongly-coupled corner, a near-static fixed point — see
 below). There is **no broadband/chaotic signature** in the regimes that matter.
 
-### Timescale — slow (tens of seconds), and *not* a simple power law
+### Timescale — slow (tens of seconds), and _not_ a simple power law
 
 Morph period vs coupling disparity A (β = 0.05, N = 32, first in-basin seed per A):
 
@@ -219,12 +221,12 @@ Morph period vs phase lag β (A = 0.50, N = 32):
 
 The breathing period is **O(20–70 s)** and does **not** follow a clean scaling law in A
 (the single-seed-per-cell sampling makes the A-trend noisy; the honest summary is a
-*non-monotonic* relation with the **fastest breathing, ~20 s, at intermediate A ≈ 0.15–0.30**).
+_non-monotonic_ relation with the **fastest breathing, ~20 s, at intermediate A ≈ 0.15–0.30**).
 The controlling physics is **proximity to the chimera's stability boundary**: as the state
-moves *deeper* into the stable-chimera region (larger A, or larger β within the existence
+moves _deeper_ into the stable-chimera region (larger A, or larger β within the existence
 window) the breathing **slows and ultimately freezes** into a **near-stationary chimera** —
 a settled spectral offset rather than an oscillation. This is the same trade-off seen in
-CP1/CP2: the most *robust* regime (A = 0.50, β = 0.02–0.05) is also the most *static*.
+CP1/CP2: the most _robust_ regime (A = 0.50, β = 0.02–0.05) is also the most _static_.
 
 > Note: the originating probe reported breathing of 7–17 s. This reconstructed/extended
 > probe measures ~20–70 s in the persistent-chimera regimes. The qualitative picture (a slow
@@ -256,9 +258,9 @@ detune.
 > population phase-locks while the other remains incoherent, and the production
 > synchronization→fusion law (coherence-weighted partial gains) converts that self-organized
 > split into a slowly **breathing spectral centroid**. Unlike an LFO or an automated coupling
-> profile, the morph is *not imposed* — it emerges from the chimera's symmetry breaking and
-> its limit-cycle breathing, making time-varying timbre a *consequence of the synchronization
-> dynamics themselves*: a candidate synthesis primitive. We map where the phenomenon lives
+> profile, the morph is _not imposed_ — it emerges from the chimera's symmetry breaking and
+> its limit-cycle breathing, making time-varying timbre a _consequence of the synchronization
+> dynamics themselves_: a candidate synthesis primitive. We map where the phenomenon lives
 > (a narrow corner: small phase lag β ≤ 0.10, with a basin/morph trade-off in the coupling
 > disparity A), quantify its reliability (a **seeded** chimera persists in **~90% of seeds at
 > N ≥ 32 partials per population**, climbing from ~63% at N = 16 but **plateauing below
@@ -268,7 +270,7 @@ detune.
 > the phenomenon **requires identical natural frequencies**, lives **only at near-maximal
 > lag**, must be **explicitly seeded** (it does not reliably self-form, and the basin never
 > reaches 100%), and presents a genuine **basin↔morph trade-off** — the most reliable,
-> role-stable regime (A = 0.50) breathes slowly toward a near-*stationary* offset, while the
+> role-stable regime (A = 0.50) breathes slowly toward a near-_stationary_ offset, while the
 > largest, fastest morph (A ≈ 0.20) costs basin width and role-stability.
 
 ---
@@ -278,7 +280,7 @@ detune.
 1. **Target regime:** A = 0.50, β ∈ [0.02, 0.05], **N ≥ 32** partials per population (use 64
    if the partial budget allows — wider basin headroom and a larger morph bank). This gives
    ~90% basin, role-stability 1.00, and a ~300–680 Hz centroid morph.
-2. **Basin strategy — seed *and* supervise, do not rely on N.** N ≥ 32 is necessary (it
+2. **Basin strategy — seed _and_ supervise, do not rely on N.** N ≥ 32 is necessary (it
    takes the basin from ~63% to ~90%) but **not sufficient**: the basin plateaus below 100%,
    so Build A must **seed the chimera** (cluster one band, leave the other incoherent) and
    **detect collapse-to-global-sync** (both R → 1) to **re-perturb** the failing minority of
@@ -288,7 +290,7 @@ detune.
    A ≈ 0.50 (reliable, slow, near-stationary, role-stable) toward A ≈ 0.20 (dramatic ~800+ Hz
    breathing, ~20 s period, but lower basin and wandering roles) gives a musically meaningful
    axis — at the cost of reliability the player can dial in deliberately.
-4. **Set expectations on timescale and shape.** The morph is *slow* (tens of seconds) and an
-   *asymmetric* breath, not a fast symmetric tremolo. That suits an ambient/meditation
+4. **Set expectations on timescale and shape.** The morph is _slow_ (tens of seconds) and an
+   _asymmetric_ breath, not a fast symmetric tremolo. That suits an ambient/meditation
    context; if a faster morph is required it is not available in the persistent-chimera
    regime and would need a different mechanism.

@@ -292,7 +292,7 @@ export class PiecePlayer {
       this.piece.tempoBpm !== null &&
       this.piece.tempoBpm > 0
     ) {
-      return raw * 4 * (60 / this.piece.tempoBpm) * 1000;
+      return raw * 4 * (60 / this.piece.tempoBpm);
     }
     return raw;
   }

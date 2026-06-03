@@ -9,6 +9,7 @@ interface HeaderProps {
   subtitle?: string;
   showHelp?: boolean;
   onHelpClick?: () => void;
+  onSignInClick?: () => void;
   children?: React.ReactNode;
 }
 
@@ -97,6 +98,7 @@ export function Header({
   subtitle,
   showHelp = false,
   onHelpClick,
+  onSignInClick,
   children,
 }: HeaderProps) {
   const { account } = useAuth();
@@ -185,6 +187,7 @@ export function Header({
               location.pathname !== '/research.html' && (
                 <button
                   type="button"
+                  onClick={onSignInClick}
                   className="flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-all border border-stone-800 text-stone-400 hover:text-stone-200 bg-stone-950/20 cursor-pointer"
                 >
                   <User size={12} strokeWidth={1.5} />

@@ -7,8 +7,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Patch Save (POST /api/v1/patches) p99 latency exceeds 500ms"
-          description: "Patch save operations are taking longer than the 500ms target SLO consecutively for 5 minutes."
+          summary: 'Patch Save (POST /api/v1/patches) p99 latency exceeds 500ms'
+          description: 'Patch save operations are taking longer than the 500ms target SLO consecutively for 5 minutes.'
 
       - alert: PatchLoadSLOBreach
         expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{route="patch_load"}[5m])) by (le)) > 0.3
@@ -16,8 +16,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Patch Load (GET /api/v1/patches/{slug}) p99 latency exceeds 300ms"
-          description: "Patch load operations are taking longer than the 300ms target SLO consecutively for 5 minutes."
+          summary: 'Patch Load (GET /api/v1/patches/{slug}) p99 latency exceeds 300ms'
+          description: 'Patch load operations are taking longer than the 300ms target SLO consecutively for 5 minutes.'
 
       - alert: GalleryListSLOBreach
         expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{route="gallery_list"}[5m])) by (le)) > 0.6
@@ -25,8 +25,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Gallery List (GET /api/v1/gallery) p99 latency exceeds 600ms"
-          description: "Gallery retrieval queries are taking longer than the 600ms target SLO consecutively for 5 minutes."
+          summary: 'Gallery List (GET /api/v1/gallery) p99 latency exceeds 600ms'
+          description: 'Gallery retrieval queries are taking longer than the 600ms target SLO consecutively for 5 minutes.'
 
       - alert: RenderSubmitSLOBreach
         expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{route="render_submit"}[5m])) by (le)) > 0.2
@@ -34,8 +34,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Render Queue Submit p99 latency exceeds 200ms"
-          description: "Submission to the preview render queue takes longer than the 200ms target SLO consecutively for 5 minutes."
+          summary: 'Render Queue Submit p99 latency exceeds 200ms'
+          description: 'Submission to the preview render queue takes longer than the 200ms target SLO consecutively for 5 minutes.'
 
       - alert: RenderCompletionSLOBreach
         expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{route="render_complete"}[5m])) by (le)) > 30.0
@@ -43,8 +43,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Render Completion p99 takes longer than 30s"
-          description: "Server-side headless renders take longer than the 30s target SLO consecutively for 5 minutes."
+          summary: 'Render Completion p99 takes longer than 30s'
+          description: 'Server-side headless renders take longer than the 30s target SLO consecutively for 5 minutes.'
 
       - alert: LLMGenerationSLOBreach
         expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{route="llm_generate"}[5m])) by (le)) > 15.0
@@ -52,8 +52,8 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "LLM Generation (POST /api/v1/ai/generate) p99 takes longer than 15s"
-          description: "LLM-based lesson/patch generations are taking longer than the 15s target SLO consecutively for 5 minutes."
+          summary: 'LLM Generation (POST /api/v1/ai/generate) p99 takes longer than 15s'
+          description: 'LLM-based lesson/patch generations are taking longer than the 15s target SLO consecutively for 5 minutes.'
 
       - alert: WebSocketSignalSLOBreach
         expr: sum(rate(websocket_connection_success_total[5m])) / sum(rate(websocket_connection_total[5m])) < 0.95
@@ -61,5 +61,5 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "WebSocket Signaling Connection success rate falls below 95%"
-          description: "WebRTC and collaboration signalling socket success rate is lower than the 95% target SLO consecutively for 5 minutes."
+          summary: 'WebSocket Signaling Connection success rate falls below 95%'
+          description: 'WebRTC and collaboration signalling socket success rate is lower than the 95% target SLO consecutively for 5 minutes.'

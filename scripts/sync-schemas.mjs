@@ -8,7 +8,13 @@ const rootDir = join(__dirname, '..');
 
 const manifestV21Path = join(rootDir, 'schema', 'manifest.v21.json');
 const manifestPath = join(rootDir, 'schema', 'manifest.json');
-const oscNamespacePath = join(rootDir, 'src', 'research', 'osc', 'OSCNamespace.ts');
+const oscNamespacePath = join(
+  rootDir,
+  'src',
+  'research',
+  'osc',
+  'OSCNamespace.ts',
+);
 const sonificationTypesPath = join(rootDir, 'src', 'sonification', 'types.ts');
 const backendSchemasPath = join(rootDir, 'api', 'app', 'schemas.py');
 
@@ -63,9 +69,11 @@ const isCheckMode = process.argv.includes('--check');
 
 // Check Sonification Source Types
 const sonificationTypesContent = readFileSync(sonificationTypesPath, 'utf8');
-const expectedSourceTypeLine = `export type SourceType = ${polymorphic.sonificationMapping.sourceTypes.map(t => `'${t}'`).join(' | ')};`;
+const expectedSourceTypeLine = `export type SourceType = ${polymorphic.sonificationMapping.sourceTypes.map((t) => `'${t}'`).join(' | ')};`;
 if (!sonificationTypesContent.includes(expectedSourceTypeLine)) {
-  console.error(`❌ Schema mismatch: sonification source types in types.ts do not match manifest!`);
+  console.error(
+    `❌ Schema mismatch: sonification source types in types.ts do not match manifest!`,
+  );
   console.error(`Expected: ${expectedSourceTypeLine}`);
   process.exit(1);
 }
@@ -74,37 +82,49 @@ if (!sonificationTypesContent.includes(expectedSourceTypeLine)) {
 const backendSchemasContent = readFileSync(backendSchemasPath, 'utf8');
 
 // Check StepType Literal
-const expectedStepTypeLine = `StepType = Literal[${polymorphic.lessonStep.stepTypes.map(t => `"${t}"`).join(', ')}]`;
+const expectedStepTypeLine = `StepType = Literal[${polymorphic.lessonStep.stepTypes.map((t) => `"${t}"`).join(', ')}]`;
 if (!backendSchemasContent.includes(expectedStepTypeLine)) {
-  console.error(`❌ Schema mismatch: lesson step types in schemas.py do not match manifest!`);
+  console.error(
+    `❌ Schema mismatch: lesson step types in schemas.py do not match manifest!`,
+  );
   console.error(`Expected: ${expectedStepTypeLine}`);
   process.exit(1);
 }
 
 // Check Reproducibility Level Literal
-const expectedReproduceLevelLine = `reproducibility_level: Literal[${polymorphic.studyExport.reproducibilityLevels.map(t => `"${t}"`).join(', ')}]`;
+const expectedReproduceLevelLine = `reproducibility_level: Literal[${polymorphic.studyExport.reproducibilityLevels.map((t) => `"${t}"`).join(', ')}]`;
 if (!backendSchemasContent.includes(expectedReproduceLevelLine)) {
-  console.error(`❌ Schema mismatch: study export reproducibility levels in schemas.py do not match manifest!`);
+  console.error(
+    `❌ Schema mismatch: study export reproducibility levels in schemas.py do not match manifest!`,
+  );
   console.error(`Expected: ${expectedReproduceLevelLine}`);
   process.exit(1);
 }
 
 // Check Randomization Scheme Literal
-const expectedRandomSchemeLine = `randomization_scheme: Literal[${polymorphic.experimentResponse.randomizationSchemes.map(t => `"${t}"`).join(', ')}]`;
+const expectedRandomSchemeLine = `randomization_scheme: Literal[${polymorphic.experimentResponse.randomizationSchemes.map((t) => `"${t}"`).join(', ')}]`;
 if (!backendSchemasContent.includes(expectedRandomSchemeLine)) {
-  console.error(`❌ Schema mismatch: randomization schemes in schemas.py do not match manifest!`);
+  console.error(
+    `❌ Schema mismatch: randomization schemes in schemas.py do not match manifest!`,
+  );
   console.error(`Expected: ${expectedRandomSchemeLine}`);
   process.exit(1);
 }
 
 if (isCheckMode) {
   if (oscContent !== expectedOscContent) {
-    console.error('❌ Schema mismatch: OSCNamespace.ts is out of sync with manifest.json!');
+    console.error(
+      '❌ Schema mismatch: OSCNamespace.ts is out of sync with manifest.json!',
+    );
     process.exit(1);
   }
-  console.log('✅ CI Schema Verification Passed: All client and backend polymorphic schemas match manifest.json.');
+  console.log(
+    '✅ CI Schema Verification Passed: All client and backend polymorphic schemas match manifest.json.',
+  );
   process.exit(0);
 } else {
   writeFileSync(oscNamespacePath, expectedOscContent, 'utf8');
-  console.log('✅ Successfully compiled, synced, and validated all schemas from manifest.json.');
+  console.log(
+    '✅ Successfully compiled, synced, and validated all schemas from manifest.json.',
+  );
 }

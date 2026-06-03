@@ -1,9 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
-import { probeWebGL2, createVisualRenderer } from './index';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  probeWebGL2,
+  resetWebGL2ProbeCache,
+  createVisualRenderer,
+} from './index';
 import { CanvasRenderer } from './canvas/CanvasRenderer';
 import { WebGLRenderer } from './webgl/WebGLRenderer';
 
 describe('Visualizer Module', () => {
+  beforeEach(() => {
+    resetWebGL2ProbeCache();
+  });
+
   describe('Capability Probe', () => {
     it('returns false in headless/restricted JSDOM by default', () => {
       const result = probeWebGL2();

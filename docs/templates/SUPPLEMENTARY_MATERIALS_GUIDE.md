@@ -31,7 +31,7 @@ When uploading files to the publisher's portal, use the following standardized d
 
 ### File 2: Physical SPL Calibration & Latency History
 
-> _"**Supplementary File 2 (SPL_Calibration_Log.csv)**: Tabular logs recording the physical Sound Pressure Level (SPL) headphone calibration measurements, gain multipliers ($G_{cal}$), and real-time Web Audio thread latency/jitter summaries recorded across all participant trials."_
+> _"**Supplementary File 2 (SPL_Calibration_Log.csv)**: Tabular logs recording the physical Sound Pressure Level (SPL) headphone calibration measurements, gain multipliers ($G_{cal}$), and real-time Web Audio thread latency/jitter summaries recorded across all participant trials."\_
 
 ### File 3: High-Fidelity Audio Abstracts
 

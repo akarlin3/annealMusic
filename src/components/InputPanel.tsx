@@ -135,12 +135,17 @@ export default function InputPanel({ input }: InputPanelProps) {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <span className="flex items-center gap-1.5">
-              <label className={labelCaps} style={{ color: '#78716c' }}>
+              <label
+                htmlFor="input-device-select"
+                className={labelCaps}
+                style={{ color: '#78716c' }}
+              >
                 Device
               </label>
               <InfoTip id="input.device" label="Device" />
             </span>
             <select
+              id="input-device-select"
               aria-label="Input device"
               value={deviceId ?? ''}
               onChange={(e) => selectDevice(e.target.value)}

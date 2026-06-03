@@ -95,9 +95,12 @@ function NoteConverter({
     <div className="mt-2.5 rounded-lg border border-[#2e2b28] bg-[#1a1715]/60 p-2.5 transition-all hover:border-[#44403c]">
       <div className="flex items-center justify-between gap-2.5">
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#78716c]">
+          <label
+            htmlFor="piano-note-converter"
+            className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#78716c]"
+          >
             Piano Note Converter
-          </span>
+          </label>
           <span className="text-[9px] font-mono text-[#57534e]">
             (e.g., A4, C#3, Eb5)
           </span>
@@ -114,6 +117,7 @@ function NoteConverter({
       <div className="mt-1.5 flex gap-2">
         <div className="relative flex-1">
           <input
+            id="piano-note-converter"
             type="text"
             disabled={disabled}
             value={inputText}
@@ -798,7 +802,10 @@ export default function ControlPanel({
           {/* Right Column: Scala File Drag & Drop */}
           <div className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-[11px] font-mono uppercase tracking-[0.16em] text-[#a8a29e]">
+              <label
+                htmlFor="import-scala-file"
+                className="mb-1.5 block text-[11px] font-mono uppercase tracking-[0.16em] text-[#a8a29e]"
+              >
                 Import Scala (.scl)
               </label>
               <div
@@ -812,6 +819,7 @@ export default function ControlPanel({
                 }`}
               >
                 <input
+                  id="import-scala-file"
                   type="file"
                   accept=".scl"
                   onChange={handleFileInput}

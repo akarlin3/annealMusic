@@ -62,12 +62,12 @@ describe('NotationEditor', () => {
         onChange={onChange}
         isPlaying={false}
         globalPlayheadMs={0}
-      />
+      />,
     );
 
     // Verify footer note counter
     expect(screen.getByText(/2 monophonic notes/)).toBeInTheDocument();
-    
+
     // Verify note names are rendered on the grid (C4 and E4)
     expect(screen.getAllByText('C4').length).toBeGreaterThan(0);
     expect(screen.getAllByText('E4').length).toBeGreaterThan(0);
@@ -80,7 +80,7 @@ describe('NotationEditor', () => {
         onChange={vi.fn()}
         isPlaying={false}
         globalPlayheadMs={0}
-      />
+      />,
     );
 
     // Initial state: help is hidden
@@ -106,7 +106,7 @@ describe('NotationEditor', () => {
         onChange={vi.fn()}
         isPlaying={false}
         globalPlayheadMs={0}
-      />
+      />,
     );
 
     const smoothButton = screen.getByText('Smooth Ramps (Glide)');
@@ -133,7 +133,7 @@ describe('NotationEditor', () => {
         onChange={vi.fn()}
         isPlaying={false}
         globalPlayheadMs={0}
-      />
+      />,
     );
 
     // Verify MIDI buttons are rendered

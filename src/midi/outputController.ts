@@ -141,7 +141,8 @@ class MidiOutputController {
     this.pieceTempoBpm = bpm;
     const config = midiStorage.loadGlobalConfig();
     if (this.isClockRunning && config.clockEnabled) {
-      const targetBpm = config.clockSyncToPieceTempo && bpm !== null ? bpm : config.clockBpm;
+      const targetBpm =
+        config.clockSyncToPieceTempo && bpm !== null ? bpm : config.clockBpm;
       this.restartClock(targetBpm);
     }
   }
@@ -151,7 +152,10 @@ class MidiOutputController {
   syncClockState(): void {
     const config = midiStorage.loadGlobalConfig();
     if (config.clockEnabled && this.isClockRunning) {
-      const targetBpm = config.clockSyncToPieceTempo && this.pieceTempoBpm !== null ? this.pieceTempoBpm : config.clockBpm;
+      const targetBpm =
+        config.clockSyncToPieceTempo && this.pieceTempoBpm !== null
+          ? this.pieceTempoBpm
+          : config.clockBpm;
       this.restartClock(targetBpm);
     } else if (config.clockEnabled && !this.isClockRunning) {
       // Don't auto-tick if synth is not running (aligned to session play state)
@@ -167,7 +171,10 @@ class MidiOutputController {
     try {
       this.activePort.send(new Uint8Array([0xfa])); // MIDI Start
       this.isClockRunning = true;
-      const targetBpm = config.clockSyncToPieceTempo && this.pieceTempoBpm !== null ? this.pieceTempoBpm : config.clockBpm;
+      const targetBpm =
+        config.clockSyncToPieceTempo && this.pieceTempoBpm !== null
+          ? this.pieceTempoBpm
+          : config.clockBpm;
       this.restartClock(targetBpm);
     } catch (e) {
       console.error('[MIDI Clock] Failed to send START', e);

@@ -158,7 +158,7 @@ export function resolvePieceStateAtTime(piece: Piece, tSec: number): any {
       piece.tempoBpm !== null &&
       piece.tempoBpm > 0
     ) {
-      duration = duration * 4 * (60 / piece.tempoBpm) * 1000;
+      duration = duration * 4 * (60 / piece.tempoBpm);
     }
 
     const startMs = elapsed;
@@ -437,7 +437,7 @@ export async function renderStemsOffline(
         renderedPiece.tempoBpm !== null &&
         renderedPiece.tempoBpm > 0
       ) {
-        dur = dur * 4 * (60 / renderedPiece.tempoBpm) * 1000;
+        dur = dur * 4 * (60 / renderedPiece.tempoBpm);
       }
       segmentDurations.push(dur);
     }

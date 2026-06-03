@@ -178,7 +178,7 @@ export const ArrangementView: React.FC<ArrangementViewProps> = ({
         piece.tempoBpm !== null &&
         piece.tempoBpm > 0
       ) {
-        return raw * 4 * (60 / piece.tempoBpm) * 1000;
+        return raw * 4 * (60 / piece.tempoBpm);
       }
       return raw;
     },

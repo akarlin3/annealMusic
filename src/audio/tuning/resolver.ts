@@ -81,7 +81,7 @@ export function resolveMidiNote(
       customScaleRatios[aSemitone]! * Math.pow(customEqRatio, aOctave);
     const c4Freq = refA4 / aRatio;
 
-    const semitone = (midiNote - 60) % K;
+    const semitone = (((midiNote - 60) % K) + K) % K;
     const octave = Math.floor((midiNote - 60) / K);
     const ratio =
       customScaleRatios[semitone]! * Math.pow(customEqRatio, octave);

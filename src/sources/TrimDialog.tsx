@@ -216,6 +216,33 @@ export default function TrimDialog({
     window.addEventListener('pointerup', onPointerUp);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent, handle: 'start' | 'end') => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const diff = e.key === 'ArrowLeft' ? -0.1 : 0.1;
+
+    if (handle === 'start') {
+      const nextStart = Math.max(0, Math.min(endSec - 0.05, startSec + diff));
+      if (endSec - nextStart <= 60) {
+        setStartSec(nextStart);
+      } else {
+        setStartSec(nextStart);
+        setEndSec(nextStart + 60);
+      }
+    } else {
+      const nextEnd = Math.max(
+        startSec + 0.05,
+        Math.min(duration, endSec + diff),
+      );
+      if (nextEnd - startSec <= 60) {
+        setEndSec(nextEnd);
+      } else {
+        setEndSec(nextEnd);
+        setStartSec(nextEnd - 60);
+      }
+    }
+  };
+
   const triggerUpload = async () => {
     if (displayName.trim() === '') {
       setErrorMsg('Please enter a display name.');
@@ -342,6 +369,7 @@ export default function TrimDialog({
               aria-valuemax={endSec}
               tabIndex={0}
               onMouseDown={(e) => handlePointerDown(e, 'start')}
+              onKeyDown={(e) => handleKeyDown(e, 'start')}
               className="absolute top-0 bottom-0 w-3 cursor-ew-resize flex items-center justify-center group"
               style={{ left: `calc(${startPercent}% - 6px)` }}
             >
@@ -357,6 +385,7 @@ export default function TrimDialog({
               aria-valuemax={duration}
               tabIndex={0}
               onMouseDown={(e) => handlePointerDown(e, 'end')}
+              onKeyDown={(e) => handleKeyDown(e, 'end')}
               className="absolute top-0 bottom-0 w-3 cursor-ew-resize flex items-center justify-center group"
               style={{ left: `calc(${endPercent}% - 6px)` }}
             >

@@ -451,7 +451,7 @@ export const TimelineEditor: React.FC<TimelineEditorProps> = ({
       piece.tempoBpm !== null &&
       piece.tempoBpm > 0
     ) {
-      return raw * 4 * (60 / piece.tempoBpm) * 1000;
+      return raw * 4 * (60 / piece.tempoBpm);
     }
     return raw;
   };

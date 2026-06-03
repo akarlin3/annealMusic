@@ -173,26 +173,54 @@ export default function SourcePicker({
     }
   };
 
+  // Reset focus index when switching tabs
+  useEffect(() => {
+    setFocusIdx(0);
+  }, [activeTab]);
+
   // Keyboard navigation defs
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (disabled || activeTab !== 'bundled') return;
-      let next = focusIdx;
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        next = (focusIdx + 1) % SOURCES.length;
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        next = (focusIdx - 1 + SOURCES.length) % SOURCES.length;
-      } else if (e.key === 'Enter' || e.key === ' ') {
-        onChange(focusIdx);
+      if (disabled) return;
+      if (activeTab === 'bundled') {
+        let next = focusIdx;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          next = (focusIdx + 1) % SOURCES.length;
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          next = (focusIdx - 1 + SOURCES.length) % SOURCES.length;
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          onChange(focusIdx);
+          e.preventDefault();
+          return;
+        } else {
+          return;
+        }
         e.preventDefault();
-        return;
+        setFocusIdx(next);
       } else {
-        return;
+        const totalItems = 1 + userSources.length;
+        let next = focusIdx;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          next = (focusIdx + 1) % totalItems;
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          next = (focusIdx - 1 + totalItems) % totalItems;
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          if (focusIdx === 0) {
+            triggerFileSelect();
+          } else {
+            const src = userSources[focusIdx - 1];
+            if (src) onChange(`u:${src.id}`);
+          }
+          e.preventDefault();
+          return;
+        } else {
+          return;
+        }
+        e.preventDefault();
+        setFocusIdx(next);
       }
-      e.preventDefault();
-      setFocusIdx(next);
     },
-    [focusIdx, onChange, disabled, activeTab],
+    [focusIdx, onChange, disabled, activeTab, userSources],
   );
 
   // Footer metadata matching focus or active selection
@@ -239,8 +267,16 @@ export default function SourcePicker({
 
       {/* Tabs Header */}
       <div className="flex items-center justify-between border-b border-stone-850 pb-2 mb-3.5">
-        <div className="flex gap-4">
+        <div
+          className="flex gap-4"
+          role="tablist"
+          aria-label="Audio source tabs"
+        >
           <button
+            id="source-picker-bundled-tab"
+            role="tab"
+            aria-selected={activeTab === 'bundled'}
+            aria-controls="source-picker-bundled-panel"
             type="button"
             onClick={() => setActiveTab('bundled')}
             className={`font-mono text-[10px] uppercase tracking-[0.18em] pb-1 border-b transition-all focus:outline-none ${
@@ -252,6 +288,10 @@ export default function SourcePicker({
             Bundled Bank
           </button>
           <button
+            id="source-picker-mine-tab"
+            role="tab"
+            aria-selected={activeTab === 'mine'}
+            aria-controls="source-picker-mine-panel"
             type="button"
             onClick={() => setActiveTab('mine')}
             className={`font-mono text-[10px] uppercase tracking-[0.18em] pb-1 border-b transition-all focus:outline-none ${
@@ -280,53 +320,65 @@ export default function SourcePicker({
       {/* Tab Panels */}
       {activeTab === 'bundled' ? (
         <div
-          role="radiogroup"
-          aria-label="Granular source"
-          onKeyDown={onKeyDown}
-          className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-          style={{ opacity: disabled ? 0.5 : 1 }}
+          id="source-picker-bundled-panel"
+          role="tabpanel"
+          aria-labelledby="source-picker-bundled-tab"
         >
-          {SOURCES.map((src, i) => {
-            const active = resolved.type === 'bundled' && i === selectedIndex;
-            const Icon = ICONS[src.icon] ?? Disc;
-            const loading = loadingId === src.id;
-            return (
-              <button
-                key={src.id}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                aria-label={src.label}
-                tabIndex={i === focusIdx ? 0 : -1}
-                disabled={disabled}
-                onClick={() => onChange(i)}
-                onFocus={() => setFocusIdx(i)}
-                onMouseEnter={() => setFocusIdx(i)}
-                className="relative flex flex-col items-center gap-1.5 rounded-lg px-2 py-3 transition-all"
-                style={{
-                  background: active
-                    ? 'rgba(245, 158, 11, 0.12)'
-                    : 'transparent',
-                  border: `1px solid ${active ? '#f59e0b' : '#1c1917'}`,
-                  color: active ? '#fbbf24' : '#a8a29e',
-                  cursor: disabled ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {loading ? (
-                  <Loader2 size={18} className="animate-spin" aria-hidden />
-                ) : (
-                  <Icon size={18} aria-hidden />
-                )}
-                <span className="text-center text-[11px] leading-tight font-mono">
-                  {src.label}
-                </span>
-              </button>
-            );
-          })}
+          <div
+            role="radiogroup"
+            aria-label="Granular source"
+            onKeyDown={onKeyDown}
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+            style={{ opacity: disabled ? 0.5 : 1 }}
+          >
+            {SOURCES.map((src, i) => {
+              const active = resolved.type === 'bundled' && i === selectedIndex;
+              const Icon = ICONS[src.icon] ?? Disc;
+              const loading = loadingId === src.id;
+              return (
+                <button
+                  key={src.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  aria-label={src.label}
+                  tabIndex={i === focusIdx ? 0 : -1}
+                  disabled={disabled}
+                  onClick={() => onChange(i)}
+                  onFocus={() => setFocusIdx(i)}
+                  onMouseEnter={() => setFocusIdx(i)}
+                  className="relative flex flex-col items-center gap-1.5 rounded-lg px-2 py-3 transition-all"
+                  style={{
+                    background: active
+                      ? 'rgba(245, 158, 11, 0.12)'
+                      : 'transparent',
+                    border: `1px solid ${active ? '#f59e0b' : '#1c1917'}`,
+                    color: active ? '#fbbf24' : '#a8a29e',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {loading ? (
+                    <Loader2 size={18} className="animate-spin" aria-hidden />
+                  ) : (
+                    <Icon size={18} aria-hidden />
+                  )}
+                  <span className="text-center text-[11px] leading-tight font-mono">
+                    {src.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
         /* MINE CUSTOM PANEL */
-        <div className="space-y-3">
+        <div
+          id="source-picker-mine-panel"
+          role="tabpanel"
+          aria-labelledby="source-picker-mine-tab"
+          onKeyDown={onKeyDown}
+          className="space-y-3"
+        >
           {!backendConfigured ? (
             <div className="rounded-lg border border-dashed border-stone-850 p-6 text-center bg-stone-950/10">
               <AlertCircle size={20} className="mx-auto text-stone-600 mb-2" />
@@ -349,6 +401,9 @@ export default function SourcePicker({
                   type="button"
                   onClick={triggerFileSelect}
                   disabled={disabled || userSources.length >= 20}
+                  tabIndex={activeTab === 'mine' && focusIdx === 0 ? 0 : -1}
+                  onFocus={() => setFocusIdx(0)}
+                  onMouseEnter={() => setFocusIdx(0)}
                   className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-stone-800 bg-stone-950/15 py-3 hover:border-amber-500/50 hover:bg-stone-900/10 active:bg-stone-950/50 transition-all group disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus
@@ -361,7 +416,7 @@ export default function SourcePicker({
                 </button>
 
                 {/* Uploaded User Sources list */}
-                {userSources.map((src) => {
+                {userSources.map((src, i) => {
                   const active =
                     resolved.type === 'user' && resolved.id === src.id;
                   const loading = loadingId === src.id;
@@ -371,6 +426,11 @@ export default function SourcePicker({
                       type="button"
                       disabled={disabled}
                       onClick={() => onChange(`u:${src.id}`)}
+                      tabIndex={
+                        activeTab === 'mine' && focusIdx === i + 1 ? 0 : -1
+                      }
+                      onFocus={() => setFocusIdx(i + 1)}
+                      onMouseEnter={() => setFocusIdx(i + 1)}
                       className="relative flex flex-col items-center gap-1.5 rounded-lg px-2 py-3 transition-all"
                       style={{
                         background: active

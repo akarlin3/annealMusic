@@ -1,10 +1,10 @@
 import type { VisualRenderer } from './types';
 import { CanvasRenderer } from './canvas/CanvasRenderer';
 import { WebGLRenderer } from './webgl/WebGLRenderer';
-import { probeWebGL2 } from './capabilityProbe';
+import { probeWebGL2, resetWebGL2ProbeCache } from './capabilityProbe';
 
 export * from './types';
-export { probeWebGL2 };
+export { probeWebGL2, resetWebGL2ProbeCache };
 
 export interface RendererOptions {
   renderer: 'auto' | 'canvas' | 'webgl';

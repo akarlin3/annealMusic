@@ -424,6 +424,7 @@ export default function App() {
           subtitle="Endless, slowly-shifting ambient soundscapes. Set a few sliders, press play, and let it drift — good for focus, sleep, or calm."
           showHelp={true}
           onHelpClick={() => setHelpOpen(true)}
+          onSignInClick={() => setLoginOpen(true)}
         >
           {/* Creative/Musician controls, shown conditionally depending on active mode */}
           {appMode !== 'meditation' && (

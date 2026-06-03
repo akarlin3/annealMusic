@@ -280,6 +280,7 @@ export default function AccountSettingsPage() {
                     <Input
                       id="avatar-seed-input"
                       type="text"
+                      label="Avatar Seed"
                       value={avatarSeed}
                       onChange={(e) => setAvatarSeed(e.target.value)}
                     />
@@ -647,6 +648,7 @@ export default function AccountSettingsPage() {
                 <Input
                   id="confirm-email-input"
                   type="text"
+                  label="Confirm email address to proceed"
                   placeholder={account.email}
                   value={confirmEmail}
                   onChange={(e) => setConfirmEmail(e.target.value)}

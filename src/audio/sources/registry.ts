@@ -161,12 +161,16 @@ export interface ResolvedSource {
  * to a clean, canonical format with an asset URL.
  */
 export function resolveSource(sourceVal: string | number): ResolvedSource {
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const apiBase = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
+  const getBundledUrl = (url: string) => `${baseUrl}${url.replace(/^\//, '')}`;
+
   if (typeof sourceVal === 'number') {
     const def = SOURCES[sourceVal] ?? SOURCES[0]!;
     return {
       type: 'bundled',
       id: def.id,
-      url: def.url,
+      url: getBundledUrl(def.url),
       label: def.label,
     };
   }
@@ -178,7 +182,7 @@ export function resolveSource(sourceVal: string | number): ResolvedSource {
     return {
       type: 'bundled',
       id: def.id,
-      url: def.url,
+      url: getBundledUrl(def.url),
       label: def.label,
     };
   }
@@ -188,7 +192,7 @@ export function resolveSource(sourceVal: string | number): ResolvedSource {
     return {
       type: 'user',
       id: cleanId,
-      url: `/api/v1/user-sources/${cleanId}`,
+      url: `${apiBase}/api/v1/user-sources/${cleanId}`,
       label: 'User Source',
     };
   }
@@ -200,7 +204,7 @@ export function resolveSource(sourceVal: string | number): ResolvedSource {
     return {
       type: 'bundled',
       id: def.id,
-      url: def.url,
+      url: getBundledUrl(def.url),
       label: def.label,
     };
   }
@@ -210,7 +214,7 @@ export function resolveSource(sourceVal: string | number): ResolvedSource {
   return {
     type: 'bundled',
     id: def.id,
-    url: def.url,
+    url: getBundledUrl(def.url),
     label: def.label,
   };
 }

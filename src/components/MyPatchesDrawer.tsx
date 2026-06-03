@@ -146,7 +146,15 @@ export default function MyPatchesDrawer({
                       <button
                         type="button"
                         aria-label="Delete patch"
-                        onClick={() => void remove(p.id)}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Are you sure you want to delete "${p.title || 'Untitled Patch'}"?`,
+                            )
+                          ) {
+                            void remove(p.id);
+                          }
+                        }}
                         style={{ color: '#78716c' }}
                       >
                         <Trash2 size={14} strokeWidth={1.5} />

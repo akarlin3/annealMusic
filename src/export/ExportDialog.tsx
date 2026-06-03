@@ -26,7 +26,7 @@ type ExportState = 'idle' | 'rendering' | 'packaging' | 'complete';
 const getSegmentDurationSec = (seg: any, tempoBpm: number | null): number => {
   let durationMs = seg.durationMs ?? 5000;
   if (seg.config?.tempoLocked && tempoBpm !== null && tempoBpm > 0) {
-    durationMs = durationMs * 4 * (60 / tempoBpm) * 1000;
+    durationMs = durationMs * 4 * (60 / tempoBpm);
   }
   return durationMs / 1000;
 };

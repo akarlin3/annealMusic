@@ -48,4 +48,3 @@ jobs:
 
       - name: Verify Jupyter notebooks
         run: python scripts/test-notebooks.py
-

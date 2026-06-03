@@ -40,11 +40,14 @@ export function loadSource(
           console.warn(
             `[loader] User source ${resolved.id} failed with ${res.status}. Falling back to b:glasspad.`,
           );
-          return fetch('/sources/glasspad.opus').then((fallbackRes) => {
-            if (!fallbackRes.ok)
-              throw new Error('failed to load fallback source');
-            return fallbackRes.arrayBuffer();
-          });
+          const baseUrl = import.meta.env.BASE_URL || '/';
+          return fetch(`${baseUrl}sources/glasspad.opus`).then(
+            (fallbackRes) => {
+              if (!fallbackRes.ok)
+                throw new Error('failed to load fallback source');
+              return fallbackRes.arrayBuffer();
+            },
+          );
         }
         throw new Error(`failed to fetch source ${sourceVal}: ${res.status}`);
       }

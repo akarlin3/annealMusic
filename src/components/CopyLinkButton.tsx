@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Link2 } from 'lucide-react';
 import { buildShareUrl } from '@/share/url';
 import type { AnnealMusicParams } from '@/state/params';
@@ -58,6 +58,12 @@ export default function CopyLinkButton({
 }: CopyLinkButtonProps) {
   const [copied, setCopied] = useState(false);
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (revertTimer.current) clearTimeout(revertTimer.current);
+    };
+  }, []);
 
   const handleClick = useCallback(async () => {
     const url = buildShareUrl(params, engineId, engineParams, undefined, loops);

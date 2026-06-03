@@ -35,7 +35,9 @@ describe('Cooley-Tukey Radix-2 FFT', () => {
 
     // Energy should concentrate at bin 5 and bin N - 5 (conjugate symmetric)
     const mag5 = Math.sqrt((real[bin] ?? 0) ** 2 + (imag[bin] ?? 0) ** 2);
-    const magSym = Math.sqrt((real[N - bin] ?? 0) ** 2 + (imag[N - bin] ?? 0) ** 2);
+    const magSym = Math.sqrt(
+      (real[N - bin] ?? 0) ** 2 + (imag[N - bin] ?? 0) ** 2,
+    );
 
     expect(mag5).toBeCloseTo(N / 2, 4);
     expect(magSym).toBeCloseTo(N / 2, 4);
@@ -83,8 +85,14 @@ describe('Cooley-Tukey Radix-2 FFT', () => {
 
     // Assert additive property
     for (let k = 0; k < N; k++) {
-      expect(sumReal[k]).toBeCloseTo((outRealA[k] ?? 0) + (outRealB[k] ?? 0), 4);
-      expect(sumImag[k]).toBeCloseTo((outImagA[k] ?? 0) + (outImagB[k] ?? 0), 4);
+      expect(sumReal[k]).toBeCloseTo(
+        (outRealA[k] ?? 0) + (outRealB[k] ?? 0),
+        4,
+      );
+      expect(sumImag[k]).toBeCloseTo(
+        (outImagA[k] ?? 0) + (outImagB[k] ?? 0),
+        4,
+      );
     }
   });
 

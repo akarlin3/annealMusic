@@ -26,7 +26,9 @@ function mergeBuilds() {
   const distLearnPath = path.join(rootDir, 'dist-learn');
 
   if (!fs.existsSync(distPath)) {
-    console.error('Error: Main build output "dist/" does not exist. Run main build first.');
+    console.error(
+      'Error: Main build output "dist/" does not exist. Run main build first.',
+    );
     process.exit(1);
   }
 
@@ -35,14 +37,16 @@ function mergeBuilds() {
     console.log('[Merge] Merging research console into dist...');
     fs.copyFileSync(
       path.join(distResearchPath, 'research.html'),
-      path.join(distPath, 'research.html')
+      path.join(distPath, 'research.html'),
     );
     copyFolderSync(
       path.join(distResearchPath, 'assets'),
-      path.join(distPath, 'assets')
+      path.join(distPath, 'assets'),
     );
   } else {
-    console.warn('[Merge] Warning: dist-research/ not found. Skipping research merge.');
+    console.warn(
+      '[Merge] Warning: dist-research/ not found. Skipping research merge.',
+    );
   }
 
   // 2. Merge Learn Curriculum
@@ -50,14 +54,16 @@ function mergeBuilds() {
     console.log('[Merge] Merging learn curriculum into dist...');
     fs.copyFileSync(
       path.join(distLearnPath, 'learn.html'),
-      path.join(distPath, 'learn.html')
+      path.join(distPath, 'learn.html'),
     );
     copyFolderSync(
       path.join(distLearnPath, 'assets'),
-      path.join(distPath, 'assets')
+      path.join(distPath, 'assets'),
     );
   } else {
-    console.warn('[Merge] Warning: dist-learn/ not found. Skipping learn merge.');
+    console.warn(
+      '[Merge] Warning: dist-learn/ not found. Skipping learn merge.',
+    );
   }
 
   console.log('[Merge] Successfully merged all consoles into dist!');

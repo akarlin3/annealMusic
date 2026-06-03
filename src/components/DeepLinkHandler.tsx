@@ -31,7 +31,7 @@ export default function DeepLinkHandler() {
               }
             }
 
-            const relativePath = path + parsed.search;
+            const relativePath = path + parsed.search + parsed.hash;
 
             if (path.startsWith('/embed')) {
               console.warn('Embed routes are ignored on mobile.');

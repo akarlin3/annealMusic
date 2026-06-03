@@ -253,7 +253,7 @@ export default function ListeningView({
     session.piece?.segments.map((s) => {
       let dur = s.duration_ms ?? 5000;
       if (s.config?.tempoLocked && session.piece?.tempo_bpm) {
-        dur = dur * 4 * (60 / session.piece.tempo_bpm) * 1000;
+        dur = dur * 4 * (60 / session.piece.tempo_bpm);
       }
       return dur;
     }) || [];

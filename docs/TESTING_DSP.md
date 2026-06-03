@@ -26,6 +26,7 @@ The spectral test harness runs entirely offline, with zero dependencies on the W
 ## 2. Mathematical Principles
 
 ### Parabolic Peak Interpolation
+
 To achieve sub-bin frequency accuracy without requiring excessively large FFT sizes, the harness fits a parabola through the peak bin $p$ and its adjacent bins $p-1$ and $p+1$ in the decibel domain:
 
 $$\alpha = \ln|X[p-1]|, \quad \beta = \ln|X[p]|, \quad \gamma = \ln|X[p+1]|$$
@@ -41,6 +42,7 @@ $$f_{\text{peak}} = p_{\text{interp}} \cdot \frac{f_s}{N_{\text{FFT}}}$$
 This reduces frequency measurement errors from $\approx 45$ cents to **$< 3$ cents**, allowing tight physical assertions to run deterministically.
 
 ### Damping to Q / Bandwidth Verification
+
 The biquad bandpass resonators in the `ModalBank` are tuned to a quality factor $Q$ based on damping:
 
 $$Q = 8 + (1 - \text{damping}) \cdot 240$$
@@ -52,6 +54,7 @@ $$\Delta f = \frac{f_0}{Q}$$
 The harness excites a single resonator with a brief pluck impulse, measures its $-3\text{ dB}$ bandwidth from the noise-free Lorentzian decay spectrum, and asserts that lower damping increases $Q$ (narrowing the bandwidth) by the exact theoretical factor.
 
 ### Ornstein-Uhlenbeck SDE Stationary Variance
+
 The stochastic Ornstein-Uhlenbeck drift SDE:
 
 $$dx_t = -\theta x_t dt + \sigma dW_t$$
@@ -67,10 +70,11 @@ For $\theta = 0.25$ and $\text{drift} = 0.5$ ($\sigma = 9$), the analytical vari
 ## 3. Physical DSP Assertions & Tolerances
 
 The suite asserts the following rules:
-* **Modal Bank Eigenfrequency Ratios:** Stiff Plate ($\sqrt{1 + B n^2}$), Membrance (Bessel zeros), Bell (hum, prime, tierce, nominal), and Mallet bar modes must match their corresponding theoretical `eigen` functions within $\pm 45$ cents (accounting for tight mode spacing and absolute frequency).
-* **Karplus-Strong Harmonicity:** Driving the string at $f_0$ must produce a clean harmonic series ($k \cdot f_0$) within $\pm 35$ cents.
-* **Integer Delay High-Frequency Limitation:** At high frequencies (e.g. $1600\text{ Hz}$), the phase delay of the loop low-pass filter makes the pitch run flat. The test asserts that the flat deviation is measurable ($> 0.2$ cents flat) and documents this waveguide limitation (to be corrected in subsequent tracks).
-* **Centroid Brightness Shift:** Raising the `brightness` parameter must monotonically shift the spectral centroid higher.
+
+- **Modal Bank Eigenfrequency Ratios:** Stiff Plate ($\sqrt{1 + B n^2}$), Membrance (Bessel zeros), Bell (hum, prime, tierce, nominal), and Mallet bar modes must match their corresponding theoretical `eigen` functions within $\pm 45$ cents (accounting for tight mode spacing and absolute frequency).
+- **Karplus-Strong Harmonicity:** Driving the string at $f_0$ must produce a clean harmonic series ($k \cdot f_0$) within $\pm 35$ cents.
+- **Integer Delay High-Frequency Limitation:** At high frequencies (e.g. $1600\text{ Hz}$), the phase delay of the loop low-pass filter makes the pitch run flat. The test asserts that the flat deviation is measurable ($> 0.2$ cents flat) and documents this waveguide limitation (to be corrected in subsequent tracks).
+- **Centroid Brightness Shift:** Raising the `brightness` parameter must monotonically shift the spectral centroid higher.
 
 ---
 
@@ -80,25 +84,27 @@ To verify a new physical engine (e.g. a new waveguide or multi-resonator config)
 
 1. **Verify offline render compatibility:** Ensure your new DSP class exposes a sample-by-sample `next(): number` or block-based `render(out: Float32Array)` method that accepts a sample rate and parameters in its constructor.
 2. **Add a test block in `src/audio/analysis/__tests__/spectral.test.ts`:**
+
    ```typescript
    describe('MyNewEngine Physics', () => {
      it('proves target resonant frequency', () => {
        const dsp = new MyNewEngine(SR, { f0: 440, ... });
-       
+
        // Pluck excitation to clear noise floor
        dsp.setExcitation(1.0);
        for (let i = 0; i < 150; i++) dsp.next();
        dsp.setExcitation(0.0);
-       
+
        // Render and transform
        const samples = renderDSP(dsp, 2048);
        const windowed = applyHannWindow(samples);
        const { real, imag } = computeFFTSpectrum(windowed, 16);
        const mags = getMagnitudeSpectrum(real, imag);
-       
+
        const peaks = peakFrequencies(mags, SR, 32768, { maxPeaks: 1, minDb: -50 });
        expect(peaks[0]!.frequency).toBeCloseTo(440, 1.0); // Within ~4 Hz
      });
    });
    ```
+
 3. **Execute:** Run `npm test` to verify your physics-correctness test runs green!

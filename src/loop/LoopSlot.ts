@@ -203,7 +203,7 @@ export class LoopSlot {
 
     // Apply any URL-remembered config: freeze first, then mute.
     if (this.config.frozen) this.freeze();
-    if (this.config.muted) this.applyMuteGain(true);
+    if (this.config.muted) this.mute();
   }
 
   /**
@@ -218,7 +218,7 @@ export class LoopSlot {
     this.setState('playing');
     this.startSeam();
     if (this.config.frozen) this.freeze();
-    if (this.config.muted) this.applyMuteGain(true);
+    if (this.config.muted) this.mute();
   }
 
   private teardownArm(): void {

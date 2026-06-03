@@ -26,7 +26,8 @@ export class BellLoader {
       }
 
       // Check if running on user client, absolute path or relative to base
-      const url = `/${def.file}`;
+      const baseUrl = import.meta.env.BASE_URL || '/';
+      const url = `${baseUrl}${def.file}`;
       try {
         const response = await fetch(url);
         if (!response.ok) {

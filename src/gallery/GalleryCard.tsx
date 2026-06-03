@@ -56,6 +56,7 @@ export default function GalleryCard({
     if (!audio) return;
     try {
       if (playing) {
+        window.dispatchEvent(new CustomEvent('anneal-preview-play'));
         void audio.play().catch(() => undefined);
       } else {
         audio.pause();

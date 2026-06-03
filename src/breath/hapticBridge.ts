@@ -27,11 +27,11 @@ export async function pulsePhaseTransition(phase: BreathPhase): Promise<void> {
   if (!isHapticsAvailable()) return;
   try {
     const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
-    const style =
-      phase === 'inhale' || phase === 'exhale'
-        ? ImpactStyle.Light
-        : ImpactStyle.Light;
-    await Haptics.impact({ style });
+    if (phase === 'inhale' || phase === 'exhale') {
+      await Haptics.impact({ style: ImpactStyle.Light });
+    } else {
+      await Haptics.selectionChanged();
+    }
   } catch {
     // Plugin unavailable or call failed — silently ignore.
   }

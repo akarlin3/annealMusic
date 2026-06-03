@@ -66,7 +66,10 @@ export class BowedString {
     // Exact phase delay of one-pole low-pass: theta / w
     const w = (2.0 * Math.PI * freq) / this.sampleRate;
     const c = this.loopCoef;
-    const theta = Math.atan2((1.0 - c) * Math.sin(w), 1.0 - (1.0 - c) * Math.cos(w));
+    const theta = Math.atan2(
+      (1.0 - c) * Math.sin(w),
+      1.0 - (1.0 - c) * Math.cos(w),
+    );
     const dLp = w > 0.0 ? theta / w : (1.0 - c) / c;
     const dCompensated = dTarget - dLp;
     // Clamp to ensure stable and safe Lagrange buffer reads (min 2.0, max buf.length - 3)
@@ -117,10 +120,10 @@ export class BowedString {
     const y_2 = this.buf[(i0 + 2) % len] ?? 0;
 
     // Lagrange polynomial coefficients
-    const c_neg1 = -d * (d - 1) * (d - 2) / 6;
-    const c_0 = (d + 1) * (d - 1) * (d - 2) / 2;
-    const c_1 = -(d + 1) * d * (d - 2) / 2;
-    const c_2 = (d + 1) * d * (d - 1) / 6;
+    const c_neg1 = (-d * (d - 1) * (d - 2)) / 6;
+    const c_0 = ((d + 1) * (d - 1) * (d - 2)) / 2;
+    const c_1 = (-(d + 1) * d * (d - 2)) / 2;
+    const c_2 = ((d + 1) * d * (d - 1)) / 6;
 
     const vs = c_neg1 * y_neg1 + c_0 * y_0 + c_1 * y_1 + c_2 * y_2;
 

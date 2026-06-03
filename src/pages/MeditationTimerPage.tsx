@@ -109,7 +109,7 @@ export default function MeditationTimerPage() {
       setRemainingSec(durationMin * 60);
       setElapsedSec(0);
     }
-  }, [durationMin, isPlaying]);
+  }, [durationMin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Breath animation loop. Phase math lives once in BreathController, driven by
   // AudioContext.currentTime (not wall-clock), so a backgrounded tab resumes at

@@ -52,7 +52,7 @@ export class ListeningSessionPlayer {
       this.config.piece.tempoBpm !== null &&
       this.config.piece.tempoBpm > 0
     ) {
-      return raw * 4 * (60 / this.config.piece.tempoBpm) * 1000;
+      return raw * 4 * (60 / this.config.piece.tempoBpm);
     }
     return raw;
   }
@@ -91,7 +91,7 @@ export class ListeningSessionPlayer {
       const segmentDurations = this.config.piece.segments.map((seg) =>
         this.getPieceSegmentDuration(seg),
       );
-      
+
       // Resolve piece schedule
       const resolvedPieceSched = resolveBellSchedule(
         this.config.piece.bellSchedule || [],

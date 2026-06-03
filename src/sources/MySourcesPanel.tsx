@@ -238,7 +238,13 @@ export default function MySourcesPanel({
     if (source.ref_count > 0) {
       setConfirmDeleteSource(source);
     } else {
-      void performDelete(source.id);
+      if (
+        window.confirm(
+          `Are you sure you want to delete the unused source "${source.display_name || 'Untitled'}"?`,
+        )
+      ) {
+        void performDelete(source.id);
+      }
     }
   };
 

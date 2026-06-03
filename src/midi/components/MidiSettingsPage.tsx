@@ -847,10 +847,14 @@ export default function MidiSettingsPage() {
 
                       {/* Velocity Modulation Destination */}
                       <div>
-                        <label className="mb-2 block text-[9px] uppercase tracking-wider text-stone-500">
+                        <label
+                          htmlFor="midi-keyboard-strike-velocity-select"
+                          className="mb-2 block text-[9px] uppercase tracking-wider text-stone-500"
+                        >
                           Keyboard Strike Velocity Modulation
                         </label>
                         <select
+                          id="midi-keyboard-strike-velocity-select"
                           value={globalConfig.notesVelocityTarget}
                           onChange={(e) =>
                             handleSaveGlobalConfig({
@@ -905,10 +909,14 @@ export default function MidiSettingsPage() {
                   {/* Channels Selector & CC Stream Toggle */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                      <label className="mb-2 block text-[9px] uppercase tracking-wider text-stone-500">
+                      <label
+                        htmlFor="midi-output-channel-select"
+                        className="mb-2 block text-[9px] uppercase tracking-wider text-stone-500"
+                      >
                         MIDI Output Channel
                       </label>
                       <select
+                        id="midi-output-channel-select"
                         value={globalConfig.outputChannel}
                         onChange={(e) =>
                           handleSaveGlobalConfig({
@@ -991,12 +999,18 @@ export default function MidiSettingsPage() {
                     {globalConfig.clockEnabled && (
                       <div className="space-y-2">
                         <div className="flex justify-between items-center text-[10px] font-mono text-stone-500 uppercase">
-                          <span>Clock Tempo</span>
+                          <label
+                            htmlFor="midi-clock-tempo-slider"
+                            className="cursor-pointer"
+                          >
+                            Clock Tempo
+                          </label>
                           <span className="text-[#fbbf24] font-semibold">
                             {globalConfig.clockBpm} BPM
                           </span>
                         </div>
                         <input
+                          id="midi-clock-tempo-slider"
                           type="range"
                           min={30}
                           max={240}

@@ -211,7 +211,8 @@ function runTwoPopulation({
 
   const nTrans = Math.round(transient / dt);
   const nAna = Math.round(analyze / dt);
-  for (let s = 0; s < nTrans; s++) rk4Step(phases, dt, Np, mu, nu, alpha, scratch);
+  for (let s = 0; s < nTrans; s++)
+    rk4Step(phases, dt, Np, mu, nu, alpha, scratch);
 
   const R1 = new Float64Array(nAna);
   const R2 = new Float64Array(nAna);
@@ -416,7 +417,9 @@ function morphSpectrum(C, dt) {
 }
 
 const periodStr = (sp) =>
-  sp.stationary ? `>=${(1 / sp.peakFreq).toFixed(0)}(stat)` : sp.peakPeriod.toFixed(1);
+  sp.stationary
+    ? `>=${(1 / sp.peakFreq).toFixed(0)}(stat)`
+    : sp.peakPeriod.toFixed(1);
 
 // ===========================================================================
 // Reporting helpers
@@ -432,7 +435,9 @@ const pad = (s, w) => String(s).padStart(w);
 // Main
 // ===========================================================================
 function cp1() {
-  console.log('\n================= CP1: (beta, A, N) PHASE DIAGRAM =================');
+  console.log(
+    '\n================= CP1: (beta, A, N) PHASE DIAGRAM =================',
+  );
   const BETAS = [0.02, 0.05, 0.1, 0.15, 0.2, 0.3];
   const AS = [0.05, 0.1, 0.2, 0.35, 0.5];
   const NS = [8, 16, 32, 64];
@@ -442,7 +447,9 @@ function cp1() {
   const results = [];
 
   for (const Np of NS) {
-    console.log(`\n--- N_per_pop = ${Np}  (basin fraction %, ${SEEDS} seeds) ---`);
+    console.log(
+      `\n--- N_per_pop = ${Np}  (basin fraction %, ${SEEDS} seeds) ---`,
+    );
     console.log(
       'beta\\A   ' + AS.map((a) => pad('A=' + a.toFixed(2), 9)).join(''),
     );
@@ -479,7 +486,9 @@ function cp1() {
     );
     for (const beta of BETAS) {
       const row = AS.map(
-        (A) => results.find((r) => r.Np === Np && r.A === A && r.beta === beta).meanMorph,
+        (A) =>
+          results.find((r) => r.Np === Np && r.A === A && r.beta === beta)
+            .meanMorph,
       );
       console.log(
         pad(beta.toFixed(2), 6) +
@@ -497,13 +506,13 @@ function cp1() {
     .map((r) => ({
       ...r,
       score:
-        r.basinFrac * 0.5 +
-        (r.meanMorph / maxMorph) * 0.3 +
-        r.meanRole * 0.2,
+        r.basinFrac * 0.5 + (r.meanMorph / maxMorph) * 0.3 + r.meanRole * 0.2,
     }))
     .sort((a, b) => b.score - a.score);
 
-  console.log('\n--- Top regimes (score = .5*basin + .3*morph_norm + .2*role) ---');
+  console.log(
+    '\n--- Top regimes (score = .5*basin + .3*morph_norm + .2*role) ---',
+  );
   console.log(
     pad('N', 4) +
       pad('A', 7) +
@@ -532,7 +541,9 @@ function cp1() {
 }
 
 function cp2(best) {
-  console.log('\n================= CP2: DOES N WIDEN THE BASIN? =================');
+  console.log(
+    '\n================= CP2: DOES N WIDEN THE BASIN? =================',
+  );
   const { A, beta } = best;
   console.log(`Best regime from CP1: A=${A}, beta=${beta}`);
   const NS = [8, 16, 24, 32, 48, 64];
@@ -573,7 +584,9 @@ function cp2(best) {
 }
 
 function cp3(best) {
-  console.log('\n================= CP3: MORPH CHARACTERIZATION =================');
+  console.log(
+    '\n================= CP3: MORPH CHARACTERIZATION =================',
+  );
   const { beta, Np } = best;
   const TRANSIENT = 20;
   const ANALYZE = 240; // long window for spectral resolution (>=10 breathing cycles)
@@ -582,7 +595,9 @@ function cp3(best) {
   // (fixed beta, N). The first in-basin seed per A is characterized over a long
   // window. Stationary = peak below the resolvable band (settled offset).
   console.log(`Fixed beta=${beta}, N=${Np}; 240 s windows.`);
-  console.log('\n--- Timescale relation: morph period vs coupling disparity A ---');
+  console.log(
+    '\n--- Timescale relation: morph period vs coupling disparity A ---',
+  );
   console.log(
     pad('A', 7) + pad('period_s', 13) + pad('flatness', 10) + pad('morphHz', 9),
   );
@@ -593,7 +608,14 @@ function cp3(best) {
       console.log(pad(Av.toFixed(2), 7) + pad('(no chimera)', 13));
       continue;
     }
-    const run = runTwoPopulation({ Np, A: Av, beta, seed, transient: TRANSIENT, analyze: ANALYZE });
+    const run = runTwoPopulation({
+      Np,
+      A: Av,
+      beta,
+      seed,
+      transient: TRANSIENT,
+      analyze: ANALYZE,
+    });
     const sp = morphSpectrum(run.C, run.dt);
     const m = analyzeRun(run);
     aPts.push({ A: Av, sp, morph: m.morphAmp });
@@ -609,14 +631,30 @@ function cp3(best) {
   console.log('\n--- Timescale relation: morph period vs phase lag beta ---');
   console.log(pad('beta', 7) + pad('period_s', 13) + pad('flatness', 10));
   for (const bv of [0.02, 0.05, 0.1, 0.15, 0.2]) {
-    const seed = firstBasinSeed({ Np, A: best.A, beta: bv, transient: TRANSIENT });
+    const seed = firstBasinSeed({
+      Np,
+      A: best.A,
+      beta: bv,
+      transient: TRANSIENT,
+    });
     if (seed === null) {
       console.log(pad(bv.toFixed(2), 7) + pad('(no chimera)', 13));
       continue;
     }
-    const run = runTwoPopulation({ Np, A: best.A, beta: bv, seed, transient: TRANSIENT, analyze: ANALYZE });
+    const run = runTwoPopulation({
+      Np,
+      A: best.A,
+      beta: bv,
+      seed,
+      transient: TRANSIENT,
+      analyze: ANALYZE,
+    });
     const sp = morphSpectrum(run.C, run.dt);
-    console.log(pad(bv.toFixed(2), 7) + pad(periodStr(sp), 13) + pad(sp.flatness.toFixed(3), 10));
+    console.log(
+      pad(bv.toFixed(2), 7) +
+        pad(periodStr(sp), 13) +
+        pad(sp.flatness.toFixed(3), 10),
+    );
   }
 
   // ---- Detailed morph SHAPE characterization at the breathing optimum ------
@@ -626,7 +664,9 @@ function cp3(best) {
     .filter((p) => !p.sp.stationary)
     .sort((a, b) => a.sp.peakPeriod - b.sp.peakPeriod)[0];
   const Abr = breathing ? breathing.A : best.A;
-  console.log(`\n--- Morph shape at the breathing optimum (A=${Abr}, beta=${beta}, N=${Np}) ---`);
+  console.log(
+    `\n--- Morph shape at the breathing optimum (A=${Abr}, beta=${beta}, N=${Np}) ---`,
+  );
   console.log(
     pad('seed', 6) +
       pad('period_s', 13) +
@@ -638,10 +678,24 @@ function cp3(best) {
   const specs = [];
   let found = 0;
   for (let s = 0; s < 40 && found < 5; s++) {
-    const probe = runTwoPopulation({ Np, A: Abr, beta, seed: 9000 + s, transient: TRANSIENT, analyze: 28 });
+    const probe = runTwoPopulation({
+      Np,
+      A: Abr,
+      beta,
+      seed: 9000 + s,
+      transient: TRANSIENT,
+      analyze: 28,
+    });
     if (analyzeRun(probe).fracLive < IN_BASIN) continue;
     found++;
-    const run = runTwoPopulation({ Np, A: Abr, beta, seed: 9000 + s, transient: TRANSIENT, analyze: ANALYZE });
+    const run = runTwoPopulation({
+      Np,
+      A: Abr,
+      beta,
+      seed: 9000 + s,
+      transient: TRANSIENT,
+      analyze: ANALYZE,
+    });
     const sp = morphSpectrum(run.C, run.dt);
     const m = analyzeRun(run);
     specs.push(sp);
@@ -665,7 +719,14 @@ function cp3(best) {
 
 function firstBasinSeed({ Np, A, beta, transient }) {
   for (let s = 0; s < 40; s++) {
-    const run = runTwoPopulation({ Np, A, beta, seed: 9000 + s, transient, analyze: 28 });
+    const run = runTwoPopulation({
+      Np,
+      A,
+      beta,
+      seed: 9000 + s,
+      transient,
+      analyze: 28,
+    });
     if (analyzeRun(run).fracLive >= IN_BASIN) return 9000 + s;
   }
   return null;
@@ -687,8 +748,12 @@ function linfit(xs, ys) {
 // ===========================================================================
 function main() {
   const t0 = Date.now();
-  console.log('Chimera characterization probe (Build B) — seeded, offline, deterministic.');
-  console.log(`F0=${F0} Hz, AMOUNT=${AMOUNT}, dt=${DT}, RK4 mean-field two-population Sakaguchi.`);
+  console.log(
+    'Chimera characterization probe (Build B) — seeded, offline, deterministic.',
+  );
+  console.log(
+    `F0=${F0} Hz, AMOUNT=${AMOUNT}, dt=${DT}, RK4 mean-field two-population Sakaguchi.`,
+  );
 
   const { scored } = cp1();
   // Pick the best regime: prefer the highest-score cell at a mid N (16 or 32)
@@ -697,7 +762,9 @@ function main() {
   const cp2curve = cp2(best);
   // For CP3 use a regime/N where chimeras are robust (use the CP1 winner's A/beta
   // at an N that gives a wide basin from CP2).
-  const robustN = cp2curve.reduce((a, b) => (b.basinFrac >= a.basinFrac ? b : a)).Np;
+  const robustN = cp2curve.reduce((a, b) =>
+    b.basinFrac >= a.basinFrac ? b : a,
+  ).Np;
   cp3({ A: best.A, beta: best.beta, Np: robustN });
 
   console.log(`\nTotal runtime: ${((Date.now() - t0) / 1000).toFixed(1)} s`);
