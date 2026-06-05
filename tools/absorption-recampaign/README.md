@@ -17,8 +17,8 @@ reproduces the published campaign **bit-for-bit** (determinism gate).
 ## Pipeline
 
 ```
-# CP1 — labeling unit tests (synthetic R(t))
-node --test labeling.test.mjs
+# CP1 — labeling unit tests (synthetic R(t)), via vitest
+npx vitest run tools/absorption-recampaign/labeling.test.ts
 
 # CP2 — pilot: t_abs censoring + CP1 (T_v, recThresh) sensitivity
 node pilot.mjs
@@ -41,19 +41,19 @@ python3 analysis.py
 
 ## Files
 
-| File | Role |
-| --- | --- |
-| `absorption.config.json` | Single committed config (criterion, sensitivity grid, sweeps). |
-| `labeling.mjs` | Streaming two-timescale `Labeler` (`t_graze`, `t_abs`) — single source of truth. |
-| `labeling.test.mjs` | CP1 unit tests on synthetic R(t). |
-| `breath.mjs` | Per-run breath period `T_b` (PR #41 estimator ported to JS; bit-identical cross-check). |
-| `tracer.mjs` | Integrates one run, drives the labeler online, computes `T_b`. |
-| `sweep.mjs` | Worker-pool full re-campaign → `absorption_campaign.jsonl`. |
-| `pilot.mjs` | CP2 censoring + CP1 sensitivity (one integration, re-labeled under every knob). |
-| `determinism.mjs` | t_graze == published campaign gate. |
-| `phase_trace.mjs` | CP3 subset: R_incoh traces for true-absorption phase. |
-| `supervisor_replay.mjs` | CP4 shipped-detector over-trigger measurement. |
-| `analysis.py` | CP3 survival/Weibull/geometric/phase/graze + CP4 table + `ABSORPTION_REPORT.md`. |
+| File                     | Role                                                                                    |
+| ------------------------ | --------------------------------------------------------------------------------------- |
+| `absorption.config.json` | Single committed config (criterion, sensitivity grid, sweeps).                          |
+| `labeling.mjs`           | Streaming two-timescale `Labeler` (`t_graze`, `t_abs`) — single source of truth.        |
+| `labeling.test.ts`       | CP1 unit tests on synthetic R(t) (vitest).                                              |
+| `breath.mjs`             | Per-run breath period `T_b` (PR #41 estimator ported to JS; bit-identical cross-check). |
+| `tracer.mjs`             | Integrates one run, drives the labeler online, computes `T_b`.                          |
+| `sweep.mjs`              | Worker-pool full re-campaign → `absorption_campaign.jsonl`.                             |
+| `pilot.mjs`              | CP2 censoring + CP1 sensitivity (one integration, re-labeled under every knob).         |
+| `determinism.mjs`        | t_graze == published campaign gate.                                                     |
+| `phase_trace.mjs`        | CP3 subset: R_incoh traces for true-absorption phase.                                   |
+| `supervisor_replay.mjs`  | CP4 shipped-detector over-trigger measurement.                                          |
+| `analysis.py`            | CP3 survival/Weibull/geometric/phase/graze + CP4 table + `ABSORPTION_REPORT.md`.        |
 
 Outputs land in `absorption_results/`. See `absorption_results/ABSORPTION_REPORT.md`
 for the headline survive/revise/retire verdict.
