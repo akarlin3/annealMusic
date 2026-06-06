@@ -59,6 +59,9 @@ export default defineConfig({
       '**/cypress/**',
       '**/.{idea,git,cache,output,temp}/**',
       '**/{karma,rollup,webpack,vite,vitest}.config.*',
+      // Standalone tool test that uses Node's built-in runner (`node --test`),
+      // not Vitest — its `node:test` suites register nothing with Vitest.
+      'tools/absorption-recampaign/labeling.test.mjs',
     ],
   },
 });
