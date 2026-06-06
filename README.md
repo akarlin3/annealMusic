@@ -3,6 +3,7 @@
 [![Client CI](https://github.com/akarlin3/annealMusic/actions/workflows/ci.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/ci.yml)
 [![API CI](https://github.com/akarlin3/annealMusic/actions/workflows/api.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/api.yml)
 [![Firebase Deploy](https://github.com/akarlin3/annealMusic/actions/workflows/deploy.yml/badge.svg)](https://github.com/akarlin3/annealMusic/actions/workflows/deploy.yml)
+[![DOI](https://zenodo.org/badge/1247822889.svg)](https://zenodo.org/badge/latestdoi/1247822889)
 
 **An immersive wellness ecosystem and generative instrument that builds slowly-evolving ambient soundscapes and timed focus journeys. Designed for deep meditation, conscious breathing, and absolute focus punctuated by organic physical bell chimes.**
 
