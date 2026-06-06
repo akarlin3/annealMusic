@@ -53,3 +53,13 @@ dist-learn/
 playwright-report/
 test-results/
 .coverage
+
+# LaTeX build artifacts
+*.aux
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.out
+*.toc
+*Notes.bib
+tmp*.tmp
