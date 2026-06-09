@@ -1,0 +1,44 @@
+{
+  "name": "absorption-grade large-N extension of the A=0.5 corner",
+  "version": "1.0.0",
+  "description": "Extends the absorption-grade A=0.5 collapse-time sweep to N=256, 512, 1024 to test whether the 3.2x reduced-to-finite-N prolongation (and its N-independence) survives asymptotically. The published primary sweep covered N=4..64 (16x range); this adds another 16x (N=64..1024). Same absorption criterion, same dynamics core, same model/breath knobs, same seeds (seed0=100000) as absorption.config.json's primary sweep, so every large-N point is paired seed-for-seed with the published small-N points and uses the identical t_abs definition. New output file only; absorption.config.json and all prior results are untouched.",
+  "model": {
+    "beta": 0.05,
+    "dt": 0.05,
+    "sampleStride": 0.1,
+    "t_max": 2000,
+    "_note": "Identical to absorption.config.json so t_abs is measured under the exact same criterion and cadence; t_max=2000s is far above the observed ~130s lifetimes (zero censoring at A=0.5 for N<=64, and the large-N pilot stays in the same band)."
+  },
+  "graze_criterion": {
+    "theta": 0.85,
+    "W": 5.0,
+    "_note": "UNCHANGED from the published campaign."
+  },
+  "absorption_criterion": {
+    "T_v": 120.0,
+    "recoveryThreshold": 0.8,
+    "recoveryWindowSec": 5.0,
+    "_note": "UNCHANGED from absorption.config.json default criterion."
+  },
+  "breath": {
+    "smoothWindowSec": 2.0,
+    "minProminenceFrac": 0.1,
+    "minPeakSepFrac": 0.5,
+    "minCyclesForPhase": 2,
+    "autoPeriodFloorSec": 8.0
+  },
+  "sweeps": [
+    {
+      "label": "largeN",
+      "A": 0.5,
+      "Ns": [256, 512, 1024],
+      "seeds": 200,
+      "seed0": 100000
+    }
+  ],
+  "inputs": {
+    "campaign_jsonl": "campaign_results/collapse_campaign.jsonl"
+  },
+  "output_dir": "absorption_results",
+  "output": "absorption_results/absorption_largeN.jsonl"
+}

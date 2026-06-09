@@ -37,7 +37,28 @@ node supervisor_replay.mjs
 
 # CP3 + CP4 + ABSORPTION_REPORT.md (figures, tables, survive/revise/retire)
 python3 analysis.py
+
+# Large-N extension — does the 3.2x prolongation plateau survive asymptotically?
+# (A=0.5 corner, N=256/512/1024, paired seeds; ~5min/4 cores)
+node sweep.mjs --config absorption.largeN.config.json --workers 4
+python3 largeN_analysis.py
 ```
+
+## Large-N extension (A=0.5 corner)
+
+`absorption.largeN.config.json` re-runs only the A=0.5 sweep at **N=256, 512,
+1024** (200 paired seeds each, seed0=100000 — identical to the published primary
+sweep, so every large-N point sits seed-for-seed against its small-N twin), under
+the verbatim absorption criterion. It answers the guaranteed reviewer question:
+the paper's reduced→finite-N prolongation is `tau_abs(N)/tau_reduced ≈ 3.2x`,
+shown N-independent only over N=4..64; does it persist or collapse toward the
+reduced ~43s capture as fluctuations vanish? `largeN_analysis.py` computes
+Kaplan–Meier survival curves and the multiplier ratios and writes (all NEW files):
+`absorption_largeN.jsonl`, `largeN_survival.{csv,png,pdf}`,
+`largeN_multipliers.{csv,md}`, `largeN_tau_vs_N.{png,pdf}`, and `LARGEN_REPORT.md`.
+**Verdict:** plateau SURVIVES — `tau_abs` stays ≈123–143s and prolongation
+≈2.9–3.4x across the full N=4..1024 (256x) range, zero censoring, log-N drift
+rate c≈−0.015 (flat).
 
 ## Files
 
