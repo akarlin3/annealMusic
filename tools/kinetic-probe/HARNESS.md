@@ -94,6 +94,32 @@ plateau stays flat. The score therefore also reports the factor against the
 pooled deterministic reference (the manuscript's 3.2× convention) and the CV
 over N ∈ {8,16,32} — reported, never substituted for conditions (1)–(2).
 
+## Pre-registered secondary criterion (frozen 2026-06-10, before any CP2 input)
+
+The primary four conditions are kept verbatim for apples-to-apples comparison
+with the excluded mechanisms — but the measured system itself scores only
+PARTIAL under them (cond 2: CV 0.190; cond 3: Rayleigh p = 0.165 at N=32 and
+0.099 at N=64). A correction that passed cond 3 at *every* N would in fact be
+**wrong about the data**. So the scorer also asks, as a separate frozen
+criterion approved by the human before any theory existed: **does the
+correction reproduce the measured per-N pattern?**
+
+| # | Criterion | Threshold |
+|---|-----------|-----------|
+| S1 | per-N factor vs measured factors 3.444 / 3.158 / 3.028 / 1.984 (incl. the N=64 dip) | relative deviation ≤ **20 %** at every N |
+| S2 | breath-phase pattern as measured | Rayleigh p < 0.05 at N = 8 **and** 16; R̄(8) > R̄(64) |
+| S3 | cycle-hazard shape as measured | k_cyc 95 % CI overlaps the measured CI at every N (2.13 [1.91,2.36], 2.15 [1.92,2.40], 2.11 [1.86,2.37], 2.89 [2.55,3.24]) |
+
+Secondary verdict: `matches_measured_pattern` iff S1 ∧ S2 ∧ S3. Reported
+alongside the primary verdict; neither overrides the other. Tolerance
+rationale for S1 (fixed in advance): same-mechanism seed-replication of the
+Appendix B null reproduced committed factors to 2–26 % (worst in broad cells),
+so 20 % bounds sampling noise, while the additive null at physical amplitude
+misses the measured factors by ~70 %. Targets load from the committed
+`paper/revision-data-gated/results_mech.json` (experiment 2b "actual" rows =
+genuine finite-N Eq.-1 runs), never hand-entered. The null self-test asserts
+the additive mechanism FAILS this secondary criterion too.
+
 ## Null self-test (why you can trust a FAIL/PASS from this rig)
 
 ```

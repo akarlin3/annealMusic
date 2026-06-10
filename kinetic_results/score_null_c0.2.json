@@ -21,6 +21,128 @@
   "cond4_kcyc_gt1_all_N": true,
   "all_pass": false,
   "verdict": "fail",
+  "secondary_pattern_match": {
+    "pre_registered": "2026-06-10, before any CP2 input (human-approved)",
+    "S1": "per-N factor within 20% of measured at every N",
+    "S2": "Rayleigh p < 0.05 at N in [8, 16] and Rbar(8) > Rbar(64)",
+    "S3": "k_cyc 95% CI overlaps measured k_cyc 95% CI at every N",
+    "S1_factor_pattern": {
+      "per_N": {
+        "8": {
+          "factor": 2.183673469387755,
+          "measured": 3.4441776710684264,
+          "rel_dev": 0.36598117811083986,
+          "within_tol": false
+        },
+        "16": {
+          "factor": 1.892984542211653,
+          "measured": 3.1581450653983354,
+          "rel_dev": 0.4006024096385542,
+          "within_tol": false
+        },
+        "32": {
+          "factor": 1.5900116144018586,
+          "measured": 3.027874564459931,
+          "rel_dev": 0.4748753356348293,
+          "within_tol": false
+        },
+        "64": {
+          "factor": 0.8625,
+          "measured": 1.98359375,
+          "rel_dev": 0.5651831429696731,
+          "within_tol": false
+        }
+      },
+      "passes": false
+    },
+    "S2_phase_pattern": {
+      "per_N": {
+        "8": {
+          "rayleigh_p": 0.6599597219854684,
+          "rayleigh_Rbar": 0.06048220683355715,
+          "measured_p": 6.680299721533941e-08,
+          "measured_Rbar": 0.3105514803260527
+        },
+        "16": {
+          "rayleigh_p": 0.18595665450431031,
+          "rayleigh_Rbar": 0.12847318386163242,
+          "measured_p": 0.026810530018280137,
+          "measured_Rbar": 0.1566884230878801
+        },
+        "32": {
+          "rayleigh_p": 0.02459419470786607,
+          "rayleigh_Rbar": 0.2002221795238856,
+          "measured_p": 0.16466796133042466,
+          "measured_Rbar": 0.12015088528394718
+        },
+        "64": {
+          "rayleigh_p": 2.18426486861749e-09,
+          "rayleigh_Rbar": 0.5135944681661369,
+          "measured_p": 0.09909645914299162,
+          "measured_Rbar": 0.12666709628273784
+        }
+      },
+      "passes": false
+    },
+    "S3_kcyc_pattern": {
+      "per_N": {
+        "8": {
+          "k_cyc": 1.4002795216309964,
+          "k_cyc_ci": [
+            1.2204646763792089,
+            1.5905272671759438
+          ],
+          "measured_k_cyc": 2.1294906347327265,
+          "measured_ci": [
+            1.9057175549995489,
+            2.3619361243769466
+          ],
+          "ci_overlap": false
+        },
+        "16": {
+          "k_cyc": 1.728304076331173,
+          "k_cyc_ci": [
+            1.4905534428610774,
+            1.9820570032708862
+          ],
+          "measured_k_cyc": 2.1546976037528913,
+          "measured_ci": [
+            1.9155243791746799,
+            2.403273273484815
+          ],
+          "ci_overlap": true
+        },
+        "32": {
+          "k_cyc": 2.0083205551852377,
+          "k_cyc_ci": [
+            1.7287520776067562,
+            2.3018290394649346
+          ],
+          "measured_k_cyc": 2.1105389879106538,
+          "measured_ci": [
+            1.85890736029414,
+            2.372984451582536
+          ],
+          "ci_overlap": true
+        },
+        "64": {
+          "k_cyc": 2.6669371098481314,
+          "k_cyc_ci": [
+            2.204758740669114,
+            3.1685879103742214
+          ],
+          "measured_k_cyc": 2.88691223456861,
+          "measured_ci": [
+            2.5521667871056612,
+            3.2392174288848343
+          ],
+          "ci_overlap": true
+        }
+      },
+      "passes": false
+    },
+    "matches_measured_pattern": false
+  },
   "cells": {
     "8": {
       "n": 200,

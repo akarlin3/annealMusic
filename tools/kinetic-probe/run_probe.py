@@ -64,6 +64,12 @@ def main():
         print(f"  c1={sc['cond1_prolong_2p9_3p5']} c2={sc['cond2_cv_lt_0p15']} "
               f"c3={sc['cond3_rayleigh_all_N']} c4={sc['cond4_kcyc_gt1_all_N']} "
               f"-> {sc['verdict'].upper()}")
+        sec = sc["secondary_pattern_match"]
+        print(f"  secondary (measured-pattern, pre-registered): "
+              f"S1={sec['S1_factor_pattern']['passes']} "
+              f"S2={sec['S2_phase_pattern']['passes']} "
+              f"S3={sec['S3_kcyc_pattern']['passes']} "
+              f"-> matches={sec['matches_measured_pattern']}")
 
     print("[4/4] writing outputs ...")
     primary = scores[0] if len(scores) == 1 else {

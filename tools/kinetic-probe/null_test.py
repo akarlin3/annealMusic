@@ -130,6 +130,12 @@ def main():
         print(f"  conditions: c1={sc['cond1_prolong_2p9_3p5']} "
               f"c2={sc['cond2_cv_lt_0p15']} c3={sc['cond3_rayleigh_all_N']} "
               f"c4={sc['cond4_kcyc_gt1_all_N']} -> verdict={sc['verdict'].upper()}")
+        sec = sc["secondary_pattern_match"]
+        print(f"  secondary (measured-pattern): "
+              f"S1={sec['S1_factor_pattern']['passes']} "
+              f"S2={sec['S2_phase_pattern']['passes']} "
+              f"S3={sec['S3_kcyc_pattern']['passes']} "
+              f"-> matches={sec['matches_measured_pattern']}")
 
     print("[5/5] hard assertions (harness must reject the known-wrong mechanism)")
     sp, ss = scores[C_PHYS], scores[C_STRONG]
@@ -142,7 +148,12 @@ def main():
     r8 = ss["per_N_factor"]["8"]
     r64 = ss["per_N_factor"]["64"]
     assert r8 / r64 > 1.5, f"expected N-dependent decay of the factor, got {r8:.2f}/{r64:.2f}"
-    print("  all assertions hold: scorer FAILS the additive mechanism, "
+    assert not sp["secondary_pattern_match"]["matches_measured_pattern"], \
+        "null at physical amplitude must not match the measured pattern"
+    assert not ss["secondary_pattern_match"]["matches_measured_pattern"], \
+        "null at strong amplitude must not match the measured pattern"
+    print("  all assertions hold: scorer FAILS the additive mechanism on the "
+          "primary conditions AND the secondary measured-pattern criterion, "
           "matching the committed Appendix B exclusion")
 
     selftest = {
@@ -155,6 +166,7 @@ def main():
                                     "cond1_prolong_2p9_3p5", "cond2_cv_lt_0p15",
                                     "cond3_rayleigh_all_N", "cond4_kcyc_gt1_all_N",
                                     "all_pass", "verdict",
+                                    "secondary_pattern_match",
                                     "committed_appendixB_comparison")}
                           for c in (C_PHYS, C_STRONG)},
         "conclusion": "harness correctly FAILS the additive mechanism at both "

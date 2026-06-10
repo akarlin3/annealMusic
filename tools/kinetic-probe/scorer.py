@@ -24,6 +24,30 @@ N in {8,16,32} only, and the measured-system context (under per-N referencing
 the MEASURED factors are 3.44/3.16/3.03/1.98, CV 0.190, because the reduced
 ensemble's median crosses one extra breath cycle at N=64; see
 paper/revision-data-gated/results_mech.json "notes").
+
+SECONDARY PRE-REGISTERED CRITERION (added 2026-06-10, BEFORE any CP2 input
+exists; human-approved). The primary four conditions are the apples-to-apples
+bar the excluded mechanisms faced, but the measured system itself scores
+PARTIAL under them (cond2: CV 0.190; cond3: Rayleigh p at N=32 is 0.165 and
+at N=64 is 0.099). The scientifically right question is therefore also asked,
+as a separate, equally frozen criterion: does the correction REPRODUCE THE
+MEASURED PER-N PATTERN?
+  (S1) per-N prolongation factor within +-20% (relative) of the measured
+       per-N factor {3.444, 3.158, 3.028, 1.984} at every N — including the
+       N=64 dip. Tolerance rationale (fixed before any theory run): same-
+       mechanism seed-replication of the Appendix B null reproduced committed
+       factors to 2-26% (broad cells worst); 20% bounds sampling noise while
+       the additive null at physical amplitude misses the measured factors
+       by ~70%.
+  (S2) breath-phase pattern as measured: Rayleigh p < 0.05 at N=8 AND N=16,
+       and Rbar(N=8) > Rbar(N=64) (locking present at small N, weakening
+       with N; measured Rbar 0.311 -> 0.127, p significant only at N=8,16).
+  (S3) k_cyc 95% profile CI overlaps the MEASURED k_cyc 95% CI at every N
+       (measured: 2.13 [1.91,2.36], 2.15 [1.92,2.40], 2.11 [1.86,2.37],
+       2.89 [2.55,3.24]).
+Secondary verdict: matches_measured_pattern iff S1 and S2 and S3. Reported
+alongside the primary verdict; neither overrides the other. Targets are
+loaded from the committed results_mech.json, not hand-entered.
 """
 import json
 import sys
@@ -53,13 +77,29 @@ PROLONG_LO, PROLONG_HI = 2.9, 3.5     # condition (1)
 CV_MAX = 0.15                         # condition (2)
 RAYLEIGH_ALPHA = 0.05                 # condition (3)
 KCYC_FLOOR = 1.0                      # condition (4): CI low end must exceed
+# ---- secondary (measured-pattern) thresholds, pre-registered 2026-06-10 ----
+S1_REL_TOL = 0.20                     # per-N factor within 20% of measured
+S2_LOCKED_NS = (8, 16)                # Rayleigh p < 0.05 required at these N
+# S2 also requires Rbar(8) > Rbar(64); S3 requires k_cyc CI overlap per N
 # ----------------------------------------------------------------------------
 
-MEASURED_CONTEXT = {  # ground truth from results_mech.json (read-only context)
-    "per_N_factor": {"8": 3.4441776710684264, "16": 3.1581450653983354,
-                     "32": 3.027874564459931, "64": 1.98359375},
-    "median_factor": 3.0930098149291334,
-    "cv_factor": 0.1901232427195897,
+# Measured-system ground truth, loaded from the COMMITTED record (the 2b
+# "actual" rows are genuine finite-N Eq.-1 runs; medians match measured_context)
+_MECH = json.load(open(ROOT / "paper/revision-data-gated/results_mech.json"))
+MEASURED_CONTEXT = {
+    "per_N_factor": {str(N): _MECH["measured_context"][str(N)]["factor"]
+                     for N in NS},
+    "median_factor": _MECH["measured_context"]["median_factor"],
+    "cv_factor": _MECH["measured_context"]["cv_factor"],
+}
+MEASURED_PATTERN = {
+    str(N): {
+        "factor": _MECH["measured_context"][str(N)]["factor"],
+        "rayleigh_p": _MECH["experiment_2b"]["per_N"][str(N)]["rayleigh_p"],
+        "rayleigh_Rbar": _MECH["experiment_2b"]["per_N"][str(N)]["rayleigh_Rbar"],
+        "k_cyc": _MECH["experiment_2b"]["per_N"][str(N)]["k_cyc"],
+        "k_cyc_ci": _MECH["experiment_2b"]["per_N"][str(N)]["k_cyc_ci"],
+    } for N in NS
 }
 
 
@@ -103,6 +143,49 @@ def summarize_cell(rows, det_med):
         m_lo_min=float(min(r["m_lo"] for r in rows)),
         m_hi_max=float(max(r["m_hi"] for r in rows)),
     )
+
+
+def secondary_score(cells):
+    """Pre-registered secondary criterion: does the run set reproduce the
+    MEASURED per-N pattern? (S1)-(S3) per module docstring; thresholds frozen
+    2026-06-10 before any CP2 input. Returns the secondary block."""
+    s1_per_N, s2_per_N, s3_per_N = {}, {}, {}
+    for N in NS:
+        meas = MEASURED_PATTERN[str(N)]
+        c = cells[N]
+        rel = abs(c["prolongation"] - meas["factor"]) / meas["factor"]
+        s1_per_N[str(N)] = {"factor": c["prolongation"],
+                            "measured": meas["factor"], "rel_dev": rel,
+                            "within_tol": bool(rel <= S1_REL_TOL)}
+        s2_per_N[str(N)] = {"rayleigh_p": c["rayleigh_p"],
+                            "rayleigh_Rbar": c["rayleigh_Rbar"],
+                            "measured_p": meas["rayleigh_p"],
+                            "measured_Rbar": meas["rayleigh_Rbar"]}
+        mlo, mhi = meas["k_cyc_ci"]
+        ci = c["k_cyc_ci"]
+        overlap = bool(ci and np.isfinite(ci[0]) and ci[0] <= mhi and ci[1] >= mlo)
+        s3_per_N[str(N)] = {"k_cyc": c["k_cyc"], "k_cyc_ci": ci,
+                            "measured_k_cyc": meas["k_cyc"],
+                            "measured_ci": [mlo, mhi], "ci_overlap": overlap}
+    s1 = bool(all(v["within_tol"] for v in s1_per_N.values()))
+    s2 = bool(all(np.isfinite(cells[N]["rayleigh_p"])
+                  and cells[N]["rayleigh_p"] < RAYLEIGH_ALPHA
+                  for N in S2_LOCKED_NS)
+              and np.isfinite(cells[8]["rayleigh_Rbar"])
+              and np.isfinite(cells[64]["rayleigh_Rbar"])
+              and cells[8]["rayleigh_Rbar"] > cells[64]["rayleigh_Rbar"])
+    s3 = bool(all(v["ci_overlap"] for v in s3_per_N.values()))
+    return {
+        "pre_registered": "2026-06-10, before any CP2 input (human-approved)",
+        "S1": f"per-N factor within {S1_REL_TOL:.0%} of measured at every N",
+        "S2": f"Rayleigh p < {RAYLEIGH_ALPHA} at N in {list(S2_LOCKED_NS)} "
+              f"and Rbar(8) > Rbar(64)",
+        "S3": "k_cyc 95% CI overlaps measured k_cyc 95% CI at every N",
+        "S1_factor_pattern": {"per_N": s1_per_N, "passes": s1},
+        "S2_phase_pattern": {"per_N": s2_per_N, "passes": s2},
+        "S3_kcyc_pattern": {"per_N": s3_per_N, "passes": s3},
+        "matches_measured_pattern": bool(s1 and s2 and s3),
+    }
 
 
 def score(by_N, label, extra=None):
@@ -155,6 +238,7 @@ def score(by_N, label, extra=None):
         "cond4_kcyc_gt1_all_N": c4,
         "all_pass": all_pass,
         "verdict": verdict,
+        "secondary_pattern_match": secondary_score(cells),
         "cells": {str(N): cells[N] for N in NS},
         "deterministic_ref": {str(N): DET_MED[N] for N in NS},
         "diagnostics": diagnostics,
