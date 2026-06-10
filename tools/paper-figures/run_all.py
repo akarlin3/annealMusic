@@ -11,7 +11,8 @@ Steps:
   APP  figA.py, figB.py         appendix figures (beta=0.10 slice; noise test)
   F10  fig10_ring.py            ring summary (anneal-hazard/results/)
   F12  fig12_crosssystem.py     cross-system comparison (committed records)
-  REV  fig_corner_map.py, fig_mech_probe.py, fig_betac.py
+  REV  fig_corner_map.py, fig_mech_probe.py, fig_betac.py,
+       fig_depth_aging.py, fig_xlabel.py
                                 revision appendix figures (committed data)
   RPT  make_report.py           FIGURES_REPORT.md
 
@@ -103,6 +104,12 @@ def main():
     run([sys.executable, os.path.join(OUT, "fig_corner_map.py")])
     run([sys.executable, os.path.join(OUT, "fig_mech_probe.py")])
     run([sys.executable, os.path.join(OUT, "fig_betac.py")])
+
+    # Contribution-raising items: depth-onset reanalysis (committed corner data
+    # via tools/reduced-ode/depth_aging_fit.py) and the ring graze/absorption
+    # null (committed re-run records via tools/xlabel/run_xlabel.py).
+    run([sys.executable, os.path.join(OUT, "fig_depth_aging.py")])
+    run([sys.executable, os.path.join(OUT, "fig_xlabel.py")])
 
     # Assemble single-panel Figures 2, 4, 6, 9 from their source pipelines.
     assemble_figs()
