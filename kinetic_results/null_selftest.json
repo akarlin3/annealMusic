@@ -1,0 +1,247 @@
+{
+  "purpose": "prove the harness rejects a known-wrong mechanism (additive 1/sqrt(N) noise, Appendix B)",
+  "gates": {
+    "anchor": {
+      "medians_match_appendixB_anchors": {
+        "8": true,
+        "16": true,
+        "32": true,
+        "64": true
+      },
+      "row_recompute_worst_dev_s": 0.0,
+      "rows_checked": [
+        {
+          "N": 8,
+          "j": 0,
+          "committed": 11.8,
+          "recomputed": 11.8,
+          "dev": 0.0
+        },
+        {
+          "N": 8,
+          "j": 1,
+          "committed": 7.2,
+          "recomputed": 7.2,
+          "dev": 0.0
+        },
+        {
+          "N": 8,
+          "j": 2,
+          "committed": 113.4,
+          "recomputed": 113.4,
+          "dev": 0.0
+        },
+        {
+          "N": 16,
+          "j": 0,
+          "committed": 128.8,
+          "recomputed": 128.8,
+          "dev": 0.0
+        },
+        {
+          "N": 16,
+          "j": 1,
+          "committed": 8.3,
+          "recomputed": 8.3,
+          "dev": 0.0
+        },
+        {
+          "N": 16,
+          "j": 2,
+          "committed": 88.10000000000001,
+          "recomputed": 88.10000000000001,
+          "dev": 0.0
+        },
+        {
+          "N": 32,
+          "j": 0,
+          "committed": 41.5,
+          "recomputed": 41.5,
+          "dev": 0.0
+        },
+        {
+          "N": 32,
+          "j": 1,
+          "committed": 8.8,
+          "recomputed": 8.8,
+          "dev": 0.0
+        },
+        {
+          "N": 32,
+          "j": 2,
+          "committed": 41.6,
+          "recomputed": 41.6,
+          "dev": 0.0
+        },
+        {
+          "N": 64,
+          "j": 0,
+          "committed": 86.4,
+          "recomputed": 86.4,
+          "dev": 0.0
+        },
+        {
+          "N": 64,
+          "j": 1,
+          "committed": 39.400000000000006,
+          "recomputed": 39.400000000000006,
+          "dev": 0.0
+        },
+        {
+          "N": 64,
+          "j": 2,
+          "committed": 87.4,
+          "recomputed": 87.4,
+          "dev": 0.0
+        }
+      ]
+    },
+    "zero_corr": {
+      "8": {
+        "median_rel": 0.0022923908388442996,
+        "n": 200,
+        "passes": true
+      },
+      "16": {
+        "median_rel": 0.0025252686286388777,
+        "n": 200,
+        "passes": true
+      },
+      "32": {
+        "median_rel": 0.002534858317804996,
+        "n": 200,
+        "passes": true
+      },
+      "64": {
+        "median_rel": 0.002422003284072199,
+        "n": 200,
+        "passes": true
+      }
+    },
+    "bit_equivalence_vs_em_core": [
+      {
+        "N": 8,
+        "seed": 12345,
+        "em_core_t": 10.0,
+        "harness_t": 10.0,
+        "bit_identical": true
+      },
+      {
+        "N": 8,
+        "seed": 54321,
+        "em_core_t": 13.200000000000001,
+        "harness_t": 13.200000000000001,
+        "bit_identical": true
+      },
+      {
+        "N": 8,
+        "seed": 99999,
+        "em_core_t": 13.8,
+        "harness_t": 13.8,
+        "bit_identical": true
+      },
+      {
+        "N": 64,
+        "seed": 12345,
+        "em_core_t": 62.1,
+        "harness_t": 62.1,
+        "bit_identical": true
+      },
+      {
+        "N": 64,
+        "seed": 54321,
+        "em_core_t": 60.7,
+        "harness_t": 60.7,
+        "bit_identical": true
+      },
+      {
+        "N": 64,
+        "seed": 99999,
+        "em_core_t": 85.4,
+        "harness_t": 85.4,
+        "bit_identical": true
+      }
+    ]
+  },
+  "null_verdicts": {
+    "0.05": {
+      "per_N_factor": {
+        "8": 0.921968787515006,
+        "16": 0.9928656361474434,
+        "32": 0.9721254355400698,
+        "64": 0.85859375
+      },
+      "median_factor": 0.9470471115275378,
+      "cv_factor": 0.055302910874857225,
+      "cond1_prolong_2p9_3p5": false,
+      "cond2_cv_lt_0p15": true,
+      "cond3_rayleigh_all_N": true,
+      "cond4_kcyc_gt1_all_N": true,
+      "all_pass": false,
+      "verdict": "fail",
+      "committed_appendixB_comparison": {
+        "8": {
+          "harness_factor": 0.921968787515006,
+          "committed_appendixB": 0.9723889555822327,
+          "rel_dev": 0.05185185185185168
+        },
+        "16": {
+          "harness_factor": 0.9928656361474434,
+          "committed_appendixB": 0.9667063020214032,
+          "rel_dev": 0.027060270602705803
+        },
+        "32": {
+          "harness_factor": 0.9721254355400698,
+          "committed_appendixB": 0.994192799070848,
+          "rel_dev": 0.022196261682243028
+        },
+        "64": {
+          "harness_factor": 0.85859375,
+          "committed_appendixB": 0.71640625,
+          "rel_dev": 0.19847328244274812
+        }
+      }
+    },
+    "0.2": {
+      "per_N_factor": {
+        "8": 2.183673469387755,
+        "16": 1.892984542211653,
+        "32": 1.5900116144018586,
+        "64": 0.8625
+      },
+      "median_factor": 1.7414980783067557,
+      "cv_factor": 0.30111968875462003,
+      "cond1_prolong_2p9_3p5": false,
+      "cond2_cv_lt_0p15": false,
+      "cond3_rayleigh_all_N": false,
+      "cond4_kcyc_gt1_all_N": true,
+      "all_pass": false,
+      "verdict": "fail",
+      "committed_appendixB_comparison": {
+        "8": {
+          "harness_factor": 2.183673469387755,
+          "committed_appendixB": 2.3625450180072027,
+          "rel_dev": 0.07571138211382109
+        },
+        "16": {
+          "harness_factor": 1.892984542211653,
+          "committed_appendixB": 1.8596908442330558,
+          "rel_dev": 0.01790281329923287
+        },
+        "32": {
+          "harness_factor": 1.5900116144018586,
+          "committed_appendixB": 1.3031358885017423,
+          "rel_dev": 0.2201426024955437
+        },
+        "64": {
+          "harness_factor": 0.8625,
+          "committed_appendixB": 0.6820312500000001,
+          "rel_dev": 0.26460481099656347
+        }
+      }
+    }
+  },
+  "conclusion": "harness correctly FAILS the additive mechanism at both the physical and 4x amplitudes; N-independence rejection confirmed at c=0.2",
+  "runtime_s": 131.89052987098694,
+  "command": "python3 tools/kinetic-probe/null_test.py"
+}
