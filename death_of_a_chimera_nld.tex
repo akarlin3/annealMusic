@@ -715,10 +715,22 @@ $|\Delta\phi_0|$ positive at every $N$).}
 
 \section{Chimera collapse on the nonlocal ring}\label{sec:ring}
 
+The mean-field system entered this study as an instrument, not as a choice of
+substrate: a deployed synthesizer, run unattended for durations no deliberate
+numerical campaign would have scheduled, is what exposed the metric flaw --- a
+collapse detector that fires on grazes the chimera survives
+(Sec.~\ref{sec:graze}) --- and every corrected measurement since has been made
+on that one instrument. The physics recovered after the correction, an aging
+hazard with size-independent lifetimes, is therefore so far a fact about one
+coupling topology. The ring enters in a different role: not as where the
+phenomenon happened to live, but as the canonical substrate on which the aging
+must be re-measured to establish whether it decouples from the all-to-all
+topology that hosted its discovery.
+
 \subsection{Why the ring, and where on it}
 
 The mean-field system showed aging without lifetime growth; is either property an
-artifact of the all-to-all topology? The nonlocally coupled ring of
+artifact of that topology? The nonlocally coupled ring of
 Eq.~(\ref{eq:ring}) is the system in which finite-size chimera transience was
 first quantified: in the deep-stable regime its chimeras are chaotic transients
 whose lifetimes grow rapidly with oscillator count~\cite{wo2011}. That regime is
@@ -1019,6 +1031,38 @@ flow does not possess. We report the mechanism's location as measured and leave
 its theory open; the rising-hazard (aging-in-cycles) structure and the
 breath-locked phase distribution remain sharp constraints any such theory must
 satisfy.
+
+\textbf{A constrained hypothesis for the prolongation.} The nulls above localize
+the missing mechanism tightly enough that one concrete hypothesis is worth
+stating --- strictly as a hypothesis, to fix the target for analytic work. The
+prolongation accrues in the fluctuation-induced recoveries between the first
+sustained $\theta$-crossing and absorption, i.e.\ in the slow passages near the
+saddle where exit from the ghost region is decided. We conjecture that finite-$N$
+sampling of the on-manifold flow acts there as a fluctuation-induced drift:
+integrated over the long residence near the saddle, the sampling fluctuations
+systematically displace the trajectory off the deterministic exit path, returning
+it to the spiral for additional whole breath cycles rather than letting it
+absorb. This one mechanism would carry the right signatures: re-injection in
+integer breath cycles preserves the breath-locked death phases and the
+aging-in-cycles hazard (the ratchet keeps its clock; only the cycle count
+changes), and a missed-exit probability set by the local saddle geometry weakens
+with depth beyond the homoclinic, as observed at $A = 0.5$. The hard constraint
+is the $N$-independence: instantaneous sampling fluctuations scale as
+$1/\sqrt N$, so the hypothesis requires the displacement accumulated per saddle
+passage to stay $N$-flat --- a compensation between shrinking amplitude and the
+growing time a quieter trajectory lingers near the saddle, of the kind familiar
+from the logarithmic noise-sensitivity of exit times near saddles. Whether that
+compensation is exact enough to hold over a $16\times$ range of $N$, and at what
+$N$ it must eventually fail (the hypothesis predicts the factor decays toward one
+once the sampling amplitude drops below the scale of the exit channel), is
+precisely what an analytic treatment would decide. The target is therefore
+definite: a Fokker--Planck (equivalently, backward-Kolmogorov first-passage)
+analysis of the three-variable reduced flow, with the state-dependent diffusion
+inherited from finite-$N$ sampling on the Poisson submanifold, evaluated in the
+saddle region, must produce a per-cycle missed-exit probability that is flat in
+$N$ at the operating corner, falls with depth, and is consistent with the rising
+hazard --- or the hypothesis fails. We advance it as exactly that: a constrained
+hypothesis to guide the derivation, not a result.
 
 \textbf{Topology: aging transfers, scaling does not.} On nonlocally coupled rings
 in the deep-stable regime, finite-size chimeras are chaotic transients with
