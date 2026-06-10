@@ -10,6 +10,7 @@ Steps:
        fig7.py                  plot Figure 7 + caption
   APP  figA.py, figB.py         appendix figures (beta=0.10 slice; noise test)
   F10  fig10_ring.py            ring summary (anneal-hazard/results/)
+  F12  fig12_crosssystem.py     cross-system comparison (committed records)
   REV  fig_corner_map.py, fig_mech_probe.py, fig_betac.py
                                 revision appendix figures (committed data)
   RPT  make_report.py           FIGURES_REPORT.md
@@ -89,6 +90,10 @@ def main():
 
     # Ring summary figure (reads anneal-hazard/results/).
     run([sys.executable, os.path.join(HERE, "fig10_ring.py")])
+
+    # Cross-system comparison (Fig. 12): mean-field plateau vs ring scaling and
+    # the Weibull shapes of both campaigns, from committed run records and fits.
+    run([sys.executable, os.path.join(OUT, "fig12_crosssystem.py")])
 
     # Revision appendix figures: corner-generality map, mechanism probe, and
     # ring existence-boundary measurement. Each plots from committed data; the
