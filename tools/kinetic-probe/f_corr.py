@@ -42,6 +42,12 @@ F_CORR_META = {
     "derivation_reference": None,
     "theory_fixed_coefficients": None,
     "undetermined_coefficients": None,  # {"name": [lo, hi]} if any
+    # CP2 basis decision (human, 2026-06-10): the derivation will follow the
+    # Tyulkina-Goldobin-Klimenko-Pikovsky circular-cumulant route
+    # (PRL 120, 264101 (2018)). Basis chosen != body supplied: the
+    # system-specific closure choices and coefficients are still pending
+    # human input. See CP2_TGKP_WORKSHEET.md for the open slots.
+    "basis_chosen": "TGKP circular-cumulant (human decision 2026-06-10)",
 }
 
 _ZERO3 = np.zeros(3)
